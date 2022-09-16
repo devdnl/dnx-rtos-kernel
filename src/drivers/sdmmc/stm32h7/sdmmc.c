@@ -30,7 +30,6 @@ Brief   SD/MMC/eMMC Card Driver.
 ==============================================================================*/
 #include "drivers/driver.h"
 #include "stm32h7/dma_ddi.h"
-#include "sys/ioctl.h"
 #include "../sdmmc_ioctl.h"
 #include "stm32h7xx_hal_sdmmc.h"
 #include "stm32h7xx_hal_sd.h"
@@ -474,7 +473,7 @@ API_MOD_IOCTL(SDMMC, void *device_handle, int request, void *arg)
         int err = EBADRQC;
 
         switch (request) {
-        case IOCTL_SDIO__INITIALIZE_CARD:
+        case IOCTL_SDMMC__INITIALIZE_CARD:
                 err = sys_mutex_lock(hdl->mtx, _MAX_DELAY_MS);
                 if (!err) {
                         err = card_initialize(hdl);
