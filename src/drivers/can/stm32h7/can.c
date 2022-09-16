@@ -1017,7 +1017,7 @@ static int send_msg(CAN_t *hdl, const CAN_msg_t *msg, u32_t timeout_ms)
                                         } else {
                                                 dev_dbg(hdl, "aborting message in buffer %lu", i);
                                                 HAL_FDCAN_AbortTxRequest(&hdl->hfdcan, buffer_index);
-                                                sys_queue_receive(hdl->txrdy_q[i], &erri, MAX_DELAY_MS);
+                                                sys_queue_receive(hdl->txrdy_q[i], &erri, _MAX_DELAY_MS);
                                         }
 
                                 }

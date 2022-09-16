@@ -484,7 +484,7 @@ API_MOD_STAT(ETH, void *device_handle, struct vfs_dev_stat *device_stat)
 //==============================================================================
 static int eth_start(struct eth *hdl)
 {
-        int err = sys_mutex_lock(hdl->mutex, MAX_DELAY_MS);
+        int err = sys_mutex_lock(hdl->mutex, _MAX_DELAY_MS);
         if (!err) {
                 if (not hdl->run and hdl->configured) {
 
