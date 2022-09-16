@@ -2688,7 +2688,7 @@
 			};
 			[94]={
 				["key"]="__NETWORK_TCPIP_THREAD_STACKSIZE__";
-				["value"]="STACK_DEPTH_LOW";
+				["value"]="_STACK_DEPTH_LOW";
 			};
 			[95]={
 				["key"]="__NETWORK_TCPIP_THREAD_PRIO__";
@@ -2704,7 +2704,7 @@
 			};
 			[98]={
 				["key"]="__NETWORK_SLIPIF_THREAD_STACKSIZE__";
-				["value"]="STACK_DEPTH_LOW";
+				["value"]="_STACK_DEPTH_LOW";
 			};
 			[99]={
 				["key"]="__NETWORK_SLIPIF_THREAD_PRIO__";
@@ -2716,7 +2716,7 @@
 			};
 			[101]={
 				["key"]="__NETWORK_DEFAULT_THREAD_STACKSIZE__";
-				["value"]="STACK_DEPTH_LOW";
+				["value"]="_STACK_DEPTH_LOW";
 			};
 			[102]={
 				["key"]="__NETWORK_DEFAULT_THREAD_PRIO__";

@@ -34,8 +34,8 @@ The library provides string manipulation functions.
 @{
 */
 
-#ifndef _STRING_H_
-#define _STRING_H_
+#ifndef _DNX_STRING_H_
+#define _DNX_STRING_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -800,7 +800,7 @@ extern int strncasecmp(const char *s1, const char *s2, size_t n);
 }
 #endif
 
-#endif /* _STRING_H_ */
+#endif /* _DNX_STRING_H_ */
 /**@}*/
 /*==============================================================================
   End of file

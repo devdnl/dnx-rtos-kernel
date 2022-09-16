@@ -115,7 +115,7 @@ __CPU_ARCH__=stm32f1
 # this:AddWidget("Editline", false, "Appset address")
 # this:SetToolTip("Address to appset table.\nThe UINT32_MAX (or 0xFFFFFFFF) value means that application table is localized just after OS section.")
 #--*/
-#define __PROJ_APPSET_TABLE_ADDRESS__ UINT32_MAX
+#define __PROJ_APPSET_TABLE_ADDRESS__ 0x08010000
 
 #endif /* _PROJECT_FLAGS_H_ */
 #/*=============================================================================

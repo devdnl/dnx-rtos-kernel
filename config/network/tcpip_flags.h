@@ -790,17 +790,17 @@ this:SetToolTip("TCPIP_THREAD_NAME: The name assigned to the main tcpip thread."
 #define __NETWORK_TCPIP_THREAD_NAME__ "tcpipd"
 /*--
 this:AddWidget("Combobox", "TCPIP_THREAD_STACKSIZE")
-this:AddItem("Low stack size", "STACK_DEPTH_LOW")
-this:AddItem("Medium stack size", "STACK_DEPTH_MEDIUM")
-this:AddItem("Large stack size", "STACK_DEPTH_LARGE")
-this:AddItem("Very large stack size", "STACK_DEPTH_VERY_LARGE")
-this:AddItem("Huge stack size", "STACK_DEPTH_HUGE")
-this:AddItem("Very huge stack size", "STACK_DEPTH_VERY_HUGE")
+this:AddItem("Low stack size", "_STACK_DEPTH_LOW")
+this:AddItem("Medium stack size", "_STACK_DEPTH_MEDIUM")
+this:AddItem("Large stack size", "_STACK_DEPTH_LARGE")
+this:AddItem("Very large stack size", "_STACK_DEPTH_VERY_LARGE")
+this:AddItem("Huge stack size", "_STACK_DEPTH_HUGE")
+this:AddItem("Very huge stack size", "_STACK_DEPTH_VERY_HUGE")
 this:SetToolTip("TCPIP_THREAD_STACKSIZE: The stack size used by the main tcpip thread.\n"..
                 "The stack size value itself is platform-dependent, but is passed to\n"..
                 "sys_thread_new() when the thread is created.")
 --*/
-#define __NETWORK_TCPIP_THREAD_STACKSIZE__ STACK_DEPTH_LOW
+#define __NETWORK_TCPIP_THREAD_STACKSIZE__ _STACK_DEPTH_LOW
 /*--
 this:AddWidget("Spinbox", -128, 127, "TCPIP_THREAD_PRIO")
 this:SetToolTip("TCPIP_THREAD_PRIO: The priority assigned to the main tcpip thread.\n"..
@@ -822,17 +822,17 @@ this:SetToolTip("SLIPIF_THREAD_NAME: The name assigned to the slipif_loop thread
 #define __NETWORK_SLIPIF_THREAD_NAME__ "slipifd"
 /*--
 this:AddWidget("Combobox", "SLIPIF_THREAD_STACKSIZE")
-this:AddItem("Low stack size", "STACK_DEPTH_LOW")
-this:AddItem("Medium stack size", "STACK_DEPTH_MEDIUM")
-this:AddItem("Large stack size", "STACK_DEPTH_LARGE")
-this:AddItem("Very large stack size", "STACK_DEPTH_VERY_LARGE")
-this:AddItem("Huge stack size", "STACK_DEPTH_HUGE")
-this:AddItem("Very huge stack size", "STACK_DEPTH_VERY_HUGE")
+this:AddItem("Low stack size", "_STACK_DEPTH_LOW")
+this:AddItem("Medium stack size", "_STACK_DEPTH_MEDIUM")
+this:AddItem("Large stack size", "_STACK_DEPTH_LARGE")
+this:AddItem("Very large stack size", "_STACK_DEPTH_VERY_LARGE")
+this:AddItem("Huge stack size", "_STACK_DEPTH_HUGE")
+this:AddItem("Very huge stack size", "_STACK_DEPTH_VERY_HUGE")
 this:SetToolTip("SLIPIF_THREAD_STACKSIZE: The stack size used by the main tcpip thread.\n"..
                 "The stack size value itself is platform-dependent, but is passed to\n"..
                 "sys_thread_new() when the thread is created.")
 --*/
-#define __NETWORK_SLIPIF_THREAD_STACKSIZE__ STACK_DEPTH_LOW
+#define __NETWORK_SLIPIF_THREAD_STACKSIZE__ _STACK_DEPTH_LOW
 /*--
 this:AddWidget("Spinbox", -128, 127, "SLIPIF_THREAD_PRIO")
 this:SetToolTip("SLIPIF_THREAD_PRIO: The priority assigned to the main tcpip thread.\n"..
@@ -847,17 +847,17 @@ this:SetToolTip("DEFAULT_THREAD_NAME: The name assigned to any other lwIP thread
 #define __NETWORK_DEFAULT_THREAD_NAME__ "lwipd"
 /*--
 this:AddWidget("Combobox", "DEFAULT_THREAD_STACKSIZE")
-this:AddItem("Low stack size", "STACK_DEPTH_LOW")
-this:AddItem("Medium stack size", "STACK_DEPTH_MEDIUM")
-this:AddItem("Large stack size", "STACK_DEPTH_LARGE")
-this:AddItem("Very large stack size", "STACK_DEPTH_VERY_LARGE")
-this:AddItem("Huge stack size", "STACK_DEPTH_HUGE")
-this:AddItem("Very huge stack size", "STACK_DEPTH_VERY_HUGE")
+this:AddItem("Low stack size", "_STACK_DEPTH_LOW")
+this:AddItem("Medium stack size", "_STACK_DEPTH_MEDIUM")
+this:AddItem("Large stack size", "_STACK_DEPTH_LARGE")
+this:AddItem("Very large stack size", "_STACK_DEPTH_VERY_LARGE")
+this:AddItem("Huge stack size", "_STACK_DEPTH_HUGE")
+this:AddItem("Very huge stack size", "_STACK_DEPTH_VERY_HUGE")
 this:SetToolTip("DEFAULT_THREAD_STACKSIZE: The stack size used by the main tcpip thread.\n"..
                 "The stack size value itself is platform-dependent, but is passed to\n"..
                 "sys_thread_new() when the thread is created.")
 --*/
-#define __NETWORK_DEFAULT_THREAD_STACKSIZE__ STACK_DEPTH_LOW
+#define __NETWORK_DEFAULT_THREAD_STACKSIZE__ _STACK_DEPTH_LOW
 /*--
 this:AddWidget("Spinbox", -128, 127, "DEFAULT_THREAD_PRIO")
 this:SetToolTip("DEFAULT_THREAD_PRIO: The priority assigned to the main tcpip thread.\n"..

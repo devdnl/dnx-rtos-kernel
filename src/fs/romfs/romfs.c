@@ -40,12 +40,13 @@ Brief   ROM File System
 ==============================================================================*/
 typedef struct {
         ksem_t *openfiles;
+        const romfs_header_t *romfs_header;
 } romfs_t;
 
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static int get_entry(const char *path, const romfs_entry_t **entry);
+static int get_entry(romfs_t *hdl, const char *path, const romfs_entry_t **entry);
 
 /*==============================================================================
   Local objects
@@ -54,9 +55,6 @@ static int get_entry(const char *path, const romfs_entry_t **entry);
 /*==============================================================================
   Exported objects
 ==============================================================================*/
-extern const romfs_dir_t romfsdir_root;
-extern const size_t romfs_total_size;
-extern const size_t romfs_files;
 
 /*==============================================================================
   External objects
@@ -79,13 +77,29 @@ extern const size_t romfs_files;
 //==============================================================================
 API_FS_INIT(romfs, void **fs_handle, const char *src_path, const char *opts)
 {
-        UNUSED_ARG2(src_path, opts);
+        UNUSED_ARG1(opts);
 
         int err = sys_zalloc(sizeof(romfs_t), fs_handle);
         if (!err) {
                 romfs_t *hdl = *fs_handle;
 
-                err = sys_semaphore_create(65536, 0, &hdl->openfiles);
+                if  (src_path[0] == '/' and src_path[1] == '@') {
+                        src_path += 2;
+
+                        i32_t ptr = 0;
+                        sys_strtoi(src_path, 0, &ptr);
+
+                        hdl->romfs_header = cast(void*, ptr);
+                }
+
+                if (not hdl->romfs_header or (hdl->romfs_header->magic != ROMFS_MAGIC)) {
+                        err = EINVAL;
+                }
+
+                if (not err) {
+                        err = sys_semaphore_create(UINT16_MAX, 0, &hdl->openfiles);
+                }
+
                 if (err) {
                         sys_free(fs_handle);
                 }
@@ -148,7 +162,7 @@ API_FS_OPEN(romfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
 
         const romfs_entry_t *entry = NULL;
 
-        int err = get_entry(path, &entry);
+        int err = get_entry(hdl, path, &entry);
         if (!err) {
                 if (entry->type == ROMFS_FILE_TYPE__FILE) {
                         *fhdl = cast(void*, entry);
@@ -338,11 +352,13 @@ API_FS_FSTAT(romfs, void *fs_handle, void *fhdl, struct stat *stat)
 //==============================================================================
 API_FS_STAT(romfs, void *fs_handle, const char *path, struct stat *stat)
 {
+        romfs_t *hdl = fs_handle;
+
         const romfs_entry_t *entry = NULL;
 
-        int err = get_entry(path, &entry);
+        int err = get_entry(hdl, path, &entry);
         if (!err) {
-                err = _romfs_fstat(fs_handle, const_cast(entry), stat);
+                err = _romfs_fstat(hdl, const_cast(entry), stat);
         }
 
         return err;
@@ -360,13 +376,13 @@ API_FS_STAT(romfs, void *fs_handle, const char *path, struct stat *stat)
 //==============================================================================
 API_FS_STATFS(romfs, void *fs_handle, struct statfs *statfs)
 {
-        UNUSED_ARG1(fs_handle);
+        romfs_t *hdl = fs_handle;
 
         statfs->f_bsize  = 1;
-        statfs->f_blocks = romfs_total_size;
+        statfs->f_blocks = hdl->romfs_header->total_size;
         statfs->f_bfree  = 0;
         statfs->f_ffree  = 0;
-        statfs->f_files  = romfs_files;
+        statfs->f_files  = hdl->romfs_header->total_files;
         statfs->f_type   = SYS_FS_TYPE__SOLID;
         statfs->f_fsname = "romfs";
 
@@ -441,7 +457,7 @@ API_FS_OPENDIR(romfs, void *fs_handle, const char *path, kdir_t *dir)
 
         const romfs_entry_t *entry = NULL;
 
-        int err = get_entry(path, &entry);
+        int err = get_entry(hdl, path, &entry);
         if (!err) {
                 if (entry->type == ROMFS_FILE_TYPE__DIR) {
                         dir->d_hdl   = const_cast(entry->data);
@@ -600,18 +616,19 @@ API_FS_SYNC(romfs, void *fs_handle)
 /**
  * @brief Search entry by path.
  *
+ * @param  hdl          file system handle
  * @param  path         path
  * @param  entry        path related entry
  *
  * @return One of errno value.
  */
 //==============================================================================
-static int get_entry(const char *path, const romfs_entry_t **entry)
+static int get_entry(romfs_t *hdl, const char *path, const romfs_entry_t **entry)
 {
-        static const romfs_entry_t root = {
+        const romfs_entry_t root = {
                 .type = ROMFS_FILE_TYPE__DIR,
                 .size = NULL,
-                .data = &romfsdir_root,
+                .data = hdl->romfs_header->root_dir,
                 .name = "/"
         };
 
@@ -624,7 +641,7 @@ static int get_entry(const char *path, const romfs_entry_t **entry)
         } else {
                 path++;
 
-                const romfs_dir_t   *dir = &romfsdir_root;
+                const romfs_dir_t   *dir = hdl->romfs_header->root_dir;
                 const romfs_entry_t *ent = NULL;
                 bool               found = false;
 

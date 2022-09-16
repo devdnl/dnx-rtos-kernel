@@ -48,6 +48,7 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
+#define ROMFS_MAGIC 0xb2b105b3
 
 /*==============================================================================
   Exported object types
@@ -69,6 +70,13 @@ typedef struct {
         size_t items;
         romfs_entry_t entry[];
 } romfs_dir_t;
+
+typedef struct {
+        uint32_t magic;
+        romfs_dir_t *root_dir;
+        size_t total_size;
+        size_t total_files;
+} romfs_header_t;
 
 /*==============================================================================
   Exported objects

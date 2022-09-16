@@ -33,7 +33,6 @@
 #define _CC_H_
 
 #include "lib/sys/types.h"
-#include <sys/time.h>
 #include "kernel/printk.h"
 #include "cpuctl.h"
 
