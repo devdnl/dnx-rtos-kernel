@@ -281,7 +281,7 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
                         proc->taskdata[0].stack_size  = *proc->pdata->stack_depth + _STACK_DEPTH_MINIMAL;
                         proc->taskdata[0].kernelspace = (proc->flag & FLAG_KWORKER);
                         proc->taskdata[0].id = 0;
-                        proc->taskdata[0].syscalls_per_sec = NO_SYSCALL;
+                        proc->taskdata[0].syscalls_per_sec = 0;
 
                         task_args->func = proc->pdata->main;
                         task_args->proc = proc;
@@ -291,7 +291,7 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
 
                         err = _task_create(process_code,
                                            proc->pdata->name,
-                                           *proc->pdata->stack_depth + _STACK_DEPTH_MINIMAL,
+                                           proc->taskdata[0].stack_size,
                                            task_args,
                                            &proc->taskdata[0].task);
                         if (!err) {
@@ -1489,10 +1489,13 @@ bool _process_is_consistent(void)
                         sanity_ok = (strnlen(p->pdata->name, 256) < 256);
                         if (!sanity_ok) goto end;
 
-                        sanity_ok = (p->pdata->stack_depth != 0);
+                        sanity_ok = (p->pdata->stack_depth != NULL);
                         if (!sanity_ok) goto end;
 
-                        sanity_ok = _mm_is_rom_address(p->pdata->main);
+                        sanity_ok = (*p->pdata->stack_depth != 0);
+                        if (!sanity_ok) goto end;
+
+                        sanity_ok = not _mm_is_object_in_heap(p->pdata->main);
                         if (!sanity_ok) goto end;
 
                         res_header_t *flag = (void*)p->event;
@@ -2636,7 +2639,7 @@ const _program_table_desc_t *_get_programs_table(void)
 //==============================================================================
 static int find_program(const char *name, const _program_entry_t **prog)
 {
-        static const size_t kworker_stack_depth  = 0;
+        static const size_t kworker_stack_depth  = 1;
 
         static const size_t kworker_globals_size = 0;
 
