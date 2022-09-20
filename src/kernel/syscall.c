@@ -3416,7 +3416,7 @@ static int syscall_threadjoin(syscallrq_t *rq)
         if ((*tid > 0) and (*tid < __OS_TASK_MAX_USER_THREADS__)) {
 
                 kflag_t *flag;
-                int err = _process_get_event_flags(rq->client_proc, &flag);
+                err = _process_get_event_flags(rq->client_proc, &flag);
                 if (not err) {
                         const u32_t mask = _PROCESS_EXIT_FLAG(*tid);
                         err = _flag_wait(flag, mask, *timeout);
