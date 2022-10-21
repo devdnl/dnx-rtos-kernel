@@ -580,7 +580,6 @@ API_FS_WRITE(flatfs,
                                         }
 
                                         if (!err) {
-                                                *wrctr += bytes;
                                                 zeros -= bytes;
                                                 wrpos += bytes;
                                                 block_address++;

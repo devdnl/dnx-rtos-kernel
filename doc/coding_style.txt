@@ -1,5 +1,2 @@
-Please, take a look to the file:
- 
-   https://www.kernel.org/doc/Documentation/CodingStyle
-   
-to obtain more information about coding style of the dnx RTOS.
+Coding style is determined by clang-format file localized at project's root directory.
+You can use "clang-format -i <file>" command to apply coding style to file.
