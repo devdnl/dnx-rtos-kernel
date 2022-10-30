@@ -1005,7 +1005,7 @@ static int syscall_close(syscallrq_t *rq)
 
                 pid_t pid = 0;
                 _process_get_pid(GETPROCESS(), &pid);
-                printk("fd close: PID %d: descriptor %d not exists!\n",
+                printk("fd close: PID %d: descriptor %d not exists!",
                        pid, *desc);
         }
 
@@ -1371,7 +1371,7 @@ static int syscall_free(syscallrq_t *rq)
 
                 pid_t pid = 0;
                 _process_get_pid(GETPROCESS(), &pid);
-                _process_kill(pid);
+                _process_suicide();
         }
 
         return err;

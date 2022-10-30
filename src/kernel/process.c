@@ -407,6 +407,43 @@ int _process_kill(pid_t pid)
 
 //==============================================================================
 /**
+ * Kill selected process. Kill moves process to the process destroy list. There
+ * are releases resources used by process.
+ *
+ * @param  pid          process ID
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+void _process_suicide(void)
+{
+        _process_t *suicide_proc;
+        _task_get_process_container(_THIS_TASK, &suicide_proc, NULL);
+
+        ATOMIC(process_mtx) {
+                foreach_process(proc, active_process_list) {
+
+                        if (proc->pid == suicide_proc->pid) {
+                                if (proc->event) {
+                                        _flag_set(proc->event, _PROCESS_EXIT_FLAG(0));
+                                }
+
+                                destroy_all_tasks(proc, false);
+
+                                process_move_list(proc,
+                                                  &active_process_list,
+                                                  &destroy_process_list);
+                                break;
+                        }
+                }
+        }
+
+        _task_suspend(NULL);
+        while (true);
+}
+
+//==============================================================================
+/**
  * Function remove zombie process.
  *
  * @param  proc         zombie process object

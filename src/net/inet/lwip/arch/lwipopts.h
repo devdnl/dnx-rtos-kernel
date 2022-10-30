@@ -1572,6 +1572,11 @@
 #define DEFAULT_TCP_RECVMBOX_SIZE       __NETWORK_DEFAULT_TCP_RECVMBOX_SIZE__
 
 /**
+ * TCP_TMR_INTERVAL: The TCP thread check interval. Default value is 250 ms.
+ */
+#define TCP_TMR_INTERVAL                __NETWORK_DEFAULT_TCP_TIMER_INTERVAL__
+
+/**
  * DEFAULT_ACCEPTMBOX_SIZE: The mailbox size for the incoming connections.
  * The queue size value itself is platform-dependent, but is passed to
  * sys_mbox_new() when the acceptmbox is created.

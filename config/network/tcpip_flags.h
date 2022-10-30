@@ -887,6 +887,12 @@ this:SetToolTip("DEFAULT_TCP_RECVMBOX_SIZE: The mailbox size for the incoming pa
 --*/
 #define __NETWORK_DEFAULT_TCP_RECVMBOX_SIZE__ 8
 /*--
+this:AddWidget("Spinbox", 5, 1000, "TCP_TMR_INTERVAL")
+this:SetToolTip("TCP_TMR_INTERVAL: The TCP thread check interval in milliseconds.\n"..
+                "The default value is 250 ms.")
+--*/
+#define __NETWORK_DEFAULT_TCP_TIMER_INTERVAL__ 250
+/*--
 this:AddWidget("Spinbox", 1, 128, "ACCEPTMBOX_SIZE")
 this:SetToolTip("DEFAULT_ACCEPTMBOX_SIZE: The mailbox size for the incoming connections.\n"..
                 "The queue size value itself is platform-dependent, but is passed to\n"..
