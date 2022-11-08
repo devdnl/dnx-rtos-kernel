@@ -194,6 +194,7 @@ typedef enum {
         SYSCALL_SCHEDULERUNLOCK,        // int errno (void)
         SYSCALL_THREADJOIN,             // int errno (const tid_t *tid , int *status, const uint32_t *timeout)
         SYSCALL_ISHEAPADDR,             // int errno (const void *addr)
+        SYSCALL_CACHEFLUSH,             // int errno (void)
         _SYSCALL_COUNT,
 } syscall_t;
 
@@ -328,6 +329,7 @@ static int syscall_schedulerlock(syscallrq_t *rq);
 static int syscall_schedulerunlock(syscallrq_t *rq);
 static int syscall_threadjoin(syscallrq_t *rq);
 static int syscall_isheapaddr(syscallrq_t *rq);
+static int syscall_cacheflush(syscallrq_t *rq);
 
 /*==============================================================================
   Local objects
@@ -452,6 +454,7 @@ static const syscallfunc_t syscalltab[] = {
         [SYSCALL_SCHEDULERUNLOCK] = syscall_schedulerunlock,
         [SYSCALL_THREADJOIN] = syscall_threadjoin,
         [SYSCALL_ISHEAPADDR] = syscall_isheapaddr,
+        [SYSCALL_CACHEFLUSH] = syscall_cacheflush,
 };
 
 /*==============================================================================
@@ -3449,6 +3452,24 @@ static int syscall_isheapaddr(syscallrq_t *rq)
         } else {
                 return ENOENT;
         }
+}
+
+//==============================================================================
+/**
+ * @brief  This syscall flush CPU cache.
+ *
+ * @param  rq                   syscall request
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int syscall_cacheflush(syscallrq_t *rq)
+{
+        UNUSED_ARG1(rq);
+
+        _cpuctl_clean_dcache();
+
+        return 0;
 }
 
 /*==============================================================================

@@ -603,7 +603,7 @@ static int card_write_blocks_DMA(SDMMC_t *hdl, const u8_t *src, uint32_t block_a
 {
         int err = EFAULT;
 
-        bool mem_dma = sys_is_mem_dma_capable(src);
+        bool mem_dma = sys_is_mem_dma_capable(src) && (((uintptr_t)src % _HEAP_ALIGN_) == 0);
 
         if (mem_dma) {
                 _cpuctl_clean_invalidate_dcache_by_addr(const_cast(src), blocks * BLOCKSIZE);
@@ -715,7 +715,7 @@ static int card_read_blocks_DMA(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
 {
         int err = EFAULT;
 
-        bool mem_dma = sys_is_mem_dma_capable(dst);
+        bool mem_dma = sys_is_mem_dma_capable(dst) && (((uintptr_t)dst % _HEAP_ALIGN_) == 0);
 
         if (mem_dma) {
                 _cpuctl_clean_invalidate_dcache_by_addr(dst, blocks * BLOCKSIZE);
