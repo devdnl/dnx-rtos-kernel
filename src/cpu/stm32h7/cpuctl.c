@@ -610,6 +610,17 @@ void get_registers_from_stack(uint32_t *stack_address)
         _kernel_panic_report_from_ISR(_KERNEL_PANIC_DESC_CAUSE_SEGFAULT);
 }
 
+//==============================================================================
+/**
+ * @brief  Function clean/flush ICACHE.
+ */
+//==============================================================================
+void _cpuctl_clean_icache(void)
+{
+#if __ICACHE_PRESENT && __CPU_ICACHE_ENABLE__
+        SCB_InvalidateICache();
+#endif
+}
 
 //==============================================================================
 /**

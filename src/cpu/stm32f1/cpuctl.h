@@ -58,6 +58,7 @@ extern "C" {
 
 /* cache mangement functions */
 #define _cpuctl_clean_dcache()
+#define _cpuctl_clean_icache()
 #define _cpuctl_clean_invalidate_dcache()
 #define _cpuctl_invalidate_dcache()
 #define _cpuctl_invalidate_dcache_by_addr(...)
