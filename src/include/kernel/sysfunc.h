@@ -42,26 +42,26 @@
 /*==============================================================================
   Include files
 ==============================================================================*/
-#include <stdbool.h>
-#include "lib/misc.h"
-#include "lib/sys/types.h"
-#include "lib/unarg.h"
-#include "lib/conv.h"
-#include "lib/llist.h"
-#include "lib/btree.h"
-#include "lib/vsnprintf.h"
-#include "lib/vfprintf.h"
-#include "lib/vsscanf.h"
-#include "lib/stropt.h"
+#include "cpu/cpuctl.h"
+#include "drivers/drvctrl.h"
+#include "fs/vfs.h"
 #include "kernel/errno.h"
-#include "kernel/printk.h"
 #include "kernel/kwrapper.h"
-#include "kernel/time.h"
+#include "kernel/printk.h"
 #include "kernel/process.h"
 #include "kernel/syscall.h"
-#include "fs/vfs.h"
-#include "drivers/drvctrl.h"
-#include "cpu/cpuctl.h"
+#include "kernel/time.h"
+#include "lib/btree.h"
+#include "lib/conv.h"
+#include "lib/llist.h"
+#include "lib/misc.h"
+#include "lib/stropt.h"
+#include "lib/sys/types.h"
+#include "lib/unarg.h"
+#include "lib/vfprintf.h"
+#include "lib/vsnprintf.h"
+#include "lib/vsscanf.h"
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -74,37 +74,37 @@ extern "C" {
 /**
  * @brief Read only flag.
  */
-#define O_RDONLY                                00
+#define O_RDONLY 00
 
 /**
-* @brief Write only flag.
-*/
-#define O_WRONLY                                01
+ * @brief Write only flag.
+ */
+#define O_WRONLY 01
 
 /**
-* @brief Read write flag.
-*/
-#define O_RDWR                                  02
+ * @brief Read write flag.
+ */
+#define O_RDWR 02
 
 /**
-* @brief File create flag.
-*/
-#define O_CREAT                                 0100
+ * @brief File create flag.
+ */
+#define O_CREAT 0100
 
 /**
-* @brief File execute flag.
-*/
-#define O_EXCL                                  0200
+ * @brief File execute flag.
+ */
+#define O_EXCL 0200
 
 /**
-* @brief File truncate flag.
-*/
-#define O_TRUNC                                 01000
+ * @brief File truncate flag.
+ */
+#define O_TRUNC 01000
 
 /**
-* @brief File append flag.
-*/
-#define O_APPEND                                02000
+ * @brief File append flag.
+ */
+#define O_APPEND 02000
 #endif /* DOXYGEN */
 
 /**
@@ -152,7 +152,7 @@ extern "C" {
 #ifdef DOXYGEN
 #define sys_llist_foreach(type, element, list)
 #else
-#define sys_llist_foreach(type, element, _sys_llist_t__list)\
+#define sys_llist_foreach(type, element, _sys_llist_t__list) \
         _llist_foreach(type, element, _sys_llist_t__list)
 #endif
 
@@ -201,7 +201,7 @@ extern "C" {
 #ifdef DOXYGEN
 #define sys_llist_foreach_reverse(type, element, list)
 #else
-#define sys_llist_foreach_reverse(type, element, _sys_llist_t__list)\
+#define sys_llist_foreach_reverse(type, element, _sys_llist_t__list) \
         _llist_foreach_reverse(type, element, _sys_llist_t__list)
 #endif
 
@@ -214,7 +214,8 @@ extern "C" {
  *
  * The type represents linked list object. Fields of object are private.
  */
-typedef struct {} llist_t;
+typedef struct {
+} llist_t;
 #endif
 
 /**
@@ -424,7 +425,8 @@ static inline double sys_atof(const char *nptr)
  * @note Function can be used only by file system or driver code.
  *
  * @param  functor      compare functor (can be @ref NULL)
- * @param  obj_dtor     object destructor (can be @ref NULL, then free() is used as destructor)
+ * @param  obj_dtor     object destructor (can be @ref NULL, then free() is used as
+ destructor)
  * @param  list         pointer to list object
  *
  * @return One of @ref errno value.
@@ -446,7 +448,8 @@ static inline double sys_atof(const char *nptr)
  * @see sys_llist_destroy()
  */
 //==============================================================================
-static inline int sys_llist_create(llist_cmp_functor_t functor, llist_obj_dtor_t obj_dtor, llist_t **list);
+static inline int sys_llist_create(llist_cmp_functor_t functor, llist_obj_dtor_t obj_dtor,
+        llist_t **list);
 #endif
 
 //==============================================================================
@@ -589,7 +592,8 @@ static inline int sys_llist_size(llist_t *list)
  * @see sys_llist_push_front(), sys_llist_push_emplace_back()
  */
 //==============================================================================
-static inline void *sys_llist_push_emplace_front(llist_t *list, size_t size, const void *data)
+static inline void *sys_llist_push_emplace_front(llist_t *list, size_t size,
+        const void *data)
 {
         return _llist_push_emplace_front(list, size, data);
 }
@@ -727,7 +731,8 @@ static inline int sys_llist_pop_front(llist_t *list)
  * @see sys_llist_push_emplace_front(), sys_llist_push_front(), sys_llist_push_back()
  */
 //==============================================================================
-static inline void *sys_llist_push_emplace_back(llist_t *list, size_t size, const void *data)
+static inline void *sys_llist_push_emplace_back(llist_t *list, size_t size,
+        const void *data)
 {
         return _llist_push_emplace_back(list, size, data);
 }
@@ -779,7 +784,8 @@ static inline int sys_llist_pop_back(llist_t *list)
  * @return On success pointer to the object is returned, otherwise @ref NULL.
  */
 //==============================================================================
-static inline void *sys_llist_emplace(llist_t *list, int position, size_t size, const void *data)
+static inline void *sys_llist_emplace(llist_t *list, int position, size_t size,
+        const void *data)
 {
         return _llist_emplace(list, position, size, data);
 }
@@ -1188,8 +1194,8 @@ static inline void *sys_llist_end(llist_iterator_t *iterator)
 
         // iterate list from object <5, 8>
         llist_iterator_t it = sys_llist_iterator(list);
-        for (void *obj = sys_llist_range(&it, 5, 8); obj; obj = sys_llist_interator_next(&it)) {
-                obj->...;
+        for (void *obj = sys_llist_range(&it, 5, 8); obj; obj =
+ sys_llist_interator_next(&it)) { obj->...;
         }
 
         // ...
@@ -1423,7 +1429,8 @@ static inline int sys_llist_functor_cmp_strings(const void *a, const void *b)
    @endcode
  */
 //==============================================================================
-static inline int sys_btree_create(size_t size, btree_cmp_functor_t cmp_functor, btree_obj_dtor_t obj_dtor, btree_t **btree);
+static inline int sys_btree_create(size_t size, btree_cmp_functor_t cmp_functor,
+        btree_obj_dtor_t obj_dtor, btree_t **btree);
 #endif
 
 //==============================================================================
@@ -2141,7 +2148,8 @@ static inline int sys_mkdir(const char *pathname, mode_t mode)
  * @code
         // ...
 
-        sys_mkfifo("/dev/my_fifo", 0666);    // wr+rd access for all users, groups and others
+        sys_mkfifo("/dev/my_fifo", 0666);    // wr+rd access for all users, groups and
+ others
 
         // ...
 
@@ -2892,16 +2900,17 @@ static inline int sys_ftell(kfile_t *file, i64_t *lseek)
    @endcode
  *
  * @note
- * The names of all requests are constructed in the same way: @b IOCTL_<MODULE_NAME>__<REQUEST_NAME>.
+ * The names of all requests are constructed in the same way: @b
+ IOCTL_<MODULE_NAME>__<REQUEST_NAME>.
  */
 //==============================================================================
 static inline int sys_ioctl(kfile_t *file, int rq, ...)
 {
-    va_list arg;
-    va_start(arg, rq);
-    int err = _vfs_vfioctl(file, rq, arg);
-    va_end(arg);
-    return err;
+        va_list arg;
+        va_start(arg, rq);
+        int err = _vfs_vfioctl(file, rq, arg);
+        va_end(arg);
+        return err;
 }
 
 //==============================================================================
@@ -3226,7 +3235,8 @@ static inline void sys_sync(void)
  *   %u         - print unsigned decimal integer values
  *                @code printf("%u, %u", -1, 10); //=> 4294967295, 10 @endcode
  *
- *   %x, %X     - print hexadecimal values ('x' for lower characters, 'X' for upper characters)
+ *   %x, %X     - print hexadecimal values ('x' for lower characters, 'X' for upper
+ characters)
  *                @code printf("0x%x, 0x%X", 0x5A, 0xfa); //=> 0x5a, 0xFA @endcode
  *
  *   %0x?       - print decimal (d, i, u) or hex (x, X) values with leading zeros.
@@ -3304,7 +3314,8 @@ static inline void printk(const char *format, ...);
  *   %u         - print unsigned decimal integer values
  *                @code printf("%u, %u", -1, 10); //=> 4294967295, 10 @endcode
  *
- *   %x, %X     - print hexadecimal values ('x' for lower characters, 'X' for upper characters)
+ *   %x, %X     - print hexadecimal values ('x' for lower characters, 'X' for upper
+ characters)
  *                @code printf("0x%x, 0x%X", 0x5A, 0xfa); //=> 0x5a, 0xFA @endcode
  *
  *   %0x?       - print decimal (d, i, u) or hex (x, X) values with leading zeros.
@@ -3387,7 +3398,8 @@ static inline int sys_vsnprintf(char *buf, size_t size, const char *format, va_l
  *   %u         - print unsigned decimal integer values
  *                @code printf("%u, %u", -1, 10); //=> 4294967295, 10 @endcode
  *
- *   %x, %X     - print hexadecimal values ('x' for lower characters, 'X' for upper characters)
+ *   %x, %X     - print hexadecimal values ('x' for lower characters, 'X' for upper
+ characters)
  *                @code printf("0x%x, 0x%X", 0x5A, 0xfa); //=> 0x5a, 0xFA @endcode
  *
  *   %0x?       - print decimal (d, i, u) or hex (x, X) values with leading zeros.
@@ -3473,7 +3485,8 @@ static inline int sys_snprintf(char *bfr, size_t size, const char *format, ...)
  *   %u         - print unsigned decimal integer values
  *                @code printf("%u, %u", -1, 10); //=> 4294967295, 10 @endcode
  *
- *   %x, %X     - print hexadecimal values ('x' for lower characters, 'X' for upper characters)
+ *   %x, %X     - print hexadecimal values ('x' for lower characters, 'X' for upper
+ characters)
  *                @code printf("0x%x, 0x%X", 0x5A, 0xfa); //=> 0x5a, 0xFA @endcode
  *
  *   %0x?       - print decimal (d, i, u) or hex (x, X) values with leading zeros.
@@ -3555,7 +3568,8 @@ static inline int sys_vfprintf(kfile_t *file, const char *format, va_list args)
  *   %u         - print unsigned decimal integer values
  *                @code printf("%u, %u", -1, 10); //=> 4294967295, 10 @endcode
  *
- *   %x, %X     - print hexadecimal values ('x' for lower characters, 'X' for upper characters)
+ *   %x, %X     - print hexadecimal values ('x' for lower characters, 'X' for upper
+ characters)
  *                @code printf("0x%x, 0x%X", 0x5A, 0xfa); //=> 0x5a, 0xFA @endcode
  *
  *   %0x?       - print decimal (d, i, u) or hex (x, X) values with leading zeros.
@@ -3799,7 +3813,8 @@ static inline bool sys_is_time_expired(clock_t time_ref, u32_t time)
  * @see sys_semaphore_destroy()
  */
 //==============================================================================
-extern int sys_semaphore_create(const size_t cnt_max, const size_t cnt_init, ksem_t **sem);
+extern int sys_semaphore_create(const size_t cnt_max, const size_t cnt_init,
+        ksem_t **sem);
 
 //==============================================================================
 /**
@@ -3983,7 +3998,8 @@ static inline int sys_semaphore_signal(ksem_t *sem)
  * @note Function can be used only by file system or driver code.
  *
  * @param sem              semaphore object
- * @param task_woken       true if higher priority task woken, otherwise false (can be @ref NULL)
+ * @param task_woken       true if higher priority task woken, otherwise false (can be
+ @ref NULL)
  *
  * @return One of @ref errno value.
  *
@@ -4022,7 +4038,8 @@ static inline int sys_semaphore_wait_from_ISR(ksem_t *sem, bool *task_woken)
  * @note Function can be used only by file system or driver code.
  *
  * @param sem              semaphore object
- * @param task_woken       true if higher priority task woken, otherwise false (can be @ref NULL)
+ * @param task_woken       true if higher priority task woken, otherwise false (can be
+ @ref NULL)
  *
  * @return One of @ref errno value.
  *
@@ -4067,80 +4084,6 @@ static inline int sys_semaphore_signal_from_ISR(ksem_t *sem, bool *task_woken)
 {
         return _semaphore_signal_from_ISR(sem, task_woken);
 }
-
-//==============================================================================
-/**
- * @brief Function create new mutex.
- *
- * @note Function can be used only by file system or driver code.
- *
- * @param type     mutex type
- * @param mtx      created mutex handle
- *
- * @return One of @ref errno value.
- *
- * @b Example
- * @code
-        // ...
-
-        // resource that be accessed from many threads
-        int resource;
-
-
-        // create mutex instance
-        kmtx_t *mtx = NULL;
-        int      err = sys_mutex_create(KMTX_TYPE_NORMAL, &mtx);
-        if (err != ESUCC) {
-                return err;
-        }
-
-        // ...
-
-
-        void thread1()
-        {
-                // protected access to resource
-                if (sys_mutex_lock(mtx, _MAX_DELAY_MS) == ESUCC) {
-                        // write to buffer is allowed
-                        resource = ...;
-
-                        // ...
-
-                        sys_mutex_unlock(mtx);
-                }
-        }
-
-        void thread2()
-        {
-                // protected access to resource
-                if (sys_mutex_lock(mtx, _MAX_DELAY_MS) == ESUCC) {
-                        // write to buffer is allowed
-                        resource = ...;
-
-                        // ...
-
-                        sys_mutex_unlock(mtx);
-                }
-        }
-
-
-        // ...
-
-        // destroy created mutex (if not used anymore)
-        if (sys_mutex_destroy(mtx) == ESUCC) {
-                // ...
-        } else {
-                // ...
-        }
-
-        // ...
-
-   @endcode
- *
- * @see sys_mutex_destroy()
- */
-//==============================================================================
-extern int sys_mutex_create(enum kmtx_type type, kmtx_t **mtx);
 
 //==============================================================================
 /**
@@ -4412,6 +4355,80 @@ static inline u32_t sys_flag_get_from_ISR(kflag_t *flag)
 {
         return _flag_get_from_ISR(flag);
 }
+
+//==============================================================================
+/**
+ * @brief Function create new mutex.
+ *
+ * @note Function can be used only by file system or driver code.
+ *
+ * @param type     mutex type
+ * @param mtx      created mutex handle
+ *
+ * @return One of @ref errno value.
+ *
+ * @b Example
+ * @code
+        // ...
+
+        // resource that be accessed from many threads
+        int resource;
+
+
+        // create mutex instance
+        kmtx_t *mtx = NULL;
+        int      err = sys_mutex_create(KMTX_TYPE_NORMAL, &mtx);
+        if (err != ESUCC) {
+                return err;
+        }
+
+        // ...
+
+
+        void thread1()
+        {
+                // protected access to resource
+                if (sys_mutex_lock(mtx, _MAX_DELAY_MS) == ESUCC) {
+                        // write to buffer is allowed
+                        resource = ...;
+
+                        // ...
+
+                        sys_mutex_unlock(mtx);
+                }
+        }
+
+        void thread2()
+        {
+                // protected access to resource
+                if (sys_mutex_lock(mtx, _MAX_DELAY_MS) == ESUCC) {
+                        // write to buffer is allowed
+                        resource = ...;
+
+                        // ...
+
+                        sys_mutex_unlock(mtx);
+                }
+        }
+
+
+        // ...
+
+        // destroy created mutex (if not used anymore)
+        if (sys_mutex_destroy(mtx) == ESUCC) {
+                // ...
+        } else {
+                // ...
+        }
+
+        // ...
+
+   @endcode
+ *
+ * @see sys_mutex_destroy()
+ */
+//==============================================================================
+extern int sys_mutex_create(enum kmtx_type type, kmtx_t **mtx);
 
 //==============================================================================
 /**
@@ -4721,6 +4738,57 @@ static inline int sys_mutex_unlock(kmtx_t *mutex)
 
 //==============================================================================
 /**
+ * @brief Function create new spinlock.
+ *
+ * @param[in]  loop_delay_ms   spinlock loop delay (set o 0 to no delay).
+ * @param[out] spinlock         created spinlock handle.
+ *
+ * @return One of errno values.
+ */
+//==============================================================================
+extern int sys_spinlock_create(u32_t loop_delay_ms, kspinlock_t **spinlock);
+
+//==============================================================================
+/**
+ * @brief Function destroy mutex
+ *
+ * @param[in] *mutex    mutex object
+ *
+ * @return One of errno values.
+ */
+//==============================================================================
+extern int sys_spinlock_destroy(kspinlock_t *spinlock);
+
+//==============================================================================
+/**
+ * @brief Function lock spinlock.
+ *
+ * @param[in] *spinlock    spinlock object
+ *
+ * @return One of errno values.
+ */
+//==============================================================================
+static inline int sys_spinlock_lock(kspinlock_t *spinlock, u32_t blocktime_ms)
+{
+        return _spinlock_lock(spinlock, blocktime_ms);
+}
+
+//==============================================================================
+/**
+ * @brief Function unlock spinlock.
+ *
+ * @param[in] *spinlock    spinlock object
+ *
+ * @return One of errno values.
+ */
+//==============================================================================
+static inline int sys_spinlock_unlock(kspinlock_t *spinlock)
+{
+        return _spinlock_unlock(spinlock);
+}
+
+//==============================================================================
+/**
  * @brief Function create new queue.
  *
  * @note Function can be used only by file system or driver code.
@@ -4732,7 +4800,8 @@ static inline int sys_mutex_unlock(kmtx_t *mutex)
  * @return One of @ref errno value.
  */
 //==============================================================================
-extern int sys_queue_create(const size_t length, const size_t item_size, kqueue_t **queue);
+extern int sys_queue_create(const size_t length, const size_t item_size,
+        kqueue_t **queue);
 
 //==============================================================================
 /**
@@ -4776,7 +4845,8 @@ static inline int sys_queue_reset(kqueue_t *queue)
  * @return One of @ref errno value.
  */
 //==============================================================================
-static inline int sys_queue_send(kqueue_t *queue, const void *item, const u32_t waittime_ms)
+static inline int sys_queue_send(kqueue_t *queue, const void *item,
+        const u32_t waittime_ms)
 {
         return _queue_send(queue, item, waittime_ms);
 }
@@ -4789,12 +4859,14 @@ static inline int sys_queue_send(kqueue_t *queue, const void *item, const u32_t 
  *
  * @param *queue            queue object
  * @param *item             item
- * @param *task_woken       true if higher priority task woken, otherwise false (can be @ref NULL)
+ * @param *task_woken       true if higher priority task woken, otherwise false (can be
+ * @ref NULL)
  *
  * @return One of @ref errno value.
  */
 //==============================================================================
-static inline int sys_queue_send_from_ISR(kqueue_t *queue, const void *item, bool *task_woken)
+static inline int sys_queue_send_from_ISR(kqueue_t *queue, const void *item,
+        bool *task_woken)
 {
         return _queue_send_from_ISR(queue, item, task_woken);
 }
@@ -4825,12 +4897,14 @@ static inline int sys_queue_receive(kqueue_t *queue, void *item, const u32_t wai
  *
  * @param queue            queue object
  * @param item             item
- * @param task_woken       true if higher priority task woke, otherwise false (can be @ref NULL)
+ * @param task_woken       true if higher priority task woke, otherwise false (can be @ref
+ * NULL)
  *
  * @return One of @ref errno value.
  */
 //==============================================================================
-static inline int sys_queue_receive_from_ISR(kqueue_t *queue, void *item, bool *task_woken)
+static inline int sys_queue_receive_from_ISR(kqueue_t *queue, void *item,
+        bool *task_woken)
 {
         return _queue_receive_from_ISR(queue, item, task_woken);
 }
@@ -4848,7 +4922,8 @@ static inline int sys_queue_receive_from_ISR(kqueue_t *queue, void *item, bool *
  * @return One of @ref errno value.
  */
 //==============================================================================
-static inline int sys_queue_receive_peek(kqueue_t *queue, void *item, const u32_t waittime_ms)
+static inline int sys_queue_receive_peek(kqueue_t *queue, void *item,
+        const u32_t waittime_ms)
 {
         return _queue_receive_peek(queue, item, waittime_ms);
 }
@@ -5103,7 +5178,8 @@ static inline size_t sys_process_get_count(void)
  * @return One of @ref errno value.
  */
 //==============================================================================
-extern int sys_thread_create(thread_func_t func, const _thread_attr_t *attr, void *arg, tid_t *tid);
+extern int sys_thread_create(thread_func_t func, const _thread_attr_t *attr, void *arg,
+        tid_t *tid);
 
 //==============================================================================
 /**
@@ -5194,7 +5270,8 @@ static inline void sys_thread_resume(tid_t tid)
  * @note Function can be used only by file system or driver code.
  *
  * @param tid           thread ID
- * @param task_woken    true if higher priority task woke, otherwise false (can be @ref NULL)
+ * @param task_woken    true if higher priority task woke, otherwise false (can be @ref
+ * NULL)
  *
  * @return One of @ref errno value.
  */
@@ -5567,7 +5644,7 @@ static inline int sys_gettime(time_t *timer)
 {
 #if __OS_ENABLE_TIMEMAN__ == _YES_
         struct timeval timeval;
-        int err = _gettime(&timeval);
+        int            err = _gettime(&timeval);
         if (!err) {
                 if (timer) {
                         *timer = timeval.tv_sec;
@@ -5693,8 +5770,8 @@ static inline struct tm *sys_localtime_r(const time_t *timer, struct tm *tm)
 
         mem_region_t ram2;
 
-        int err = sys_register_region(&ram2, 0x20001000, 16384, _MM_FLAG__DMA_CAPABLE, "RAM2");
-        if (!err) {
+        int err = sys_register_region(&ram2, 0x20001000, 16384, _MM_FLAG__DMA_CAPABLE,
+ "RAM2"); if (!err) {
                 // ...
         }
 
@@ -5703,8 +5780,8 @@ static inline struct tm *sys_localtime_r(const time_t *timer, struct tm *tm)
  *
  */
 //==============================================================================
-static inline int sys_register_region(mem_region_t *region, void *start,
-                                      size_t size, u32_t flags, const char *name)
+static inline int sys_register_region(mem_region_t *region, void *start, size_t size,
+        u32_t flags, const char *name)
 {
         return _mm_register_region(region, start, size, flags, name);
 }
@@ -5741,7 +5818,8 @@ static inline int sys_stropt_get_int(const char *opts, const char *var, int defv
  * @return On success string pointer and length passed by len pointer, otherwise NULL.
  */
 //==============================================================================
-static inline const char *sys_stropt_get_string_ref(const char *opts, const char *var, size_t *len)
+static inline const char *sys_stropt_get_string_ref(const char *opts, const char *var,
+        size_t *len)
 {
         return _stropt_get_string_ref(opts, var, len);
 }
@@ -5760,7 +5838,8 @@ static inline const char *sys_stropt_get_string_ref(const char *opts, const char
  * @return On success string pointer and length passed by len pointer, otherwise NULL.
  */
 //==============================================================================
-static inline size_t sys_stropt_get_string_copy(const char *opts, const char *var, char *buf, size_t buflen)
+static inline size_t sys_stropt_get_string_copy(const char *opts, const char *var,
+        char *buf, size_t buflen)
 {
         return _stropt_get_string_copy(opts, var, buf, buflen);
 }
@@ -5815,7 +5894,8 @@ static inline bool sys_stropt_is_flag(const char *opts, const char *flag)
  * @return One of error code (errno)
  */
 //==============================================================================
-static inline int sys_driver_init(const char *module, u8_t major, u8_t minor, const void *config, dev_t *id)
+static inline int sys_driver_init(const char *module, u8_t major, u8_t minor,
+        const void *config, dev_t *id)
 {
         return _driver_init(module, major, minor, NULL, config, id);
 }
@@ -5886,12 +5966,8 @@ static inline int sys_driver_close(dev_t id, bool force)
  * @return One of @ref errno value.
  */
 //==============================================================================
-static inline int sys_driver_write(dev_t            id,
-                                    const u8_t      *src,
-                                    size_t           count,
-                                    fpos_t          *fpos,
-                                    size_t          *wrcnt,
-                                    struct vfs_fattr fattr)
+static inline int sys_driver_write(dev_t id, const u8_t *src, size_t count, fpos_t *fpos,
+        size_t *wrcnt, struct vfs_fattr fattr)
 {
         return _driver_write(id, src, count, fpos, wrcnt, fattr);
 }
@@ -5912,12 +5988,8 @@ static inline int sys_driver_write(dev_t            id,
  * @return One of @ref errno value.
  */
 //==============================================================================
-static inline int sys_driver_read(dev_t            id,
-                                   u8_t            *dst,
-                                   size_t           count,
-                                   fpos_t          *fpos,
-                                   size_t          *rdcnt,
-                                   struct vfs_fattr fattr)
+static inline int sys_driver_read(dev_t id, u8_t *dst, size_t count, fpos_t *fpos,
+        size_t *rdcnt, struct vfs_fattr fattr)
 {
         return _driver_read(id, dst, count, fpos, rdcnt, fattr);
 }

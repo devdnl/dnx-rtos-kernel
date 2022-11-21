@@ -769,8 +769,12 @@ int INET_socket_destroy(void *ctx, INET_socket_t *inet_sock)
 {
         UNUSED_ARG1(ctx);
 
-        if (inet_sock->netbuf) {
-                netbuf_delete(inet_sock->netbuf);
+        if (inet_sock->netbuf_recv) {
+                netbuf_delete(inet_sock->netbuf_recv);
+        }
+
+        if (inet_sock->netbuf_send) {
+                netbuf_delete(inet_sock->netbuf_send);
         }
 
         if (inet_sock->netconn) {
@@ -914,23 +918,23 @@ int INET_socket_recv(void          *ctx,
         }
 
         int err = ESUCC;
-        if (inet_sock->netbuf == NULL) {
+        if (inet_sock->netbuf_recv == NULL) {
                 err = err_to_errno(netconn_recv(inet_sock->netconn,
-                                                &inet_sock->netbuf));
+                                                &inet_sock->netbuf_recv));
         }
 
         if (!err) {
                 len = min(len, UINT16_MAX);
-                u16_t sz = netbuf_copy_partial(inet_sock->netbuf, buf, len, inet_sock->seek);
+                u16_t sz = netbuf_copy_partial(inet_sock->netbuf_recv, buf, len, inet_sock->seek);
                 inet_sock->seek += sz;
                 *recved          = sz;
 
                 if (  (flags & NETM_FLAGS__FREEBUF)
-                   || (inet_sock->seek >= netbuf_len(inet_sock->netbuf)) ) {
+                   || (inet_sock->seek >= netbuf_len(inet_sock->netbuf_recv)) ) {
 
-                        netbuf_delete(inet_sock->netbuf);
-                        inet_sock->netbuf = NULL;
-                        inet_sock->seek   = 0;
+                        netbuf_delete(inet_sock->netbuf_recv);
+                        inet_sock->netbuf_recv = NULL;
+                        inet_sock->seek        = 0;
                 }
         }
 
@@ -1029,15 +1033,18 @@ int INET_socket_send(void          *ctx,
 
                 if (len <= MAXIMUM_SAFE_UDP_PAYLOAD) {
 
-                        inet_sock->netbuf = netbuf_new();
-                        if (inet_sock->netbuf) {
+                        if (not inet_sock->netbuf_send) {
+                                inet_sock->netbuf_send = netbuf_new();
+                        }
+
+                        if (inet_sock->netbuf_send) {
                                 if (flags & NETM_FLAGS__NOCOPY) {
                                         err = err_to_errno(
-                                                netbuf_ref(inet_sock->netbuf,
+                                                netbuf_ref(inet_sock->netbuf_send,
                                                            buf, len)
                                         );
                                 } else {
-                                        char *data = netbuf_alloc(inet_sock->netbuf, len);
+                                        char *data = netbuf_alloc(inet_sock->netbuf_send, len);
                                         if (data) {
                                                 memcpy(data, buf, len);
                                                 err = ESUCC;
@@ -1049,7 +1056,7 @@ int INET_socket_send(void          *ctx,
                                 if (!err) {
                                         err = err_to_errno(
                                                 netconn_send(inet_sock->netconn,
-                                                             inet_sock->netbuf)
+                                                             inet_sock->netbuf_send)
                                         );
 
                                 }
@@ -1057,9 +1064,6 @@ int INET_socket_send(void          *ctx,
                                 if (!err) {
                                         *sent = len;
                                 }
-
-                                netbuf_delete(inet_sock->netbuf);
-                                inet_sock->netbuf = NULL;
 
                         } else {
                                 err = ENOMEM;

@@ -9,6 +9,7 @@ AlignConsecutiveDeclarations:
   Enabled: true
 AlignConsecutiveMacros:
   Enabled: true
+AlignEscapedNewlines: Left
 AllowAllArgumentsOnNextLine: false
 AllowAllConstructorInitializersOnNextLine: false
 AllowAllParametersOfDeclarationOnNextLine: false
@@ -26,8 +27,9 @@ ForEachMacros:
   - foreach_temp_name_to_id
   - llist_foreach
   - mutex_scope
+  - scope
 IndentWidth: 8
+InsertBraces: true
 ObjCBlockIndentWidth: 8
 PointerAlignment: Right
 SpaceInEmptyBlock: false
-InsertBraces: true

@@ -55,7 +55,8 @@ extern "C" {
 ==============================================================================*/
 typedef struct {
         struct netconn *netconn;
-        struct netbuf  *netbuf;
+        struct netbuf  *netbuf_recv;
+        struct netbuf  *netbuf_send;
         uint16_t        seek;
 } INET_socket_t;
 

@@ -54,6 +54,7 @@ typedef struct {
 /*==============================================================================
   Local objects
 ==============================================================================*/
+static bool rand_initiated;
 
 /*==============================================================================
   Exported objects
@@ -93,7 +94,7 @@ static int lwip_thread_wrapper(void *arg)
  * @return None
  */
 //==============================================================================
-void sys_init()
+void sys_init(void)
 {
 }
 
@@ -697,15 +698,18 @@ void *sys_calloc(size_t n, size_t blksz)
 
 //==============================================================================
 /**
- * @brief
+ * @brief  Generate random number.
  *
- * @param  ?
- *
- * @return ?
+ * @return Random number.
  */
 //==============================================================================
 int sys_rand(void)
 {
+        if  (not rand_initiated) {
+                srand(sys_get_uptime_ms());
+                rand_initiated = true;
+        }
+
         return rand();
 }
 

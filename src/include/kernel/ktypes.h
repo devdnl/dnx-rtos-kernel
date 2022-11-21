@@ -37,8 +37,8 @@ extern "C" {
   Include files
 ==============================================================================*/
 #include "lib/sys/types.h"
-#include <stdbool.h>
 #include <FreeRTOS.h>
+#include <stdbool.h>
 
 /*==============================================================================
   Exported symbolic constants/macros
@@ -53,16 +53,17 @@ extern "C" {
 ==============================================================================*/
 /** KERNELSPACE: resource type */
 typedef enum {
-        RES_TYPE_UNKNOWN       = 0,
-        RES_TYPE_PROCESS       = 0x958701BA,
-        RES_TYPE_MUTEX         = 0x300C6B74,
-        RES_TYPE_SEMAPHORE     = 0x4E59901B,
-        RES_TYPE_QUEUE         = 0x83D50ADB,
-        RES_TYPE_FILE          = 0x7D129250,
-        RES_TYPE_DIR           = 0x19586E97,
-        RES_TYPE_MEMORY        = 0x9E834645,
-        RES_TYPE_SOCKET        = 0x63ACC316,
-        RES_TYPE_FLAG          = 0x18FAEC0D
+        RES_TYPE_UNKNOWN   = 0,
+        RES_TYPE_PROCESS   = 0x958701BA,
+        RES_TYPE_MUTEX     = 0x300C6B74,
+        RES_TYPE_SEMAPHORE = 0x4E59901B,
+        RES_TYPE_QUEUE     = 0x83D50ADB,
+        RES_TYPE_FILE      = 0x7D129250,
+        RES_TYPE_DIR       = 0x19586E97,
+        RES_TYPE_MEMORY    = 0x9E834645,
+        RES_TYPE_SOCKET    = 0x63ACC316,
+        RES_TYPE_FLAG      = 0x18FAEC0D,
+        RES_TYPE_SPINLOCK  = 0x3EA49061,
 } res_type_t;
 
 /** KERNELSPACE: object header (must be the first in object) */
@@ -76,16 +77,16 @@ typedef struct res_header {
 typedef void task_t;
 
 /** KERNELSPACE: task function type */
-typedef void (*task_func_t)(void*);
+typedef void (*task_func_t)(void *);
 
-/** KERNELSPACE/USERSPACE: semaphore type */
+/** KERNELSPACE: semaphore type */
 typedef struct {
         res_header_t      header;
         void             *object;
         StaticSemaphore_t buffer;
 } ksem_t;
 
-/** KERNELSPACE/USERSPACE: queue type */
+/** KERNELSPACE: queue type */
 typedef struct {
         res_header_t  header;
         void         *object;
@@ -93,7 +94,7 @@ typedef struct {
         uint8_t       storage[];
 } kqueue_t;
 
-/** KERNELSPACE/USERSPACE: mutex type */
+/** KERNELSPACE: mutex type */
 typedef struct {
         res_header_t      header;
         void             *object;
@@ -107,6 +108,13 @@ typedef struct {
         void              *object;
         StaticEventGroup_t buffer;
 } kflag_t;
+
+/** KERNELSPACE: spinlock type */
+typedef struct {
+        res_header_t header;
+        u32_t        loop_delay_ms;
+        task_t      *task_lock;
+} kspinlock_t;
 
 /*==============================================================================
    Exported object declarations

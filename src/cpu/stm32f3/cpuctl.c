@@ -325,22 +325,22 @@ void _cpuctl_delay_us(u16_t microseconds)
 //==============================================================================
 void _cpuctl_print_exception(void)
 {
-        printk("R0   : %08xh\n", reg_dump.R0);
-        printk("R1   : %08xh\n", reg_dump.R1);
-        printk("R2   : %08xh\n", reg_dump.R2);
-        printk("R3   : %08xh\n", reg_dump.R3);
-        printk("R12  : %08xh\n", reg_dump.R12);
-        printk("LR   : %08xh\n", reg_dump.LR);
-        printk("PC   : %08xh\n", reg_dump.PC);
-        printk("PSR  : %08xh\n", reg_dump.PSR);
-        printk("MFSR : %08xh\n", reg_dump.MFSR);
-        printk("BFSR : %08xh\n", reg_dump.BFSR);
-        printk("UFSR : %08xh\n", reg_dump.UFSR);
-        printk("HFSR : %08xh\n", reg_dump.HFSR);
-        printk("DFSR : %08xh\n", reg_dump.DFSR);
-        printk("BFAR : %08xh\n", reg_dump.BFAR);
-        printk("AFSR : %08xh\n", reg_dump.AFSR);
-        printk("MFAR : %08xh\n", reg_dump.MFAR);
+        printk("R0   : %08xh", reg_dump.R0);
+        printk("R1   : %08xh", reg_dump.R1);
+        printk("R2   : %08xh", reg_dump.R2);
+        printk("R3   : %08xh", reg_dump.R3);
+        printk("R12  : %08xh", reg_dump.R12);
+        printk("LR   : %08xh", reg_dump.LR);
+        printk("PC   : %08xh", reg_dump.PC);
+        printk("PSR  : %08xh", reg_dump.PSR);
+        printk("MFSR : %08xh", reg_dump.MFSR);
+        printk("BFSR : %08xh", reg_dump.BFSR);
+        printk("UFSR : %08xh", reg_dump.UFSR);
+        printk("HFSR : %08xh", reg_dump.HFSR);
+        printk("DFSR : %08xh", reg_dump.DFSR);
+        printk("BFAR : %08xh", reg_dump.BFAR);
+        printk("AFSR : %08xh", reg_dump.AFSR);
+        printk("MFAR : %08xh", reg_dump.MFAR);
 }
 
 //==============================================================================
