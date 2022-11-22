@@ -576,6 +576,8 @@ int _syscall_kworker_process(int argc, char *argv[])
                         _vfs_sync();
                         sync_period_ref = _kernel_get_uptime_ms();
                 }
+
+                _process_clean_up_killed_processes();
         }
 
         return -1;

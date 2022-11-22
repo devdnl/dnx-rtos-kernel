@@ -810,6 +810,34 @@ int _mutex_unlock(kmtx_t *mutex)
 
 //==============================================================================
 /**
+ * @brief Function unlock mutex from ISR.
+ *
+ * @param[in]  mutex            mutex object
+ * @param[out] task_woken       task woken
+ *
+ * @return One of errno values.
+ */
+//==============================================================================
+int _mutex_unlock_from_ISR(kmtx_t *mutex, bool *task_woken)
+{
+        if (task_woken && is_mutex_valid(mutex)) {
+                BaseType_t woken = 0;
+                bool ret = xSemaphoreGiveFromISR(mutex->object, &woken);
+
+                if (task_woken) {
+                        *task_woken = (bool)woken;
+                }
+
+                return ret ? ESUCC : EBUSY;
+
+        } else {
+                printk("Invalid mutex object @ %p", mutex);
+                return EINVAL;
+        }
+}
+
+//==============================================================================
+/**
  * @brief Function create new spinlock.
  *
  * @param[in]  loop_delay_ms   spinlock loop delay (set o 0 to no delay).

@@ -28,6 +28,8 @@ ForEachMacros:
   - llist_foreach
   - mutex_scope
   - scope
+  - ATOMIC
+  - foreach_process
 IndentWidth: 8
 InsertBraces: true
 ObjCBlockIndentWidth: 8

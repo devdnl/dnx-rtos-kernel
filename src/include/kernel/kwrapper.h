@@ -120,6 +120,7 @@ extern int     _mutex_create(enum kmtx_type, kmtx_t **);
 extern int     _mutex_destroy(kmtx_t *);
 extern int     _mutex_lock(kmtx_t *, const u32_t);
 extern int     _mutex_unlock(kmtx_t *);
+extern int     _mutex_unlock_from_ISR(kmtx_t *mutex, bool *task_woken);
 extern int     _spinlock_create(u32_t loop_delay_ms, kspinlock_t **spinlock);
 extern int     _spinlock_destroy(kspinlock_t *spinlock);
 extern int     _spinlock_lock(kspinlock_t *spinlock, u32_t blocktime_ms);

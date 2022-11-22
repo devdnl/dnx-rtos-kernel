@@ -49,15 +49,16 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
+// critical section - mutex wait must set to max possible
+#define ATOMIC(_mtx) for (int __ = 0; __ == 0;)\
+        for (int _e = _mutex_lock(_mtx, _MAX_DELAY_MS); _e == 0 && __ == 0; _mutex_unlock(_mtx), __++)\
+                for(bool ___ = true; ___; ___ = false)
+
 #define foreach_resource(_v, _l)        for (res_header_t *_v = _l; _v; _v = _v->next)
 #define foreach_process(_v, _l)         for (_process_t *_v = _l; _v; _v = cast(_process_t*, _v->header.next))
 
 #define NO_SYSCALL                      UINT8_MAX
 #define SHEBANGLEN                      64
-
-// critical section - mutex wait must set to max possible
-#define ATOMIC(_mtx) for (int __ = 0; __ == 0;)\
-        for (int _e = _mutex_lock(_mtx, _MAX_DELAY_MS); _e == 0 && __ == 0; _mutex_unlock(_mtx), __++)
 
 #define PROC_MAX_THREADS(proc)          (((proc)->flag & FLAG_KWORKER) ? __OS_TASK_MAX_SYSTEM_THREADS__ : __OS_TASK_MAX_USER_THREADS__)
 
@@ -163,6 +164,7 @@ static u32_t           CPU_total_time_last;
 static _avg_CPU_load_t avg_CPU_load_calc;
 static _avg_CPU_load_t avg_CPU_load_result;
 static kmtx_t          *process_mtx;
+static bool            process_mtx_locked;
 static kmtx_t          *kworker_mtx;
 static dchain_t        shared_desctab;
 
@@ -345,7 +347,8 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
 void _process_clean_up_killed_processes(void)
 {
         if (destroy_process_list) {
-                ATOMIC(process_mtx) {
+                int err = _mutex_lock(process_mtx, 5000);
+                if (not err) {
                         while (destroy_process_list) {
                                 _process_t *proc = destroy_process_list;
 
@@ -364,6 +367,11 @@ void _process_clean_up_killed_processes(void)
                                         _kfree(_MM_KRN, cast(void*, &proc));
                                 }
                         }
+
+                        _mutex_unlock(process_mtx);
+                } else {
+                        printk("permamently locked process mutex - unlocking");
+                        process_mtx_locked = true;
                 }
         }
 }
@@ -2780,6 +2788,11 @@ void _task_switched_in(task_t *task, void *proc, void *task_data)
                 _global  = NULL;
                 _app_ctx = NULL;
                 _errno   = 0;
+        }
+
+        if (process_mtx_locked) {
+                _mutex_unlock_from_ISR(process_mtx, NULL);
+                process_mtx_locked = false;
         }
 }
 
