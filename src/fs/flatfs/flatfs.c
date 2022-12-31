@@ -1960,7 +1960,7 @@ static bool index_find(flatfs_t *hdl, const char *name, size_t name_len, mode_t 
                 if (not isstrempty(index->blk.name)) {
 
                         if (    (strncmp(name, index->blk.name, name_len) == 0)
-                            and (  (S_IFMT(index->blk.mode) == mode)
+                            and (((index->blk.mode & S_IFMT) == mode)
                                 or (mode == FIND_ANY_NODE)) ) {
 
                                 DBG("index hit [%li]: '%s' @ %lu", index->hit,
