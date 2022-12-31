@@ -175,19 +175,11 @@ void _cpuctl_restart_system(void)
 //==============================================================================
 void _cpuctl_shutdown_system(void)
 {
-        // Note: implementation enters to deep sleep mode.
+        __disable_irq();
 
-        /* Clear Wake-up flag */
-        PWR->CR |= PWR_CR_CWUF;
-
-        /* Select STANDBY mode */
-        PWR->CR |= PWR_CR_PDDS;
-
-        /* Set SLEEPDEEP bit of Cortex System Control Register */
-        SCB_SysCtrl |= SysCtrl_SLEEPDEEP;
-
-        /* Request Wait For Interrupt */
-        __WFI();
+        for(;;) {
+                __NOP();
+        }
 }
 
 //==============================================================================

@@ -229,6 +229,10 @@ static _mm_region_t sram3;
 static _mm_region_t sram4;
 static _mm_region_t dtcm;
 
+// Variable is used to prevent reseting last RAM cell at reset cycle. Variable
+// is written just before restart procedure.
+static volatile uint32_t cpuctl_dummy;
+
 static volatile reg_dump_t reg_dump __attribute__ ((section (".noinit")));
 
 /*==============================================================================
@@ -347,8 +351,17 @@ void _cpuctl_init(void)
 
         if (__CPU_DCACHE_ENABLE__) {
                 _ISR_disable();
+
                 SCB_InvalidateDCache();
+
+                /*
+                 * Note. This flag enabled force write-through policy for all
+                 *       the writes. Soluction 4 according ST's document AN4839.
+                 */
+                SCB->CACR |= SCB_CACR_FORCEWT_Msk;
+
                 SCB_EnableDCache();
+
                 _ISR_enable();
                 printk("CPU: DCACHE enabled");
         }
@@ -365,6 +378,7 @@ void _cpuctl_init(void)
 void _cpuctl_restart_system(void)
 {
         _cpuctl_clean_dcache();
+        cpuctl_dummy = 0xAABBCCDD;
         NVIC_SystemReset();
 }
 
@@ -375,23 +389,11 @@ void _cpuctl_restart_system(void)
 //==============================================================================
 void _cpuctl_shutdown_system(void)
 {
-        // Note: implementation enters to deep sleep mode.
+        __disable_irq();
 
-//        /* enable power module */
-//        RCC->APB1ENR |= RCC_APB1ENR_PWREN;
-//
-//        /* Clear Wake-up flag */
-//        PWR->CR2 |= PWR_CR2_CWUPF1 | PWR_CR2_CWUPF2 | PWR_CR2_CWUPF3
-//                  | PWR_CR2_CWUPF4 | PWR_CR2_CWUPF5 | PWR_CR2_CWUPF6;
-//
-//        /* Select STANDBY mode */
-//        PWR->CR1 |= PWR_CR1_PDDS;
-
-        /* Set SLEEPDEEP bit of Cortex System Control Register */
-        SCB_SysCtrl |= SysCtrl_SLEEPDEEP;
-
-        /* Request Wait For Interrupt */
-        __WFI();
+        for(;;) {
+                __NOP();
+        }
 }
 
 //==============================================================================

@@ -36,7 +36,7 @@ address and data aligned to 16-bits at write operation; read is possible
 byte-by-byte).
 
 \section drv-nvm-sup-arch Supported architectures
-\li stm32f4
+\li stm32f1, stm32f4, stm32f7, stm32h7
 
 \section drv-nvm-ddesc Details
 \subsection drv-nvm-ddesc-num Meaning of major and minor numbers
@@ -149,6 +149,7 @@ Reading from the device works in the same way as reading from a regular file.
   Include files
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
+#include "lib/sys/types.h"
 
 #ifdef __cplusplus
 extern "C" {

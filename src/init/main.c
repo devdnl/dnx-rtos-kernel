@@ -128,6 +128,29 @@ int main(void)
         return -1;
 }
 
+//==============================================================================
+/**
+ * @brief  Low-level init function. Function called before memory initialization.
+ */
+//==============================================================================
+void low_level_init_0(void)
+{
+        if (reboot_address.key == REBOOT_TO_ADDRESS_KEY) {
+
+                if ((reboot_address.address ^ REBOOT_TO_ADDRESS_VALIDATOR)
+                        == reboot_address.address_validator) {
+
+                        void (*call_address)(void) = cast(void*, reboot_address.address);
+
+                        reboot_address.key = 0;
+                        reboot_address.address = 0;
+                        reboot_address.address_validator = 0;
+
+                        call_address();
+                }
+        }
+}
+
 /*==============================================================================
   End of file
 ==============================================================================*/

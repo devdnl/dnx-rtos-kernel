@@ -717,10 +717,6 @@ static int card_read_blocks_DMA(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
 
         bool mem_dma = sys_is_mem_dma_capable(dst) && (((uintptr_t)dst % _HEAP_ALIGN_) == 0);
 
-        if (mem_dma) {
-                _cpuctl_clean_invalidate_dcache_by_addr(dst, blocks * BLOCKSIZE);
-        }
-
         if (SDMMC[SDMMC_1].card_type == _SDMMC_TYPE_SDCARD) {
                 #if IS_SD_USING
                 if (mem_dma) {
@@ -742,6 +738,12 @@ static int card_read_blocks_DMA(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
         if (!err) {
                 err = sys_semaphore_wait(hdl->sem_xfer_complete,
                                          SDMMC[hdl->major].card_timeout);
+        }
+
+        if (!err && mem_dma) {
+                size_t cache_line_size = 32;
+                _cpuctl_invalidate_dcache_by_addr(dst - cache_line_size,
+                        blocks * BLOCKSIZE + 2*cache_line_size);
         }
 
         return err;

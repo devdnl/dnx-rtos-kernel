@@ -41,10 +41,17 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
+#define REBOOT_TO_ADDRESS_KEY           0x3626681b
+#define REBOOT_TO_ADDRESS_VALIDATOR     0xdb526861
 
 /*==============================================================================
   Exported object types
 ==============================================================================*/
+struct reboot_to_address {
+        u32_t key;
+        u32_t address;
+        u32_t address_validator;
+};
 
 /*==============================================================================
   Exported objects
@@ -52,6 +59,7 @@ extern "C" {
 extern struct _process *_kworker_proc;
 extern const char *const dnx_RTOS_version;
 extern const char *const dnx_RTOS_platform_name;
+extern struct reboot_to_address reboot_address __attribute__ ((section (".noinit")));
 
 /*==============================================================================
   Exported functions

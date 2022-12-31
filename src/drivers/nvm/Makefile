@@ -14,4 +14,8 @@ ifeq ($(__ENABLE_NVM__), _YES_)
       CSRC_ARCH   += drivers/nvm/stm32f7/nvm.c
       CXXSRC_ARCH +=
    endif
+   ifeq ($(TARGET), stm32h7)
+      CSRC_ARCH   += drivers/nvm/stm32h7/nvm.c
+      CXXSRC_ARCH +=
+   endif
 endif

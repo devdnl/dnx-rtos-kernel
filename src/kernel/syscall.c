@@ -195,6 +195,7 @@ typedef enum {
         SYSCALL_THREADJOIN,             // int errno (const tid_t *tid , int *status, const uint32_t *timeout)
         SYSCALL_ISHEAPADDR,             // int errno (const void *addr)
         SYSCALL_CACHEFLUSH,             // int errno (void)
+        SYSCALL_REBOOTTOADDR,           // int errno (const void *addr)
         _SYSCALL_COUNT,
 } syscall_t;
 
@@ -330,6 +331,7 @@ static int syscall_schedulerunlock(syscallrq_t *rq);
 static int syscall_threadjoin(syscallrq_t *rq);
 static int syscall_isheapaddr(syscallrq_t *rq);
 static int syscall_cacheflush(syscallrq_t *rq);
+static int syscall_reboottoaddr(syscallrq_t *rq);
 
 /*==============================================================================
   Local objects
@@ -455,6 +457,7 @@ static const syscallfunc_t syscalltab[] = {
         [SYSCALL_THREADJOIN] = syscall_threadjoin,
         [SYSCALL_ISHEAPADDR] = syscall_isheapaddr,
         [SYSCALL_CACHEFLUSH] = syscall_cacheflush,
+        [SYSCALL_REBOOTTOADDR] = syscall_reboottoaddr,
 };
 
 /*==============================================================================
@@ -465,6 +468,7 @@ const char *const dnx_RTOS_version = "3.0.0";
 const char *const dnx_RTOS_name = "dnx RTOS";
 const char *const dnx_RTOS_commit_hash = COMMIT_HASH;
 const char *const dnx_RTOS_platform_name = _CPUCTL_PLATFORM_NAME;
+struct reboot_to_address reboot_address;
 
 /*==============================================================================
   External objects
@@ -3471,6 +3475,29 @@ static int syscall_cacheflush(syscallrq_t *rq)
 
         _cpuctl_clean_icache();
         _cpuctl_clean_dcache();
+
+        return 0;
+}
+
+//==============================================================================
+/**
+ * @brief  This syscall reboot system and jump to specified address in low level
+ *         init 0 stage.
+ *
+ * @param  rq                   syscall request
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int syscall_reboottoaddr(syscallrq_t *rq)
+{
+        GETARG(const u32_t*, addr);
+
+        reboot_address.address = *addr;
+        reboot_address.address_validator = *addr ^ REBOOT_TO_ADDRESS_VALIDATOR;
+        reboot_address.key = REBOOT_TO_ADDRESS_KEY;
+
+        _cpuctl_restart_system();
 
         return 0;
 }
