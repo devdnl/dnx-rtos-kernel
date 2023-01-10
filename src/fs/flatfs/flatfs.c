@@ -62,6 +62,9 @@ Brief   Daniel Zorychta
 #define FIND_ANY_NODE           UINT32_MAX
 #define MAX_FILE_NAME_LEN       (BLOCK_SIZE - offsetof(blk_file_t, name))
 
+#define INDEX_HIT_MAX           (100 * __OS_SYSTEM_CACHE_SYNC_PERIOD__)
+#define INDEX_HIT_MIN           -INDEX_HIT_MAX
+
 /*==============================================================================
   Local object types
 ==============================================================================*/
@@ -1334,7 +1337,7 @@ API_FS_SYNC(flatfs, void *fs_handle)
                         path_index_t *index = &hdl->path_index[i];
 
                         if (not isstrempty(index->blk.name)) {
-                                if (hdl->path_index[i].hit > (INT32_MIN + __OS_SYSTEM_CACHE_SYNC_PERIOD__)) {
+                                if (hdl->path_index[i].hit > (INDEX_HIT_MIN + __OS_SYSTEM_CACHE_SYNC_PERIOD__)) {
                                         hdl->path_index[i].hit -= __OS_SYSTEM_CACHE_SYNC_PERIOD__;
                                 }
                         }
@@ -1966,7 +1969,7 @@ static bool index_find(flatfs_t *hdl, const char *name, size_t name_len, mode_t 
                                 DBG("index hit [%li]: '%s' @ %lu", index->hit,
                                     name, index->node);
 
-                                if (hdl->path_index[i].hit < INT32_MAX) {
+                                if (hdl->path_index[i].hit < INDEX_HIT_MAX) {
                                         hdl->path_index[i].hit++;
                                 }
 
