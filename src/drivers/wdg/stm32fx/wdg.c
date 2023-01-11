@@ -28,7 +28,6 @@ Brief    Watchdog driver.
   Include files
 ==============================================================================*/
 #include "drivers/driver.h"
-#include "stm32fx/wdg_cfg.h"
 #include "../wdg_ioctl.h"
 
 #if defined(ARCH_stm32f1)
@@ -140,7 +139,7 @@ API_MOD_OPEN(WDG, void *device_handle, u32_t flags)
 
         WDG_t *hdl = device_handle;
 
-        if (_WDG_CFG_OPEN_LOCK) {
+        if (__WDG_DEVICE_LOCK_AT_OPEN__) {
                 return sys_device_lock(&hdl->file_lock);
         } else {
                 return ESUCC;
@@ -161,7 +160,7 @@ API_MOD_CLOSE(WDG, void *device_handle, bool force)
 {
         WDG_t *hdl = device_handle;
 
-        if (_WDG_CFG_OPEN_LOCK) {
+        if (__WDG_DEVICE_LOCK_AT_OPEN__) {
                 return sys_device_unlock(&hdl->file_lock, force);
         } else {
                 return ESUCC;
@@ -237,7 +236,12 @@ API_MOD_IOCTL(WDG, void *device_handle, int request, void *arg)
 
         WDG_t *hdl = device_handle;
 
-        int err = sys_device_get_access(&hdl->file_lock);
+        int err = ESUCC;
+
+        if (__WDG_DEVICE_LOCK_AT_OPEN__) {
+                err = sys_device_get_access(&hdl->file_lock);
+        }
+
         if (!err) {
                 switch (request) {
                 case IOCTL_WDG__RESET:
@@ -298,7 +302,7 @@ static inline void configure_wdg(void)
 {
         /* default LSI / 4 */
         u8_t divider;
-        switch (_WDG_CFG_DIVIDER) {
+        switch (__WDG_CLK_DIVIDER__) {
         case 8  : divider = IWDG_PR_PR_0; break;
         case 16 : divider = IWDG_PR_PR_1; break;
         case 32 : divider = IWDG_PR_PR_1 | IWDG_PR_PR_0; break;
@@ -309,7 +313,7 @@ static inline void configure_wdg(void)
         }
 
         /* reload value */
-        u16_t reload = _WDG_CFG_RELOAD & 0xFFF;
+        u16_t reload = __WDG_RELOAD_VALUE__ & 0xFFF;
 
         /* enable IWDG */
         IWDG->KR = KEY_UNLOCK;
@@ -320,7 +324,7 @@ static inline void configure_wdg(void)
         while (IWDG->SR & IWDG_SR_RVU);
         IWDG->RLR = reload;
 
-        if (_WDG_CFG_DISABLE_ON_DEBUG) {
+        if (__WDG_DISABLE_ON_DEBUG__) {
                 SET_BIT(DBGMCU->CR, DBGMCU_IWDG_STOP);
         }
 }
