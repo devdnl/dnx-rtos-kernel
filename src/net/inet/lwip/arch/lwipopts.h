@@ -1050,6 +1050,14 @@
 #define TCP_TTL                         __NETWORK_TCP_TTL__
 
 /**
+ * TCP_MSL: Maximum segment lifetime is the time a TCP segment can exist in the
+ * internetwork system. It is arbitrarily defined to be 2 minutes long.
+ * The Maximum Segment Lifetime value is used to determine the TIME_WAIT
+ * interval (2*MSL).
+ */
+#define TCP_MSL                         ((__NETWORK_TCP_MSL__)*1000)
+
+/**
  * TCP_WND: The size of a TCP window.  This must be at least
  * (2 * TCP_MSS) for things to work well.
  * ATTENTION: when using TCP_RCV_SCALE, TCP_WND is the total size
