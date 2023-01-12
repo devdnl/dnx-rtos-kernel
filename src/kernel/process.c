@@ -29,96 +29,62 @@
 /*==============================================================================
   Include files
 ==============================================================================*/
-#include <stdlib.h>
-#include <errno.h>
-#include <string.h>
-#include <unistd.h>
-#include "fs/vfs.h"
-#include "net/netm.h"
 #include "kernel/process.h"
-#include "kernel/kwrapper.h"
+#include "fs/vfs.h"
+#include "kernel/khooks.h"
 #include "kernel/kpanic.h"
+#include "kernel/kwrapper.h"
 #include "kernel/printk.h"
 #include "kernel/sysfunc.h"
-#include "kernel/khooks.h"
-#include "lib/llist.h"
 #include "lib/cast.h"
+#include "lib/llist.h"
 #include "lib/misc.h"
 #include "mm/shm.h"
+#include "net/netm.h"
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
 // critical section - mutex wait must set to max possible
-#define ATOMIC(_mtx) for (int __ = 0; __ == 0;)\
-        for (int _e = _mutex_lock(_mtx, _MAX_DELAY_MS); _e == 0 && __ == 0; _mutex_unlock(_mtx), __++)\
-                for(bool ___ = true; ___; ___ = false)
+#define ATOMIC(_mtx)                                                                \
+        for (int __ = 0; __ == 0;)                                                  \
+                for (int _e = _mutex_lock(_mtx, _MAX_DELAY_MS); _e == 0 && __ == 0; \
+                        _mutex_unlock(_mtx), __++)                                  \
+                        for (bool ___ = true; ___; ___ = false)
 
-#define foreach_resource(_v, _l)        for (res_header_t *_v = _l; _v; _v = _v->next)
-#define foreach_process(_v, _l)         for (_process_t *_v = _l; _v; _v = cast(_process_t*, _v->header.next))
+#define foreach_resource(_v, _l) for (res_header_t *_v = _l; _v; _v = _v->next)
+#define foreach_process(_v, _l) \
+        for (_process_t *_v = _l; _v; _v = cast(_process_t *, _v->header.next))
 
-#define NO_SYSCALL                      UINT8_MAX
-#define SHEBANGLEN                      64
+#define NO_SYSCALL UINT8_MAX
+#define SHEBANGLEN 64
 
-#define PROC_MAX_THREADS(proc)          (((proc)->flag & FLAG_KWORKER) ? __OS_TASK_MAX_SYSTEM_THREADS__ : __OS_TASK_MAX_USER_THREADS__)
+#define is_proc_valid(proc)                                         \
+        (_mm_is_object_in_heap(proc) && (proc->header.self == proc) \
+                && (proc->header.type == RES_TYPE_PROCESS))
+#define is_tid_in_range(proc, tid) (tid < __OS_PROCESS_MAX_THREADS__)
 
-#define is_proc_valid(proc)             (_mm_is_object_in_heap(proc) && (proc->header.self == proc) && (proc->header.type == RES_TYPE_PROCESS))
-#define is_tid_in_range(proc, tid)      (tid < PROC_MAX_THREADS(proc))
+#define PROC_FLAG_DETACHED (1 << 0)
+#define PROC_FLAG_KWORKER  (1 << 1)
+#define PROC_FLAG_KILL     (1 << 2)
 
-#define FLAG_DETACHED                   (1 << 0)
-#define FLAG_KWORKER                    (1 << 1)
-#define FLAG_PROC_RUN                   (1 << 2)
+#define PID_MIN 1
+#define PID_MAX 999
 
-#define PID_MIN                         1
-#define PID_MAX                         999
-
-#define SHARED_DESCRIPTOR               (1 << 15)
+#define SHARED_DESCRIPTOR (1 << 15)
 
 /*==============================================================================
   Local types, enums definitions
 ==============================================================================*/
 typedef struct _prog_data pdata_t;
 
-typedef struct dchain {
-        struct dchain *next;
-        res_header_t *resource[16];
-} dchain_t;
-
 typedef struct {
-        task_t          *task;                  //!< task
-        u32_t            timecnt;               //!< counter used to calculate CPU load
-        int              status;                //!< thread exit status
-        int              errnov;                //!< thread error number
-        u16_t            CPU_load;              //!< CPU load
-        u16_t            syscalls_per_sec;      //!< syscalls/s
-        u16_t            syscalls_ctr;          //!< syscall counter
-        u16_t            stack_size;            //!< stack size
-        bool             kernelspace;           //!< execution in kernel space
-        tid_t            id;                    //!< thread id
-        u8_t             curr_syscall;          //!< current syscall
-} task_data_t;
-
-struct _process {
-        res_header_t     header;                //!< resource header
-        kflag_t         *event;                 //!< events for exit indicator
-        dchain_t         desctab;               //!< objects accessible by descriptor
-        void            *globals;               //!< address to process's global variables
-        void            *app_ctx;               //!< application context (user, stdlib reference)
-        res_header_t    *res_list;              //!< list of used resources
-        u32_t            res_list_size;         //!< size of resources list
-        char            *cwd;                   //!< current working path
-        const _program_entry_t *pdata;          //!< program data
-        char            **argv;                 //!< program arguments
-        u8_t             argc;                  //!< number of arguments
-        pid_t            pid;                   //!< process ID
-        u8_t             flag;                  //!< control flags
-        u8_t             curr_task;             //!< current working task (thread)
-        task_data_t      taskdata[];            //!< array of tasks data
-};
-
-typedef struct {
-        void            *func;
-        void            (*at_init)(void*);
+        void *func;
+        void (*at_init)(void *);
         void            *at_init_ctx;
         struct _process *proc;
         task_data_t     *task_data;
@@ -140,10 +106,12 @@ static int  resource_destroy(res_header_t *resource);
 static int  argtab_create(const char *str, u8_t *argc, char **argv[]);
 static void argtab_destroy(char **argv);
 static int  find_program(const char *name, const _program_entry_t **prog);
-static int  allocate_process_globals(_process_t *proc, size_t app_ctx_size, const _program_entry_t *usrprog);
+static int  allocate_process_globals(_process_t *proc, size_t app_ctx_size,
+         const _program_entry_t *usrprog);
 static int  process_apply_attributes(_process_t *proc, const _process_attr_t *attr);
 static void process_get_stat(_process_t *proc, _process_stat_t *stat);
-static void process_move_list(_process_t *proc, _process_t **list_from, _process_t **list_to);
+static void process_move_list(_process_t *proc, _process_t **list_from,
+        _process_t **list_to);
 static int  get_pid(pid_t *pid);
 static void destroy_all_tasks(_process_t *proc, bool with_zero);
 
@@ -156,16 +124,17 @@ static int  analyze_shebang(_process_t *proc, const char *cmd, char **cmdarg);
   Local object definitions
 ==============================================================================*/
 static pid_t           PID_cnt;
-static _process_t      *active_process_list;
-static _process_t      *destroy_process_list;
-static _process_t      *zombie_process_list;
-static _process_t      *active_process;
+static _process_t     *active_process_list;
+static _process_t     *terminate_process_list;
+static _process_t     *destroy_process_list;
+static _process_t     *zombie_process_list;
+static _process_t     *active_process;
 static u32_t           CPU_total_time_last;
 static _avg_CPU_load_t avg_CPU_load_calc;
 static _avg_CPU_load_t avg_CPU_load_result;
-static kmtx_t          *process_mtx;
+static kmtx_t         *process_mtx;
 static bool            process_mtx_locked;
-static kmtx_t          *kworker_mtx;
+static kmtx_t         *kworker_mtx;
 static dchain_t        shared_desctab;
 
 /*==============================================================================
@@ -224,114 +193,130 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
         char        *cmdarg    = NULL;
         _process_t  *proc      = NULL;
         task_args_t *task_args = NULL;
-        size_t       threads   = isstreq(cmd, "kworker") ? __OS_TASK_MAX_SYSTEM_THREADS__
-                                                         : __OS_TASK_MAX_USER_THREADS__;
 
-        int err = _kzalloc(_MM_KRN, sizeof(_process_t) + (sizeof(task_data_t) * threads),
-                           _CPUCTL_FAST_MEM, 0, 0, cast(void**, &proc));
-        if (!err) {
-                proc->header.self = proc;
-                proc->header.type = RES_TYPE_PROCESS;
+        int err = _kzalloc(_MM_KRN, sizeof(_process_t), _CPUCTL_FAST_MEM, 0, 0,
+                cast(void **, &proc));
+        if (err) {
+                return err;
+        }
 
-                err = process_apply_attributes(proc, attr);
-                if (err) goto finish;
+        proc->header.self = proc;
+        proc->header.type = RES_TYPE_PROCESS;
+
+        err = process_apply_attributes(proc, attr);
+        if (err) {
+                goto finish;
+        }
 
 #if __OS_SYSTEM_SHEBANG_ENABLE__ > 0
-                u8_t  level   = 8;
-                const char *c = cmd;
-                while (c && level-- && is_cmd_path(c)) {
+        u8_t        level = 8;
+        const char *c     = cmd;
+        while (c && level-- && is_cmd_path(c)) {
 
-                        err = analyze_shebang(proc, c, &cmdarg);
+                err = analyze_shebang(proc, c, &cmdarg);
 
-                        if (c && c != cmd) {
-                                _kfree(_MM_KRN, cast(void**, &c));
-                        }
-
-                        c = cmdarg;
-
-                        if (err) goto finish;
+                if (c && c != cmd) {
+                        _kfree(_MM_KRN, cast(void **, &c));
                 }
+
+                c = cmdarg;
+
+                if (err) {
+                        goto finish;
+                }
+        }
 #endif
 
-                err = argtab_create(cmdarg ? cmdarg : cmd, &proc->argc, &proc->argv);
-                if (err) goto finish;
+        err = argtab_create(cmdarg ? cmdarg : cmd, &proc->argc, &proc->argv);
+        if (err) {
+                goto finish;
+        }
 
-                if (cmdarg) {
-                        _kfree(_MM_KRN, cast(void**, &cmdarg));
+        if (cmdarg) {
+                _kfree(_MM_KRN, cast(void **, &cmdarg));
+        }
+
+        err = find_program(proc->argv[0], &proc->pdata);
+        if (err) {
+                goto finish;
+        }
+
+        err = allocate_process_globals(proc, attr->app_ctx_size, proc->pdata);
+        if (err) {
+                goto finish;
+        }
+
+        err = get_pid(&proc->pid);
+        if (err) {
+                goto finish;
+        }
+
+        if (proc->pdata->main != _syscall_kworker_process) {
+                err = _flag_create(&proc->event);
+                if (err) {
+                        goto finish;
                 }
+        } else {
+                proc->flag |= PROC_FLAG_KWORKER;
+        }
 
-                err = find_program(proc->argv[0], &proc->pdata);
-                if (err) goto finish;
+        err = _kzalloc(_MM_KRN, sizeof(*task_args), _CPUCTL_FAST_MEM, 0, 0,
+                cast(void **, &task_args));
+        if (err) {
+                goto finish;
+        }
 
-                err = allocate_process_globals(proc, attr->app_ctx_size, proc->pdata);
-                if (err) goto finish;
+        ATOMIC (process_mtx) {
+                proc->taskdata[0].stack_size
+                        = *proc->pdata->stack_depth + _STACK_DEPTH_MINIMAL;
+                proc->taskdata[0].kernelspace      = (proc->flag & PROC_FLAG_KWORKER);
+                proc->taskdata[0].id               = 0;
+                proc->taskdata[0].syscalls_per_sec = 0;
 
-                err = get_pid(&proc->pid);
-                if (err) goto finish;
+                task_args->func        = proc->pdata->main;
+                task_args->proc        = proc;
+                task_args->task_data   = &proc->taskdata[0];
+                task_args->at_init     = attr->at_init;
+                task_args->at_init_ctx = attr->at_init_ctx;
 
-                if (proc->pdata->main != _syscall_kworker_process) {
-                        err = _flag_create(&proc->event);
-                        if (err) goto finish;
-                } else {
-                        proc->flag |= FLAG_KWORKER;
-                }
+                err = _task_create(process_code, proc->pdata->name,
+                        proc->taskdata[0].stack_size, task_args, &proc->taskdata[0].task);
+                if (!err) {
+                        if (attr) {
+                                _task_set_priority(proc->taskdata[0].task,
+                                        attr->priority);
+                        }
 
-                err = _kzalloc(_MM_KRN, sizeof(*task_args), _CPUCTL_FAST_MEM, 0, 0, cast(void**, &task_args));
-                if (err) goto finish;
+                        if (pid) {
+                                *pid = proc->pid;
+                        }
 
-                ATOMIC(process_mtx) {
-                        proc->taskdata[0].stack_size  = *proc->pdata->stack_depth + _STACK_DEPTH_MINIMAL;
-                        proc->taskdata[0].kernelspace = (proc->flag & FLAG_KWORKER);
-                        proc->taskdata[0].id = 0;
-                        proc->taskdata[0].syscalls_per_sec = 0;
+                        if (active_process_list == NULL) {
+                                active_process_list = proc;
 
-                        task_args->func = proc->pdata->main;
-                        task_args->proc = proc;
-                        task_args->task_data = &proc->taskdata[0];
-                        task_args->at_init = attr->at_init;
-                        task_args->at_init_ctx = attr->at_init_ctx;
-
-                        err = _task_create(process_code,
-                                           proc->pdata->name,
-                                           proc->taskdata[0].stack_size,
-                                           task_args,
-                                           &proc->taskdata[0].task);
-                        if (!err) {
-                                if (attr) {
-                                        _task_set_priority(proc->taskdata[0].task,
-                                                           attr->priority);
-                                }
-
-                                if (pid) {
-                                        *pid = proc->pid;
-                                }
-
-                                if (active_process_list == NULL) {
-                                        active_process_list = proc;
-
-                                } else {
-                                        proc->header.next = cast(res_header_t*, active_process_list);
-                                        active_process_list = proc;
-                                }
+                        } else {
+                                proc->header.next
+                                        = cast(res_header_t *, active_process_list);
+                                active_process_list = proc;
                         }
                 }
         }
 
-        finish:
+finish:
         if (err) {
                 if (task_args) {
-                        _kfree(_MM_KRN, cast(void**, &task_args));
+                        _kfree(_MM_KRN, cast(void **, &task_args));
                 }
 
                 if (cmdarg) {
-                        _kfree(_MM_KRN, cast(void**, &cmdarg));
+                        _kfree(_MM_KRN, cast(void **, &cmdarg));
                 }
 
                 if (proc) {
                         process_destroy_all_resources(proc);
                         proc->header.self = NULL;
                         proc->header.type = RES_TYPE_UNKNOWN;
-                        _kfree(_MM_KRN, cast(void**, &proc));
+                        _kfree(_MM_KRN, cast(void **, &proc));
                 }
         }
 
@@ -346,6 +331,66 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
 //==============================================================================
 void _process_clean_up_killed_processes(void)
 {
+        if (terminate_process_list) {
+
+                int err = _mutex_lock(process_mtx, 5000);
+                if (not err) {
+
+                        foreach_process (proc, terminate_process_list) {
+
+                                bool running = false;
+
+                                u8_t threads = __OS_PROCESS_MAX_THREADS__;
+
+                                _kernel_scheduler_lock();
+
+                                for (u8_t tid = 0; (tid < threads) and not running;
+                                        tid++) {
+                                        if (proc->curr_task == tid) {
+                                                continue;
+                                        }
+
+                                        if (not proc->taskdata[tid].task) {
+                                                continue;
+                                        }
+
+                                        if (proc->taskdata[tid].running) {
+                                                continue;
+                                        }
+
+                                        if (proc->taskdata[tid].curr_syscall
+                                                != NO_SYSCALL) {
+                                                running = true;
+
+                                        } else {
+                                                _task_suspend(proc->taskdata[tid].task);
+                                                proc->taskdata[tid].running = false;
+                                        }
+                                }
+
+                                _kernel_scheduler_unlock();
+
+                                if (not running) {
+                                        _printk("PID:%u: terminated.", proc->pid);
+
+                                        process_move_list(proc, &terminate_process_list,
+                                                &destroy_process_list);
+
+                                        if (proc->event) {
+                                                _flag_set(proc->event,
+                                                        _PROCESS_EXIT_FLAG(0));
+                                        }
+                                }
+                        }
+
+                        _mutex_unlock(process_mtx);
+
+                } else {
+                        printk("permamently locked process mutex - unlocking");
+                        process_mtx_locked = true;
+                }
+        }
+
         if (destroy_process_list) {
                 int err = _mutex_lock(process_mtx, 5000);
                 if (not err) {
@@ -354,17 +399,17 @@ void _process_clean_up_killed_processes(void)
 
                                 process_destroy_all_resources(proc);
 
-                                if (not (proc->flag & FLAG_DETACHED)) {
-                                        process_move_list(proc,
-                                                          &destroy_process_list,
-                                                          &zombie_process_list);
+                                if (not(proc->flag & PROC_FLAG_DETACHED)) {
+                                        process_move_list(proc, &destroy_process_list,
+                                                &zombie_process_list);
                                 } else {
-                                        destroy_process_list = cast(_process_t *, proc->header.next);
+                                        destroy_process_list
+                                                = cast(_process_t *, proc->header.next);
                                         _flag_destroy(proc->event);
-                                        proc->event = NULL;
+                                        proc->event       = NULL;
                                         proc->header.self = NULL;
                                         proc->header.type = RES_TYPE_UNKNOWN;
-                                        _kfree(_MM_KRN, cast(void*, &proc));
+                                        _kfree(_MM_KRN, cast(void *, &proc));
                                 }
                         }
 
@@ -390,20 +435,15 @@ int _process_kill(pid_t pid)
 {
         int err = ESRCH;
 
-        ATOMIC(process_mtx) {
-                foreach_process(proc, active_process_list) {
+        ATOMIC (process_mtx) {
+
+                foreach_process (proc, active_process_list) {
 
                         if (proc->pid == pid) {
-                                if (proc->event) {
-                                        _flag_set(proc->event, _PROCESS_EXIT_FLAG(0));
-                                }
+                                proc->flag |= PROC_FLAG_KILL;
 
-                                destroy_all_tasks(proc, true);
-
-                                process_move_list(proc,
-                                                  &active_process_list,
-                                                  &destroy_process_list);
-
+                                process_move_list(proc, &active_process_list,
+                                        &terminate_process_list);
                                 err = ESUCC;
                                 break;
                         }
@@ -425,29 +465,29 @@ int _process_kill(pid_t pid)
 //==============================================================================
 void _process_suicide(void)
 {
-        _process_t *suicide_proc;
-        _task_get_process_container(_THIS_TASK, &suicide_proc, NULL);
+        _process_t *proc;
+        _task_get_process_container(_THIS_TASK, &proc, NULL);
 
-        ATOMIC(process_mtx) {
-                foreach_process(proc, active_process_list) {
+        ATOMIC (process_mtx) {
 
-                        if (proc->pid == suicide_proc->pid) {
-                                if (proc->event) {
-                                        _flag_set(proc->event, _PROCESS_EXIT_FLAG(0));
-                                }
+                proc->flag |= PROC_FLAG_KILL;
 
-                                destroy_all_tasks(proc, false);
-
-                                process_move_list(proc,
-                                                  &active_process_list,
-                                                  &destroy_process_list);
-                                break;
-                        }
-                }
+                process_move_list(proc, &active_process_list, &terminate_process_list);
         }
+}
 
-        _task_suspend(NULL);
-        while (true);
+//==============================================================================
+/**
+ * @brief  Function return information of kill process request.
+ *
+ * @return True: kill requested, false: kill not requsted.
+ */
+//==============================================================================
+bool _process_is_kill_requested(void)
+{
+        _process_t *proc;
+        _task_get_process_container(_THIS_TASK, &proc, NULL);
+        return proc->flag & PROC_FLAG_KILL;
 }
 
 //==============================================================================
@@ -462,16 +502,16 @@ void _process_remove_zombie(_process_t *proc, int *status)
 {
         _assert(is_proc_valid(proc));
 
-        ATOMIC(process_mtx) {
+        ATOMIC (process_mtx) {
                 _process_t *prev = NULL;
-                foreach_process(p, zombie_process_list) {
+                foreach_process (p, zombie_process_list) {
                         if (p == proc) {
 
                                 if (prev) {
                                         prev->header.next = proc->header.next;
                                 } else {
-                                        zombie_process_list = cast(_process_t *,
-                                                                   proc->header.next);
+                                        zombie_process_list
+                                                = cast(_process_t *, proc->header.next);
                                 }
 
                                 if (status) {
@@ -479,7 +519,7 @@ void _process_remove_zombie(_process_t *proc, int *status)
                                 }
 
                                 _flag_destroy(proc->event);
-                                _kfree(_MM_KRN, cast(void*, &proc));
+                                _kfree(_MM_KRN, cast(void *, &proc));
 
                                 break;
                         } else {
@@ -501,11 +541,53 @@ void _process_remove_zombie(_process_t *proc, int *status)
 void _process_exit(_process_t *proc, int status)
 {
         if (is_proc_valid(proc)) {
+                proc->flag |= PROC_FLAG_KILL;
+
+                _task_set_priority(_THIS_TASK, _PRIORITY_NORMAL);
+
+                bool running = false;
+                u8_t threads = __OS_PROCESS_MAX_THREADS__;
+
+                do {
+                        running = false;
+
+                        _kernel_scheduler_lock();
+
+                        for (u8_t tid = 0; (tid < threads) and not running; tid++) {
+                                if (proc->curr_task == tid) {
+                                        continue;
+                                }
+
+                                if (not proc->taskdata[tid].task) {
+                                        continue;
+                                }
+
+                                if (proc->taskdata[tid].running) {
+                                        continue;
+                                }
+
+                                if (proc->taskdata[tid].curr_syscall != NO_SYSCALL) {
+                                        running = true;
+
+                                } else {
+                                        _task_suspend(proc->taskdata[tid].task);
+                                        proc->taskdata[tid].running = false;
+                                }
+                        }
+
+                        _kernel_scheduler_unlock();
+
+                        if (running) {
+                                _sleep_ms(100);
+                        }
+
+                } while (running);
+
                 proc->taskdata[0].status = status;
 
-                kfile_t *stdin  = cast(kfile_t*, proc->desctab.resource[0]);
-                kfile_t *stdout = cast(kfile_t*, proc->desctab.resource[1]);
-                kfile_t *stderr = cast(kfile_t*, proc->desctab.resource[2]);
+                kfile_t *stdin  = cast(kfile_t *, proc->desctab.resource[0]);
+                kfile_t *stdout = cast(kfile_t *, proc->desctab.resource[1]);
+                kfile_t *stderr = cast(kfile_t *, proc->desctab.resource[2]);
 
                 va_list none;
                 if (stdin and (stdin->header.type == RES_TYPE_FILE)) {
@@ -523,13 +605,22 @@ void _process_exit(_process_t *proc, int status)
                         _vfs_vfioctl(stderr, IOCTL_VFS__DEFAULT_WR_MODE, none);
                 }
 
+                ATOMIC (process_mtx) {
+                        for (tid_t tid = 0; tid < threads; tid++) {
+                                if (proc->curr_task == tid) {
+                                        continue;
+                                }
 
-                ATOMIC(process_mtx) {
-                        destroy_all_tasks(proc, false);
+                                if (proc->taskdata[tid].task) {
+                                        _task_destroy(proc->taskdata[tid].task);
+                                        proc->taskdata[tid].task = NULL;
+                                }
+                        }
 
-                        process_move_list(proc, &active_process_list, &destroy_process_list);
+                        process_move_list(proc, &active_process_list,
+                                &destroy_process_list);
 
-                        proc->taskdata[0].task = NULL;
+                        proc->taskdata[proc->curr_task].task = NULL;
 
                         _process_clean_up_killed_processes();
 
@@ -555,10 +646,10 @@ void _process_exit(_process_t *proc, int status)
 void _process_abort(_process_t *proc)
 {
         if (is_proc_valid(proc)) {
-                kfile_t *stderr = cast(kfile_t*, proc->desctab.resource[2]);
+                kfile_t *stderr = cast(kfile_t *, proc->desctab.resource[2]);
 
                 static const char *aborted = "Aborted\n";
-                size_t wrcnt;
+                size_t             wrcnt;
                 _vfs_fwrite(aborted, strlen(aborted), &wrcnt, stderr);
                 _process_exit(proc, -1);
         } else {
@@ -601,13 +692,13 @@ int _process_set_CWD(_process_t *proc, const char *CWD)
 
         if (is_proc_valid(proc) && CWD && CWD[0] == '/') {
                 char *cwd;
-                err = _kmalloc(_MM_KRN, strsize(CWD), NULL, 0, 0, cast(void*, &cwd));
+                err = _kmalloc(_MM_KRN, strsize(CWD), NULL, 0, 0, cast(void *, &cwd));
                 if (!err) {
                         strcpy(cwd, CWD);
                         _vfs_realpath(cwd, SUB_SLASH);
 
                         if (proc->cwd) {
-                                _kfree(_MM_KRN, cast(void*, &proc->cwd));
+                                _kfree(_MM_KRN, cast(void *, &proc->cwd));
                         }
 
                         proc->cwd = cwd;
@@ -634,10 +725,10 @@ int _process_get_stat_seek(size_t seek, _process_stat_t *stat)
         if (stat) {
                 err = ENOENT;
 
-                ATOMIC(process_mtx) {
+                ATOMIC (process_mtx) {
                         _process_t *proc = NULL;
 
-                        foreach_process(p, active_process_list) {
+                        foreach_process (p, active_process_list) {
                                 if (seek == 0) {
                                         proc = p;
                                         goto finish;
@@ -646,7 +737,14 @@ int _process_get_stat_seek(size_t seek, _process_stat_t *stat)
                                 seek--;
                         }
 
-                        foreach_process(p, destroy_process_list) {
+                        foreach_process (p, terminate_process_list) {
+                                if (seek == 0) {
+                                        proc = p;
+                                        goto finish;
+                                }
+                        }
+
+                        foreach_process (p, destroy_process_list) {
                                 if (seek == 0) {
                                         proc = p;
                                         goto finish;
@@ -655,7 +753,7 @@ int _process_get_stat_seek(size_t seek, _process_stat_t *stat)
                                 seek--;
                         }
 
-                        foreach_process(p, zombie_process_list) {
+                        foreach_process (p, zombie_process_list) {
                                 if (seek == 0) {
                                         proc = p;
                                         goto finish;
@@ -664,7 +762,7 @@ int _process_get_stat_seek(size_t seek, _process_stat_t *stat)
                                 seek--;
                         }
 
-                        finish:
+                finish:
                         if (proc) {
                                 process_get_stat(proc, stat);
                                 err = ESUCC;
@@ -692,31 +790,38 @@ int _process_get_stat_pid(pid_t pid, _process_stat_t *stat)
         if (pid) {
                 err = ENOENT;
 
-                ATOMIC(process_mtx) {
+                ATOMIC (process_mtx) {
                         _process_t *proc = NULL;
 
-                        foreach_process(p, active_process_list) {
+                        foreach_process (p, active_process_list) {
                                 if (p->pid == pid) {
                                         proc = p;
                                         goto finish;
                                 }
                         }
 
-                        foreach_process(p, destroy_process_list) {
+                        foreach_process (p, terminate_process_list) {
                                 if (p->pid == pid) {
                                         proc = p;
                                         goto finish;
                                 }
                         }
 
-                        foreach_process(p, zombie_process_list) {
+                        foreach_process (p, destroy_process_list) {
                                 if (p->pid == pid) {
                                         proc = p;
                                         goto finish;
                                 }
                         }
 
-                        finish:
+                        foreach_process (p, zombie_process_list) {
+                                if (p->pid == pid) {
+                                        proc = p;
+                                        goto finish;
+                                }
+                        }
+
+                finish:
                         if (proc) {
                                 process_get_stat(proc, stat);
                                 err = ESUCC;
@@ -733,7 +838,7 @@ int _process_get_stat_pid(pid_t pid, _process_stat_t *stat)
  *
  * @param  proc         process container
  *
- * @return On success process name is returned, otherwise NULL.
+ * @return On success process name is returned, otherwise "<NULL>".
  */
 //==============================================================================
 const char *_process_get_name(_process_t *proc)
@@ -741,7 +846,7 @@ const char *_process_get_name(_process_t *proc)
         if (is_proc_valid(proc)) {
                 return proc->pdata->name;
         } else {
-                return NULL;
+                return "<NULL>";
         }
 }
 
@@ -756,16 +861,20 @@ size_t _process_get_count(void)
 {
         size_t count = 0;
 
-        ATOMIC(process_mtx) {
-                foreach_process(proc, active_process_list) {
+        ATOMIC (process_mtx) {
+                foreach_process (proc, active_process_list) {
                         count++;
                 }
 
-                foreach_process(p, destroy_process_list) {
+                foreach_process (p, terminate_process_list) {
                         count++;
                 }
 
-                foreach_process(p, zombie_process_list) {
+                foreach_process (p, destroy_process_list) {
+                        count++;
+                }
+
+                foreach_process (p, zombie_process_list) {
                         count++;
                 }
         }
@@ -822,7 +931,7 @@ int _process_get_event_flags(_process_t *proc, kflag_t **flag)
         int err = EINVAL;
 
         if (is_proc_valid(proc) && flag) {
-                ATOMIC(process_mtx) {
+                ATOMIC (process_mtx) {
                         *flag = proc->event;
                         err   = ESUCC;
                 }
@@ -847,21 +956,22 @@ int _process_get_priority(pid_t pid, int *prio)
 
         if (pid && prio) {
                 _kernel_scheduler_lock();
-                {
-                        if (active_process->pid == pid) {
-                                *prio = _task_get_priority(active_process->taskdata[0].task);
-                                err   = ESUCC;
 
-                        } else {
-                                foreach_process(proc, active_process_list) {
-                                        if (proc->pid == pid) {
-                                                *prio  = _task_get_priority(proc->taskdata[0].task);
-                                                err = ESUCC;
-                                                break;
-                                        }
+                if (active_process->pid == pid) {
+                        *prio = _task_get_priority(active_process->taskdata[0].task);
+                        err   = ESUCC;
+
+                } else {
+                        foreach_process (proc, active_process_list) {
+                                if (proc->pid == pid) {
+                                        *prio = _task_get_priority(
+                                                proc->taskdata[0].task);
+                                        err = ESUCC;
+                                        break;
                                 }
                         }
                 }
+
                 _kernel_scheduler_unlock();
         }
 
@@ -884,42 +994,42 @@ int _process_get_container(pid_t pid, _process_t **process)
 
         if (pid && process) {
                 _kernel_scheduler_lock();
-                {
-                        if (active_process->pid == pid) {
-                                *process = active_process;
-                                err = ESUCC;
-                        }
 
-                        if (err) {
-                                foreach_process(proc, active_process_list) {
-                                        if (proc->pid == pid) {
-                                                *process = proc;
-                                                err = ESUCC;
-                                                break;
-                                        }
-                                }
-                        }
+                if (active_process->pid == pid) {
+                        *process = active_process;
+                        err      = ESUCC;
+                }
 
-                        if (err) {
-                                foreach_process(proc, destroy_process_list) {
-                                        if (proc->pid == pid) {
-                                                *process = proc;
-                                                err = ESUCC;
-                                                break;
-                                        }
-                                }
-                        }
-
-                        if (err) {
-                                foreach_process(proc, zombie_process_list) {
-                                        if (proc->pid == pid) {
-                                                *process = proc;
-                                                err = ESUCC;
-                                                break;
-                                        }
+                if (err) {
+                        foreach_process (proc, active_process_list) {
+                                if (proc->pid == pid) {
+                                        *process = proc;
+                                        err      = ESUCC;
+                                        break;
                                 }
                         }
                 }
+
+                if (err) {
+                        foreach_process (proc, destroy_process_list) {
+                                if (proc->pid == pid) {
+                                        *process = proc;
+                                        err      = ESUCC;
+                                        break;
+                                }
+                        }
+                }
+
+                if (err) {
+                        foreach_process (proc, zombie_process_list) {
+                                if (proc->pid == pid) {
+                                        *process = proc;
+                                        err      = ESUCC;
+                                        break;
+                                }
+                        }
+                }
+
                 _kernel_scheduler_unlock();
         }
 
@@ -940,22 +1050,21 @@ tid_t _process_get_active_thread(_process_t *process)
         tid_t tid = UINT8_MAX;
 
         _kernel_scheduler_lock();
-        {
-                if (process == NULL) {
-                        process = active_process;
-                }
 
-                if (process) {
-                        tid = process->curr_task;
-                }
-
-                _assert(tid < PROC_MAX_THREADS(active_process));
+        if (process == NULL) {
+                process = active_process;
         }
+
+        if (process) {
+                tid = process->curr_task;
+        }
+
+        _assert(tid < __OS_PROCESS_MAX_THREADS__);
+
         _kernel_scheduler_unlock();
 
         return tid;
 }
-
 
 //==============================================================================
 /**
@@ -969,11 +1078,11 @@ pid_t _process_get_active_process_pid(void)
         pid_t pid = 0;
 
         _kernel_scheduler_lock();
-        {
-                if (active_process) {
-                        pid = active_process->pid;
-                }
+
+        if (active_process) {
+                pid = active_process->pid;
         }
+
         _kernel_scheduler_unlock();
 
         return pid;
@@ -993,7 +1102,7 @@ u8_t _process_get_max_threads(_process_t *proc)
         u8_t threads = 0;
 
         if (is_proc_valid(proc)) {
-                threads = PROC_MAX_THREADS(proc);
+                threads = __OS_PROCESS_MAX_THREADS__;
         }
 
         return threads;
@@ -1014,7 +1123,7 @@ int _process_register_resource(_process_t *proc, res_header_t *resource)
         if (is_proc_valid(proc)) {
                 kmtx_t *mtx = (proc == _kworker_proc) ? kworker_mtx : process_mtx;
 
-                ATOMIC(mtx) {
+                ATOMIC (mtx) {
                         if (proc->res_list == NULL) {
                                 proc->res_list = resource;
                         } else {
@@ -1047,19 +1156,20 @@ int _process_release_resource(_process_t *proc, res_header_t *resource, res_type
         int err = ESRCH;
 
         if (is_proc_valid(proc) && (resource->self == resource)) {
-                err = ENOENT;
+                err                          = ENOENT;
                 res_header_t *obj_to_destroy = NULL;
-                kmtx_t *mtx = (proc == _kworker_proc) ? kworker_mtx : process_mtx;
+                kmtx_t       *mtx = (proc == _kworker_proc) ? kworker_mtx : process_mtx;
 
-                ATOMIC(mtx) {
+                ATOMIC (mtx) {
                         res_header_t *prev     = NULL;
                         int           max_deep = proc->res_list_size + 1;
 
-                        foreach_resource(curr, proc->res_list) {
+                        foreach_resource (curr, proc->res_list) {
                                 if (curr == resource) {
                                         if (curr->type == type) {
                                                 if (proc->res_list == curr) {
-                                                        proc->res_list = proc->res_list->next;
+                                                        proc->res_list
+                                                                = proc->res_list->next;
                                                 } else {
                                                         prev->next = curr->next;
                                                 }
@@ -1077,7 +1187,8 @@ int _process_release_resource(_process_t *proc, res_header_t *resource, res_type
 
                                         if (--max_deep == 0) {
                                                 _assert(max_deep > 0);
-                                                _kernel_panic_report(_KERNEL_PANIC_DESC_CAUSE_INTERNAL_2);
+                                                _kernel_panic_report(
+                                                        _KERNEL_PANIC_DESC_CAUSE_INTERNAL_2);
                                         }
                                 }
                         }
@@ -1107,11 +1218,8 @@ int _process_release_resource(_process_t *proc, res_header_t *resource, res_type
  * @return One of errno value.
  */
 //==============================================================================
-int _process_thread_create(_process_t           *proc,
-                           thread_func_t         func,
-                           const _thread_attr_t *attr,
-                           void                 *arg,
-                           tid_t                *tid)
+int _process_thread_create(_process_t *proc, thread_func_t func,
+        const _thread_attr_t *attr, void *arg, tid_t *tid)
 {
         int err = EINVAL;
 
@@ -1119,29 +1227,33 @@ int _process_thread_create(_process_t           *proc,
                 return err;
         }
 
-        ATOMIC(process_mtx) {
-                u8_t  threads = PROC_MAX_THREADS(proc);
-                tid_t id      = 1;
-                for (; id < threads; id++) {
+        ATOMIC (process_mtx) {
+                tid_t id = 1;
+                for (; id < __OS_PROCESS_MAX_THREADS__; id++) {
                         if (proc->taskdata[id].task == NULL) {
-                                memset(&proc->taskdata[id], 0, sizeof(proc->taskdata[id]));
+                                memset(&proc->taskdata[id], 0,
+                                        sizeof(proc->taskdata[id]));
                                 break;
                         }
                 }
 
-                if (id < threads) {
+                if (id < __OS_PROCESS_MAX_THREADS__) {
                         task_args_t *args = NULL;
-                        err = _kmalloc(_MM_KRN, sizeof(*args), _CPUCTL_FAST_MEM, 0, 0, cast(void*, &args));
+                        err = _kmalloc(_MM_KRN, sizeof(*args), _CPUCTL_FAST_MEM, 0, 0,
+                                cast(void *, &args));
                         if (!err) {
 
-                                args->func = func;
-                                args->arg  = arg;
-                                args->proc = proc;
+                                args->func      = func;
+                                args->arg       = arg;
+                                args->proc      = proc;
                                 args->task_data = &proc->taskdata[id];
 
-                                proc->taskdata[id].stack_size  = (attr ? attr->stack_depth : 0) + _STACK_DEPTH_MINIMAL;
-                                proc->taskdata[id].kernelspace = (proc->flag & FLAG_KWORKER);
-                                proc->taskdata[id].id = id;
+                                proc->taskdata[id].stack_size
+                                        = (attr ? attr->stack_depth : 0)
+                                        + _STACK_DEPTH_MINIMAL;
+                                proc->taskdata[id].kernelspace
+                                        = (proc->flag & PROC_FLAG_KWORKER);
+                                proc->taskdata[id].id           = id;
                                 proc->taskdata[id].curr_syscall = NO_SYSCALL;
 
                                 if (proc->event) {
@@ -1149,13 +1261,16 @@ int _process_thread_create(_process_t           *proc,
                                 }
 
                                 err = _task_create(thread_code, "",
-                                                   proc->taskdata[id].stack_size,
-                                                   args, &proc->taskdata[id].task);
+                                        proc->taskdata[id].stack_size, args,
+                                        &proc->taskdata[id].task);
                                 if (!err) {
 
+                                        proc->taskdata[id].running = true;
+
                                         if (attr) {
-                                                _task_set_priority(proc->taskdata[id].task,
-                                                                   attr->priority);
+                                                _task_set_priority(
+                                                        proc->taskdata[id].task,
+                                                        attr->priority);
                                         }
 
                                         if (tid) {
@@ -1163,7 +1278,7 @@ int _process_thread_create(_process_t           *proc,
                                         }
 
                                 } else {
-                                        _kfree(_MM_KRN, cast(void*, &args));
+                                        _kfree(_MM_KRN, cast(void *, &args));
                                 }
                         }
                 }
@@ -1187,7 +1302,7 @@ int _process_thread_kill(_process_t *proc, tid_t tid)
         int err = EINVAL;
 
         if (is_proc_valid(proc) && (tid > 0) && is_tid_in_range(proc, tid)) {
-                ATOMIC(process_mtx) {
+                ATOMIC (process_mtx) {
                         if (proc->taskdata[tid].task) {
                                 _task_destroy(proc->taskdata[tid].task);
                                 proc->taskdata[tid].task = NULL;
@@ -1219,7 +1334,7 @@ task_t *_process_thread_get_task(_process_t *proc, tid_t tid)
         task_t *task = NULL;
 
         if (is_proc_valid(proc) && is_tid_in_range(proc, tid)) {
-                ATOMIC(process_mtx) {
+                ATOMIC (process_mtx) {
                         task = proc->taskdata[tid].task;
                 }
         }
@@ -1245,42 +1360,46 @@ int _process_thread_get_stat(pid_t pid, tid_t tid, _thread_stat_t *stat)
         if (pid && stat) {
                 err = ENOENT;
 
-                ATOMIC(process_mtx) {
+                ATOMIC (process_mtx) {
                         _process_t *proc = NULL;
 
-                        foreach_process(p, active_process_list) {
+                        foreach_process (p, active_process_list) {
                                 if (p->pid == pid) {
                                         proc = p;
                                         goto finish;
                                 }
                         }
 
-                        foreach_process(p, destroy_process_list) {
+                        foreach_process (p, destroy_process_list) {
                                 if (p->pid == pid) {
                                         proc = p;
                                         goto finish;
                                 }
                         }
 
-                        foreach_process(p, zombie_process_list) {
+                        foreach_process (p, zombie_process_list) {
                                 if (p->pid == pid) {
                                         proc = p;
                                         goto finish;
                                 }
                         }
 
-                        finish:
-                        if (  proc && (is_tid_in_range(proc, tid))
-                           && proc->taskdata[tid].task) {
+                finish:
+                        if (proc && (is_tid_in_range(proc, tid))
+                                && proc->taskdata[tid].task) {
 
                                 memset(stat, 0, sizeof(_thread_stat_t));
 
-                                stat->tid              = tid;
-                                stat->CPU_load         = proc->taskdata[tid].CPU_load;
-                                stat->priority         = _task_get_priority(proc->taskdata[tid].task);
-                                stat->stack_size       = proc->taskdata[tid].stack_size + _STACK_DEPTH_MINIMAL;
-                                stat->stack_max_usage  = stat->stack_size - _task_get_free_stack(proc->taskdata[tid].task);
-                                stat->syscalls_per_sec = proc->taskdata[tid].syscalls_per_sec;
+                                stat->tid      = tid;
+                                stat->CPU_load = proc->taskdata[tid].CPU_load;
+                                stat->priority
+                                        = _task_get_priority(proc->taskdata[tid].task);
+                                stat->stack_size = proc->taskdata[tid].stack_size
+                                        + _STACK_DEPTH_MINIMAL;
+                                stat->stack_max_usage = stat->stack_size
+                                        - _task_get_free_stack(proc->taskdata[tid].task);
+                                stat->syscalls_per_sec
+                                        = proc->taskdata[tid].syscalls_per_sec;
 
                                 err = ESUCC;
                         }
@@ -1303,13 +1422,15 @@ int _process_thread_exit(int exit)
 {
         void _kill_thread_helper(void *arg)
         {
-                _process_t *proc; tid_t tid;
+                _process_t *proc;
+                tid_t       tid;
                 _task_get_process_container(arg, &proc, &tid);
                 _process_thread_kill(proc, tid);
                 _task_exit();
         }
 
-        _process_t *proc; tid_t tid;
+        _process_t *proc;
+        tid_t       tid;
         _task_get_process_container(NULL, &proc, &tid);
 
         int err = EINVAL;
@@ -1323,8 +1444,8 @@ int _process_thread_exit(int exit)
                         proc->taskdata[tid].status = exit;
 
                         while (true) {
-                                int err = _task_create(_kill_thread_helper, "", _STACK_DEPTH_MINIMAL,
-                                                       _task_get_handle(), NULL);
+                                int err = _task_create(_kill_thread_helper, "",
+                                        _STACK_DEPTH_MINIMAL, _task_get_handle(), NULL);
                                 while (!err) {
                                         _sleep_ms(10);
                                 }
@@ -1360,27 +1481,6 @@ int _process_thread_get_status(_process_t *proc, tid_t tid, int *status)
 
 //==============================================================================
 /**
- * Function increase syscall request counter (stats).
- *
- * @param proc          process
- * @param kworker       kworker process
- */
-//==============================================================================
-void _process_syscall_stat_inc(_process_t *proc, _process_t *kworker)
-{
-        if (is_proc_valid(proc) and is_proc_valid(kworker)) {
-                ATOMIC(process_mtx) {
-                        tid_t i = _process_get_active_thread(proc);
-                        proc->taskdata[i].syscalls_ctr++;
-                        kworker->taskdata[0].syscalls_ctr++;
-                }
-        } else {
-                printk("Invalid process %p!\n", proc);
-        }
-}
-
-//==============================================================================
-/**
  * @brief  Function return process container and thread ID associated with task.
  *
  * @param taskhdl       task (NULL for this task)
@@ -1392,18 +1492,20 @@ void _process_syscall_stat_inc(_process_t *proc, _process_t *kworker)
 //==============================================================================
 void _task_get_process_container(task_t *taskhdl, _process_t **proc, tid_t *tid)
 {
-        ATOMIC(process_mtx) {
+        ATOMIC (process_mtx) {
                 taskhdl = taskhdl ? taskhdl : _task_get_handle();
                 _assert(taskhdl);
 
                 if (proc) {
-                        _process_t *p = _task_get_storage_pointer(taskhdl, STORAGE_IDX_PROC);
+                        _process_t *p
+                                = _task_get_storage_pointer(taskhdl, STORAGE_IDX_PROC);
                         _assert(p);
                         *proc = p;
                 }
 
                 if (tid) {
-                        task_data_t *task_data = _task_get_storage_pointer(taskhdl, STORAGE_IDX_TASK_DATA);
+                        task_data_t *task_data = _task_get_storage_pointer(taskhdl,
+                                STORAGE_IDX_TASK_DATA);
                         _assert(task_data);
                         *tid = task_data->id;
                 }
@@ -1422,15 +1524,18 @@ void _calculate_CPU_load(void)
         avg_CPU_load_calc.avg1sec = 0;
 
         // atomic section is not needed because this function is called from IRQ
-        foreach_process(proc, active_process_list) {
+        foreach_process (proc, active_process_list) {
 
-                for (int i = 0; i < PROC_MAX_THREADS(proc); i++) {
+                for (int i = 0; i < __OS_PROCESS_MAX_THREADS__; i++) {
+
                         if (proc->taskdata[i].task) {
-                                proc->taskdata[i].CPU_load = proc->taskdata[i].timecnt / (_CPU_total_time / 1000);
-                                proc->taskdata[i].timecnt  = 0;
-                                avg_CPU_load_calc.avg1sec  += proc->taskdata[i].CPU_load;
+                                proc->taskdata[i].CPU_load = proc->taskdata[i].timecnt
+                                        / (_CPU_total_time / 1000);
+                                proc->taskdata[i].timecnt = 0;
+                                avg_CPU_load_calc.avg1sec += proc->taskdata[i].CPU_load;
 
-                                proc->taskdata[i].syscalls_per_sec = proc->taskdata[i].syscalls_ctr;
+                                proc->taskdata[i].syscalls_per_sec
+                                        = proc->taskdata[i].syscalls_ctr;
                                 proc->taskdata[i].syscalls_ctr = 0;
                         }
                 }
@@ -1442,8 +1547,8 @@ void _calculate_CPU_load(void)
         CPU_total_time_last = 0;
 
         // calculates average CPU load
-        avg_CPU_load_calc.avg1min  += avg_CPU_load_result.avg1sec;
-        avg_CPU_load_calc.avg5min  += avg_CPU_load_result.avg1sec;
+        avg_CPU_load_calc.avg1min += avg_CPU_load_result.avg1sec;
+        avg_CPU_load_calc.avg5min += avg_CPU_load_result.avg1sec;
         avg_CPU_load_calc.avg15min += avg_CPU_load_result.avg1sec;
 
         if (_uptime_counter_sec % 60 == 0) {
@@ -1493,136 +1598,202 @@ bool _process_is_consistent(void)
         bool sanity_ok = true;
 
         _kernel_scheduler_lock();
-        {
-                sanity_ok = (PID_cnt >= PID_MIN) && (PID_cnt <= PID_MAX);
-                if (!sanity_ok) goto end;
 
-                res_header_t *f = (void*)process_mtx;
-                sanity_ok = (f->self == f) && (f->type == RES_TYPE_MUTEX);
-                if (!sanity_ok) goto end;
+        sanity_ok = (PID_cnt >= PID_MIN) && (PID_cnt <= PID_MAX);
+        if (!sanity_ok) {
+                _printk("PID counter not in range!");
+                goto end;
+        }
 
-                f = (void*)kworker_mtx;
-                sanity_ok = (f->self == f) && (f->type == RES_TYPE_MUTEX);
-                if (!sanity_ok) goto end;
+        res_header_t *f = (void *)process_mtx;
+        sanity_ok       = (f->self == f) && (f->type == RES_TYPE_MUTEX);
+        if (!sanity_ok) {
+                _printk("PID counter not in range!");
+                goto end;
+        }
 
-                sanity_ok = _mm_is_object_in_heap(active_process_list);
-                if (!sanity_ok) goto end;
+        f         = (void *)kworker_mtx;
+        sanity_ok = (f->self == f) && (f->type == RES_TYPE_MUTEX);
+        if (!sanity_ok) {
+                _printk("Invalid kworker mutex!");
+                goto end;
+        }
 
-                sanity_ok = destroy_process_list ? _mm_is_object_in_heap(destroy_process_list) : true;
-                if (!sanity_ok) goto end;
+        sanity_ok = active_process ? _mm_is_object_in_heap(active_process) : true;
+        if (!sanity_ok) {
+                goto end;
+        }
 
-                sanity_ok = zombie_process_list ? _mm_is_object_in_heap(zombie_process_list) : true;
-                if (!sanity_ok) goto end;
+        foreach_process (p, active_process_list) {
 
-                sanity_ok = active_process ? _mm_is_object_in_heap(active_process) : true;
-                if (!sanity_ok) goto end;
+                sanity_ok = is_proc_valid(p);
+                if (!sanity_ok) {
+                        _printk("invalid process @ %p!", p);
+                        goto end;
+                }
 
-                foreach_process(p, active_process_list) {
+                sanity_ok = (p->pid >= PID_MIN) && (p->pid <= PID_MAX);
+                if (!sanity_ok) {
+                        _printk("PID:%u: ID out of range!", p->pid);
+                        goto end;
+                }
 
-                        sanity_ok = is_proc_valid(p);
-                        if (!sanity_ok) goto end;
+                sanity_ok = (p->pdata != NULL);
+                if (!sanity_ok) {
+                        _printk("PID:%u: NULL pdata!", p->pid);
+                        goto end;
+                }
 
-                        sanity_ok = (p->pdata != NULL);
-                        if (!sanity_ok) goto end;
+                bool found = (p->pdata->main == _syscall_kworker_process);
+                const _program_table_desc_t *const program_table = _get_programs_table();
+                for (size_t i = 0; (i < program_table->number_of_programs) && !found;
+                        i++) {
+                        found = (p->pdata == &program_table->program_entry[i]);
+                }
+                if (not found) {
+                        _printk("PID:%u: pdata not found!", p->pid);
+                        goto end;
+                }
 
-                        bool found = (p->pdata->main == _syscall_kworker_process);
-                        const _program_table_desc_t *const program_table = _get_programs_table();
-                        for (size_t i = 0; (i < program_table->number_of_programs) && !found; i++) {
-                                found = (p->pdata == &program_table->program_entry[i]);
-                        }
+                sanity_ok = (strnlen(p->pdata->name, 256) < 256);
+                if (!sanity_ok) {
+                        _printk("PID:%u: too long name!", p->pid);
+                        goto end;
+                }
 
-                        sanity_ok = (strnlen(p->pdata->name, 256) < 256);
-                        if (!sanity_ok) goto end;
+                sanity_ok = (p->pdata->stack_depth != NULL);
+                if (!sanity_ok) {
+                        _printk("PID:%u: NULL stack depth pointer!", p->pid);
+                        goto end;
+                }
 
-                        sanity_ok = (p->pdata->stack_depth != NULL);
-                        if (!sanity_ok) goto end;
+                sanity_ok = (*p->pdata->stack_depth != 0);
+                if (!sanity_ok) {
+                        _printk("PID:%u: 0 stack size!", p->pid);
+                        goto end;
+                }
 
-                        sanity_ok = (*p->pdata->stack_depth != 0);
-                        if (!sanity_ok) goto end;
+                sanity_ok = not _mm_is_object_in_heap(p->pdata->main);
+                if (!sanity_ok) {
+                        _printk("PID:%u: main object not in heap!", p->pid);
+                        goto end;
+                }
 
-                        sanity_ok = not _mm_is_object_in_heap(p->pdata->main);
-                        if (!sanity_ok) goto end;
+                res_header_t *flag = (void *)p->event;
+                sanity_ok          = (p->pdata->main != _syscall_kworker_process)
+                                 ? (_mm_is_object_in_heap(flag) && (flag->self == flag)
+                                && (flag->type == RES_TYPE_FLAG))
+                                 : true;
+                if (!sanity_ok) {
+                        _printk("PID:%u: invalid event flag!", p->pid);
+                        goto end;
+                }
 
-                        res_header_t *flag = (void*)p->event;
-                        sanity_ok = (p->pdata->main != _syscall_kworker_process) ?
-                                    ( _mm_is_object_in_heap(flag)
-                                    && (flag->self == flag)
-                                    && (flag->type == RES_TYPE_FLAG)) : true;
-                        if (!sanity_ok) goto end;
-
-
-                        dchain_t *chain = &p->desctab;
-                        while (chain and sanity_ok) {
-                                for (size_t i = 0; sanity_ok and (i < ARRAY_SIZE(chain->resource)); i++) {
-                                        if (chain->resource[i]) {
-                                                if (not _mm_is_object_in_heap(chain->resource[i])) {
-                                                        sanity_ok = false;
-                                                        goto end;
-                                                }
+                dchain_t *chain = &p->desctab;
+                while (chain and sanity_ok) {
+                        for (size_t i = 0;
+                                sanity_ok and (i < ARRAY_SIZE(chain->resource)); i++) {
+                                if (chain->resource[i]) {
+                                        if (not _mm_is_object_in_heap(
+                                                    chain->resource[i])) {
+                                                sanity_ok = false;
+                                                _printk("PID:%u: descriptor %u "
+                                                        "out of heap!",
+                                                        p->pid, i);
+                                                goto end;
                                         }
                                 }
-
-                                chain = chain->next;
                         }
 
-                        sanity_ok = (p->pdata->globals_size && (*p->pdata->globals_size > 0))
-                                    ? _mm_is_object_in_heap(p->globals) : true;
-                        if (!sanity_ok) goto end;
+                        chain = chain->next;
+                }
 
-                        size_t n = 0;
-                        size_t m = p->res_list_size;
-                        res_header_t *res = p->res_list;
-                        while (res && m) {
+                sanity_ok = (p->pdata->globals_size && (*p->pdata->globals_size > 0))
+                        ? _mm_is_object_in_heap(p->globals)
+                        : true;
+                if (!sanity_ok) {
+                        _printk("PID:%u: globals not in heap!", p->pid);
+                        goto end;
+                }
 
-                                sanity_ok =  _mm_is_object_in_heap(res)
-                                          && (res->self == res)
-                                          && (  (res->type == RES_TYPE_DIR)
-                                             || (res->type == RES_TYPE_MEMORY)
-                                             || (res->type == RES_TYPE_SEMAPHORE)
-                                             || (res->type == RES_TYPE_FILE)
-                                             || (res->type == RES_TYPE_FLAG)
-                                             || (res->type == RES_TYPE_MUTEX)
-                                             || (res->type == RES_TYPE_QUEUE)
-                                             || (res->type == RES_TYPE_SOCKET) );
-                                if (!sanity_ok) goto end;
+                size_t        n   = 0;
+                size_t        m   = p->res_list_size;
+                res_header_t *res = p->res_list;
+                while (res && m) {
 
-                                res = res->next;
-                                n++;
-                                m--;
+                        sanity_ok = _mm_is_object_in_heap(res) && (res->self == res)
+                                && ((res->type == RES_TYPE_DIR)
+                                        || (res->type == RES_TYPE_MEMORY)
+                                        || (res->type == RES_TYPE_SEMAPHORE)
+                                        || (res->type == RES_TYPE_FILE)
+                                        || (res->type == RES_TYPE_FLAG)
+                                        || (res->type == RES_TYPE_MUTEX)
+                                        || (res->type == RES_TYPE_QUEUE)
+                                        || (res->type == RES_TYPE_SOCKET));
+                        if (!sanity_ok) {
+                                _printk("PID:%u: invalid resource!", p->pid);
+                                goto end;
                         }
 
-                        sanity_ok = (n == p->res_list_size) && (m == 0);
-                        if (!sanity_ok) goto end;
+                        res = res->next;
+                        n++;
+                        m--;
+                }
 
-                        sanity_ok = (p->cwd != NULL);
-                        if (!sanity_ok) goto end;
+                sanity_ok = (n == p->res_list_size) && (m == 0);
+                if (!sanity_ok) {
+                        _printk("PID:%u: resource number mismatch!", p->pid);
+                        goto end;
+                }
 
-                        sanity_ok = _mm_is_object_in_heap(p->argv) && (p->argc >= 1);
-                        if (!sanity_ok) goto end;
+                sanity_ok = (p->cwd != NULL);
+                if (!sanity_ok) {
+                        _printk("PID:%u: NULL CWD!", p->pid);
+                        goto end;
+                }
 
-                        sanity_ok = (p->pid >= PID_MIN) && (p->pid <= PID_MAX);
-                        if (!sanity_ok) goto end;
+                sanity_ok = _mm_is_object_in_heap(p->argv) && (p->argc >= 1);
+                if (!sanity_ok) {
+                        _printk("PID:%u: argv not in heap!", p->pid);
+                        goto end;
+                }
 
-                        sanity_ok = (p->pdata->main == _syscall_kworker_process)
-                                  ? ((p->flag & FLAG_KWORKER) == FLAG_KWORKER) : true;
-                        if (!sanity_ok) goto end;
+                sanity_ok = (p->pdata->main == _syscall_kworker_process)
+                        ? ((p->flag & PROC_FLAG_KWORKER) == PROC_FLAG_KWORKER)
+                        : true;
+                if (!sanity_ok) {
+                        _printk("PID:%u: kworker without flag!", p->pid);
+                        goto end;
+                }
 
-                        sanity_ok = (p->pdata->main != _syscall_kworker_process)
-                                  ? ((p->flag & ~FLAG_DETACHED) == 0) : true;
-                        if (!sanity_ok) goto end;
+                sanity_ok = (p->pdata->main != _syscall_kworker_process)
+                        ? ((p->flag & PROC_FLAG_KWORKER) == 0)
+                        : true;
+                if (!sanity_ok) {
+                        _printk("PID:%u: flagged as kworker!", p->pid);
+                        goto end;
+                }
 
-                        for (int i = 0; i < PROC_MAX_THREADS(p); i++) {
-                                sanity_ok = (p->taskdata[i].task)
-                                          ? _mm_is_object_in_heap(p->taskdata[i].task) : true;
-                                if (!sanity_ok) goto end;
+                for (int i = 0; i < __OS_PROCESS_MAX_THREADS__; i++) {
+                        sanity_ok = (p->taskdata[i].task)
+                                ? _mm_is_object_in_heap(p->taskdata[i].task)
+                                : true;
+                        if (!sanity_ok) {
+                                _printk("PID:%u: thread %u task not in heap!", p->pid, i);
+                                goto end;
+                        }
 
-                                sanity_ok = (p->taskdata[i].task) ? (p->taskdata[i].stack_size > 0) : true;
-                                if (!sanity_ok) goto end;
+                        sanity_ok = (p->taskdata[i].task)
+                                ? (p->taskdata[i].stack_size > 0)
+                                : true;
+                        if (!sanity_ok) {
+                                _printk("PID:%u: 0 stack size of thread %u!", p->pid, i);
+                                goto end;
                         }
                 }
         }
 
-        end:
+end:
         _kernel_scheduler_unlock();
 
         return sanity_ok;
@@ -1637,11 +1808,28 @@ bool _process_is_consistent(void)
 //==============================================================================
 void _process_enter_kernelspace(_process_t *proc, u8_t syscall)
 {
-        if (is_proc_valid(proc)) {
-                ATOMIC(process_mtx) {
-                        tid_t i = _process_get_active_thread(proc);
-                        proc->taskdata[i].kernelspace = true;
+        extern struct _process *_kworker_proc;
+
+        if (is_proc_valid(proc) and is_proc_valid(_kworker_proc)) {
+
+                bool kill_request = false;
+
+                ATOMIC (process_mtx) {
+                        tid_t i                        = _process_get_active_thread(proc);
+                        proc->taskdata[i].kernelspace  = true;
                         proc->taskdata[i].curr_syscall = syscall;
+                        proc->taskdata[i].syscalls_ctr++;
+                        _kworker_proc->taskdata[0].syscalls_ctr++;
+
+                        kill_request              = proc->flag & PROC_FLAG_KILL;
+                        proc->taskdata[i].running = !kill_request;
+                }
+
+                if (kill_request) {
+                        _task_suspend(NULL);
+                        while (true) {
+                                ;
+                        }
                 }
         }
 }
@@ -1656,10 +1844,22 @@ void _process_enter_kernelspace(_process_t *proc, u8_t syscall)
 void _process_exit_kernelspace(_process_t *proc)
 {
         if (is_proc_valid(proc)) {
-                ATOMIC(process_mtx) {
-                        tid_t i = _process_get_active_thread(proc);
-                        proc->taskdata[i].kernelspace = false;
+                bool kill_request = false;
+
+                ATOMIC (process_mtx) {
+                        tid_t i                        = _process_get_active_thread(proc);
+                        proc->taskdata[i].kernelspace  = false;
                         proc->taskdata[i].curr_syscall = NO_SYSCALL;
+
+                        kill_request              = proc->flag & PROC_FLAG_KILL;
+                        proc->taskdata[i].running = !kill_request;
+                }
+
+                if (kill_request) {
+                        _task_suspend(NULL);
+                        while (true) {
+                                ;
+                        }
                 }
         }
 }
@@ -1679,7 +1879,7 @@ bool _process_is_kernelspace(_process_t *proc, tid_t tid)
         bool kernelspace = false;
 
         if (is_proc_valid(proc) && is_tid_in_range(proc, tid)) {
-                ATOMIC(process_mtx) {
+                ATOMIC (process_mtx) {
                         kernelspace = proc->taskdata[tid].kernelspace;
                 }
         }
@@ -1701,7 +1901,7 @@ u8_t _process_get_curr_syscall(_process_t *proc, tid_t tid)
         bool syscall = NO_SYSCALL;
 
         if (is_proc_valid(proc) && is_tid_in_range(proc, tid)) {
-                ATOMIC(process_mtx) {
+                ATOMIC (process_mtx) {
                         syscall = proc->taskdata[tid].curr_syscall;
                 }
         }
@@ -1721,11 +1921,12 @@ u8_t _process_get_curr_syscall(_process_t *proc, tid_t tid)
  * @return One of errno value.
  */
 //==============================================================================
-int _process_descriptor_allocate(_process_t *process, int *desc, res_header_t *res, bool shared)
+int _process_descriptor_allocate(_process_t *process, int *desc, res_header_t *res,
+        bool shared)
 {
         int err = EMFILE;
 
-        ATOMIC(process_mtx) {
+        ATOMIC (process_mtx) {
 
                 dchain_t *chain = NULL;
 
@@ -1735,14 +1936,16 @@ int _process_descriptor_allocate(_process_t *process, int *desc, res_header_t *r
                         chain = &process->desctab;
                 }
 
-                int node = 0;
+                int  node  = 0;
                 bool found = false;
 
                 while (chain and (not found)) {
-                        for (size_t i = 0; not found and(i < ARRAY_SIZE(chain->resource)); i++) {
+                        for (size_t i = 0;
+                                not found and (i < ARRAY_SIZE(chain->resource)); i++) {
                                 if (chain->resource[i] == NULL) {
                                         chain->resource[i] = res;
-                                        *desc = (node << 4) | i | (shared ? SHARED_DESCRIPTOR : 0);
+                                        *desc              = (node << 4) | i
+                                                | (shared ? SHARED_DESCRIPTOR : 0);
                                         found = true;
                                         err   = ESUCC;
                                         break;
@@ -1752,9 +1955,11 @@ int _process_descriptor_allocate(_process_t *process, int *desc, res_header_t *r
                         if (not found) {
                                 if (chain->next == NULL) {
                                         err = _kzalloc(_MM_KRN, sizeof(dchain_t),
-                                                       _CPUCTL_FAST_MEM, 0, 0,
-                                                       cast(void**, &chain->next));
-                                        if (err) chain->next = NULL;
+                                                _CPUCTL_FAST_MEM, 0, 0,
+                                                cast(void **, &chain->next));
+                                        if (err) {
+                                                chain->next = NULL;
+                                        }
                                 }
 
                                 chain = chain->next;
@@ -1785,7 +1990,7 @@ int _process_descriptor_free(_process_t *process, int desc, res_type_t rtype)
                 return err;
         }
 
-        ATOMIC(process_mtx) {
+        ATOMIC (process_mtx) {
 
                 dchain_t *chain = NULL;
 
@@ -1806,8 +2011,11 @@ int _process_descriptor_free(_process_t *process, int desc, res_type_t rtype)
                                 if (!err) {
                                         chain->resource[desc & 0xF] = NULL;
 
-                                        if ((rtype != RES_TYPE_UNKNOWN) and (otype != rtype)) {
-                                                printk("Descriptor %d points to incorrect object type!", desc);
+                                        if ((rtype != RES_TYPE_UNKNOWN)
+                                                and (otype != rtype)) {
+                                                printk("Descriptor %d points to "
+                                                       "incorrect object type!",
+                                                        desc);
                                                 err = EINVAL;
                                         }
                                 }
@@ -1842,7 +2050,7 @@ int _process_descriptor_get_resource(_process_t *process, int desc, res_header_t
                 return err;
         }
 
-        ATOMIC(process_mtx) {
+        ATOMIC (process_mtx) {
 
                 dchain_t *chain = NULL;
 
@@ -1858,7 +2066,7 @@ int _process_descriptor_get_resource(_process_t *process, int desc, res_header_t
                 while (chain) {
                         if ((desc >> 4) == node) {
                                 *res = chain->resource[desc & 0xF];
-                                err = 0;
+                                err  = 0;
                                 break;
                         }
 
@@ -1881,7 +2089,7 @@ static void process_code(void *arg)
 {
         _assert(arg);
 
-        task_args_t args = *cast(task_args_t*, arg);
+        task_args_t args = *cast(task_args_t *, arg);
         _kfree(_MM_KRN, &arg);
 
         _task_set_storage_pointer(NULL, STORAGE_IDX_PROC, args.proc);
@@ -1892,10 +2100,14 @@ static void process_code(void *arg)
                 args.at_init(args.at_init_ctx);
         }
 
-        process_func_t func = args.func;
+        process_func_t func    = args.func;
         args.task_data->status = func(args.proc->argc, args.proc->argv);
 
         _process_exit(args.proc, args.task_data->status);
+        _task_suspend(_THIS_TASK);
+        for (;;) {
+                ;
+        }
 }
 
 //==============================================================================
@@ -1909,19 +2121,20 @@ static void thread_code(void *arg)
 {
         _assert(arg);
 
-        task_args_t args = *cast(task_args_t*, arg);
-        _kfree(_MM_KRN, cast(void*, &arg));
+        task_args_t args = *cast(task_args_t *, arg);
+        _kfree(_MM_KRN, cast(void *, &arg));
 
         _task_set_storage_pointer(NULL, STORAGE_IDX_PROC, args.proc);
         _task_set_storage_pointer(NULL, STORAGE_IDX_TASK_DATA, args.task_data);
         _task_yield();
 
-        thread_func_t func = args.func;
+        thread_func_t func     = args.func;
         args.task_data->status = func(args.arg);
 
-        ATOMIC(process_mtx) {
+        ATOMIC (process_mtx) {
                 if (args.proc->event) {
-                        _flag_set(args.proc->event, _PROCESS_EXIT_FLAG(args.task_data->id));
+                        _flag_set(args.proc->event,
+                                _PROCESS_EXIT_FLAG(args.task_data->id));
                 }
 
                 args.task_data->task = NULL;
@@ -1939,20 +2152,22 @@ static void thread_code(void *arg)
  * @param  list_to      destination list
  */
 //==============================================================================
-static void process_move_list(_process_t *proc, _process_t **list_from, _process_t **list_to)
+static void process_move_list(_process_t *proc, _process_t **list_from,
+        _process_t **list_to)
 {
-        ATOMIC(process_mtx) {
+        ATOMIC (process_mtx) {
                 _process_t *prev = NULL;
-                foreach_process(p, *list_from) {
+                foreach_process (p, *list_from) {
                         if (p == proc) {
 
                                 if (prev) {
                                         prev->header.next = proc->header.next;
                                 } else {
-                                        *list_from = cast(_process_t*, proc->header.next);
+                                        *list_from
+                                                = cast(_process_t *, proc->header.next);
                                 }
 
-                                proc->header.next = cast(struct res_header*, *list_to);
+                                proc->header.next = cast(struct res_header *, *list_to);
 
                                 *list_to = proc;
 
@@ -2002,8 +2217,8 @@ static void process_destroy_all_resources(_process_t *proc)
 
                         int err = resource_destroy(resource_curr);
                         if (err != ESUCC) {
-                                printk("PROCESS: PID %d: unknown object %p\n",
-                                       proc->pid, resource_curr);
+                                printk("PROCESS: PID %d: unknown object %p\n", proc->pid,
+                                        resource_curr);
                         }
                 } else {
                         resource_prev = resource_curr;
@@ -2012,7 +2227,8 @@ static void process_destroy_all_resources(_process_t *proc)
                 resource_curr = resource_next;
         }
 
-        // free all objects accessed from descriptor (files, dirs, mutexes, semaphores, queues, sockets)
+        // free all objects accessed from descriptor (files, dirs, mutexes, semaphores,
+        // queues, sockets)
         dchain_t *chain = &proc->desctab;
         while (chain) {
                 for (size_t i = 0; i < ARRAY_SIZE(chain->resource); i++) {
@@ -2021,7 +2237,8 @@ static void process_destroy_all_resources(_process_t *proc)
                                 if (!err) {
                                         chain->resource[i] = NULL;
                                 } else {
-                                        printk("PROCESS: PID %d: unknown object %p\n", proc->pid, chain->resource[i]);
+                                        printk("PROCESS: PID %d: unknown object %p\n",
+                                                proc->pid, chain->resource[i]);
                                 }
                         }
                 }
@@ -2029,21 +2246,20 @@ static void process_destroy_all_resources(_process_t *proc)
                 chain = chain->next;
         }
 
-
         // free all memory regions
         while (proc->res_list) {
                 res_header_t *resource = proc->res_list;
-                proc->res_list = resource->next;
+                proc->res_list         = resource->next;
 
                 int err = resource_destroy(resource);
                 if (err != ESUCC) {
-                        printk("PROCESS: PID %d: unknown object %p\n", proc->pid, resource);
+                        printk("PROCESS: PID %d: unknown object %p\n", proc->pid,
+                                resource);
                 }
         }
 
-
         if (proc->cwd) {
-                _kfree(_MM_KRN, cast(void*, &proc->cwd));
+                _kfree(_MM_KRN, cast(void *, &proc->cwd));
         }
 
         // detach from all shared memory regions
@@ -2052,8 +2268,8 @@ static void process_destroy_all_resources(_process_t *proc)
 #endif
 
         proc->res_list_size = 0;
-        proc->res_list = NULL;
-        proc->globals  = NULL;
+        proc->res_list      = NULL;
+        proc->globals       = NULL;
 }
 
 //==============================================================================
@@ -2070,20 +2286,23 @@ static void process_get_stat(_process_t *proc, _process_stat_t *stat)
 
         stat->name     = proc->pdata->name;
         stat->pid      = proc->pid;
-        stat->priority = (proc->taskdata[0].task) ? _task_get_priority(proc->taskdata[0].task) : 0;
+        stat->priority = (proc->taskdata[0].task)
+                ? _task_get_priority(proc->taskdata[0].task)
+                : 0;
 
-        u8_t threads = PROC_MAX_THREADS(proc);
+        u8_t threads = __OS_PROCESS_MAX_THREADS__;
         for (tid_t tid = 0; tid < threads; tid++) {
                 if (proc->taskdata[tid].task) {
                         stat->threads_count++;
-                        stat->CPU_load         += proc->taskdata[tid].CPU_load;
+                        stat->CPU_load += proc->taskdata[tid].CPU_load;
                         stat->syscalls_per_sec += proc->taskdata[tid].syscalls_per_sec;
-                        stat->stack_max_usage  += (proc->taskdata[tid].stack_size - _task_get_free_stack(proc->taskdata[tid].task));
-                        stat->stack_size       += proc->taskdata[tid].stack_size;
+                        stat->stack_max_usage += (proc->taskdata[tid].stack_size
+                                - _task_get_free_stack(proc->taskdata[tid].task));
+                        stat->stack_size += proc->taskdata[tid].stack_size;
                 }
         }
 
-        foreach_resource(res, proc->res_list) {
+        foreach_resource (res, proc->res_list) {
                 switch (res->type) {
                 case RES_TYPE_FILE:
                         stat->files_count++;
@@ -2182,7 +2401,7 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
                  */
                 size_t cwdlen = attr->cwd ? strsize(attr->cwd) : strsize("/");
 
-                err = _kmalloc(_MM_KRN, cwdlen, NULL, 0, 0, cast(void*, &proc->cwd));
+                err = _kmalloc(_MM_KRN, cwdlen, NULL, 0, 0, cast(void *, &proc->cwd));
                 if (!err) {
                         if (attr->cwd && attr->cwd[0] == '/') {
                                 strcpy(proc->cwd, attr->cwd);
@@ -2199,11 +2418,13 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
                  * Create stdin/out/err descriptors
                  */
                 struct vfs_path cpath;
-                cpath.CWD  = proc->cwd;
+                cpath.CWD = proc->cwd;
 
                 if (attr->fd_stdin >= 0) {
                         res_header_t *res;
-                        if (_process_descriptor_get_resource(active_process, attr->fd_stdin, &res) == 0) {
+                        if (_process_descriptor_get_resource(active_process,
+                                    attr->fd_stdin, &res)
+                                == 0) {
                                 if (_vfs_fopen_ref(res->self) == 0) {
                                         proc->desctab.resource[0] = res;
                                 }
@@ -2215,8 +2436,11 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
                         err = _vfs_fopen(&cpath, O_RDONLY, 0, &file);
                         if (!err) {
                                 int fd;
-                                err = _process_descriptor_allocate(proc, &fd, &file->header, false);
-                                if (err) goto finish;
+                                err = _process_descriptor_allocate(proc, &fd,
+                                        &file->header, false);
+                                if (err) {
+                                        goto finish;
+                                }
                         } else {
                                 goto finish;
                         }
@@ -2224,7 +2448,9 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
 
                 if (attr->fd_stdout >= 0) {
                         res_header_t *res;
-                        if (_process_descriptor_get_resource(active_process, attr->fd_stdout, &res) == 0) {
+                        if (_process_descriptor_get_resource(active_process,
+                                    attr->fd_stdout, &res)
+                                == 0) {
                                 if (_vfs_fopen_ref(res->self) == 0) {
                                         proc->desctab.resource[1] = res;
                                 }
@@ -2236,8 +2462,11 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
                         err = _vfs_fopen(&cpath, O_RDWR | O_APPEND, 0, &file);
                         if (!err) {
                                 int fd;
-                                err = _process_descriptor_allocate(proc, &fd, &file->header, false);
-                                if (err) goto finish;
+                                err = _process_descriptor_allocate(proc, &fd,
+                                        &file->header, false);
+                                if (err) {
+                                        goto finish;
+                                }
                         } else {
                                 goto finish;
                         }
@@ -2245,7 +2474,9 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
 
                 if (attr->fd_stderr >= 0) {
                         res_header_t *res;
-                        if (_process_descriptor_get_resource(active_process, attr->fd_stderr, &res) == 0) {
+                        if (_process_descriptor_get_resource(active_process,
+                                    attr->fd_stderr, &res)
+                                == 0) {
                                 if (_vfs_fopen_ref(res->self) == 0) {
                                         proc->desctab.resource[2] = res;
                                 }
@@ -2257,8 +2488,11 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
                         err = _vfs_fopen(&cpath, O_RDWR | O_APPEND, 0, &file);
                         if (!err) {
                                 int fd;
-                                err = _process_descriptor_allocate(proc, &fd, &file->header, false);
-                                if (err) goto finish;
+                                err = _process_descriptor_allocate(proc, &fd,
+                                        &file->header, false);
+                                if (err) {
+                                        goto finish;
+                                }
                         } else {
                                 goto finish;
                         }
@@ -2267,10 +2501,10 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
                 /*
                  * Set detached flag
                  */
-                proc->flag |= attr->detached ? FLAG_DETACHED : 0;
+                proc->flag |= attr->detached ? PROC_FLAG_DETACHED : 0;
         }
 
-        finish:
+finish:
         return err;
 }
 
@@ -2284,7 +2518,7 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
 //==============================================================================
 static void destroy_all_tasks(_process_t *proc, bool with_zero)
 {
-        u8_t threads = PROC_MAX_THREADS(proc);
+        u8_t threads = __OS_PROCESS_MAX_THREADS__;
 
         for (tid_t tid = with_zero ? 0 : 1; tid < threads; tid++) {
                 if (proc->taskdata[tid].task) {
@@ -2305,7 +2539,7 @@ static int get_pid(pid_t *pid)
 {
         int err = ESRCH;
 
-        ATOMIC(process_mtx) {
+        ATOMIC (process_mtx) {
                 int n = PID_MAX + 1;
                 while (pid && (n-- > 0)) {
                         if (++PID_cnt >= (PID_MAX + 1)) {
@@ -2314,23 +2548,33 @@ static int get_pid(pid_t *pid)
 
                         bool found = false;
 
-                        foreach_process(proc, active_process_list) {
+                        foreach_process (proc, active_process_list) {
                                 found = proc->pid == PID_cnt;
-                                if (found) break;
+                                if (found) {
+                                        break;
+                                }
                         }
 
-                        if (found) continue;
-
-                        foreach_process(proc, active_process_list) {
-                                found = proc->pid == PID_cnt;
-                                if (found) break;
+                        if (found) {
+                                continue;
                         }
 
-                        if (found) continue;
-
-                        foreach_process(proc, active_process_list) {
+                        foreach_process (proc, active_process_list) {
                                 found = proc->pid == PID_cnt;
-                                if (found) break;
+                                if (found) {
+                                        break;
+                                }
+                        }
+
+                        if (found) {
+                                continue;
+                        }
+
+                        foreach_process (proc, active_process_list) {
+                                found = proc->pid == PID_cnt;
+                                if (found) {
+                                        break;
+                                }
                         }
 
                         if (found) {
@@ -2366,36 +2610,36 @@ static int resource_destroy(res_header_t *resource)
 
         switch (resource->type) {
         case RES_TYPE_FILE:
-                _vfs_fclose(cast(kfile_t*, res2free), true);
+                _vfs_fclose(cast(kfile_t *, res2free), true);
                 break;
 
         case RES_TYPE_DIR:
-                _vfs_closedir(cast(kdir_t*, res2free));
+                _vfs_closedir(cast(kdir_t *, res2free));
                 break;
 
         case RES_TYPE_MEMORY:
-                _kfree(_MM_PROG, cast(void*, &res2free));
+                _kfree(_MM_PROG, cast(void *, &res2free));
                 break;
 
         case RES_TYPE_MUTEX:
-                _mutex_destroy(cast(kmtx_t*, res2free));
+                _mutex_destroy(cast(kmtx_t *, res2free));
                 break;
 
         case RES_TYPE_QUEUE:
-                _queue_destroy(cast(kqueue_t*, res2free));
+                _queue_destroy(cast(kqueue_t *, res2free));
                 break;
 
         case RES_TYPE_SEMAPHORE:
-                _semaphore_destroy(cast(ksem_t*, res2free));
+                _semaphore_destroy(cast(ksem_t *, res2free));
                 break;
 
         case RES_TYPE_FLAG:
-                _flag_destroy(cast(kflag_t*, res2free));
+                _flag_destroy(cast(kflag_t *, res2free));
                 break;
 
         case RES_TYPE_SOCKET:
 #if _ENABLE_NETWORK_ == _YES_
-                _net_socket_destroy(cast(ksocket_t*, res2free));
+                _net_socket_destroy(cast(ksocket_t *, res2free));
                 break;
 #else
                 return ENOTSUP;
@@ -2422,9 +2666,8 @@ static int resource_destroy(res_header_t *resource)
 static bool is_cmd_path(const char *cmd)
 {
         cmd += strspn(cmd, " ");
-        return (  (cmd[0] == '.' && cmd[1] == '/')
-               || (cmd[0] == '.' && cmd[1] == '.' && cmd[2] == '/')
-               || (cmd[0] == '/') );
+        return ((cmd[0] == '.' && cmd[1] == '/')
+                || (cmd[0] == '.' && cmd[1] == '.' && cmd[2] == '/') || (cmd[0] == '/'));
 }
 #endif
 
@@ -2443,42 +2686,50 @@ static bool is_cmd_path(const char *cmd)
 static int analyze_shebang(_process_t *proc, const char *cmd, char **cmdarg)
 {
         // allocations
-        char *filename = NULL;
-        char *line     = NULL;
+        char    *filename = NULL;
+        char    *line     = NULL;
         kfile_t *file     = NULL;
 
         // skip leading spaces
         cmd += strspn(cmd, " ");
 
         // argument start
-        char  *args    = strchr(cmd, ' ');
-               args   += args ? 1 : 0;
+        char *args = strchr(cmd, ' ');
+        args += args ? 1 : 0;
         size_t argslen = args ? strsize(args) : 0;
 
         // file name length
         size_t fnlen = args ? ((u32_t)args - (u32_t)cmd) : strsize(cmd);
 
         // allocate file name
-        int err = _kmalloc(_MM_KRN, fnlen, NULL, 0, 0, cast(void**, &filename));
-        if (err) goto finish;
+        int err = _kmalloc(_MM_KRN, fnlen, NULL, 0, 0, cast(void **, &filename));
+        if (err) {
+                goto finish;
+        }
         sys_strlcpy(filename, cmd, fnlen);
 
         // allocate line
-        err = _kzalloc(_MM_KRN, SHEBANGLEN, NULL, 0, 0, cast(void**, &line));
-        if (err) goto finish;
+        err = _kzalloc(_MM_KRN, SHEBANGLEN, NULL, 0, 0, cast(void **, &line));
+        if (err) {
+                goto finish;
+        }
 
         // open file
         struct vfs_path path;
         path.CWD  = proc->cwd;
         path.PATH = filename;
         err       = _vfs_fopen(&path, O_RDONLY, 0, &file);
-        if (err) goto finish;
+        if (err) {
+                goto finish;
+        }
 
         // check that file is set to execute
         struct stat st;
         st.st_mode = 0;
-        err = _vfs_fstat(file, &st);
-        if (err) goto finish;
+        err        = _vfs_fstat(file, &st);
+        if (err) {
+                goto finish;
+        }
         if ((st.st_mode & S_IXUSR) == 0) {
                 err = EACCES;
                 goto finish;
@@ -2486,16 +2737,18 @@ static int analyze_shebang(_process_t *proc, const char *cmd, char **cmdarg)
 
         // read line
         size_t rd = 0;
-        err = _vfs_fread(line, SHEBANGLEN - 1, &rd, file);
-        if (err) goto finish;
+        err       = _vfs_fread(line, SHEBANGLEN - 1, &rd, file);
+        if (err) {
+                goto finish;
+        }
 
         // check shebang
         if (line[0] == '#' && line[1] == '!') {
-                char *p  = line + 2;
-                      p += strspn(p, " ");
+                char *p = line + 2;
+                p += strspn(p, " ");
 
                 char *end = strchr(p, '\r');
-                end = end ? end : strchr(p, '\n');
+                end       = end ? end : strchr(p, '\n');
 
                 if (end) {
                         *end = '\0';
@@ -2503,7 +2756,7 @@ static int analyze_shebang(_process_t *proc, const char *cmd, char **cmdarg)
 
                 size_t arglen = strsize(p) + strsize(filename) + argslen;
 
-                err = _kmalloc(_MM_KRN, arglen, NULL, 0, 0, cast(void**, cmdarg));
+                err = _kmalloc(_MM_KRN, arglen, NULL, 0, 0, cast(void **, cmdarg));
                 if (!err) {
                         sys_strlcpy(*cmdarg, p, arglen);
                         sys_strlcat(*cmdarg, " ", arglen);
@@ -2516,13 +2769,13 @@ static int analyze_shebang(_process_t *proc, const char *cmd, char **cmdarg)
                 }
         }
 
-        finish:
+finish:
         if (filename) {
-                _kfree(_MM_KRN, cast(void**, &filename));
+                _kfree(_MM_KRN, cast(void **, &filename));
         }
 
         if (line) {
-                _kfree(_MM_KRN, cast(void**, &line));
+                _kfree(_MM_KRN, cast(void **, &line));
         }
 
         if (file) {
@@ -2560,10 +2813,10 @@ static int argtab_create(const char *str, u8_t *argc, char **argv[])
                                 str += strspn(str, " ");
 
                                 // select character to find as end of argument
-                                bool quo = false;
+                                bool quo  = false;
                                 char find = ' ';
                                 if (*str == '\'' || *str == '"') {
-                                        quo = true;
+                                        quo  = true;
                                         find = *str;
                                         str++;
                                 }
@@ -2581,8 +2834,9 @@ static int argtab_create(const char *str, u8_t *argc, char **argv[])
 
                                 // calculate argument length (without nul character)
                                 int str_len = end - start;
-                                if (str_len == 0)
+                                if (str_len == 0) {
                                         break;
+                                }
 
                                 if (quo || *(end - 1) == ' ') {
                                         str_len--;
@@ -2590,12 +2844,13 @@ static int argtab_create(const char *str, u8_t *argc, char **argv[])
 
                                 // add argument to list
                                 char *arg;
-                                err = _kmalloc(_MM_KRN, str_len + 1, NULL, 0, 0, cast(void**, &arg));
+                                err = _kmalloc(_MM_KRN, str_len + 1, NULL, 0, 0,
+                                        cast(void **, &arg));
                                 if (!err) {
                                         _strlcpy(arg, start, str_len + 1);
 
                                         if (_llist_push_back(largs, arg) == NULL) {
-                                                _kfree(_MM_KRN, cast(void*, &arg));
+                                                _kfree(_MM_KRN, cast(void *, &arg));
                                                 goto finish;
                                         }
                                 } else {
@@ -2608,20 +2863,21 @@ static int argtab_create(const char *str, u8_t *argc, char **argv[])
 
                         // create table with arguments
                         int no_of_args = _llist_size(largs);
-                        *argc = no_of_args;
+                        *argc          = no_of_args;
 
                         char **arg = NULL;
-                        err = _kmalloc(_MM_KRN, (no_of_args + 1) * sizeof(char*), NULL, 0, 0, cast(void*, &arg));
+                        err = _kmalloc(_MM_KRN, (no_of_args + 1) * sizeof(char *), NULL,
+                                0, 0, cast(void *, &arg));
                         if (!err) {
                                 for (int i = 0; i < no_of_args; i++) {
                                         arg[i] = _llist_take_front(largs);
                                 }
 
                                 arg[no_of_args] = NULL;
-                                *argv = arg;
+                                *argv           = arg;
                         }
 
-                        finish:
+                finish:
                         _llist_destroy(largs);
                 }
         }
@@ -2641,11 +2897,11 @@ static void argtab_destroy(char **argv)
         if (argv) {
                 int n = 0;
                 while (argv[n]) {
-                        _kfree(_MM_KRN, cast(void*, &argv[n]));
+                        _kfree(_MM_KRN, cast(void *, &argv[n]));
                         n++;
                 }
 
-                _kfree(_MM_KRN, cast(void*, &argv));
+                _kfree(_MM_KRN, cast(void *, &argv));
         }
 }
 
@@ -2666,7 +2922,8 @@ const _program_table_desc_t *_get_programs_table(void)
                 prog_table = cast(const _program_table_desc_t *const, &__text_end);
         } else {
                 // appset table address at specified address
-                prog_table = cast(const _program_table_desc_t *const, __PROJ_APPSET_TABLE_ADDRESS__);
+                prog_table = cast(const _program_table_desc_t *const,
+                        __PROJ_APPSET_TABLE_ADDRESS__);
         }
 
         return prog_table;
@@ -2684,7 +2941,7 @@ const _program_table_desc_t *_get_programs_table(void)
 //==============================================================================
 static int find_program(const char *name, const _program_entry_t **prog)
 {
-        static const size_t kworker_stack_depth  = 1;
+        static const size_t kworker_stack_depth = 1;
 
         static const size_t kworker_globals_size = 0;
 
@@ -2692,7 +2949,7 @@ static int find_program(const char *name, const _program_entry_t **prog)
                 .globals_size = &kworker_globals_size,
                 .main         = _syscall_kworker_process,
                 .name         = "kworker",
-                .stack_depth  = &kworker_stack_depth
+                .stack_depth  = &kworker_stack_depth,
         };
 
         int err = ENOENT;
@@ -2705,12 +2962,13 @@ static int find_program(const char *name, const _program_entry_t **prog)
                 const _program_table_desc_t *const prog_table = _get_programs_table();
 
                 if ((prog_table->magic == 0) and (prog_table->number_of_programs > 0)
-                    and (prog_table->number_of_programs != UINT32_MAX)) {
+                        and (prog_table->number_of_programs != UINT32_MAX)) {
 
                         for (size_t i = 0; i < prog_table->number_of_programs; i++) {
-                                if (strncmp(prog_table->program_entry[i].name, name, 128) == 0) {
-                                        *prog  = &prog_table->program_entry[i];
-                                        err = ESUCC;
+                                if (strncmp(prog_table->program_entry[i].name, name, 128)
+                                        == 0) {
+                                        *prog = &prog_table->program_entry[i];
+                                        err   = ESUCC;
                                         break;
                                 }
                         }
@@ -2731,15 +2989,15 @@ static int find_program(const char *name, const _program_entry_t **prog)
  * @return One of errno value.
  */
 //==============================================================================
-static int allocate_process_globals(_process_t *proc, size_t app_ctx_size, const _program_entry_t *usrprog)
+static int allocate_process_globals(_process_t *proc, size_t app_ctx_size,
+        const _program_entry_t *usrprog)
 {
         int err = ESUCC;
 
         if (*usrprog->globals_size > 0) {
                 res_header_t *mem;
                 err = _kzalloc(_MM_PROG, *usrprog->globals_size, NULL,
-                               _MM_FLAG__DMA_CAPABLE, _MM_FLAG__DMA_CAPABLE,
-                               cast(void*, &mem));
+                        _MM_FLAG__DMA_CAPABLE, _MM_FLAG__DMA_CAPABLE, cast(void *, &mem));
                 if (!err) {
                         proc->globals = &mem[1];
                         _process_register_resource(proc, mem);
@@ -2748,9 +3006,8 @@ static int allocate_process_globals(_process_t *proc, size_t app_ctx_size, const
 
         if (!err and (app_ctx_size > 0)) {
                 res_header_t *ctx;
-                err = _kzalloc(_MM_PROG, app_ctx_size, NULL,
-                               _MM_FLAG__DMA_CAPABLE, _MM_FLAG__DMA_CAPABLE,
-                               cast(void*, &ctx));
+                err = _kzalloc(_MM_PROG, app_ctx_size, NULL, _MM_FLAG__DMA_CAPABLE,
+                        _MM_FLAG__DMA_CAPABLE, cast(void *, &ctx));
                 if (!err) {
                         proc->app_ctx = &ctx[1];
                         _process_register_resource(proc, ctx);
@@ -2776,13 +3033,13 @@ void _task_switched_in(task_t *task, void *proc, void *task_data)
         UNUSED_ARG1(task);
 
         CPU_total_time_last = _CPU_total_time;
-        active_process = proc;
+        active_process      = proc;
 
         if (active_process && (active_process->header.type == RES_TYPE_PROCESS)) {
-                active_process->curr_task = cast(task_data_t*, task_data)->id;
-                _errno   = cast(task_data_t*, task_data)->errnov;
-                _global  = active_process->globals;
-                _app_ctx = active_process->app_ctx;
+                active_process->curr_task = cast(task_data_t *, task_data)->id;
+                _errno                    = cast(task_data_t *, task_data)->errnov;
+                _global                   = active_process->globals;
+                _app_ctx                  = active_process->app_ctx;
 
         } else {
                 _global  = NULL;
@@ -2813,18 +3070,19 @@ void _task_switched_out(task_t *task, void *proc, void *task_data)
         UNUSED_ARG2(task, proc);
 
         if (active_process && (active_process->header.type == RES_TYPE_PROCESS)) {
-                cast(task_data_t*, task_data)->errnov = _errno;
-                active_process->globals  = _global;
-                active_process->app_ctx  = _app_ctx;
+                cast(task_data_t *, task_data)->errnov = _errno;
+                active_process->globals                = _global;
+                active_process->app_ctx                = _app_ctx;
 
-                #if (__OS_MONITOR_CPU_LOAD__ > 0)
+#if (__OS_MONITOR_CPU_LOAD__ > 0)
                 _CPU_total_time += _cpuctl_get_CPU_load_counter_delta();
-                active_process->taskdata[active_process->curr_task].timecnt += (_CPU_total_time - CPU_total_time_last);
-                #endif
+                active_process->taskdata[active_process->curr_task].timecnt
+                        += (_CPU_total_time - CPU_total_time_last);
+#endif
         } else {
-                #if (__OS_MONITOR_CPU_LOAD__ > 0)
+#if (__OS_MONITOR_CPU_LOAD__ > 0)
                 _CPU_total_time += _cpuctl_get_CPU_load_counter_delta();
-                #endif
+#endif
         }
 }
 

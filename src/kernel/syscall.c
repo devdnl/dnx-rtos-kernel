@@ -536,7 +536,7 @@ __attribute__((section (".syscall"))) int syscall(syscall_t syscall, va_list arg
                 err = 0;
 
         } else if (syscall < _SYSCALL_COUNT) {
-                _process_clean_up_killed_processes();
+//                _process_clean_up_killed_processes();
 
                 syscallrq_t syscallrq = {
                         .syscall_no = syscall,
@@ -569,7 +569,7 @@ int _syscall_kworker_process(int argc, char *argv[])
         UNUSED_ARG2(argc, argv);
 
         _task_get_process_container(_THIS_TASK, &_kworker_proc, NULL);
-        _assert(_kworker_proc);
+        _task_set_priority(_THIS_TASK, _PRIORITY_HIGHEST);
 
         u64_t sync_period_ref = _kernel_get_uptime_ms();
 
@@ -599,8 +599,6 @@ int _syscall_kworker_process(int argc, char *argv[])
 static int syscall_do(void *rq)
 {
         syscallrq_t *sysrq = rq;
-
-        _process_syscall_stat_inc(sysrq->client_proc, _kworker_proc);
 
         _process_enter_kernelspace(sysrq->client_proc, sysrq->syscall_no);
         int err = syscalltab[sysrq->syscall_no](sysrq);
@@ -1378,8 +1376,6 @@ static int syscall_free(syscallrq_t *rq)
                         _vfs_fwrite(msg, strlen(msg), &wrcnt, cast(kfile_t*, res));
                 }
 
-                pid_t pid = 0;
-                _process_get_pid(GETPROCESS(), &pid);
                 _process_suicide();
         }
 
@@ -3422,7 +3418,7 @@ static int syscall_threadjoin(syscallrq_t *rq)
 
         int err = EINVAL;
 
-        if ((*tid > 0) and (*tid < __OS_TASK_MAX_USER_THREADS__)) {
+        if ((*tid > 0) and (*tid < __OS_PROCESS_MAX_THREADS__)) {
 
                 kflag_t *flag;
                 err = _process_get_event_flags(rq->client_proc, &flag);

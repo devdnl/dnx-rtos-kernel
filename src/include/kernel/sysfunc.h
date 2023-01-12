@@ -5084,7 +5084,7 @@ static inline clock_t sys_get_uptime_ms(void)
  *
  * @return Tick counter value.
  *
- * @see sys_gettime_ms(), sys_sleep_until(), sys_sleep_until_ms()
+ * @see sys_gettime_ms()
  */
 //==============================================================================
 static inline u64_t sys_get_tick_counter(void)
@@ -5210,7 +5210,7 @@ extern int sys_thread_destroy(tid_t tid);
 //==============================================================================
 static inline bool sys_thread_is_valid(tid_t tid)
 {
-        return ((tid >= 1) && (tid < __OS_TASK_MAX_SYSTEM_THREADS__));
+        return ((tid >= 1) && (tid < __OS_PROCESS_MAX_THREADS__));
 }
 
 //==============================================================================
@@ -5476,7 +5476,7 @@ static inline void sys_context_switch_unlock(void)
  *
  * @param microseconds          number of microseconds of sleep
  *
- * @see sys_sleep(), sys_sleep_until(), sys_sleep_until_ms()
+ * @see sys_sleep()
  */
 //==============================================================================
 static inline void sys_sleep_us(const u32_t microseconds)
@@ -5495,72 +5495,12 @@ static inline void sys_sleep_us(const u32_t microseconds)
  *
  * @param milliseconds          number of milliseconds of sleep
  *
- * @see sys_sleep(), sys_sleep_until(), sys_sleep_until_ms()
+ * @see sys_sleep()
  */
 //==============================================================================
 static inline void sys_sleep_ms(const u32_t milliseconds)
 {
         _sleep_ms(milliseconds);
-}
-
-//==============================================================================
-/**
- * @brief Function sleep thread in regular periods (reference argument).
- *
- * @note Function can be used only by file system or driver code.
- *
- * @param milliseconds          milliseconds
- * @param ref_time_ticks        reference time in OS ticks
- *
- * @b Example
- * @code
-        // ...
-
-        u32_t tick_ref = sys_get_tick_counter();
-
-        // ...
-
-        sys_sleep_until_ms(250, &tick_ref);
-
-        // ...
-   @endcode
- *
- * @see sys_get_tick_counter(), sys_sleep_ms(), sys_sleep_until(), sys_sleep()
- */
-//==============================================================================
-static inline void sys_sleep_until_ms(const u32_t milliseconds, u32_t *ref_time_ticks)
-{
-        _sleep_until_ms(milliseconds, ref_time_ticks);
-}
-
-//==============================================================================
-/**
- * @brief Function sleep task in regular periods (reference argument)
- *
- * @note Function can be used only by file system or driver code.
- *
- * @param seconds               seconds
- * @param ref_time_ticks        reference time in OS ticks
- *
- * @b Example
- * @code
-        // ...
-
-        u32_t tick_ref = sys_get_tick_counter();
-
-        // ...
-
-        sys_sleep_until(2, &tick_ref);
-
-        // ...
-   @endcode
- *
- * @see sys_get_tick_counter(), sys_sleep(), sys_sleep_until_ms(), sys_sleep_ms()
- */
-//==============================================================================
-static inline void sys_sleep_until(const u32_t seconds, u32_t *ref_time_ticks)
-{
-        _sleep_until(seconds, ref_time_ticks);
 }
 
 //==============================================================================

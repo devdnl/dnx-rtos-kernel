@@ -66,7 +66,7 @@ struct _kernel_panic_info {
         tid_t       tid;             /* thread ID          */
         bool        kernelspace;     /* kernel space       */
         bool        kernel_panic;    /* kernel panic       */
-        bool        sycall;          /* syscall            */
+        bool        syscall;         /* syscall            */
 };
 
 /*==============================================================================
@@ -76,7 +76,7 @@ struct _kernel_panic_info {
 /*==============================================================================
   Exported functions
 ==============================================================================*/
-extern int  _kernel_panic_init();
+extern int  _kernel_panic_init(void);
 extern bool _kernel_panic_info(struct _kernel_panic_info*);
 extern void _kernel_panic_report(enum _kernel_panic_desc_cause);
 extern void _kernel_panic_report_from_ISR(enum _kernel_panic_desc_cause);

@@ -41,11 +41,14 @@
 ==============================================================================*/
 /** CALCULATIONS */
 #define _CEILING(x, y) (((x) + (y)-1) / (y))
+
 #define MS2TICK(ms)                                                     \
         ((ms <= (1000 / (configTICK_RATE_HZ))                           \
                          ? 1                                            \
                          : _CEILING(ms, (1000 / (configTICK_RATE_HZ)))) \
                 + 1)
+
+#define BLOCK_TIME_MS   250
 
 /*==============================================================================
   Local types, enums definitions
@@ -583,15 +586,29 @@ int _semaphore_destroy(ksem_t *sem)
  * @return One of errno values.
  */
 //==============================================================================
-int _semaphore_wait(ksem_t *sem, const u32_t blocktime_ms)
+int _semaphore_wait(ksem_t *sem, u32_t blocktime_ms)
 {
-        if (is_semaphore_valid(sem)) {
-                bool r = xSemaphoreTake(sem->object, MS2TICK((TickType_t)blocktime_ms));
-                return r ? ESUCC : ETIME;
-        } else {
-                printk("Invalid semaphore object @ %p", sem);
-                return EINVAL;
-        }
+        do {
+                if (not is_semaphore_valid(sem)) {
+                        printk("Invalid semaphore object @ %p", sem);
+                        return EINVAL;
+                }
+
+                TickType_t wait = min(BLOCK_TIME_MS, blocktime_ms);
+
+                if (xSemaphoreTake(sem->object, MS2TICK(wait))) {
+                        return ESUCC;
+                }
+
+                if (_process_is_kill_requested()) {
+                        return ECANCELED;
+                }
+
+                blocktime_ms -= wait;
+
+        } while (blocktime_ms > 0);
+
+        return ETIME;
 }
 
 //==============================================================================
@@ -763,23 +780,37 @@ int _mutex_destroy(kmtx_t *mutex)
  * @return One of errno values.
  */
 //==============================================================================
-int _mutex_lock(kmtx_t *mutex, const u32_t blocktime_ms)
+int _mutex_lock(kmtx_t *mutex, u32_t blocktime_ms)
 {
-        if (is_mutex_valid(mutex)) {
-                bool status;
-                if (mutex->recursive) {
-                        status = xSemaphoreTakeRecursive(mutex->object,
-                                MS2TICK((TickType_t)blocktime_ms));
-                } else {
-                        status = xSemaphoreTake(mutex->object,
-                                MS2TICK((TickType_t)blocktime_ms));
+        do {
+                if (not is_mutex_valid(mutex)) {
+                        printk("Invalid mutex object @ %p", mutex);
+                        return EINVAL;
                 }
 
-                return status ? ESUCC : ETIME;
-        } else {
-                printk("Invalid mutex object @ %p", mutex);
-                return EINVAL;
-        }
+                TickType_t wait = min(BLOCK_TIME_MS, blocktime_ms);
+
+                bool locked = false;
+
+                if (mutex->recursive) {
+                        locked = xSemaphoreTakeRecursive(mutex->object, MS2TICK(wait));
+                } else {
+                        locked = xSemaphoreTake(mutex->object, MS2TICK(wait));
+                }
+
+                if (locked) {
+                        return ESUCC;
+                }
+
+                if (_process_is_kill_requested()) {
+                        return ECANCELED;
+                }
+
+                blocktime_ms -= wait;
+
+        } while (blocktime_ms > 0);
+
+        return ETIME;
 }
 
 //==============================================================================
@@ -822,7 +853,7 @@ int _mutex_unlock_from_ISR(kmtx_t *mutex, bool *task_woken)
 {
         if (task_woken && is_mutex_valid(mutex)) {
                 BaseType_t woken = 0;
-                bool ret = xSemaphoreGiveFromISR(mutex->object, &woken);
+                bool       ret   = xSemaphoreGiveFromISR(mutex->object, &woken);
 
                 if (task_woken) {
                         *task_woken = (bool)woken;
@@ -1019,7 +1050,7 @@ int _flag_destroy(kflag_t *flag)
  * @return One of errno values.
  */
 //==============================================================================
-int _flag_wait(kflag_t *flag, u32_t bits, const u32_t blocktime_ms)
+int _flag_wait(kflag_t *flag, u32_t bits, u32_t blocktime_ms)
 {
         if (is_flag_valid(flag)) {
                 if (xEventGroupWaitBits(flag->object, bits, true, true, blocktime_ms)) {
@@ -1202,16 +1233,33 @@ int _queue_reset(kqueue_t *queue)
  * @return One of errno values.
  */
 //==============================================================================
-int _queue_send(kqueue_t *queue, const void *item, const u32_t waittime_ms)
+int _queue_send(kqueue_t *queue, const void *item, u32_t waittime_ms)
 {
-        if (is_queue_valid(queue) && item) {
-                BaseType_t r = xQueueSend(queue->object, item,
-                        MS2TICK((TickType_t)waittime_ms));
-                return r == pdTRUE ? ESUCC : ENOSPC;
-        } else {
-                printk("Invalid queue object @ %p", queue);
+        if (not item) {
                 return EINVAL;
         }
+
+        do {
+                if (not is_queue_valid(queue)) {
+                        printk("Invalid queue object @ %p", queue);
+                        return EINVAL;
+                }
+
+                TickType_t wait = min(BLOCK_TIME_MS, waittime_ms);
+
+                if (xQueueSend(queue->object, item, MS2TICK(wait))) {
+                        return ESUCC;
+                }
+
+                if (_process_is_kill_requested()) {
+                        return ECANCELED;
+                }
+
+                waittime_ms -= wait;
+
+        } while (waittime_ms > 0);
+
+        return ETIME;
 }
 
 //==============================================================================
@@ -1253,16 +1301,33 @@ int _queue_send_from_ISR(kqueue_t *queue, const void *item, bool *task_woken)
  * @return One of errno values.
  */
 //==============================================================================
-int _queue_receive(kqueue_t *queue, void *item, const u32_t waittime_ms)
+int _queue_receive(kqueue_t *queue, void *item, u32_t waittime_ms)
 {
-        if (is_queue_valid(queue) && item) {
-                BaseType_t r = xQueueReceive(queue->object, item,
-                        MS2TICK((TickType_t)waittime_ms));
-                return r == pdTRUE ? ESUCC : ETIME;
-        } else {
-                printk("Invalid queue object @ %p", queue);
+        if (not item) {
                 return EINVAL;
         }
+
+        do {
+                if (not is_queue_valid(queue)) {
+                        printk("Invalid queue object @ %p", queue);
+                        return EINVAL;
+                }
+
+                TickType_t wait = min(BLOCK_TIME_MS, waittime_ms);
+
+                if (xQueueReceive(queue->object, item, MS2TICK(wait))) {
+                        return ESUCC;
+                }
+
+                if (_process_is_kill_requested()) {
+                        return ECANCELED;
+                }
+
+                waittime_ms -= wait;
+
+        } while (waittime_ms > 0);
+
+        return ETIME;
 }
 
 //==============================================================================
@@ -1304,16 +1369,33 @@ int _queue_receive_from_ISR(kqueue_t *queue, void *item, bool *task_woken)
  * @return One of errno values.
  */
 //==============================================================================
-int _queue_receive_peek(kqueue_t *queue, void *item, const u32_t waittime_ms)
+int _queue_receive_peek(kqueue_t *queue, void *item, u32_t waittime_ms)
 {
-        if (is_queue_valid(queue) && item) {
-                BaseType_t r = xQueuePeek(queue->object, item,
-                        MS2TICK((TickType_t)waittime_ms));
-                return r == pdTRUE ? ESUCC : EAGAIN;
-        } else {
-                printk("Invalid queue object @ %p", queue);
+        if (not item) {
                 return EINVAL;
         }
+
+        do {
+                if (not is_queue_valid(queue)) {
+                        printk("Invalid queue object @ %p", queue);
+                        return EINVAL;
+                }
+
+                TickType_t wait = min(BLOCK_TIME_MS, waittime_ms);
+
+                if (xQueuePeek(queue->object, item, MS2TICK(wait))) {
+                        return ESUCC;
+                }
+
+                if (_process_is_kill_requested()) {
+                        return ECANCELED;
+                }
+
+                waittime_ms -= wait;
+
+        } while (waittime_ms > 0);
+
+        return ETIME;
 }
 
 //==============================================================================
@@ -1355,6 +1437,7 @@ int _queue_get_number_of_items_from_ISR(kqueue_t *queue, size_t *items)
                 *items            = nomsg;
                 return ESUCC;
         } else {
+                printk("Invalid queue object @ %p", queue);
                 return EINVAL;
         }
 }
@@ -1446,39 +1529,14 @@ void _ISR_enable(void)
  * @return None
  */
 //==============================================================================
-void _sleep_ms(const u32_t milliseconds)
+void _sleep_ms(u32_t milliseconds)
 {
-        vTaskDelay(MS2TICK(milliseconds));
-}
+        do {
+                TickType_t wait = min(milliseconds, BLOCK_TIME_MS);
+                vTaskDelay(wait);
+                milliseconds -= wait;
 
-//==============================================================================
-/**
- * @brief Function sleep task in regular periods (reference argument)
- *
- * @param milliseconds          milliseconds
- * @param ref_time_ticks        reference time in OS ticks
- *
- * @return None
- */
-//==============================================================================
-void _sleep_until_ms(const u32_t milliseconds, u32_t *ref_time_ticks)
-{
-        vTaskDelayUntil((TickType_t *)ref_time_ticks, MS2TICK(milliseconds));
-}
-
-//==============================================================================
-/**
- * @brief Function sleep task in regular periods (reference argument)
- *
- * @param seconds       seconds
- * @param ref_time_ticks        reference time in OS ticks
- *
- * @return None
- */
-//==============================================================================
-void _sleep_until(const u32_t seconds, u32_t *ref_time_ticks)
-{
-        vTaskDelayUntil((TickType_t *)ref_time_ticks, MS2TICK(seconds * 1000UL));
+        } while ((milliseconds > 0) && !_process_is_kill_requested());
 }
 
 /*==============================================================================

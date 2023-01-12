@@ -29,14 +29,14 @@
 /*==============================================================================
   Include files
 ==============================================================================*/
-#include "config.h"
 #include "kernel/khooks.h"
+#include "config.h"
+#include "cpu/cpuctl.h"
 #include "kernel/kpanic.h"
-#include "kernel/process.h"
 #include "kernel/printk.h"
+#include "kernel/process.h"
 #include "lib/misc.h"
 #include "lib/unarg.h"
-#include "cpu/cpuctl.h"
 
 /*==============================================================================
   Local symbolic constants/macros
@@ -57,14 +57,14 @@ static u32_t sec_divider;
 static u64_t sanity_check_tref;
 
 #if __OS_ENABLE_SYS_ASSERT__ > 0
-static bool  assert_hook_suspend;
+static bool assert_hook_suspend;
 #endif
 
 /*==============================================================================
   Exported object definitions
 ==============================================================================*/
-u32_t _uptime_counter_sec = 0;
-u64_t _tick_counter = 0;
+u32_t        _uptime_counter_sec = 0;
+u64_t        _tick_counter       = 0;
 extern u32_t _CPU_total_time;
 extern _process_t *_kernel_panic_trap_proc;
 
@@ -99,9 +99,6 @@ void vApplicationIdleHook(void)
                 }
 
                 bool proc_consistent = _process_is_consistent();
-                if (!proc_consistent) {
-                        _printk("Inconsistent process list!");
-                }
 
                 if (_kernel_panic_trap_proc) {
                         _kernel_panic_handle(mm_consistent && proc_consistent);
@@ -153,8 +150,7 @@ void vApplicationTickHook(void)
  */
 //==============================================================================
 void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
-                                   StackType_t **ppxIdleTaskStackBuffer,
-                                   uint32_t *pulIdleTaskStackSize )
+        StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize)
 {
         /* If the buffers to be provided to the Idle task are declared inside this
         function then they must be declared static - otherwise they will be allocated on
