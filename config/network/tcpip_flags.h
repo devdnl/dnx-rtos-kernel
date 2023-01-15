@@ -136,7 +136,7 @@ this:AddExtraWidget("Label", "LabelMEMPNUM", "\nInternal memory pool sizes", -1,
 this:GoBackWidget("MEMPNUM")
 ++*/
 /*--
-this:AddWidget("Spinbox", 0, 100, "MEMP_NUM_PBUF")
+this:AddWidget("Spinbox", 10, 2048, "MEMP_NUM_PBUF")
 this:SetToolTip("MEMP_NUM_PBUF: the number of memp struct pbufs. If the application\n"..
                 "sends a lot of data out of ROM (or other static memory), this\n"..
                 "should be set high.")
