@@ -161,8 +161,6 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         if ( (  (_CLK_CFG__RTCCLK_SRC == RCC_RTCCLKSource_LSE && _CLK_CFG__LSE_ON)
              || (_CLK_CFG__RTCCLK_SRC == RCC_RTCCLKSource_LSI && _CLK_CFG__LSI_ON)
              || (IS_RCC_RTCCLK_SOURCE(_CLK_CFG__RTCCLK_SRC)   && _CLK_CFG__HSE_ON) )
-
-           && (RCC->BDCR & RCC_BDCR_RTCEN) == 0
            && (RCC->BDCR & (RCC_BDCR_RTCSEL_1 | RCC_BDCR_RTCSEL_0)) == 0) {
 
                 SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);
