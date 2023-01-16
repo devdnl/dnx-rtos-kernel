@@ -301,7 +301,7 @@ API_MOD_WRITE(NVM, void *device_handle, const u8_t *src, size_t count, fpos_t *f
                         uint32_t dst = sector_info.addr + offset;
 
                         if (count < FLASH_WORD_BYTES) {
-                                dev_dbg(hdl, "Unaligned buffer size, fitting by FFh.");
+                                dev_dbg(hdl, "Unaligned buffer size, filling by FFh.");
                                 memset(hdl->tmp_buf, 0xFF, sizeof(hdl->tmp_buf));
                                 memcpy(hdl->tmp_buf, src, count);
                                 src = hdl->tmp_buf;
@@ -615,7 +615,10 @@ static void FLASH_unlock(NVM_t *hdl, u8_t bank)
         sys_critical_section_begin();
 
         volatile u32_t *CR   = (bank == 1) ? &FLASH->CR1 : &FLASH->CR2;
+        volatile u32_t *CCR  = (bank == 1) ? &FLASH->CCR1 : &FLASH->CCR2;
         volatile u32_t *KEYR = (bank == 1) ? &FLASH->KEYR1 : &FLASH->KEYR2;
+
+        WRITE_REG(*CCR, FLASH_CCR_CLR_INCERR | FLASH_CCR_CLR_PGSERR);
 
         if (*CR & FLASH_CR_LOCK) {
                 *KEYR = FLASH_KEY1;
@@ -653,20 +656,24 @@ static void FLASH_lock(NVM_t *hdl, u8_t bank)
 //==============================================================================
 static int FLASH_erase_sector(NVM_t *hdl, u8_t bank, uint32_t sector)
 {
+        sys_critical_section_begin();
+
         int err = FLASH_wait_for_operation_finish(hdl, bank);
 
         if (!err) {
                 volatile u32_t *CR = (bank == 1) ? &FLASH->CR1 : &FLASH->CR2;
+                u32_t sector_mask  = ((sector << FLASH_CR_SNB_Pos) & FLASH_CR_SNB_Msk);
 
-                *CR &= ~(FLASH_CR_PSIZE | FLASH_CR_SNB);
-                *CR |= FLASH_CR_PSIZE_WORD;
-                *CR |= FLASH_CR_SER | ((sector << FLASH_CR_SNB_Pos) & FLASH_CR_SNB_Msk)
-                        | FLASH_CR_START;
+                CLEAR_BIT(*CR, FLASH_CR_PSIZE | FLASH_CR_SNB);
+                SET_BIT(*CR, FLASH_CR_PSIZE_WORD | FLASH_CR_SER | sector_mask);
+                SET_BIT(*CR, FLASH_CR_START);
 
                 err = FLASH_wait_for_operation_finish(hdl, bank);
 
-                *CR &= ~(FLASH_CR_SER | FLASH_CR_SNB);
+                CLEAR_BIT(*CR, FLASH_CR_SER | FLASH_CR_SNB);
         }
+
+        sys_critical_section_end();
 
         return err;
 }
@@ -702,7 +709,7 @@ static int FLASH_program_flash_word(NVM_t *hdl, u8_t bank, u32_t address, u32_t 
 
                 size_t             row_index = FLASH_NB_32BITWORD_IN_FLASHWORD;
                 volatile uint32_t *dest_addr = cast(volatile uint32_t *, address);
-                uint32_t          *src_addr  = data;
+                volatile uint32_t *src_addr  = data;
 
                 while (row_index--) {
                         *dest_addr++ = *src_addr++;
@@ -743,7 +750,7 @@ static int FLASH_program_flash_word(NVM_t *hdl, u8_t bank, u32_t address, u32_t 
 /**
  * @brief  Waits for operation finish.
  *
- * @param bank          flash bank
+ * @param  bank         flash bank
  *
  * @return  One of errno value.
  */
@@ -765,10 +772,15 @@ static int FLASH_wait_for_operation_finish(NVM_t *hdl, u8_t bank)
         }
 
         u32_t status = *SR
-                & (FLASH_SR_WRPERR | FLASH_SR_STRBERR | FLASH_SR_OPERR | FLASH_SR_RDSERR
-                        | FLASH_SR_DBECCERR);
+                & (FLASH_SR_WRPERR | FLASH_SR_PGSERR | FLASH_SR_STRBERR | FLASH_SR_INCERR
+                        | FLASH_SR_OPERR | FLASH_SR_RDPERR | FLASH_SR_RDSERR
+                        | FLASH_SR_SNECCERR | FLASH_SR_DBECCERR | FLASH_SR_CRCRDERR);
 
-        if (status & FLASH_SR_PGSERR) {
+        if (status & FLASH_SR_WRPERR) {
+                dev_dbg(hdl, "write protection error");
+                err = EIO;
+
+        } else if (status & FLASH_SR_PGSERR) {
                 dev_dbg(hdl, "programming sequence error");
                 err = EIO;
 
@@ -791,10 +803,26 @@ static int FLASH_wait_for_operation_finish(NVM_t *hdl, u8_t bank)
         } else if (status & FLASH_SR_RDSERR) {
                 dev_dbg(hdl, "secure error");
                 err = EIO;
+
+        } else if (status & FLASH_SR_SNECCERR) {
+                dev_dbg(hdl, "single correction error");
+                err = EIO;
+
+        } else if (status & FLASH_SR_DBECCERR) {
+                dev_dbg(hdl, "double correction error");
+                err = EIO;
+
+        } else if (status & FLASH_SR_CRCRDERR) {
+                dev_dbg(hdl, "CRC read error");
+                err = EIO;
         }
 
         if (status != 0) {
                 WRITE_REG(*CCR, status);
+        }
+
+        if (*SR & FLASH_SR_EOP) {
+                WRITE_REG(*SR, FLASH_SR_EOP);
         }
 
         return err;
