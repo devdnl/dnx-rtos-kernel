@@ -30,15 +30,16 @@ Brief    Network management.
   Include files
 ==============================================================================*/
 #include "net/netm.h"
-#include "net/inet/inet.h"
-#include "net/sipc/sipc.h"
-#include "net/cannet/cannet.h"
 #include "cpuctl.h"
 #include "kernel/sysfunc.h"
+#include "net/cannet/cannet.h"
+#include "net/inet/inet.h"
+#include "net/sipc/sipc.h"
 
 /*==============================================================================
   Local macros
 ==============================================================================*/
+// clang-format off
 #define PROXY_TABLE                             static const proxy_func_t proxy[_NETM_FAMILY__COUNT]
 #define PROXY_TABLE_U16                         static const proxy_func_u16_t proxy[_NETM_FAMILY__COUNT]
 #define PROXY_TABLE_U32                         static const proxy_func_u32_t proxy[_NETM_FAMILY__COUNT]
@@ -74,20 +75,22 @@ Brief    Network management.
 #define PROXY_hton_u32(_family)                 PROXY_FUNCTION_U32(_family, hton_u32)
 #define PROXY_hton_u64(_family)                 PROXY_FUNCTION_U64(_family, hton_u64)
 #define call_proxy_function(family, ...)        (proxy[family] ? proxy[family](__VA_ARGS__) : ENOTSUP)
+// clang-format on
 
 /*==============================================================================
   Local object types
 ==============================================================================*/
 struct ksocket {
-        res_header_t header;
+        res_header_t  header;
         NETM_family_t family;
-        const char  *netname;
-        void        *ctx;
+        kmtx_t       *mutex;
+        const char   *netname;
+        void         *ctx;
 };
 
 struct netname {
-        const char *netname;
-        void *stack_ctx;
+        const char   *netname;
+        void         *stack_ctx;
         NETM_family_t family;
 };
 
@@ -104,7 +107,7 @@ typedef u64_t (*proxy_func_u64_t)();
   Local objects
 ==============================================================================*/
 static struct netname net_list[16];
-static kmtx_t *netm_mutex;
+static kmtx_t        *netm_mutex;
 
 /*==============================================================================
   Exported objects
@@ -130,28 +133,35 @@ static kmtx_t *netm_mutex;
 static int socket_alloc(ksocket_t **socket, NETM_family_t family, const char *netname)
 {
         static const uint8_t net_socket_size[_NETM_FAMILY__COUNT] = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 [NETM_FAMILY__INET] = _mm_align(sizeof(INET_socket_t)),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 [NETM_FAMILY__SIPC] = _mm_align(sizeof(SIPC_socket_t)),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 [NETM_FAMILY__CANNET] = _mm_align(sizeof(CANNET_socket_t)),
-                #endif
+#endif
         };
 
         int err = _kzalloc(_MM_NET,
-                           _mm_align(sizeof(ksocket_t)) + net_socket_size[family],
-                           NULL, 0, 0, cast(void**, socket));
+                _mm_align(sizeof(ksocket_t)) + net_socket_size[family], NULL, 0, 0,
+                cast(void **, socket));
+
         if (!err) {
-                (*socket)->header.self = *socket;
-                (*socket)->header.type = RES_TYPE_SOCKET;
-                (*socket)->netname     = netname;
-                (*socket)->family      = family;
-                (*socket)->ctx         = cast(void *,
-                                              cast(size_t, *socket)
-                                              + _mm_align(sizeof(ksocket_t)));
+                kmtx_t *mutex;
+                err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &mutex);
+                if (!err) {
+                        (*socket)->mutex       = mutex;
+                        (*socket)->header.self = *socket;
+                        (*socket)->header.type = RES_TYPE_SOCKET;
+                        (*socket)->netname     = netname;
+                        (*socket)->family      = family;
+                        (*socket)->ctx         = cast(void *,
+                                        cast(size_t, *socket) + _mm_align(sizeof(ksocket_t)));
+                } else {
+                        _kfree(_MM_NET, cast(void **, socket));
+                }
         }
 
         return err;
@@ -167,7 +177,8 @@ static void socket_free(ksocket_t **socket)
 {
         (*socket)->header.self = NULL;
         (*socket)->header.type = RES_TYPE_UNKNOWN;
-        _kfree(_MM_NET, cast(void**, socket));
+        _kfree(_MM_NET, cast(void **, &(*socket)->mutex));
+        _kfree(_MM_NET, cast(void **, socket));
         *socket = NULL;
 }
 
@@ -180,13 +191,13 @@ static void socket_free(ksocket_t **socket)
 //==============================================================================
 static bool is_socket_valid(ksocket_t *socket)
 {
-        return _mm_is_object_in_heap(socket)
-            && (socket->header.type == RES_TYPE_SOCKET)
-            && (socket->header.self == socket)
-            && (socket->family < _NETM_FAMILY__COUNT)
-            && (socket->netname != NULL)
-            && (socket->ctx == cast(void *, cast(size_t, socket)
-                                          + _mm_align(sizeof(ksocket_t))));
+        return _mm_is_object_in_heap(socket) && (socket->header.type == RES_TYPE_SOCKET)
+                && (socket->header.self == socket)
+                && (socket->family < _NETM_FAMILY__COUNT) && (socket->netname != NULL)
+                && (socket->mutex)
+                && (socket->ctx
+                        == cast(void *,
+                                cast(size_t, socket) + _mm_align(sizeof(ksocket_t))));
 }
 
 //==============================================================================
@@ -205,11 +216,13 @@ static void *get_stack_context(const char *netname, size_t *idx)
 
                 for (size_t n = 0; n < ARRAY_SIZE(net_list); n++) {
 
-                        if (  (net_list[n].netname == netname)
-                           || isstreq(net_list[n].netname, netname)) {
+                        if ((net_list[n].netname == netname)
+                                || isstreq(net_list[n].netname, netname)) {
 
                                 ctx = net_list[n].stack_ctx;
-                                if (idx) *idx = n;
+                                if (idx) {
+                                        *idx = n;
+                                }
 
                                 break;
                         }
@@ -237,8 +250,8 @@ static NETM_family_t get_net_family_by_name(const char *netname)
 
                 for (size_t n = 0; n < ARRAY_SIZE(net_list); n++) {
 
-                        if (  (net_list[n].netname == netname)
-                           || isstreq(net_list[n].netname, netname)) {
+                        if ((net_list[n].netname == netname)
+                                || isstreq(net_list[n].netname, netname)) {
 
                                 family = net_list[n].family;
                                 break;
@@ -275,15 +288,15 @@ int _net_init(void)
 int _net_ifadd(const char *netname, NETM_family_t family, const char *if_path)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_ifinit(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_ifinit(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_ifinit(CANNET),
-                #endif
+#endif
         };
 
         int err = EINVAL;
@@ -307,7 +320,8 @@ int _net_ifadd(const char *netname, NETM_family_t family, const char *if_path)
                                 }
 
                                 if (n < ARRAY_SIZE(net_list)) {
-                                        err = call_proxy_function(family, &net_list[n].stack_ctx, if_path);
+                                        err = call_proxy_function(family,
+                                                &net_list[n].stack_ctx, if_path);
                                         if (!err) {
                                                 net_list[n].netname = netname;
                                                 net_list[n].family  = family;
@@ -337,15 +351,15 @@ int _net_ifadd(const char *netname, NETM_family_t family, const char *if_path)
 int _net_ifrm(const char *netname)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_ifdeinit(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_ifdeinit(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_ifdeinit(CANNET),
-                #endif
+#endif
         };
 
         int err = EINVAL;
@@ -354,11 +368,12 @@ int _net_ifrm(const char *netname)
                 err = sys_mutex_lock(netm_mutex, _MAX_DELAY_MS);
                 if (!err) {
 
-                        size_t n = 0;
-                        void *ctx = get_stack_context(netname, &n);
+                        size_t n   = 0;
+                        void  *ctx = get_stack_context(netname, &n);
                         if (!ctx) {
 
-                                err = call_proxy_function(net_list[n].family, &net_list[n].stack_ctx);
+                                err = call_proxy_function(net_list[n].family,
+                                        &net_list[n].stack_ctx);
                                 if (!err) {
                                         net_list[n].netname   = NULL;
                                         net_list[n].stack_ctx = NULL;
@@ -395,11 +410,11 @@ int _net_iflist(char *netname[], size_t netname_len, size_t *count)
                 err = sys_mutex_lock(netm_mutex, _MAX_DELAY_MS);
                 if (!err) {
 
-                        size_t n = 0;
+                        size_t n   = 0;
                         size_t idx = 0;
                         for (size_t i = 0; i < ARRAY_SIZE(net_list); i++) {
                                 if (net_list[i].netname && (idx < netname_len)) {
-                                        netname[idx++] = (char*)net_list[i].netname;
+                                        netname[idx++] = (char *)net_list[i].netname;
                                         n++;
                                 }
                         }
@@ -422,25 +437,26 @@ int _net_iflist(char *netname[], size_t netname_len, size_t *count)
  * @return One of @ref errno value.
  */
 //==============================================================================
-int _net_ifup(const char *netname, const NETM_generic_config_t *config, size_t config_size)
+int _net_ifup(const char *netname, const NETM_generic_config_t *config,
+        size_t config_size)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_ifup(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_ifup(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_ifup(CANNET),
-                #endif
+#endif
         };
 
         int err = EINVAL;
 
         if (netname) {
-                size_t n = 0;
-                void *ctx = get_stack_context(netname, &n);
+                size_t n   = 0;
+                void  *ctx = get_stack_context(netname, &n);
                 err = call_proxy_function(net_list[n].family, ctx, config, config_size);
         }
 
@@ -457,23 +473,23 @@ int _net_ifup(const char *netname, const NETM_generic_config_t *config, size_t c
 int _net_ifdown(const char *netname)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_ifdown(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_ifdown(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_ifdown(CANNET),
-                #endif
+#endif
         };
 
         int err = EINVAL;
 
         if (netname) {
-                size_t n = 0;
-                void *ctx = get_stack_context(netname, &n);
-                err = call_proxy_function(net_list[n].family, ctx);
+                size_t n   = 0;
+                void  *ctx = get_stack_context(netname, &n);
+                err        = call_proxy_function(net_list[n].family, ctx);
         }
 
         return err;
@@ -489,26 +505,27 @@ int _net_ifdown(const char *netname)
  * @return One of @ref errno value.
  */
 //==============================================================================
-int _net_ifstatus(const char *netname, NETM_family_t *family,  NETM_generic_status_t *status, size_t status_size)
+int _net_ifstatus(const char *netname, NETM_family_t *family,
+        NETM_generic_status_t *status, size_t status_size)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_ifstatus(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_ifstatus(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_ifstatus(CANNET),
-                #endif
+#endif
         };
 
         int err = EINVAL;
 
         if (netname && family && status && status_size) {
-                size_t n = 0;
-                void *ctx = get_stack_context(netname, &n);
-                *family = net_list[n].family;
+                size_t n   = 0;
+                void  *ctx = get_stack_context(netname, &n);
+                *family    = net_list[n].family;
                 err = call_proxy_function(net_list[n].family, ctx, status, status_size);
         }
 
@@ -527,15 +544,15 @@ int _net_ifstatus(const char *netname, NETM_family_t *family,  NETM_generic_stat
 int _net_socket_create(const char *netname, NETM_protocol_t protocol, ksocket_t **socket)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_socket_create(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_socket_create(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_create(CANNET),
-                #endif
+#endif
         };
 
         int err = EINVAL;
@@ -548,10 +565,11 @@ int _net_socket_create(const char *netname, NETM_protocol_t protocol, ksocket_t 
                         err = socket_alloc(socket, family, netname);
 
                         if (!err) {
-                                size_t n = 0;
-                                void *ctx = get_stack_context(netname, &n);
+                                size_t n   = 0;
+                                void  *ctx = get_stack_context(netname, &n);
 
-                                err = call_proxy_function(family, ctx, protocol, (*socket)->ctx);
+                                err = call_proxy_function(family, ctx, protocol,
+                                        (*socket)->ctx);
 
                                 if (err) {
                                         socket_free(socket);
@@ -573,22 +591,22 @@ int _net_socket_create(const char *netname, NETM_protocol_t protocol, ksocket_t 
 int _net_socket_destroy(ksocket_t *socket)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_socket_destroy(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_socket_destroy(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_destroy(CANNET),
-                #endif
+#endif
         };
 
         int err = EINVAL;
 
         if (is_socket_valid(socket)) {
                 void *ctx = get_stack_context(socket->netname, NULL);
-                err = call_proxy_function(socket->family, ctx, socket->ctx);
+                err       = call_proxy_function(socket->family, ctx, socket->ctx);
                 if (!err) {
                         socket_free(&socket);
                 }
@@ -606,26 +624,33 @@ int _net_socket_destroy(ksocket_t *socket)
  * @return One of @ref errno value.
  */
 //==============================================================================
-int _net_socket_bind(ksocket_t *socket, const NETM_generic_sockaddr_t *addr, size_t addr_size)
+int _net_socket_bind(ksocket_t *socket, const NETM_generic_sockaddr_t *addr,
+        size_t addr_size)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_socket_bind(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_socket_bind(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_bind(CANNET),
-                #endif
+#endif
         };
 
+        int err = EINVAL;
+
         if (is_socket_valid(socket) && addr && addr_size) {
-                void *ctx = get_stack_context(socket->netname, NULL);
-                return call_proxy_function(socket->family, ctx, socket->ctx, addr, addr_size);
-        } else {
-                return EINVAL;
+                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                        void *ctx = get_stack_context(socket->netname, NULL);
+                        err = call_proxy_function(socket->family, ctx, socket->ctx, addr,
+                                addr_size);
+                        sys_mutex_unlock(socket->mutex);
+                }
         }
+
+        return err;
 }
 
 //==============================================================================
@@ -638,23 +663,28 @@ int _net_socket_bind(ksocket_t *socket, const NETM_generic_sockaddr_t *addr, siz
 int _net_socket_listen(ksocket_t *socket)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_socket_listen(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_socket_listen(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_listen(CANNET),
-                #endif
+#endif
         };
 
+        int err = EINVAL;
+
         if (is_socket_valid(socket)) {
-                void *ctx = get_stack_context(socket->netname, NULL);
-                return call_proxy_function(socket->family, ctx, socket->ctx);
-        } else {
-                return EINVAL;
+                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                        void *ctx = get_stack_context(socket->netname, NULL);
+                        err       = call_proxy_function(socket->family, ctx, socket->ctx);
+                        sys_mutex_unlock(socket->mutex);
+                }
         }
+
+        return err;
 }
 
 //==============================================================================
@@ -668,15 +698,15 @@ int _net_socket_listen(ksocket_t *socket)
 int _net_socket_accept(ksocket_t *socket, ksocket_t **new_socket)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_socket_accept(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_socket_accept(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_accept(CANNET),
-                #endif
+#endif
         };
 
         int err = EINVAL;
@@ -687,10 +717,8 @@ int _net_socket_accept(ksocket_t *socket, ksocket_t **new_socket)
 
                 if (!err) {
                         void *ctx = get_stack_context(socket->netname, NULL);
-                        err = call_proxy_function(socket->family,
-                                                  ctx,
-                                                  socket->ctx,
-                                                  (*new_socket)->ctx);
+                        err       = call_proxy_function(socket->family, ctx, socket->ctx,
+                                      (*new_socket)->ctx);
 
                         if (err) {
                                 socket_free(new_socket);
@@ -712,27 +740,33 @@ int _net_socket_accept(ksocket_t *socket, ksocket_t **new_socket)
  * @return One of @ref errno value.
  */
 //==============================================================================
-int _net_socket_recv(ksocket_t *socket, void *buf, size_t len, NETM_flags_t flags, size_t *recved)
+int _net_socket_recv(ksocket_t *socket, void *buf, size_t len, NETM_flags_t flags,
+        size_t *recved)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_socket_recv(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_socket_recv(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_recv(CANNET),
-                #endif
+#endif
         };
 
+        int err = EINVAL;
+
         if (is_socket_valid(socket) && buf && len && recved) {
-                void *ctx = get_stack_context(socket->netname, NULL);
-                return call_proxy_function(socket->family, ctx, socket->ctx, buf,
-                                           len, flags, recved);
-        } else {
-                return EINVAL;
+                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                        void *ctx = get_stack_context(socket->netname, NULL);
+                        err = call_proxy_function(socket->family, ctx, socket->ctx, buf,
+                                len, flags, recved);
+                        sys_mutex_unlock(socket->mutex);
+                }
         }
+
+        return err;
 }
 
 //==============================================================================
@@ -748,33 +782,34 @@ int _net_socket_recv(ksocket_t *socket, void *buf, size_t len, NETM_flags_t flag
  * @return One of @ref errno value.
  */
 //==============================================================================
-int _net_socket_recvfrom(ksocket_t              *socket,
-                         void                   *buf,
-                         size_t                  len,
-                         NETM_flags_t             flags,
-                         NETM_generic_sockaddr_t *sockaddr,
-                         size_t                  sockaddr_size,
-                         size_t                 *recved)
+int _net_socket_recvfrom(ksocket_t *socket, void *buf, size_t len, NETM_flags_t flags,
+        NETM_generic_sockaddr_t *sockaddr, size_t sockaddr_size, size_t *recved)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_socket_recvfrom(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_socket_recvfrom(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_recvfrom(CANNET),
-                #endif
+#endif
         };
 
-        if (is_socket_valid(socket) && buf && len && sockaddr && sockaddr_size&& recved) {
-                void *ctx = get_stack_context(socket->netname, NULL);
-                return call_proxy_function(socket->family, ctx, socket->ctx, buf,
-                                           len, flags, sockaddr, sockaddr_size, recved);
-        } else {
-                return EINVAL;
+        int err = EINVAL;
+
+        if (is_socket_valid(socket) && buf && len && sockaddr && sockaddr_size
+                && recved) {
+                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                        void *ctx = get_stack_context(socket->netname, NULL);
+                        err = call_proxy_function(socket->family, ctx, socket->ctx, buf,
+                                len, flags, sockaddr, sockaddr_size, recved);
+                        sys_mutex_unlock(socket->mutex);
+                }
         }
+
+        return err;
 }
 
 //==============================================================================
@@ -788,27 +823,33 @@ int _net_socket_recvfrom(ksocket_t              *socket,
  * @return One of @ref errno value.
  */
 //==============================================================================
-int _net_socket_send(ksocket_t *socket, const void *buf, size_t len, NETM_flags_t flags, size_t *sent)
+int _net_socket_send(ksocket_t *socket, const void *buf, size_t len, NETM_flags_t flags,
+        size_t *sent)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_socket_send(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_socket_send(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_send(CANNET),
-                #endif
+#endif
         };
 
+        int err = EINVAL;
+
         if (is_socket_valid(socket) && buf && len && sent) {
-                void *ctx = get_stack_context(socket->netname, NULL);
-                return call_proxy_function(socket->family, ctx, socket->ctx, buf,
-                                           len, flags, sent);
-        } else {
-                return EINVAL;
+                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                        void *ctx = get_stack_context(socket->netname, NULL);
+                        err = call_proxy_function(socket->family, ctx, socket->ctx, buf,
+                                len, flags, sent);
+                        sys_mutex_unlock(socket->mutex);
+                }
         }
+
+        return err;
 }
 
 //==============================================================================
@@ -823,33 +864,33 @@ int _net_socket_send(ksocket_t *socket, const void *buf, size_t len, NETM_flags_
  * @return One of @ref errno value.
  */
 //==============================================================================
-int _net_socket_sendto(ksocket_t                    *socket,
-                       const void                   *buf,
-                       size_t                        len,
-                       NETM_flags_t                  flags,
-                       const NETM_generic_sockaddr_t *to_addr,
-                       size_t                        to_addr_size,
-                       size_t                       *sent)
+int _net_socket_sendto(ksocket_t *socket, const void *buf, size_t len, NETM_flags_t flags,
+        const NETM_generic_sockaddr_t *to_addr, size_t to_addr_size, size_t *sent)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_socket_sendto(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_socket_sendto(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_sendto(CANNET),
-                #endif
+#endif
         };
 
+        int err = EINVAL;
+
         if (is_socket_valid(socket) && buf && len && to_addr && to_addr_size && sent) {
-                void *ctx = get_stack_context(socket->netname, NULL);
-                return call_proxy_function(socket->family, ctx, socket->ctx, buf,
-                                           len, flags, to_addr, to_addr_size, sent);
-        } else {
-                return EINVAL;
+                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                        void *ctx = get_stack_context(socket->netname, NULL);
+                        err = call_proxy_function(socket->family, ctx, socket->ctx, buf,
+                                len, flags, to_addr, to_addr_size, sent);
+                        sys_mutex_unlock(socket->mutex);
+                }
         }
+
+        return err;
 }
 
 //==============================================================================
@@ -863,23 +904,29 @@ int _net_socket_sendto(ksocket_t                    *socket,
 int _net_socket_set_recv_timeout(ksocket_t *socket, uint32_t timeout)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_socket_set_recv_timeout(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_socket_set_recv_timeout(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_set_recv_timeout(CANNET),
-                #endif
+#endif
         };
 
+        int err = EINVAL;
+
         if (is_socket_valid(socket)) {
-                void *ctx = get_stack_context(socket->netname, NULL);
-                return call_proxy_function(socket->family, ctx, socket->ctx, timeout);
-        } else {
-                return EINVAL;
+                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                        void *ctx = get_stack_context(socket->netname, NULL);
+                        err       = call_proxy_function(socket->family, ctx, socket->ctx,
+                                      timeout);
+                        sys_mutex_unlock(socket->mutex);
+                }
         }
+
+        return err;
 }
 
 //==============================================================================
@@ -893,23 +940,29 @@ int _net_socket_set_recv_timeout(ksocket_t *socket, uint32_t timeout)
 int _net_socket_set_send_timeout(ksocket_t *socket, uint32_t timeout)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_socket_set_send_timeout(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_socket_set_send_timeout(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_set_send_timeout(CANNET),
-                #endif
+#endif
         };
 
+        int err = EINVAL;
+
         if (is_socket_valid(socket)) {
-                void *ctx = get_stack_context(socket->netname, NULL);
-                return call_proxy_function(socket->family, ctx, socket->ctx, timeout);
-        } else {
-                return EINVAL;
+                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                        void *ctx = get_stack_context(socket->netname, NULL);
+                        err       = call_proxy_function(socket->family, ctx, socket->ctx,
+                                      timeout);
+                        sys_mutex_unlock(socket->mutex);
+                }
         }
+
+        return err;
 }
 
 //==============================================================================
@@ -923,23 +976,29 @@ int _net_socket_set_send_timeout(ksocket_t *socket, uint32_t timeout)
 int _net_socket_get_recv_timeout(ksocket_t *socket, uint32_t *timeout)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_socket_get_recv_timeout(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_socket_get_recv_timeout(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_get_recv_timeout(CANNET),
-                #endif
+#endif
         };
 
+        int err = EINVAL;
+
         if (is_socket_valid(socket) && timeout) {
-                void *ctx = get_stack_context(socket->netname, NULL);
-                return call_proxy_function(socket->family, ctx, socket->ctx, timeout);
-        } else {
-                return EINVAL;
+                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                        void *ctx = get_stack_context(socket->netname, NULL);
+                        err       = call_proxy_function(socket->family, ctx, socket->ctx,
+                                      timeout);
+                        sys_mutex_unlock(socket->mutex);
+                }
         }
+
+        return err;
 }
 
 //==============================================================================
@@ -953,23 +1012,29 @@ int _net_socket_get_recv_timeout(ksocket_t *socket, uint32_t *timeout)
 int _net_socket_get_send_timeout(ksocket_t *socket, uint32_t *timeout)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_socket_get_send_timeout(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_socket_get_send_timeout(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_get_send_timeout(CANNET),
-                #endif
+#endif
         };
 
+        int err = EINVAL;
+
         if (is_socket_valid(socket) && timeout) {
-                void *ctx = get_stack_context(socket->netname, NULL);
-                return call_proxy_function(socket->family, ctx, socket->ctx, timeout);
-        } else {
-                return EINVAL;
+                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                        void *ctx = get_stack_context(socket->netname, NULL);
+                        err       = call_proxy_function(socket->family, ctx, socket->ctx,
+                                      timeout);
+                        sys_mutex_unlock(socket->mutex);
+                }
         }
+
+        return err;
 }
 
 //==============================================================================
@@ -981,26 +1046,33 @@ int _net_socket_get_send_timeout(ksocket_t *socket, uint32_t *timeout)
  * @return One of @ref errno value.
  */
 //==============================================================================
-int _net_socket_connect(ksocket_t *socket, const NETM_generic_sockaddr_t *addr, size_t addr_size)
+int _net_socket_connect(ksocket_t *socket, const NETM_generic_sockaddr_t *addr,
+        size_t addr_size)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_socket_connect(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_socket_connect(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_connect(CANNET),
-                #endif
+#endif
         };
 
+        int err = EINVAL;
+
         if (is_socket_valid(socket) && addr && addr_size) {
-                void *ctx = get_stack_context(socket->netname, NULL);
-                return call_proxy_function(socket->family, ctx, socket->ctx, addr, addr_size);
-        } else {
-                return EINVAL;
+                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                        void *ctx = get_stack_context(socket->netname, NULL);
+                        err = call_proxy_function(socket->family, ctx, socket->ctx, addr,
+                                addr_size);
+                        sys_mutex_unlock(socket->mutex);
+                }
         }
+
+        return err;
 }
 
 //==============================================================================
@@ -1013,23 +1085,28 @@ int _net_socket_connect(ksocket_t *socket, const NETM_generic_sockaddr_t *addr, 
 int _net_socket_disconnect(ksocket_t *socket)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_socket_disconnect(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_socket_disconnect(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_disconnect(CANNET),
-                #endif
+#endif
         };
 
+        int err = EINVAL;
+
         if (is_socket_valid(socket)) {
-                void *ctx = get_stack_context(socket->netname, NULL);
-                return call_proxy_function(socket->family, ctx, socket->ctx);
-        } else {
-                return EINVAL;
+                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                        void *ctx = get_stack_context(socket->netname, NULL);
+                        err       = call_proxy_function(socket->family, ctx, socket->ctx);
+                        sys_mutex_unlock(socket->mutex);
+                }
         }
+
+        return err;
 }
 
 //==============================================================================
@@ -1043,23 +1120,28 @@ int _net_socket_disconnect(ksocket_t *socket)
 int _net_socket_shutdown(ksocket_t *socket, NETM_shut_t how)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_socket_shutdown(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_socket_shutdown(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_shutdown(CANNET),
-                #endif
+#endif
         };
 
+        int err = EINVAL;
+
         if (is_socket_valid(socket)) {
-                void *ctx = get_stack_context(socket->netname, NULL);
-                return call_proxy_function(socket->family, ctx, socket->ctx, how);
-        } else {
-                return EINVAL;
+                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                        void *ctx = get_stack_context(socket->netname, NULL);
+                        err = call_proxy_function(socket->family, ctx, socket->ctx, how);
+                        sys_mutex_unlock(socket->mutex);
+                }
         }
+
+        return err;
 }
 
 //==============================================================================
@@ -1071,26 +1153,33 @@ int _net_socket_shutdown(ksocket_t *socket, NETM_shut_t how)
  * @return One of @ref errno value.
  */
 //==============================================================================
-int _net_socket_getaddress(ksocket_t *socket, NETM_generic_sockaddr_t *sockaddr, size_t sockaddr_size)
+int _net_socket_getaddress(ksocket_t *socket, NETM_generic_sockaddr_t *sockaddr,
+        size_t sockaddr_size)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_socket_getaddress(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_socket_getaddress(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_getaddress(CANNET),
-                #endif
+#endif
         };
 
+        int err = EINVAL;
+
         if (is_socket_valid(socket) && sockaddr && sockaddr_size) {
-                void *ctx = get_stack_context(socket->netname, NULL);
-                return call_proxy_function(socket->family, ctx, socket->ctx, sockaddr, sockaddr_size);
-        } else {
-                return EINVAL;
+                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                        void *ctx = get_stack_context(socket->netname, NULL);
+                        err       = call_proxy_function(socket->family, ctx, socket->ctx,
+                                      sockaddr, sockaddr_size);
+                        sys_mutex_unlock(socket->mutex);
+                }
         }
+
+        return err;
 }
 
 //==============================================================================
@@ -1103,18 +1192,19 @@ int _net_socket_getaddress(ksocket_t *socket, NETM_generic_sockaddr_t *sockaddr,
  * @return One of @ref errno value.
  */
 //==============================================================================
-int _net_gethostbyname(const char *netname, const char *name, NETM_generic_sockaddr_t *addr, size_t addr_size)
+int _net_gethostbyname(const char *netname, const char *name,
+        NETM_generic_sockaddr_t *addr, size_t addr_size)
 {
         PROXY_TABLE = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_gethostbyname(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_gethostbyname(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_gethostbyname(CANNET),
-                #endif
+#endif
         };
 
         int err = EINVAL;
@@ -1142,15 +1232,15 @@ int _net_gethostbyname(const char *netname, const char *name, NETM_generic_socka
 u16_t _net_hton_u16(NETM_family_t family, u16_t value)
 {
         PROXY_TABLE_U16 = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_hton_u16(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_hton_u16(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_hton_u16(CANNET),
-                #endif
+#endif
         };
 
         if (family < _NETM_FAMILY__COUNT) {
@@ -1171,15 +1261,15 @@ u16_t _net_hton_u16(NETM_family_t family, u16_t value)
 u32_t _net_hton_u32(NETM_family_t family, u32_t value)
 {
         PROXY_TABLE_U32 = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_hton_u32(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_hton_u32(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_hton_u32(CANNET),
-                #endif
+#endif
         };
 
         if (family < _NETM_FAMILY__COUNT) {
@@ -1200,15 +1290,15 @@ u32_t _net_hton_u32(NETM_family_t family, u32_t value)
 u64_t _net_hton_u64(NETM_family_t family, u64_t value)
 {
         PROXY_TABLE_U64 = {
-                #if __ENABLE_TCPIP_STACK__ > 0
+#if __ENABLE_TCPIP_STACK__ > 0
                 PROXY_hton_u64(INET),
-                #endif
-                #if __ENABLE_SIPC_STACK__ > 0
+#endif
+#if __ENABLE_SIPC_STACK__ > 0
                 PROXY_hton_u64(SIPC),
-                #endif
-                #if __ENABLE_CANNET_STACK__ > 0
+#endif
+#if __ENABLE_CANNET_STACK__ > 0
                 PROXY_hton_u64(CANNET),
-                #endif
+#endif
         };
 
         if (family < _NETM_FAMILY__COUNT) {
