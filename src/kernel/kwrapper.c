@@ -43,9 +43,9 @@
 #define _CEILING(x, y) (((x) + (y)-1) / (y))
 
 #define MS2TICK(ms)                                                     \
-        ((ms <= (1000 / (configTICK_RATE_HZ))                           \
+        (((ms) <= (1000 / (configTICK_RATE_HZ))                           \
                          ? 1                                            \
-                         : _CEILING(ms, (1000 / (configTICK_RATE_HZ)))) \
+                         : _CEILING((ms), (1000 / (configTICK_RATE_HZ)))) \
                 + 1)
 
 #define BLOCK_TIME_MS   250
@@ -1533,7 +1533,7 @@ void _sleep_ms(u32_t milliseconds)
 {
         do {
                 TickType_t wait = min(milliseconds, BLOCK_TIME_MS);
-                vTaskDelay(wait);
+                vTaskDelay(MS2TICK(wait));
                 milliseconds -= wait;
 
         } while ((milliseconds > 0) && !_process_is_kill_requested());
