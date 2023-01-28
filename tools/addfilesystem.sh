@@ -14,7 +14,7 @@ if [[ "$*" < "2" ]]; then
     echo "Usage: $(basename $0) <filesystem-name> [brief] [author] [email]"
     exit 1
 else
-    cd ../src/system/fs
+    cd ../src/fs
     mkdir $FSNAME
     cd $FSNAME
 
@@ -562,7 +562,7 @@ CSRC_CORE += fs/$FSNAME/$FSNAME.c
 EOF
 
 #-------------------------------------------------------------------------------
-cd ../../../../config/filesystems
+cd ../../../config/filesystems
 
 cat << EOF > ${FSNAME}_flags.h
 /*==============================================================================

@@ -16,7 +16,7 @@ if [[ "$*" < "3" ]]; then
     echo "Usage: $(basename $0) <driver-name> <architecture> [brief] [author] [email]"
     exit 1
 else
-    cd ../src/system/drivers
+    cd ../src/drivers
     mkdir $DRVNAME
     cd $DRVNAME
     mkdir $ARCH
@@ -533,7 +533,8 @@ EOF
 
 
 #-------------------------------------------------------------------------------
-cd ../../../../../config/arch
+echo $(pwd)
+cd ../../../../config/arch
 mkdir -p $ARCH
 cd $ARCH
 
