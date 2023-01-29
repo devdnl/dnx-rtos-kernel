@@ -300,6 +300,8 @@ Brief   $BRIEF
   Local object types
 ==============================================================================*/
 typedef struct {
+        u8_t major;
+        u8_t minor;
         // ...
 } ${DRVNAME^^}_t;
 
@@ -339,6 +341,7 @@ API_MOD_INIT(${DRVNAME^^}, void **device_handle, u8_t major, u8_t minor, const v
         if (major == 0 && minor == 0) {
                 err = sys_zalloc(sizeof(${DRVNAME^^}_t), device_handle);
                 if (!err) {
+                        ${DRVNAME^^}_t *hdl = *device_handle;
                         //...
                 }
         }

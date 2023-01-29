@@ -29,6 +29,7 @@
 /*==============================================================================
   Include files
 ==============================================================================*/
+// clang-format off
 #include "config.h"
 #include "stm32f4/cpuctl.h"
 #include "stm32f4/stm32f4xx.h"
@@ -37,14 +38,12 @@
 #include "kernel/kwrapper.h"
 #include "kernel/kpanic.h"
 #include "kernel/sysfunc.h"
+#include "core_cm4.h"
+// clang-format on
 
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-/* Cortex System Control register address */
-#define SCB_SysCtrl             (*((__IO uint32_t *)0xE000ED10))
-#define SysCtrl_SLEEPDEEP       ((uint32_t)0x00000004)
-
 #define SRAM1_HEAP_START        ((void *)&__heap_start)
 #define SRAM1_HEAP_SIZE         ((size_t)&__heap_size)
 
@@ -205,6 +204,90 @@ void _cpuctl_shutdown_system(void)
         for(;;) {
                 __NOP();
         }
+}
+
+//==============================================================================
+/**
+ * @brief  Function enable low power mode.
+ *
+ * @param  mode         mode
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+int _cpuctl_low_power_mode(int mode)
+{
+        int err = EINVAL;
+
+        switch (mode) {
+        case low_power_mode__sleep:
+                CLEAR_BIT(SCB->SCR, SCB_SCR_SLEEPDEEP_Msk | SCB_SCR_SLEEPONEXIT_Msk);
+                __WFI();
+                err = 0;
+                break;
+
+        case low_power_mode__stop_reg_on:
+                SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);
+                CLEAR_BIT(SCB->SCR, SCB_SCR_SLEEPONEXIT_Msk);
+                SET_BIT(SCB->SCR, SCB_SCR_SLEEPDEEP_Msk);
+                CLEAR_BIT(PWR->CR, PWR_CR_PDDS | PWR_CR_LPDS);
+                SET_BIT(PWR->CR, PWR_CR_CWUF | PWR_CR_CSBF);
+
+                if (RCC->APB2ENR & RCC_APB2ENR_SYSCFGEN) {
+                        WRITE_REG(EXTI->PR, UINT32_MAX);
+                }
+
+                if ((RCC->BDCR & RCC_BDCR_RTCEN)) {
+                        CLEAR_BIT(RTC->ISR, RTC_ISR_ALRAF | RTC_ISR_ALRBF);
+                }
+
+                __WFI();
+                err = 0;
+                break;
+
+        case low_power_mode__stop_reg_off:
+                SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);
+                CLEAR_BIT(SCB->SCR, SCB_SCR_SLEEPONEXIT_Msk);
+                SET_BIT(SCB->SCR, SCB_SCR_SLEEPDEEP_Msk);
+                CLEAR_BIT(PWR->CR, PWR_CR_PDDS);
+                SET_BIT(PWR->CR, PWR_CR_CWUF | PWR_CR_CSBF);
+
+                if (RCC->APB2ENR & RCC_APB2ENR_SYSCFGEN) {
+                        WRITE_REG(EXTI->PR, UINT32_MAX);
+                }
+
+                if ((RCC->BDCR & RCC_BDCR_RTCEN)) {
+                        CLEAR_BIT(RTC->ISR, RTC_ISR_ALRAF | RTC_ISR_ALRBF);
+                }
+
+                __WFI();
+                err = 0;
+                break;
+
+        case low_power_mode__standby:
+                SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);
+                CLEAR_BIT(SCB->SCR, SCB_SCR_SLEEPONEXIT_Msk);
+                SET_BIT(SCB->SCR, SCB_SCR_SLEEPDEEP_Msk);
+                SET_BIT(PWR->CR, PWR_CR_PDDS | PWR_CR_CWUF | PWR_CR_CSBF);
+
+                if (RCC->APB2ENR & RCC_APB2ENR_SYSCFGEN) {
+                        WRITE_REG(EXTI->PR, UINT32_MAX);
+                }
+
+                if ((RCC->BDCR & RCC_BDCR_RTCEN)) {
+                        CLEAR_BIT(RTC->ISR, RTC_ISR_ALRAF | RTC_ISR_ALRBF);
+                }
+
+                __WFI();
+
+                err = 0;
+                break;
+
+        default:
+                break;
+        }
+
+        return err;
 }
 
 //==============================================================================

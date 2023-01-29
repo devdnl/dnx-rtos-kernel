@@ -29,48 +29,47 @@
 /*==============================================================================
   Include files
 ==============================================================================*/
-#include "config.h"
+// clang-format off
 #include "stm32f1/cpuctl.h"
-#include "stm32f1/stm32f10x.h"
+#include "config.h"
+#include "kernel/kpanic.h"
+#include "kernel/kwrapper.h"
+#include "kernel/sysfunc.h"
 #include "stm32f1/lib/misc.h"
 #include "stm32f1/lib/stm32f10x_rcc.h"
-#include "kernel/kwrapper.h"
-#include "kernel/kpanic.h"
-#include "kernel/sysfunc.h"
+#include "stm32f1/stm32f10x.h"
+#include "core_cm3.h"
+// clang-format on
 
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-/* Cortex System Control register address */
-#define SCB_SysCtrl             (*((__IO uint32_t *)0xE000ED10))
-#define SysCtrl_SLEEPDEEP       ((uint32_t)0x00000004)
-
-#define SRAM_HEAP_START         ((void *)&__heap_start)
-#define SRAM_HEAP_SIZE          ((size_t)&__heap_size)
+#define SRAM_HEAP_START ((void *)&__heap_start)
+#define SRAM_HEAP_SIZE  ((size_t)&__heap_size)
 
 // Memory Management Fault Status Register
-#define NVIC_MFSR               (*(volatile unsigned char*)(0xE000ED28u))
+#define NVIC_MFSR (*(volatile unsigned char *)(0xE000ED28u))
 
 // Bus Fault Status Register
-#define NVIC_BFSR               (*(volatile unsigned char*)(0xE000ED29u))
+#define NVIC_BFSR (*(volatile unsigned char *)(0xE000ED29u))
 
 // Usage Fault Status Register
-#define NVIC_UFSR               (*(volatile unsigned short*)(0xE000ED2Au))
+#define NVIC_UFSR (*(volatile unsigned short *)(0xE000ED2Au))
 
 // Hard Fault Status Register
-#define NVIC_HFSR               (*(volatile unsigned int*)(0xE000ED2Cu))
+#define NVIC_HFSR (*(volatile unsigned int *)(0xE000ED2Cu))
 
 // Debug Fault Status Register
-#define NVIC_DFSR               (*(volatile unsigned int*)(0xE000ED30u))
+#define NVIC_DFSR (*(volatile unsigned int *)(0xE000ED30u))
 
 // MemManage Fault Address Register
-#define NVIC_MFAR               (*(volatile unsigned int*)(0xE000ED34u))
+#define NVIC_MFAR (*(volatile unsigned int *)(0xE000ED34u))
 
 // Bus Fault Manage Address Register
-#define NVIC_BFAR               (*(volatile unsigned int*)(0xE000ED38u))
+#define NVIC_BFAR (*(volatile unsigned int *)(0xE000ED38u))
 
 // Auxiliary Fault Status Register
-#define NVIC_AFSR               (*(volatile unsigned int*)(0xE000ED3Cu))
+#define NVIC_AFSR (*(volatile unsigned int *)(0xE000ED3Cu))
 
 /*==============================================================================
   Local types, enums definitions
@@ -81,24 +80,24 @@ typedef struct {
         uint32_t R2;
         uint32_t R3;
         uint32_t R12;
-        uint32_t LR;    // Link register.
-        uint32_t PC;    // Program counter.
-        uint32_t PSR;   // Program status register.
-        uint32_t MFSR;  // Memory Management Fault Status Register.
-        uint32_t BFSR;  // Bus Fault Status Register.
-        uint32_t UFSR;  // Usage Fault Status Register.
-        uint32_t HFSR;  // Hard Fault Status Register.
-        uint32_t DFSR;  // Debug Fault Status Register.
-        uint32_t BFAR;  // Bus Fault Manage Address Register.
-        uint32_t AFSR;  // Auxiliary Fault Status Register.
-        uint32_t MFAR;  // MemManage Fault Address Register
+        uint32_t LR;   // Link register.
+        uint32_t PC;   // Program counter.
+        uint32_t PSR;  // Program status register.
+        uint32_t MFSR; // Memory Management Fault Status Register.
+        uint32_t BFSR; // Bus Fault Status Register.
+        uint32_t UFSR; // Usage Fault Status Register.
+        uint32_t HFSR; // Hard Fault Status Register.
+        uint32_t DFSR; // Debug Fault Status Register.
+        uint32_t BFAR; // Bus Fault Manage Address Register.
+        uint32_t AFSR; // Auxiliary Fault Status Register.
+        uint32_t MFAR; // MemManage Fault Address Register
 } reg_dump_t;
 
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
 static void calculate_ticks_per_us(void);
-void get_registers_from_stack(uint32_t *stack_address);
+void        get_registers_from_stack(uint32_t *stack_address);
 
 /*==============================================================================
   Local object definitions
@@ -110,7 +109,7 @@ static _mm_region_t sram;
 
 static u32_t ticks_per_us;
 
-static volatile reg_dump_t reg_dump __attribute__ ((section (".noinit")));
+static volatile reg_dump_t reg_dump __attribute__((section(".noinit")));
 
 /*==============================================================================
   Function definitions
@@ -139,22 +138,35 @@ void _cpuctl_init(void)
         /* enable sleep on idle debug */
         SET_BIT(DBGMCU->CR, DBGMCU_CR_DBG_SLEEP);
 
-        #if (__OS_MONITOR_CPU_LOAD__ > 0)
+#if (__OS_MONITOR_CPU_LOAD__ > 0)
         _cpuctl_init_CPU_load_counter();
-        #endif
+#endif
 
-        _mm_register_region(&sram, SRAM_HEAP_START, SRAM_HEAP_SIZE, _MM_FLAG__DMA_CAPABLE, "SRAM");
+        _mm_register_region(&sram, SRAM_HEAP_START, SRAM_HEAP_SIZE, _MM_FLAG__DMA_CAPABLE,
+                "SRAM");
 
 #if __CPU_SHOW_AND_CLEAR_RESET_SOURCE__
         u32_t CSR = RCC->CSR;
         SET_BIT(RCC->CSR, RCC_CSR_RMVF);
         printk("Reset source:");
-        if (CSR & RCC_CSR_LPWRRSTF) printk("  Low power reset");
-        if (CSR & RCC_CSR_WWDGRSTF) printk("  Window watchdog reset");
-        if (CSR & RCC_CSR_IWDGRSTF) printk("  Watchdog reset");
-        if (CSR & RCC_CSR_SFTRSTF)  printk("  Software reset");
-        if (CSR & RCC_CSR_PORRSTF)  printk("  POR reset");
-        if (CSR & RCC_CSR_PINRSTF)  printk("  Pin reset");
+        if (CSR & RCC_CSR_LPWRRSTF) {
+                printk("  Low power reset");
+        }
+        if (CSR & RCC_CSR_WWDGRSTF) {
+                printk("  Window watchdog reset");
+        }
+        if (CSR & RCC_CSR_IWDGRSTF) {
+                printk("  Watchdog reset");
+        }
+        if (CSR & RCC_CSR_SFTRSTF) {
+                printk("  Software reset");
+        }
+        if (CSR & RCC_CSR_PORRSTF) {
+                printk("  POR reset");
+        }
+        if (CSR & RCC_CSR_PINRSTF) {
+                printk("  Pin reset");
+        }
 #endif
 }
 
@@ -177,7 +189,7 @@ void _cpuctl_shutdown_system(void)
 {
         __disable_irq();
 
-        for(;;) {
+        for (;;) {
                 __NOP();
         }
 }
@@ -213,8 +225,8 @@ void _cpuctl_init_CPU_load_counter(void)
 u32_t _cpuctl_get_CPU_load_counter_delta(void)
 {
         static uint32_t last;
-        bool  ovf = SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk;
-        u32_t now = SysTick->VAL;
+        bool            ovf = SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk;
+        u32_t           now = SysTick->VAL;
 
         u32_t delta;
         if (ovf) {
@@ -241,6 +253,93 @@ u32_t _cpuctl_get_CPU_load_counter_delta(void)
 void _cpuctl_sleep(void)
 {
         __WFI();
+}
+
+//==============================================================================
+/**
+ * @brief  Function enable low power mode.
+ *
+ * @param  mode         mode
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+int _cpuctl_low_power_mode(int mode)
+{
+        int err = EINVAL;
+
+        switch (mode) {
+        case low_power_mode__sleep:
+                CLEAR_BIT(SCB->SCR, SCB_SCR_SLEEPDEEP | SCB_SCR_SLEEPONEXIT);
+                __WFI();
+                err = 0;
+                break;
+
+        case low_power_mode__stop_reg_on:
+                SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);
+                CLEAR_BIT(SCB->SCR, SCB_SCR_SLEEPONEXIT);
+                SET_BIT(SCB->SCR, SCB_SCR_SLEEPDEEP);
+                CLEAR_BIT(PWR->CR, PWR_CR_PDDS | PWR_CR_LPDS);
+                SET_BIT(PWR->CR, PWR_CR_CWUF | PWR_CR_CSBF);
+
+                if (RCC->APB2ENR & RCC_APB2ENR_AFIOEN) {
+                        WRITE_REG(EXTI->PR, UINT32_MAX);
+                }
+
+                if ((RCC->APB1ENR & (RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN))
+                        == (RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN)) {
+                        CLEAR_BIT(RTC->CRL, RTC_CRL_ALRF);
+                }
+
+                __WFI();
+                err = 0;
+                break;
+
+        case low_power_mode__stop_reg_off:
+                SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);
+                CLEAR_BIT(SCB->SCR, SCB_SCR_SLEEPONEXIT);
+                SET_BIT(SCB->SCR, SCB_SCR_SLEEPDEEP);
+                CLEAR_BIT(PWR->CR, PWR_CR_PDDS);
+                SET_BIT(PWR->CR, PWR_CR_CWUF | PWR_CR_CSBF);
+
+                if (RCC->APB2ENR & RCC_APB2ENR_AFIOEN) {
+                        WRITE_REG(EXTI->PR, UINT32_MAX);
+                }
+
+                if ((RCC->APB1ENR & (RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN))
+                        == (RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN)) {
+                        CLEAR_BIT(RTC->CRL, RTC_CRL_ALRF);
+                }
+
+                __WFI();
+                err = 0;
+                break;
+
+        case low_power_mode__standby:
+                SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);
+                CLEAR_BIT(SCB->SCR, SCB_SCR_SLEEPONEXIT);
+                SET_BIT(SCB->SCR, SCB_SCR_SLEEPDEEP);
+                SET_BIT(PWR->CR, PWR_CR_PDDS | PWR_CR_CWUF | PWR_CR_CSBF);
+
+                if (RCC->APB2ENR & RCC_APB2ENR_AFIOEN) {
+                        WRITE_REG(EXTI->PR, UINT32_MAX);
+                }
+
+                if ((RCC->APB1ENR & (RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN))
+                        == (RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN)) {
+                        CLEAR_BIT(RTC->CRL, RTC_CRL_ALRF);
+                }
+
+                __WFI();
+
+                err = 0;
+                break;
+
+        default:
+                break;
+        }
+
+        return err;
 }
 
 //==============================================================================
@@ -308,7 +407,9 @@ static void calculate_ticks_per_us(void)
 
         u32_t ticks = ((u64_t)250 * SysTick->LOAD * __OS_TASK_SCHED_FREQ__) / 1000000;
 
-        while (SysTick->VAL >= (SysTick->LOAD / 2));
+        while (SysTick->VAL >= (SysTick->LOAD / 2)) {
+                ;
+        }
 
         u32_t target = SysTick->VAL - ticks;
 
@@ -355,15 +456,12 @@ void _cpuctl_print_exception(void)
 //==============================================================================
 void HardFault_Handler(void)
 {
-        __asm volatile
-        (
-                " tst lr, #4                                                \n"
-                " ite eq                                                    \n"
-                " mrseq r0, msp                                             \n"
-                " mrsne r0, psp                                             \n"
-                " ldr r1, [r0, #24]                                         \n"
-                " b get_registers_from_stack                                \n"
-        );
+        __asm volatile(" tst lr, #4                                                \n"
+                       " ite eq                                                    \n"
+                       " mrseq r0, msp                                             \n"
+                       " mrsne r0, psp                                             \n"
+                       " ldr r1, [r0, #24]                                         \n"
+                       " b get_registers_from_stack                                \n");
 }
 
 //==============================================================================

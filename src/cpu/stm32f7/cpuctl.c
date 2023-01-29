@@ -29,126 +29,125 @@
 /*==============================================================================
   Include files
 ==============================================================================*/
-#include "config.h"
+// clang-format off
 #include "stm32f7/cpuctl.h"
-#include "stm32f7/stm32f7xx.h"
-#include "stm32f7/lib/stm32f7xx_ll_rcc.h"
-#include "stm32f7/lib/misc.h"
-#include "kernel/kwrapper.h"
+#include "config.h"
 #include "kernel/kpanic.h"
+#include "kernel/kwrapper.h"
 #include "kernel/sysfunc.h"
+#include "stm32f7/lib/misc.h"
+#include "stm32f7/lib/stm32f7xx_ll_rcc.h"
+#include "stm32f7/stm32f7xx.h"
+#include "core_cm7.h"
+// clang-format on
 
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-/* Cortex System Control register address */
-#define SCB_SysCtrl             (*((__IO uint32_t *)0xE000ED10))
-#define SysCtrl_SLEEPDEEP       ((uint32_t)0x00000004)
+#define SRAM1_HEAP_START ((void *)&__heap_start)
+#define SRAM1_HEAP_SIZE  ((size_t)&__heap_size)
 
-#define SRAM1_HEAP_START        ((void *)&__heap_start)
-#define SRAM1_HEAP_SIZE         ((size_t)&__heap_size)
+#define SRAM2_START ((void *)&__ram2_start)
+#define SRAM2_SIZE  ((size_t)&__ram2_size)
 
-#define SRAM2_START             ((void *)&__ram2_start)
-#define SRAM2_SIZE              ((size_t)&__ram2_size)
-
-#define DTCM_START              ((void *)&__dtcm_start)
-#define DTCM_SIZE               ((size_t)&__dtcm_size)
+#define DTCM_START ((void *)&__dtcm_start)
+#define DTCM_SIZE  ((size_t)&__dtcm_size)
 
 // Memory Management Fault Status Register
-#define NVIC_MFSR               (*(volatile unsigned char*)(0xE000ED28u))
+#define NVIC_MFSR (*(volatile unsigned char *)(0xE000ED28u))
 
 // Bus Fault Status Register
-#define NVIC_BFSR               (*(volatile unsigned char*)(0xE000ED29u))
+#define NVIC_BFSR (*(volatile unsigned char *)(0xE000ED29u))
 
 // Usage Fault Status Register
-#define NVIC_UFSR               (*(volatile unsigned short*)(0xE000ED2Au))
+#define NVIC_UFSR (*(volatile unsigned short *)(0xE000ED2Au))
 
 // Hard Fault Status Register
-#define NVIC_HFSR               (*(volatile unsigned int*)(0xE000ED2Cu))
+#define NVIC_HFSR (*(volatile unsigned int *)(0xE000ED2Cu))
 
 // Debug Fault Status Register
-#define NVIC_DFSR               (*(volatile unsigned int*)(0xE000ED30u))
+#define NVIC_DFSR (*(volatile unsigned int *)(0xE000ED30u))
 
 // MemManage Fault Address Register
-#define NVIC_MFAR               (*(volatile unsigned int*)(0xE000ED34u))
+#define NVIC_MFAR (*(volatile unsigned int *)(0xE000ED34u))
 
 // Bus Fault Manage Address Register
-#define NVIC_BFAR               (*(volatile unsigned int*)(0xE000ED38u))
+#define NVIC_BFAR (*(volatile unsigned int *)(0xE000ED38u))
 
 // Auxiliary Fault Status Register
-#define NVIC_AFSR               (*(volatile unsigned int*)(0xE000ED3Cu))
+#define NVIC_AFSR (*(volatile unsigned int *)(0xE000ED3Cu))
 
 /*
  * MPU Definitions
  */
-#define MPU_HFNMI_PRIVDEF_NONE          ((uint32_t)0x00000000U)
-#define MPU_HARDFAULT_NMI               ((uint32_t)0x00000002U)
-#define MPU_PRIVILEGED_DEFAULT          ((uint32_t)0x00000004U)
-#define MPU_HFNMI_PRIVDEF               ((uint32_t)0x00000006U)
+#define MPU_HFNMI_PRIVDEF_NONE ((uint32_t)0x00000000U)
+#define MPU_HARDFAULT_NMI      ((uint32_t)0x00000002U)
+#define MPU_PRIVILEGED_DEFAULT ((uint32_t)0x00000004U)
+#define MPU_HFNMI_PRIVDEF      ((uint32_t)0x00000006U)
 
-#define MPU_REGION_ENABLE               ((uint8_t)0x01U)
-#define MPU_REGION_DISABLE              ((uint8_t)0x00U)
+#define MPU_REGION_ENABLE  ((uint8_t)0x01U)
+#define MPU_REGION_DISABLE ((uint8_t)0x00U)
 
-#define MPU_INSTRUCTION_ACCESS_ENABLE   ((uint8_t)0x00U)
-#define MPU_INSTRUCTION_ACCESS_DISABLE  ((uint8_t)0x01U)
+#define MPU_INSTRUCTION_ACCESS_ENABLE  ((uint8_t)0x00U)
+#define MPU_INSTRUCTION_ACCESS_DISABLE ((uint8_t)0x01U)
 
-#define MPU_ACCESS_SHAREABLE            ((uint8_t)0x01U)
-#define MPU_ACCESS_NOT_SHAREABLE        ((uint8_t)0x00U)
+#define MPU_ACCESS_SHAREABLE     ((uint8_t)0x01U)
+#define MPU_ACCESS_NOT_SHAREABLE ((uint8_t)0x00U)
 
-#define MPU_ACCESS_CACHEABLE            ((uint8_t)0x01U)
-#define MPU_ACCESS_NOT_CACHEABLE        ((uint8_t)0x00U)
+#define MPU_ACCESS_CACHEABLE     ((uint8_t)0x01U)
+#define MPU_ACCESS_NOT_CACHEABLE ((uint8_t)0x00U)
 
-#define MPU_ACCESS_BUFFERABLE           ((uint8_t)0x01U)
-#define MPU_ACCESS_NOT_BUFFERABLE       ((uint8_t)0x00U)
+#define MPU_ACCESS_BUFFERABLE     ((uint8_t)0x01U)
+#define MPU_ACCESS_NOT_BUFFERABLE ((uint8_t)0x00U)
 
-#define MPU_TEX_LEVEL0                  ((uint8_t)0x00U)
-#define MPU_TEX_LEVEL1                  ((uint8_t)0x01U)
-#define MPU_TEX_LEVEL2                  ((uint8_t)0x02U)
+#define MPU_TEX_LEVEL0 ((uint8_t)0x00U)
+#define MPU_TEX_LEVEL1 ((uint8_t)0x01U)
+#define MPU_TEX_LEVEL2 ((uint8_t)0x02U)
 
-#define MPU_REGION_SIZE_32B             ((uint8_t)0x04U)
-#define MPU_REGION_SIZE_64B             ((uint8_t)0x05U)
-#define MPU_REGION_SIZE_128B            ((uint8_t)0x06U)
-#define MPU_REGION_SIZE_256B            ((uint8_t)0x07U)
-#define MPU_REGION_SIZE_512B            ((uint8_t)0x08U)
-#define MPU_REGION_SIZE_1KiB            ((uint8_t)0x09U)
-#define MPU_REGION_SIZE_2KiB            ((uint8_t)0x0AU)
-#define MPU_REGION_SIZE_4KiB            ((uint8_t)0x0BU)
-#define MPU_REGION_SIZE_8KiB            ((uint8_t)0x0CU)
-#define MPU_REGION_SIZE_16KiB           ((uint8_t)0x0DU)
-#define MPU_REGION_SIZE_32KiB           ((uint8_t)0x0EU)
-#define MPU_REGION_SIZE_64KiB           ((uint8_t)0x0FU)
-#define MPU_REGION_SIZE_128KiB          ((uint8_t)0x10U)
-#define MPU_REGION_SIZE_256KiB          ((uint8_t)0x11U)
-#define MPU_REGION_SIZE_512KiB          ((uint8_t)0x12U)
-#define MPU_REGION_SIZE_1MiB            ((uint8_t)0x13U)
-#define MPU_REGION_SIZE_2MiB            ((uint8_t)0x14U)
-#define MPU_REGION_SIZE_4MiB            ((uint8_t)0x15U)
-#define MPU_REGION_SIZE_8MiB            ((uint8_t)0x16U)
-#define MPU_REGION_SIZE_16MiB           ((uint8_t)0x17U)
-#define MPU_REGION_SIZE_32MiB           ((uint8_t)0x18U)
-#define MPU_REGION_SIZE_64MiB           ((uint8_t)0x19U)
-#define MPU_REGION_SIZE_128MiB          ((uint8_t)0x1AU)
-#define MPU_REGION_SIZE_256MiB          ((uint8_t)0x1BU)
-#define MPU_REGION_SIZE_512MiB          ((uint8_t)0x1CU)
-#define MPU_REGION_SIZE_1GiB            ((uint8_t)0x1DU)
-#define MPU_REGION_SIZE_2GiB            ((uint8_t)0x1EU)
-#define MPU_REGION_SIZE_4GiB            ((uint8_t)0x1FU)
+#define MPU_REGION_SIZE_32B    ((uint8_t)0x04U)
+#define MPU_REGION_SIZE_64B    ((uint8_t)0x05U)
+#define MPU_REGION_SIZE_128B   ((uint8_t)0x06U)
+#define MPU_REGION_SIZE_256B   ((uint8_t)0x07U)
+#define MPU_REGION_SIZE_512B   ((uint8_t)0x08U)
+#define MPU_REGION_SIZE_1KiB   ((uint8_t)0x09U)
+#define MPU_REGION_SIZE_2KiB   ((uint8_t)0x0AU)
+#define MPU_REGION_SIZE_4KiB   ((uint8_t)0x0BU)
+#define MPU_REGION_SIZE_8KiB   ((uint8_t)0x0CU)
+#define MPU_REGION_SIZE_16KiB  ((uint8_t)0x0DU)
+#define MPU_REGION_SIZE_32KiB  ((uint8_t)0x0EU)
+#define MPU_REGION_SIZE_64KiB  ((uint8_t)0x0FU)
+#define MPU_REGION_SIZE_128KiB ((uint8_t)0x10U)
+#define MPU_REGION_SIZE_256KiB ((uint8_t)0x11U)
+#define MPU_REGION_SIZE_512KiB ((uint8_t)0x12U)
+#define MPU_REGION_SIZE_1MiB   ((uint8_t)0x13U)
+#define MPU_REGION_SIZE_2MiB   ((uint8_t)0x14U)
+#define MPU_REGION_SIZE_4MiB   ((uint8_t)0x15U)
+#define MPU_REGION_SIZE_8MiB   ((uint8_t)0x16U)
+#define MPU_REGION_SIZE_16MiB  ((uint8_t)0x17U)
+#define MPU_REGION_SIZE_32MiB  ((uint8_t)0x18U)
+#define MPU_REGION_SIZE_64MiB  ((uint8_t)0x19U)
+#define MPU_REGION_SIZE_128MiB ((uint8_t)0x1AU)
+#define MPU_REGION_SIZE_256MiB ((uint8_t)0x1BU)
+#define MPU_REGION_SIZE_512MiB ((uint8_t)0x1CU)
+#define MPU_REGION_SIZE_1GiB   ((uint8_t)0x1DU)
+#define MPU_REGION_SIZE_2GiB   ((uint8_t)0x1EU)
+#define MPU_REGION_SIZE_4GiB   ((uint8_t)0x1FU)
 
-#define MPU_REGION_NO_ACCESS            ((uint8_t)0x00U)
-#define MPU_REGION_PRIV_RW              ((uint8_t)0x01U)
-#define MPU_REGION_PRIV_RW_URO          ((uint8_t)0x02U)
-#define MPU_REGION_FULL_ACCESS          ((uint8_t)0x03U)
-#define MPU_REGION_PRIV_RO              ((uint8_t)0x05U)
-#define MPU_REGION_PRIV_RO_URO          ((uint8_t)0x06U)
+#define MPU_REGION_NO_ACCESS   ((uint8_t)0x00U)
+#define MPU_REGION_PRIV_RW     ((uint8_t)0x01U)
+#define MPU_REGION_PRIV_RW_URO ((uint8_t)0x02U)
+#define MPU_REGION_FULL_ACCESS ((uint8_t)0x03U)
+#define MPU_REGION_PRIV_RO     ((uint8_t)0x05U)
+#define MPU_REGION_PRIV_RO_URO ((uint8_t)0x06U)
 
-#define MPU_REGION_NUMBER0              ((uint8_t)0x00U)
-#define MPU_REGION_NUMBER1              ((uint8_t)0x01U)
-#define MPU_REGION_NUMBER2              ((uint8_t)0x02U)
-#define MPU_REGION_NUMBER3              ((uint8_t)0x03U)
-#define MPU_REGION_NUMBER4              ((uint8_t)0x04U)
-#define MPU_REGION_NUMBER5              ((uint8_t)0x05U)
-#define MPU_REGION_NUMBER6              ((uint8_t)0x06U)
-#define MPU_REGION_NUMBER7              ((uint8_t)0x07U)
+#define MPU_REGION_NUMBER0 ((uint8_t)0x00U)
+#define MPU_REGION_NUMBER1 ((uint8_t)0x01U)
+#define MPU_REGION_NUMBER2 ((uint8_t)0x02U)
+#define MPU_REGION_NUMBER3 ((uint8_t)0x03U)
+#define MPU_REGION_NUMBER4 ((uint8_t)0x04U)
+#define MPU_REGION_NUMBER5 ((uint8_t)0x05U)
+#define MPU_REGION_NUMBER6 ((uint8_t)0x06U)
+#define MPU_REGION_NUMBER7 ((uint8_t)0x07U)
 
 /*==============================================================================
   Local types, enums definitions
@@ -159,32 +158,35 @@ typedef struct {
         uint32_t R2;
         uint32_t R3;
         uint32_t R12;
-        uint32_t LR;    // Link register.
-        uint32_t PC;    // Program counter.
-        uint32_t PSR;   // Program status register.
-        uint32_t MFSR;  // Memory Management Fault Status Register.
-        uint32_t BFSR;  // Bus Fault Status Register.
-        uint32_t UFSR;  // Usage Fault Status Register.
-        uint32_t HFSR;  // Hard Fault Status Register.
-        uint32_t DFSR;  // Debug Fault Status Register.
-        uint32_t BFAR;  // Bus Fault Manage Address Register.
-        uint32_t AFSR;  // Auxiliary Fault Status Register.
-        uint32_t MFAR;  // MemManage Fault Address Register
+        uint32_t LR;   // Link register.
+        uint32_t PC;   // Program counter.
+        uint32_t PSR;  // Program status register.
+        uint32_t MFSR; // Memory Management Fault Status Register.
+        uint32_t BFSR; // Bus Fault Status Register.
+        uint32_t UFSR; // Usage Fault Status Register.
+        uint32_t HFSR; // Hard Fault Status Register.
+        uint32_t DFSR; // Debug Fault Status Register.
+        uint32_t BFAR; // Bus Fault Manage Address Register.
+        uint32_t AFSR; // Auxiliary Fault Status Register.
+        uint32_t MFAR; // MemManage Fault Address Register
 } reg_dump_t;
 
-typedef struct
-{
-        uint8_t  enable;                /*!< Specifies the status of the region.*/
-        uint8_t  number;                /*!< Specifies the number of the region to protect.*/
-        uint32_t base_address;          /*!< Specifies the base address of the region to protect.*/
-        uint8_t  size;                  /*!< Specifies the size of the region to protect.*/
-        uint8_t  sub_region_disable;    /*!< Specifies the number of the subregion protection to disable.*/
-        uint8_t  type_ext_field;        /*!< Specifies the TEX field level.*/
-        uint8_t  access_permission;     /*!< Specifies the region access permission type.*/
-        uint8_t  disable_exec;          /*!< Specifies the instruction access status.*/
-        uint8_t  is_shareable;          /*!< Specifies the shareability status of the protected region.*/
-        uint8_t  is_cacheable;          /*!< Specifies the cacheable status of the region protected.*/
-        uint8_t  is_bufferable;         /*!< Specifies the bufferable status of the protected region.*/
+typedef struct {
+        uint8_t  enable;       /*!< Specifies the status of the region.*/
+        uint8_t  number;       /*!< Specifies the number of the region to protect.*/
+        uint32_t base_address; /*!< Specifies the base address of the region to protect.*/
+        uint8_t  size;         /*!< Specifies the size of the region to protect.*/
+        uint8_t  sub_region_disable; /*!< Specifies the number of the subregion protection
+                                        to disable.*/
+        uint8_t type_ext_field;      /*!< Specifies the TEX field level.*/
+        uint8_t access_permission;   /*!< Specifies the region access permission type.*/
+        uint8_t disable_exec;        /*!< Specifies the instruction access status.*/
+        uint8_t is_shareable;  /*!< Specifies the shareability status of the protected
+                                  region.*/
+        uint8_t is_cacheable;  /*!< Specifies the cacheable status of the region
+                                  protected.*/
+        uint8_t is_bufferable; /*!< Specifies the bufferable status of the protected
+                                  region.*/
 } MPU_region_t;
 
 /*==============================================================================
@@ -216,7 +218,7 @@ static _mm_region_t dtcm;
 // is written just before restart procedure.
 static volatile uint32_t cpuctl_dummy;
 
-static volatile reg_dump_t reg_dump __attribute__ ((section (".noinit")));
+static volatile reg_dump_t reg_dump __attribute__((section(".noinit")));
 
 /*==============================================================================
   Function definitions
@@ -238,44 +240,47 @@ void _cpuctl_init(void)
         NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
 
         /* enable FPU */
-        SCB->CPACR |= ((3 << 20)|(3 << 22));
+        SCB->CPACR |= ((3 << 20) | (3 << 22));
 
-        #if __CPU_DISABLE_INTER_OF_MCYCLE_INSTR__ == _YES_
+#if __CPU_DISABLE_INTER_OF_MCYCLE_INSTR__ == _YES_
         /* disable interrupting multi-cycle instructions */
         SCnSCB->ACTLR |= SCnSCB_ACTLR_DISMCYCINT_Msk;
-        #endif
+#endif
 
         /* enable sleep on idle debug */
         SET_BIT(DBGMCU->CR, DBGMCU_CR_DBG_SLEEP);
 
-        #if (__OS_MONITOR_CPU_LOAD__ > 0)
+#if (__OS_MONITOR_CPU_LOAD__ > 0)
         _cpuctl_init_CPU_load_counter();
-        #endif
+#endif
 
-        #if __CPU_RAM1_RAM2_CACHE_DISABLE__ == _YES_
+#if __CPU_RAM1_RAM2_CACHE_DISABLE__ == _YES_
         MPU_disable();
         MPU_region_t mpu;
-        mpu.enable = MPU_REGION_ENABLE;
-        mpu.access_permission = MPU_REGION_FULL_ACCESS;
-        mpu.base_address = 0x20010000; // SRAM1 start
-        mpu.disable_exec = MPU_INSTRUCTION_ACCESS_ENABLE;
-        mpu.type_ext_field = MPU_TEX_LEVEL1;
-        mpu.is_bufferable = MPU_ACCESS_NOT_BUFFERABLE;
-        mpu.is_cacheable = MPU_ACCESS_NOT_CACHEABLE;
-        mpu.is_shareable = MPU_ACCESS_SHAREABLE;
-        mpu.number = MPU_REGION_NUMBER0;
-        mpu.size = MPU_REGION_SIZE_512KiB;
+        mpu.enable             = MPU_REGION_ENABLE;
+        mpu.access_permission  = MPU_REGION_FULL_ACCESS;
+        mpu.base_address       = 0x20010000; // SRAM1 start
+        mpu.disable_exec       = MPU_INSTRUCTION_ACCESS_ENABLE;
+        mpu.type_ext_field     = MPU_TEX_LEVEL1;
+        mpu.is_bufferable      = MPU_ACCESS_NOT_BUFFERABLE;
+        mpu.is_cacheable       = MPU_ACCESS_NOT_CACHEABLE;
+        mpu.is_shareable       = MPU_ACCESS_SHAREABLE;
+        mpu.number             = MPU_REGION_NUMBER0;
+        mpu.size               = MPU_REGION_SIZE_512KiB;
         mpu.sub_region_disable = 0;
         MPU_conf_region(&mpu);
         MPU_enable(MPU_PRIVILEGED_DEFAULT);
-        #endif
+#endif
 
-        u32_t ram1_ram2_flags = (__CPU_RAM1_RAM2_CACHE_DISABLE__ ? 0 : _MM_FLAG__CACHEABLE)
-                              | _MM_FLAG__DMA_CAPABLE;
+        u32_t ram1_ram2_flags
+                = (__CPU_RAM1_RAM2_CACHE_DISABLE__ ? 0 : _MM_FLAG__CACHEABLE)
+                | _MM_FLAG__DMA_CAPABLE;
 
-        _mm_register_region(&sram1, SRAM1_HEAP_START, SRAM1_HEAP_SIZE, ram1_ram2_flags, "SRAM1");
+        _mm_register_region(&sram1, SRAM1_HEAP_START, SRAM1_HEAP_SIZE, ram1_ram2_flags,
+                "SRAM1");
         _mm_register_region(&sram2, SRAM2_START, SRAM2_SIZE, ram1_ram2_flags, "SRAM2");
-        _mm_register_region(&dtcm, DTCM_START, DTCM_SIZE, _MM_FLAG__DMA_CAPABLE, _CPUCTL_FAST_MEM);
+        _mm_register_region(&dtcm, DTCM_START, DTCM_SIZE, _MM_FLAG__DMA_CAPABLE,
+                _CPUCTL_FAST_MEM);
 
         if (__CPU_ICACHE_ENABLE__) {
                 _ISR_disable();
@@ -307,13 +312,27 @@ void _cpuctl_init(void)
         u32_t CSR = RCC->CSR;
         SET_BIT(RCC->CSR, RCC_CSR_RMVF);
         printk("Reset source:");
-        if (CSR & RCC_CSR_LPWRRSTF) printk("  Low power reset");
-        if (CSR & RCC_CSR_WWDGRSTF) printk("  Window watchdog reset");
-        if (CSR & RCC_CSR_IWDGRSTF) printk("  Watchdog reset");
-        if (CSR & RCC_CSR_SFTRSTF)  printk("  Software reset");
-        if (CSR & RCC_CSR_PORRSTF)  printk("  POR reset");
-        if (CSR & RCC_CSR_PINRSTF)  printk("  Pin reset");
-        if (CSR & RCC_CSR_BORRSTF)  printk("  BOR reset");
+        if (CSR & RCC_CSR_LPWRRSTF) {
+                printk("  Low power reset");
+        }
+        if (CSR & RCC_CSR_WWDGRSTF) {
+                printk("  Window watchdog reset");
+        }
+        if (CSR & RCC_CSR_IWDGRSTF) {
+                printk("  Watchdog reset");
+        }
+        if (CSR & RCC_CSR_SFTRSTF) {
+                printk("  Software reset");
+        }
+        if (CSR & RCC_CSR_PORRSTF) {
+                printk("  POR reset");
+        }
+        if (CSR & RCC_CSR_PINRSTF) {
+                printk("  Pin reset");
+        }
+        if (CSR & RCC_CSR_BORRSTF) {
+                printk("  BOR reset");
+        }
 #endif
 }
 
@@ -338,7 +357,7 @@ void _cpuctl_shutdown_system(void)
 {
         __disable_irq();
 
-        for(;;) {
+        for (;;) {
                 __NOP();
         }
 }
@@ -374,8 +393,8 @@ void _cpuctl_init_CPU_load_counter(void)
 u32_t _cpuctl_get_CPU_load_counter_delta(void)
 {
         static uint32_t last;
-        bool  ovf = SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk;
-        u32_t now = SysTick->VAL;
+        bool            ovf = SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk;
+        u32_t           now = SysTick->VAL;
 
         u32_t delta;
         if (ovf) {
@@ -402,6 +421,95 @@ u32_t _cpuctl_get_CPU_load_counter_delta(void)
 void _cpuctl_sleep(void)
 {
         __WFI();
+}
+
+//==============================================================================
+/**
+ * @brief  Function enable low power mode.
+ *
+ * @param  mode         mode
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+int _cpuctl_low_power_mode(int mode)
+{
+        int err = EINVAL;
+
+        switch (mode) {
+        case low_power_mode__sleep:
+                CLEAR_BIT(SCB->SCR, SCB_SCR_SLEEPDEEP_Msk | SCB_SCR_SLEEPONEXIT_Msk);
+                __WFI();
+                err = 0;
+                break;
+
+        case low_power_mode__stop_reg_on:
+                SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);
+                CLEAR_BIT(SCB->SCR, SCB_SCR_SLEEPONEXIT_Msk);
+                SET_BIT(SCB->SCR, SCB_SCR_SLEEPDEEP_Msk);
+                CLEAR_BIT(PWR->CR1, PWR_CR1_PDDS | PWR_CR1_LPDS);
+
+                if (RCC->APB2ENR & RCC_APB2ENR_SYSCFGEN) {
+                        WRITE_REG(EXTI->PR, UINT32_MAX);
+                }
+
+                if ((RCC->BDCR & RCC_BDCR_RTCEN)) {
+                        CLEAR_BIT(RTC->ISR,
+                                RTC_ISR_ALRAF | RTC_ISR_TAMP3F | RTC_ISR_TAMP2F
+                                        | RTC_ISR_TAMP1F | RTC_ISR_WUTF);
+                }
+
+                __WFI();
+                err = 0;
+                break;
+
+        case low_power_mode__stop_reg_off:
+                SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);
+                CLEAR_BIT(SCB->SCR, SCB_SCR_SLEEPONEXIT_Msk);
+                SET_BIT(SCB->SCR, SCB_SCR_SLEEPDEEP_Msk);
+                CLEAR_BIT(PWR->CR1, PWR_CR1_PDDS);
+                SET_BIT(PWR->CR1, PWR_CR1_LPDS | PWR_CR1_FPDS);
+
+                if (RCC->APB2ENR & RCC_APB2ENR_SYSCFGEN) {
+                        WRITE_REG(EXTI->PR, UINT32_MAX);
+                }
+
+                if ((RCC->BDCR & RCC_BDCR_RTCEN)) {
+                        CLEAR_BIT(RTC->ISR,
+                                RTC_ISR_ALRAF | RTC_ISR_TAMP3F | RTC_ISR_TAMP2F
+                                        | RTC_ISR_TAMP1F | RTC_ISR_WUTF);
+                }
+
+                __WFI();
+                err = 0;
+                break;
+
+        case low_power_mode__standby:
+                SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);
+                CLEAR_BIT(SCB->SCR, SCB_SCR_SLEEPONEXIT_Msk);
+                SET_BIT(SCB->SCR, SCB_SCR_SLEEPDEEP_Msk);
+                SET_BIT(PWR->CR1, PWR_CR1_PDDS | PWR_CR1_CSBF);
+
+                if (RCC->APB2ENR & RCC_APB2ENR_SYSCFGEN) {
+                        WRITE_REG(EXTI->PR, UINT32_MAX);
+                }
+
+                if ((RCC->BDCR & RCC_BDCR_RTCEN)) {
+                        CLEAR_BIT(RTC->ISR,
+                                RTC_ISR_ALRAF | RTC_ISR_TAMP3F | RTC_ISR_TAMP2F
+                                        | RTC_ISR_TAMP1F | RTC_ISR_WUTF);
+                }
+
+                __WFI();
+
+                err = 0;
+                break;
+
+        default:
+                break;
+        }
+
+        return err;
 }
 
 //==============================================================================
@@ -442,16 +550,21 @@ void _cpuctl_update_system_clocks(void)
 //==============================================================================
 void _cpuctl_delay_us(u16_t microseconds)
 {
-        u32_t ticks = ((u64_t)microseconds * SysTick->LOAD * __OS_TASK_SCHED_FREQ__) / 1000000;
+        u32_t ticks = ((u64_t)microseconds * SysTick->LOAD * __OS_TASK_SCHED_FREQ__)
+                / 1000000;
 
         while (ticks > 0) {
                 i32_t now = SysTick->VAL;
 
                 if (now - ticks > 0) {
-                        while (SysTick->VAL > (u32_t)(now - ticks));
+                        while (SysTick->VAL > (u32_t)(now - ticks)) {
+                                ;
+                        }
                         ticks = 0;
                 } else {
-                        while (SysTick->VAL <= (u32_t)now);
+                        while (SysTick->VAL <= (u32_t)now) {
+                                ;
+                        }
                         ticks -= now;
                 }
         }
@@ -489,15 +602,12 @@ void _cpuctl_print_exception(void)
 //==============================================================================
 void HardFault_Handler(void)
 {
-        __asm volatile
-        (
-                " tst lr, #4                                                \n"
-                " ite eq                                                    \n"
-                " mrseq r0, msp                                             \n"
-                " mrsne r0, psp                                             \n"
-                " ldr r1, [r0, #24]                                         \n"
-                " b get_registers_from_stack                                \n"
-        );
+        __asm volatile(" tst lr, #4                                                \n"
+                       " ite eq                                                    \n"
+                       " mrseq r0, msp                                             \n"
+                       " mrsne r0, psp                                             \n"
+                       " ldr r1, [r0, #24]                                         \n"
+                       " b get_registers_from_stack                                \n");
 }
 
 //==============================================================================
@@ -579,7 +689,7 @@ void _cpuctl_clean_icache(void)
 void _cpuctl_clean_dcache(void)
 {
 #if __DCACHE_PRESENT && __CPU_DCACHE_ENABLE__ && !__CPU_RAM1_RAM2_CACHE_DISABLE__
-       SCB_CleanDCache();
+        SCB_CleanDCache();
 #endif
 }
 
@@ -719,14 +829,14 @@ static void MPU_conf_region(MPU_region_t *mpu_region)
         if (mpu_region->enable) {
                 MPU->RBAR = mpu_region->base_address;
                 MPU->RASR = ((uint32_t)mpu_region->disable_exec << MPU_RASR_XN_Pos)
-                          | ((uint32_t)mpu_region->access_permission << MPU_RASR_AP_Pos)
-                          | ((uint32_t)mpu_region->type_ext_field << MPU_RASR_TEX_Pos)
-                          | ((uint32_t)mpu_region->is_shareable << MPU_RASR_S_Pos)
-                          | ((uint32_t)mpu_region->is_cacheable << MPU_RASR_C_Pos)
-                          | ((uint32_t)mpu_region->is_bufferable << MPU_RASR_B_Pos)
-                          | ((uint32_t)mpu_region->sub_region_disable << MPU_RASR_SRD_Pos)
-                          | ((uint32_t)mpu_region->size << MPU_RASR_SIZE_Pos)
-                          | ((uint32_t)mpu_region->enable << MPU_RASR_ENABLE_Pos);
+                        | ((uint32_t)mpu_region->access_permission << MPU_RASR_AP_Pos)
+                        | ((uint32_t)mpu_region->type_ext_field << MPU_RASR_TEX_Pos)
+                        | ((uint32_t)mpu_region->is_shareable << MPU_RASR_S_Pos)
+                        | ((uint32_t)mpu_region->is_cacheable << MPU_RASR_C_Pos)
+                        | ((uint32_t)mpu_region->is_bufferable << MPU_RASR_B_Pos)
+                        | ((uint32_t)mpu_region->sub_region_disable << MPU_RASR_SRD_Pos)
+                        | ((uint32_t)mpu_region->size << MPU_RASR_SIZE_Pos)
+                        | ((uint32_t)mpu_region->enable << MPU_RASR_ENABLE_Pos);
         } else {
                 MPU->RBAR = 0x00;
                 MPU->RASR = 0x00;

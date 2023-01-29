@@ -196,6 +196,7 @@ typedef enum {
         SYSCALL_ISHEAPADDR,             // int errno (const void *addr)
         SYSCALL_CACHEFLUSH,             // int errno (void)
         SYSCALL_REBOOTTOADDR,           // int errno (const void *addr)
+        SYSCALL_LOWPOWERMODE,           // int errno (const int *mode)
         _SYSCALL_COUNT,
 } syscall_t;
 
@@ -332,6 +333,7 @@ static int syscall_threadjoin(syscallrq_t *rq);
 static int syscall_isheapaddr(syscallrq_t *rq);
 static int syscall_cacheflush(syscallrq_t *rq);
 static int syscall_reboottoaddr(syscallrq_t *rq);
+static int syscall_lowpowermode(syscallrq_t *rq);
 
 /*==============================================================================
   Local objects
@@ -458,6 +460,7 @@ static const syscallfunc_t syscalltab[] = {
         [SYSCALL_ISHEAPADDR] = syscall_isheapaddr,
         [SYSCALL_CACHEFLUSH] = syscall_cacheflush,
         [SYSCALL_REBOOTTOADDR] = syscall_reboottoaddr,
+        [SYSCALL_LOWPOWERMODE] = syscall_lowpowermode,
 };
 
 /*==============================================================================
@@ -3496,6 +3499,22 @@ static int syscall_reboottoaddr(syscallrq_t *rq)
         _cpuctl_restart_system();
 
         return 0;
+}
+
+//==============================================================================
+/**
+ * @brief  Function enter CPU to selected low power mode. The mode depends on
+ *         used CPU.
+ *
+ * @param  rq                   syscall request
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int syscall_lowpowermode(syscallrq_t *rq)
+{
+        GETARG(const int*, mode);
+        return _cpuctl_low_power_mode(*mode);
 }
 
 /*==============================================================================

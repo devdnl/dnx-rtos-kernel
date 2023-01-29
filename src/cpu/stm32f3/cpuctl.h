@@ -36,25 +36,25 @@ extern "C" {
 /*==============================================================================
   Include files
 ==============================================================================*/
-#include "lib/sys/types.h"
 #include "config.h"
+#include "lib/sys/types.h"
 
 /*==============================================================================
   Exported symbolic constants/macros
 ==============================================================================*/
 /* CPU/platform name */
-#define _CPUCTL_PLATFORM_NAME                   "ARM Cortex-M4F STM32F3xx"
-#define _CPUCTL_VENDOR_NAME                     "STMicroelectronics"
-#define _CPUCTL_BYTE_ORDER                      _BYTE_ORDER_LITTLE_ENDIAN
+#define _CPUCTL_PLATFORM_NAME "ARM Cortex-M4F STM32F3xx"
+#define _CPUCTL_VENDOR_NAME   "STMicroelectronics"
+#define _CPUCTL_BYTE_ORDER    _BYTE_ORDER_LITTLE_ENDIAN
 
 /* renames of interrupts vectors for kernel purposes */
-#define xPortPendSVHandler                      PendSV_Handler
-#define xPortSysTickHandler                     SysTick_Handler
-#define vPortSVCHandler                         SVC_Handler
+#define xPortPendSVHandler  PendSV_Handler
+#define xPortSysTickHandler SysTick_Handler
+#define vPortSVCHandler     SVC_Handler
 
 /* names of memory regions used by kernel */
-#define _CPUCTL_FAST_MEM                        "CCM"
-#define _CPUCTL_STACK_REGION_FLAGS              _MM_FLAG__DMA_CAPABLE
+#define _CPUCTL_FAST_MEM           "CCM"
+#define _CPUCTL_STACK_REGION_FLAGS _MM_FLAG__DMA_CAPABLE
 
 /* cache mangement functions */
 #define _cpuctl_clean_dcache()
@@ -66,26 +66,33 @@ extern "C" {
 #define _cpuctl_clean_invalidate_dcache_by_addr(...)
 
 /* CACHE macros */
-#define _CPUCTL_CACHE_ALIGN                     1
+#define _CPUCTL_CACHE_ALIGN 1
 
 /*==============================================================================
   Exported types, enums definitions
 ==============================================================================*/
+enum {
+        low_power_mode__sleep   = 0,
+        low_power_mode__stop_reg_on  = 1,
+        low_power_mode__stop_reg_off  = 2,
+        low_power_mode__standby = 3,
+};
 
 /*==============================================================================
   Exported function prototypes
 ==============================================================================*/
-extern void  _cpuctl_init                       (void);
-extern void  _cpuctl_restart_system             (void);
-extern void  _cpuctl_shutdown_system            (void);
-extern void  _cpuctl_sleep                      (void);
-extern void  _cpuctl_update_system_clocks       (void);
-extern void  _cpuctl_delay_us                   (u16_t);
-extern void  _cpuctl_print_exception            (void);
+extern void _cpuctl_init(void);
+extern void _cpuctl_restart_system(void);
+extern void _cpuctl_shutdown_system(void);
+extern void _cpuctl_sleep(void);
+extern void _cpuctl_update_system_clocks(void);
+extern void _cpuctl_delay_us(u16_t);
+extern void _cpuctl_print_exception(void);
+extern int  _cpuctl_low_power_mode(int mode);
 
 #if (__OS_MONITOR_CPU_LOAD__ > 0)
-extern void  _cpuctl_init_CPU_load_counter      (void);
-extern u32_t _cpuctl_get_CPU_load_counter_delta (void);
+extern void  _cpuctl_init_CPU_load_counter(void);
+extern u32_t _cpuctl_get_CPU_load_counter_delta(void);
 #endif
 
 #ifdef __cplusplus

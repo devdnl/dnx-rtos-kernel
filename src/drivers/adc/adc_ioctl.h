@@ -79,6 +79,7 @@ driver_release("ADC", 0, 1);
   Include files
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
+#include "sys/types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -88,26 +89,19 @@ extern "C" {
   Exported macros
 ==============================================================================*/
 /**
- *  @brief  Example IOCTL request.
- *  @param  [WR,RD] ioctl() params...
+ *  @brief  Read channel.
+ *  @param  [WR,RD] adc_measurement_t   channel with RAW data
  *  @return On success 0 is returned, otherwise -1.
- *
- *  @b Example
- *  @code
-    #include <sys/ioctl.h>
-
-    //...
-
-
-
-    //...
-    @endcode
  */
-#define IOCTL_ADC__EXAMPLE     _IO(ADC, 0x00)
+#define IOCTL_ADC__READ_CHANNEL _IOR(ADC, 0x00, adc_measurement_t*)
 
 /*==============================================================================
   Exported object types
 ==============================================================================*/
+typedef struct {
+        uint8_t  channel;
+        uint32_t raw_data;
+} adc_measurement_t;
 
 /*==============================================================================
   Exported objects
