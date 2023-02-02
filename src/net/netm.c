@@ -177,7 +177,10 @@ static void socket_free(ksocket_t **socket)
 {
         (*socket)->header.self = NULL;
         (*socket)->header.type = RES_TYPE_UNKNOWN;
-        _kfree(_MM_NET, cast(void **, &(*socket)->mutex));
+
+        sys_mutex_destroy((*socket)->mutex);
+        (*socket)->mutex = NULL;
+
         _kfree(_MM_NET, cast(void **, socket));
         *socket = NULL;
 }

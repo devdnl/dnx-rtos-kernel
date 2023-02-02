@@ -1735,6 +1735,12 @@ bool _process_is_consistent(void)
                                 goto end;
                         }
 
+                        sanity_ok = res->next != res;
+                        if (!sanity_ok) {
+                                _printk("PID:%u: resoruce loop!", p->pid);
+                                goto end;
+                        }
+
                         res = res->next;
                         n++;
                         m--;
