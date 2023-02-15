@@ -792,13 +792,15 @@ API_FS_STATFS(fatfs, void *fs_handle, struct statfs *statfs)
                         statfs->f_type   = SYS_FS_TYPE__SOLID;
 
                         if (hdl->fatfs.fs_type == FS_FAT12) {
-                                statfs->f_fsname = "fatfs (FAT12)";
+                                statfs->f_fsname = "FAT12 (fatfs)";
                         } else if (hdl->fatfs.fs_type == FS_FAT16) {
-                                statfs->f_fsname = "fatfs (FAT16)";
+                                statfs->f_fsname = "FAT16 (fatfs)";
                         } else if (hdl->fatfs.fs_type == FS_FAT32) {
-                                statfs->f_fsname = "fatfs (FAT32)";
+                                statfs->f_fsname = "FAT32 (fatfs)";
+                        } else if (hdl->fatfs.fs_type == FS_EXFAT) {
+                                statfs->f_fsname = "exFAT (fatfs)";
                         } else {
-                                statfs->f_fsname = "fatfs (FAT?)";
+                                statfs->f_fsname = "FAT? (fatfs)";
                         }
                 }
         }
