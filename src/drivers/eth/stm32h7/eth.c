@@ -736,11 +736,11 @@ static int packet_receive(struct eth *hdl, ETH_packet_t *pkt)
                         uint32_t *rx_buff;
                         if (HAL_ETH_ReadData(&hdl->eth, cast(void**, &rx_buff)) == 0) {
 
-                                size_t length = *rx_buff;
+                                pkt->length = min(pkt->length, *rx_buff);
                                 uint8_t *buffer = cast(typeof(buffer), &rx_buff[1]);
 
-                                _cpuctl_invalidate_dcache_by_addr((uint32_t*)buffer, length);
-                                memcpy(pkt->payload, buffer, min(pkt->length, length));
+                                _cpuctl_invalidate_dcache_by_addr((uint32_t*)buffer, pkt->length);
+                                memcpy(pkt->payload, buffer, pkt->length);
 
                                 /* update statistics */
                                 update_dropped_rx_frames(hdl);
