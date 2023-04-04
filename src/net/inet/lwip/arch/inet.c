@@ -514,8 +514,9 @@ int INET_ifinit(void **ctx, const char *if_path)
                 int ferr = sys_fopen(if_path, O_RDWR, 0, &inet->if_file);
                 int merr = sys_mutex_create(KMTX_TYPE_RECURSIVE, &inet->access);
                 int terr = sys_thread_create(network_interface_thread, &attr, inet, &inet->if_thread);
+                int qerr = sys_queue_create(LWIP_LOOPBACK_MAX_PBUFS, sizeof(void*), &inet->loq);
 
-                if (!ferr && !merr && !terr) {
+                if (!ferr && !merr && !terr && !qerr) {
 
                         printk("INET (%s): thread ID: %u", if_path, inet->if_thread);
 
@@ -546,6 +547,9 @@ int INET_ifinit(void **ctx, const char *if_path)
 
                         if (!ferr)
                                 sys_fclose(inet->if_file);
+
+                        if (!qerr)
+                                sys_queue_destroy(inet->loq);
 
                         zfree((void*)&inet);
                 }
@@ -796,14 +800,19 @@ int INET_socket_destroy(void *ctx, INET_socket_t *inet_sock)
 //==============================================================================
 int INET_socket_connect(void *ctx, INET_socket_t *inet_sock, const NETM_INET_sockaddr_t *addr, size_t addr_size)
 {
-        UNUSED_ARG1(ctx);
+        inet_t *inet = ctx;
 
         if (addr_size != sizeof(*addr)) {
                 return EINVAL;
         }
 
         ip_addr_t IP;
-        create_lwIP_addr(&IP, &addr->addr);
+
+        if (addr->addr == NETM_INET_IPv4_LOOPBACK) {
+                IP.addr = INET_PSEUDO_LOOPBACK_IP;
+        } else {
+                create_lwIP_addr(&IP, &addr->addr);
+        }
 
         return err_to_errno(netconn_connect(inet_sock->netconn, &IP, addr->port));
 }
@@ -982,7 +991,12 @@ int INET_socket_recvfrom(void                *ctx,
 
                         ip_addr_t *fromaddr = netbuf_fromaddr(netbuf);
                         sockaddr->port      = netbuf_fromport(netbuf);
-                        create_addr(&sockaddr->addr, fromaddr);
+
+                        if (fromaddr->addr == INET_PSEUDO_LOOPBACK_IP) {
+                                sockaddr->addr = NETM_INET_IPv4_LOOPBACK;
+                        } else {
+                                create_addr(&sockaddr->addr, fromaddr);
+                        }
 
                         netbuf_delete(netbuf);
                 }

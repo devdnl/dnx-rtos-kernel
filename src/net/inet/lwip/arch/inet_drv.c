@@ -33,6 +33,11 @@
 #include "inet_types.h"
 #include "kernel/sysfunc.h"
 #include "drivers/ioctl_requests.h"
+#include "lwip/prot/ethernet.h"
+#include "lwip/prot/ip4.h"
+#include "lwip/prot/ieee.h"
+#include "lwip/prot/etharp.h"
+#include "lwip/inet_chksum.h"
 
 /*==============================================================================
   Local macros
@@ -82,18 +87,23 @@
 //==============================================================================
 void _inetdrv_handle_input(inet_t *inet, u32_t timeout)
 {
-        sys_ioctl(inet->if_file, IOCTL_ETH__SET_RX_TIMEOUT, &timeout);
+        u32_t trx = 10;
+        sys_ioctl(inet->if_file, IOCTL_ETH__SET_RX_TIMEOUT, &trx);
+
+        clock_t tref = sys_get_uptime_ms();
 
         while (inet->thread_run) {
                 ETH_packet_t pkt;
                 pkt.payload = inet->frame;
                 pkt.length  = sizeof(inet->frame);
 
+                struct pbuf *p;
+
                 int err = sys_ioctl(inet->if_file, IOCTL_ETH__RECEIVE_PACKET, &pkt);
                 if (!err) {
                         LWIP_DEBUGF(INET_DEBUG, ("_inetdrv_handle_input: received = %d\n", pkt.length));
 
-                        struct pbuf *p = pbuf_alloc(PBUF_RAW, pkt.length, PBUF_RAM);
+                        p = pbuf_alloc(PBUF_RAW, pkt.length, PBUF_RAM);
                         if (p) {
                                 memcpy(p->payload, pkt.payload, pkt.length);
 
@@ -106,9 +116,19 @@ void _inetdrv_handle_input(inet_t *inet, u32_t timeout)
                         } else {
                                 LWIP_DEBUGF(INET_DEBUG, ("_inetdrv_handle_input: pbuf allocate error\n"));
                         }
+
+                } else if (sys_queue_receive(inet->loq, &p, 0) == 0) {
+
+                        if (inet->netif.input(p, &inet->netif) != ERR_OK) {
+                                pbuf_free(p);
+                        }
+
                 } else {
-                        LWIP_DEBUGF(INET_DEBUG, ("_inetdrv_handle_input: packet receive timeout\n"));
-                        break;
+                        if (sys_get_uptime_ms() - tref >= timeout) {
+                                LWIP_DEBUGF(INET_DEBUG, ("_inetdrv_handle_input: packet receive timeout\n"));
+                                break;
+
+                        }
                 }
         }
 }
@@ -139,17 +159,46 @@ err_t _inetdrv_handle_output(struct netif *netif, struct pbuf *p)
 
       LWIP_DEBUGF(INET_DEBUG, ("_inetdrv_handle_output: packet size %d\n", p->tot_len));
 
-      ETH_packet_t pkt;
-      pkt.payload = p->payload;
-      pkt.length  = p->len;
+      struct eth_hdr *ethhdr = p->payload;
+      struct ip_hdr  *iphdr  = (struct ip_hdr*)(&ethhdr[1]);
 
-      if (sys_ioctl(inet->if_file, IOCTL_ETH__SEND_PACKET, &pkt) == 0) {
-              inet->tx_packets++;
-              inet->tx_bytes += pkt.length;
-              return ERR_OK;
+      if ((ntohs(ethhdr->type) == ETHTYPE_IP) and (iphdr->dest.addr == INET_PSEUDO_LOOPBACK_IP)) {
+
+              struct pbuf *p_lo = pbuf_clone(PBUF_RAW, PBUF_RAM, p);
+              if (p_lo) {
+                      struct eth_hdr *ethhdr = p_lo->payload;
+                      struct ip_hdr  *iphdr  = (struct ip_hdr*)(&ethhdr[1]);
+
+                      ethhdr->dest = ethhdr->src;
+                      iphdr->dest.addr = iphdr->src.addr;
+                      iphdr->src.addr  = INET_PSEUDO_LOOPBACK_IP;
+                      IPH_CHKSUM_SET(iphdr, 0);
+
+                      IF__NETIF_CHECKSUM_ENABLED(netif, NETIF_CHECKSUM_GEN_IP) {
+                              IPH_CHKSUM_SET(iphdr, inet_chksum(iphdr, IP_HLEN));
+                      }
+
+                      return (sys_queue_send(inet->loq, &p_lo, 0) == 0) ? ERR_OK : ERR_IF;
+
+              } else {
+                      LWIP_DEBUGF(INET_DEBUG, ("_inetdrv_handle_output: pbuf allocate error\n"));
+                      return ERR_MEM;
+              }
+
       } else {
-              LWIP_DEBUGF(LWIP_DBG_LEVEL_SERIOUS, ("_inetdrv_handle_output: packet send error\n"));
-              return ERR_IF;
+
+              ETH_packet_t pkt;
+              pkt.payload = p->payload;
+              pkt.length  = p->len;
+
+              if (sys_ioctl(inet->if_file, IOCTL_ETH__SEND_PACKET, &pkt) == 0) {
+                      inet->tx_packets++;
+                      inet->tx_bytes += pkt.length;
+                      return ERR_OK;
+              } else {
+                      LWIP_DEBUGF(LWIP_DBG_LEVEL_SERIOUS, ("_inetdrv_handle_output: packet send error\n"));
+                      return ERR_IF;
+              }
       }
 }
 
