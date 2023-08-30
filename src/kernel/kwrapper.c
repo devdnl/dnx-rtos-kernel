@@ -268,7 +268,7 @@ int _task_create(task_func_t func, const char *name, const size_t stack_depth, v
                         ? parent_priority - 1
                         : parent_priority;
 
-                task_t *tsk = NULL;
+                TaskHandle_t tsk = NULL;
                 if (xTaskCreate(func, name, stack_depth, argv, child_priority, &tsk)
                         == pdPASS) {
 

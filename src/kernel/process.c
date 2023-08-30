@@ -3034,7 +3034,7 @@ static int allocate_process_globals(_process_t *proc, size_t app_ctx_size,
  * @param  task_data    task data
  */
 //==============================================================================
-void _task_switched_in(task_t *task, void *proc, void *task_data)
+void _task_switched_in(void *task, void *proc, void *task_data)
 {
         UNUSED_ARG1(task);
 
@@ -3071,7 +3071,7 @@ void _task_switched_in(task_t *task, void *proc, void *task_data)
  * @param  task_data    task data
  */
 //==============================================================================
-void _task_switched_out(task_t *task, void *proc, void *task_data)
+void _task_switched_out(void *task, void *proc, void *task_data)
 {
         UNUSED_ARG2(task, proc);
 

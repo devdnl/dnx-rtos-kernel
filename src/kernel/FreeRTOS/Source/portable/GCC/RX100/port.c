@@ -1,71 +1,30 @@
 /*
-    FreeRTOS V9.0.0 - Copyright (C) 2016 Real Time Engineers Ltd.
-    All rights reserved
-
-    VISIT http://www.FreeRTOS.org TO ENSURE YOU ARE USING THE LATEST VERSION.
-
-    This file is part of the FreeRTOS distribution.
-
-    FreeRTOS is free software; you can redistribute it and/or modify it under
-    the terms of the GNU General Public License (version 2) as published by the
-    Free Software Foundation >>>> AND MODIFIED BY <<<< the FreeRTOS exception.
-
-    ***************************************************************************
-    >>!   NOTE: The modification to the GPL is included to allow you to     !<<
-    >>!   distribute a combined work that includes FreeRTOS without being   !<<
-    >>!   obliged to provide the source code for proprietary components     !<<
-    >>!   outside of the FreeRTOS kernel.                                   !<<
-    ***************************************************************************
-
-    FreeRTOS is distributed in the hope that it will be useful, but WITHOUT ANY
-    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-    FOR A PARTICULAR PURPOSE.  Full license text is available on the following
-    link: http://www.freertos.org/a00114.html
-
-    ***************************************************************************
-     *                                                                       *
-     *    FreeRTOS provides completely free yet professionally developed,    *
-     *    robust, strictly quality controlled, supported, and cross          *
-     *    platform software that is more than just the market leader, it     *
-     *    is the industry's de facto standard.                               *
-     *                                                                       *
-     *    Help yourself get started quickly while simultaneously helping     *
-     *    to support the FreeRTOS project by purchasing a FreeRTOS           *
-     *    tutorial book, reference manual, or both:                          *
-     *    http://www.FreeRTOS.org/Documentation                              *
-     *                                                                       *
-    ***************************************************************************
-
-    http://www.FreeRTOS.org/FAQHelp.html - Having a problem?  Start by reading
-    the FAQ page "My application does not run, what could be wrong?".  Have you
-    defined configASSERT()?
-
-    http://www.FreeRTOS.org/support - In return for receiving this top quality
-    embedded software for free we request you assist our global community by
-    participating in the support forum.
-
-    http://www.FreeRTOS.org/training - Investing in training allows your team to
-    be as productive as possible as early as possible.  Now you can receive
-    FreeRTOS training directly from Richard Barry, CEO of Real Time Engineers
-    Ltd, and the world's leading authority on the world's leading RTOS.
-
-    http://www.FreeRTOS.org/plus - A selection of FreeRTOS ecosystem products,
-    including FreeRTOS+Trace - an indispensable productivity tool, a DOS
-    compatible FAT file system, and our tiny thread aware UDP/IP stack.
-
-    http://www.FreeRTOS.org/labs - Where new FreeRTOS products go to incubate.
-    Come and try FreeRTOS+TCP, our new open source TCP/IP stack for FreeRTOS.
-
-    http://www.OpenRTOS.com - Real Time Engineers ltd. license FreeRTOS to High
-    Integrity Systems ltd. to sell under the OpenRTOS brand.  Low cost OpenRTOS
-    licenses offer ticketed support, indemnification and commercial middleware.
-
-    http://www.SafeRTOS.com - High Integrity Systems also provide a safety
-    engineered and independently SIL3 certified version for use in safety and
-    mission critical applications that require provable dependability.
-
-    1 tab == 4 spaces!
-*/
+ * FreeRTOS Kernel V10.5.1
+ * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * https://www.FreeRTOS.org
+ * https://github.com/FreeRTOS
+ *
+ */
 
 /*-----------------------------------------------------------
  * Implementation of functions defined in portable.h for the SH2A port.
@@ -82,13 +41,20 @@
 #include "string.h"
 
 /* Hardware specifics. */
-#include "iodefine.h"
+#if ( configINCLUDE_PLATFORM_H_INSTEAD_OF_IODEFINE_H == 1 )
 
+    #include "platform.h"
+
+#else /* configINCLUDE_PLATFORM_H_INSTEAD_OF_IODEFINE_H */
+
+    #include "iodefine.h"
+
+#endif /* configINCLUDE_PLATFORM_H_INSTEAD_OF_IODEFINE_H */
 /*-----------------------------------------------------------*/
 
 /* Tasks should start with interrupts enabled and in Supervisor mode, therefore
 PSW is set with U and I set, and PM and IPL clear. */
-#define portINITIAL_PSW     ( ( StackType_t ) 0x00030000 )
+#define portINITIAL_PSW	 ( ( StackType_t ) 0x00030000 )
 
 /* The peripheral clock is divided by this value before being supplying the
 CMT. */
@@ -131,12 +97,31 @@ static void prvStartFirstTask( void ) __attribute__((naked));
  * restoring of registers).  Written in asm code as direct register access is
  * required.
  */
-void vPortSoftwareInterruptISR( void ) __attribute__((naked));
+#if ( configINCLUDE_PLATFORM_H_INSTEAD_OF_IODEFINE_H == 1 )
+
+    R_BSP_PRAGMA_INTERRUPT( vPortSoftwareInterruptISR, VECT( ICU, SWINT ) )
+    R_BSP_ATTRIB_INTERRUPT void vPortSoftwareInterruptISR( void ) __attribute__( ( naked ) );
+
+#else /* configINCLUDE_PLATFORM_H_INSTEAD_OF_IODEFINE_H */
+
+    void vPortSoftwareInterruptISR( void ) __attribute__( ( naked ) );
+
+#endif /* configINCLUDE_PLATFORM_H_INSTEAD_OF_IODEFINE_H  */
 
 /*
- * The tick interrupt handler.
+ * The tick ISR handler.  The peripheral used is configured by the application
+ * via a hook/callback function.
  */
-void vPortTickISR( void ) __attribute__((interrupt));
+#if ( configINCLUDE_PLATFORM_H_INSTEAD_OF_IODEFINE_H == 1 )
+
+    R_BSP_PRAGMA_INTERRUPT( vPortTickISR, _VECT( configTICK_VECTOR ) )
+    R_BSP_ATTRIB_INTERRUPT void vPortTickISR( void ); /* Do not add __attribute__( ( interrupt ) ). */
+
+#else /* configINCLUDE_PLATFORM_H_INSTEAD_OF_IODEFINE_H */
+
+    void vPortTickISR( void ) __attribute__( ( interrupt ) );
+
+#endif /* configINCLUDE_PLATFORM_H_INSTEAD_OF_IODEFINE_H */
 
 /*
  * Sets up the periodic ISR used for the RTOS tick using the CMT.
@@ -147,7 +132,7 @@ void vPortTickISR( void ) __attribute__((interrupt));
 static void prvSetupTimerInterrupt( void );
 #ifndef configSETUP_TICK_INTERRUPT
 	/* The user has not provided their own tick interrupt configuration so use
-    the definition in this file (which uses the interval timer). */
+	the definition in this file (which uses the interval timer). */
 	#define configSETUP_TICK_INTERRUPT() prvSetupTimerInterrupt()
 #endif /* configSETUP_TICK_INTERRUPT */
 
@@ -204,7 +189,7 @@ StackType_t *pxPortInitialiseStack( StackType_t *pxTopOfStack, TaskFunction_t px
 	/* R0 is not included as it is the stack pointer. */
 	*pxTopOfStack = 0x00;
 	pxTopOfStack--;
-    *pxTopOfStack = 0x00;
+	*pxTopOfStack = 0x00;
 	pxTopOfStack--;
  	*pxTopOfStack = portINITIAL_PSW;
 	pxTopOfStack--;
@@ -326,22 +311,22 @@ static void prvStartFirstTask( void )
 
 		/* Restore the registers from the stack of the task pointed to by
 		pxCurrentTCB. */
-	    "POP		R15						\n" \
+		"POP		R15						\n" \
 
 		/* Accumulator low 32 bits. */
-	    "MVTACLO	R15 					\n" \
-	    "POP		R15						\n" \
+		"MVTACLO	R15 					\n" \
+		"POP		R15						\n" \
 
 		/* Accumulator high 32 bits. */
-	    "MVTACHI	R15 					\n" \
+		"MVTACHI	R15 					\n" \
 
 		/* R1 to R15 - R0 is not included as it is the SP. */
-	    "POPM		R1-R15 					\n" \
+		"POPM		R1-R15 					\n" \
 
 		/* This pops the remaining registers. */
-	    "RTE								\n" \
-	    "NOP								\n" \
-	    "NOP								\n"
+		"RTE								\n" \
+		"NOP								\n" \
+		"NOP								\n"
 	);
 }
 /*-----------------------------------------------------------*/
@@ -615,14 +600,14 @@ static void prvSetupTimerInterrupt( void )
 		}
 		else if( eSleepAction == eNoTasksWaitingTimeout )
 		{
-		    /* Protection off. */
-		    SYSTEM.PRCR.WORD = portUNLOCK_KEY;
+			/* Protection off. */
+			SYSTEM.PRCR.WORD = portUNLOCK_KEY;
 
-		    /* Ready for software standby with all clocks stopped. */
+			/* Ready for software standby with all clocks stopped. */
 			SYSTEM.SBYCR.BIT.SSBY = 1;
 
-		    /* Protection on. */
-		    SYSTEM.PRCR.WORD = portLOCK_KEY;
+			/* Protection on. */
+			SYSTEM.PRCR.WORD = portLOCK_KEY;
 
 			/* Sleep until something happens.  Calling prvSleep() will
 			automatically reset the i bit in the PSW. */
@@ -633,18 +618,18 @@ static void prvSetupTimerInterrupt( void )
 		}
 		else
 		{
-		    /* Protection off. */
-		    SYSTEM.PRCR.WORD = portUNLOCK_KEY;
+			/* Protection off. */
+			SYSTEM.PRCR.WORD = portUNLOCK_KEY;
 
-		    /* Ready for deep sleep mode. */
+			/* Ready for deep sleep mode. */
 			SYSTEM.MSTPCRC.BIT.DSLPE = 1;
 			SYSTEM.MSTPCRA.BIT.MSTPA28 = 1;
 			SYSTEM.SBYCR.BIT.SSBY = 0;
 
-		    /* Protection on. */
-		    SYSTEM.PRCR.WORD = portLOCK_KEY;
+			/* Protection on. */
+			SYSTEM.PRCR.WORD = portLOCK_KEY;
 
-		    /* Adjust the match value to take into account that the current
+			/* Adjust the match value to take into account that the current
 			time slice is already partially complete. */
 			ulMatchValue -= ( uint32_t ) CMT0.CMCNT;
 			CMT0.CMCOR = ( uint16_t ) ulMatchValue;
