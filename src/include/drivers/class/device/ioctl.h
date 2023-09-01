@@ -36,7 +36,7 @@ Detailed Doxygen description.
 /*==============================================================================
   Include files
 ==============================================================================*/
-#include "drivers/ioctl_macros.h"
+#include "../../ioctl_macros.h"
 
 #ifdef __cplusplus
 extern "C" {

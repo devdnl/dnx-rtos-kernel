@@ -134,19 +134,6 @@ not initialized then pin behavior is undefined (depends on microcontroller).
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
 
-// PIN names definitions (IOCTL_GPIO_PIN__name and IOCTL_GPIO_PIN_MASK__name)
-#if defined(ARCH_stm32f1)
-        #include "stm32f1/gpio_cfg.h"
-#elif defined(ARCH_stm32f3)
-        #include "stm32f3/gpio_cfg.h"
-#elif defined(ARCH_stm32f4)
-        #include "stm32f4/gpio_cfg.h"
-#elif defined(ARCH_stm32f7)
-        #include "stm32f7/gpio_cfg.h"
-#elif defined(ARCH_stm32h7)
-        #include "stm32h7/gpio_cfg.h"
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif

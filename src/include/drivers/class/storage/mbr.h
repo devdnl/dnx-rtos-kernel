@@ -36,7 +36,8 @@ Detailed Doxygen description.
 /*==============================================================================
   Include files
 ==============================================================================*/
-#include "drivers/driver.h"
+#include "../../ioctl_macros.h"
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -73,9 +74,9 @@ extern "C" {
 /*==============================================================================
   Exported functions
 ==============================================================================*/
-extern u16_t MBR_get_boot_signature(u8_t *sector);
-extern u32_t MBR_get_partition_first_LBA_sector(int partition, u8_t *sector);
-extern u32_t MBR_get_partition_number_of_sectors(int partition, u8_t *sector);
+extern uint16_t MBR_get_boot_signature(uint8_t *sector);
+extern uint32_t MBR_get_partition_first_LBA_sector(int partition, uint8_t *sector);
+extern uint32_t MBR_get_partition_number_of_sectors(int partition, uint8_t *sector);
 
 /*==============================================================================
   Exported inline functions

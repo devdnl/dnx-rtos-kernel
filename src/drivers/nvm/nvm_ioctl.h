@@ -149,7 +149,6 @@ Reading from the device works in the same way as reading from a regular file.
   Include files
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
-#include "lib/sys/types.h"
 
 #ifdef __cplusplus
 extern "C" {
