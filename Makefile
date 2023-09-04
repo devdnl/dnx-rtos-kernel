@@ -111,6 +111,7 @@ LFLAGS   = -g \
            -Wl,-Map=$(TARGET_PATH)/$(PROJECT).map,--cref,--no-warn-mismatch \
            -Wall \
            -specs=nano.specs -specs=rdimon.specs \
+           -Wl,--print-memory-usage \
            -lm
 
 #---------------------------------------------------------------------------------------------------
@@ -344,8 +345,6 @@ hex :
 
 	@$(ECHO) 'Creating objects size list...'
 	@$(SIZE) -B -t --common $(TARGET_PATH)/$(PROJECT).a > $(TARGET_PATH)/$(PROJECT).size
-
-	@$(ECHO) "Flash image size: $$($(SIZEOF) $(TARGET_PATH)/$(PROJECT).bin) bytes\n"
 
 ####################################################################################################
 # show compile status
