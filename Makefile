@@ -41,7 +41,6 @@ TOOLCHAIN = $(__PROJECT_TOOLCHAIN__)
 AFLAGS   = -c \
            -g \
            -ggdb3 \
-           -include ./config/config.h \
            -include ./build/defs.h \
            $(CPUCONFIG_AFLAGS)
 
@@ -372,7 +371,7 @@ generate :
 
 	@$(ECHO) "Adding drivers to the project..."
 	@$(MKDIR) $(GEN_DRIVERS_DIR)
-	@$(SHELL) $(ADDDRIVERS) ./$(SYS_DRV_LOC) ./$(GEN_DRIVERS_DIR)
+	@$(SHELL) $(ADDDRIVERS) ./$(SYS_DRV_LOC) ./$(GEN_DRIVERS_DIR) $(TARGET)
 
 	@$(ECHO) "Obtaining git hash..."
 	@$(ECHO) "#define COMMIT_HASH \"$(shell git rev-parse --short HEAD 2>/dev/null)"\" > build/defs.h

@@ -19,8 +19,8 @@ module_list=
 #-------------------------------------------------------------------------------
 function check_args()
 {
-    if [ "$1" == "" ] || [ "$2" == "" ]; then
-        echo "Usage: $(basename $0) <path_to_scan> <output_path>"
+    if [ "$1" == "" ] || [ "$2" == "" ] || [ "$3" == "" ]; then
+        echo "Usage: $(basename $0) <path_to_scan> <output_path> <architecture>"
         exit 1
     fi
 }
@@ -163,7 +163,9 @@ function create_ioctl_requests_file()
 
 #-------------------------------------------------------------------------------
 # @brief  Creates ioctl requests for application purpose.
-# @param  None
+# @param  path_to_scan
+# @param  output_path
+# @param  architecture
 # @return None
 #-------------------------------------------------------------------------------
 function create_ioctl_application_requests_file()
@@ -178,8 +180,11 @@ function create_ioctl_application_requests_file()
         echo "#include \"${module}_ioctl.h\"" >> "$2/../ioctl/$ioctl_requests_file_name"
     done
 
+    echo "#include \"gpio_defs.h\"" >> "$2/../ioctl/$ioctl_requests_file_name"
+
     cp src/include/drivers/ioctl_macros.h "$2/../ioctl/drivers/ioctl_macros.h"
     cp -r src/include/drivers/class "$2/../ioctl/drivers/"
+    cp config/arch/$3/gpio_flags.h "$2/../ioctl/gpio_defs.h"
 }
 
 #-------------------------------------------------------------------------------
@@ -189,7 +194,7 @@ function create_ioctl_application_requests_file()
 #-------------------------------------------------------------------------------
 function main()
 {
-    check_args "$1" "$2"
+    check_args "$1" "$2" "$3"
 
     ioctl_groups_file_path="$2/$ioctl_groups_file_name"
     ioctl_requests_file_path="$2/$ioctl_requests_file_name"
@@ -200,7 +205,7 @@ function main()
     create_driver_registration_file_h $1 > "$2/$driver_registration_file_h"
     create_ioctl_groups_file > "$ioctl_groups_file_path"
     create_ioctl_requests_file $1 > "$ioctl_requests_file_path"
-    create_ioctl_application_requests_file $1 $2
+    create_ioctl_application_requests_file $1 $2 $3
 }
 
-main "$1" "$2"
+main "$1" "$2" "$3"
