@@ -435,8 +435,8 @@ API_MOD_IOCTL(UART, void *device_handle, int request, void *arg)
                 case IOCTL_UART__SET_CONFIGURATION:
                         hdl->config.basic                 = *cast(struct UART_config *, arg);
                         hdl->config.LIN_break_bits        = UART_LIN_BREAK__10_BITS;
-                        hdl->config.RS485_DE_pin.port_idx = IOCTL_GPIO_PIN_IDX__NONE;
-                        hdl->config.RS485_DE_pin.pin_idx  = IOCTL_GPIO_PIN_IDX__NONE;
+                        hdl->config.RS485_DE_pin.port_idx = IOCTL_GPIO_PIN_IDX__NULL;
+                        hdl->config.RS485_DE_pin.pin_idx  = IOCTL_GPIO_PIN_IDX__NULL;
                         err = _UART_LLD__configure(hdl, &hdl->config);
                         break;
 
