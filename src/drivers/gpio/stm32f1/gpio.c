@@ -605,6 +605,8 @@ static int get_pin_conf(GPIO_pin_in_port_conf_t *conf)
         if (MODE == ((0 * GPIO_CRL_MODE0_1) | (0 * GPIO_CRL_MODE0_0))) {
 
                 conf->state = false;
+                conf->speed = GPIO_pin_speed__high;
+                conf->mux   = GPIO_pin_mux__disable;
 
                 if (CNF == ((0 * GPIO_CRL_CNF0_1) | (0 * GPIO_CRL_CNF0_0))) {
                         conf->mode = GPIO_pin_mode__analog;
