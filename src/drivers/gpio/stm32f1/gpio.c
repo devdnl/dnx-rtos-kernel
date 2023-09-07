@@ -486,6 +486,10 @@ static int set_pin_conf(const GPIO_pin_in_port_conf_t *conf)
                 return EINVAL;
         }
 
+        if (conf->pull >= GPIO_pin_pull_mode_amount) {
+                return EINVAL;
+        }
+
         u8_t CR_shift;
         u8_t ODR_shift = conf->pin.pin_idx;
         volatile u32_t *CR;
@@ -512,20 +516,23 @@ static int set_pin_conf(const GPIO_pin_in_port_conf_t *conf)
 
         case GPIO_pin_mode__input:
                 SET_BIT(*CR, (GPIO_CRL_CNF0_0) << CR_shift);
-                break;
 
-        case GPIO_pin_mode__input_PD:
-                SET_BIT(*CR, (GPIO_CRL_CNF0_1) << CR_shift);
-                break;
+                switch (conf->pull) {
+                default:
+                case GPIO_pin_pull_mode__none:
+                        break;
 
-        case GPIO_pin_mode__input_PU:
-                SET_BIT(*CR, (GPIO_CRL_CNF0_1) << CR_shift);
-                SET_BIT(*ODR, (GPIO_ODR_ODR0) << ODR_shift);
+                case GPIO_pin_pull_mode__pull_up:
+                        SET_BIT(*ODR, (GPIO_ODR_ODR0) << ODR_shift);
+                        // fall through
+
+                case GPIO_pin_pull_mode__pull_down:
+                        SET_BIT(*CR, (GPIO_CRL_CNF0_1) << CR_shift);
+                        break;
+                }
                 break;
 
         case GPIO_pin_mode__output_OD:
-        case GPIO_pin_mode__output_OD_PU:
-        case GPIO_pin_mode__output_OD_PD:
                 SET_BIT(*CR, (GPIO_CRL_CNF0_0) << CR_shift);
                 // fall through
 
@@ -602,11 +609,12 @@ static int get_pin_conf(GPIO_pin_in_port_conf_t *conf)
         u32_t MODE = (*CR >> CR_shift) & GPIO_CRL_MODE0;
         u32_t PODR = (*ODR >> ODR_shift) & GPIO_ODR_ODR0;
 
-        if (MODE == ((0 * GPIO_CRL_MODE0_1) | (0 * GPIO_CRL_MODE0_0))) {
+        conf->state = false;
+        conf->speed = GPIO_pin_speed__high;
+        conf->mux   = GPIO_pin_mux__disable;
+        conf->pull  = GPIO_pin_pull_mode__none;
 
-                conf->state = false;
-                conf->speed = GPIO_pin_speed__high;
-                conf->mux   = GPIO_pin_mux__disable;
+        if (MODE == ((0 * GPIO_CRL_MODE0_1) | (0 * GPIO_CRL_MODE0_0))) {
 
                 if (CNF == ((0 * GPIO_CRL_CNF0_1) | (0 * GPIO_CRL_CNF0_0))) {
                         conf->mode = GPIO_pin_mode__analog;
@@ -616,9 +624,11 @@ static int get_pin_conf(GPIO_pin_in_port_conf_t *conf)
 
                 } else {
                         if (PODR & GPIO_ODR_ODR0) {
-                                conf->mode = GPIO_pin_mode__input_PU;
+                                conf->mode = GPIO_pin_mode__input;
+                                conf->pull = GPIO_pin_pull_mode__pull_up;
                         } else {
-                                conf->mode = GPIO_pin_mode__input_PD;
+                                conf->mode = GPIO_pin_mode__input;
+                                conf->pull = GPIO_pin_pull_mode__pull_down;
                         }
                 }
 
@@ -635,12 +645,10 @@ static int get_pin_conf(GPIO_pin_in_port_conf_t *conf)
 
                 if (CNF == ((0 * GPIO_CRL_CNF0_1) | (0 * GPIO_CRL_CNF0_0))) {
                         conf->mode  = GPIO_pin_mode__output_PP;
-                        conf->mux   = GPIO_pin_mux__disable;
                         conf->state = PODR & GPIO_ODR_ODR0;
 
                 } else if (CNF == ((0 * GPIO_CRL_CNF0_1) | (1 * GPIO_CRL_CNF0_0))) {
                         conf->mode  = GPIO_pin_mode__output_OD;
-                        conf->mux   = GPIO_pin_mux__disable;
                         conf->state = PODR & GPIO_ODR_ODR0;
 
                 } else if (CNF == ((1 * GPIO_CRL_CNF0_1) | (0 * GPIO_CRL_CNF0_0))) {

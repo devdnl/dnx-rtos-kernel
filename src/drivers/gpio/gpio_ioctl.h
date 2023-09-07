@@ -180,16 +180,22 @@ typedef enum {
  * GPIO pin mode definitions.
  */
 typedef enum {
-        GPIO_pin_mode__analog,       /*!< Analog input/output.*/
-        GPIO_pin_mode__input,        /*!< Input.*/
-        GPIO_pin_mode__input_PU,     /*!< Input with Pull-Up.*/
-        GPIO_pin_mode__input_PD,     /*!< Input with Pull-Down.*/
-        GPIO_pin_mode__output_PP,    /*!< Output Push-Pull.*/
-        GPIO_pin_mode__output_OD,    /*!< Output Open Drain.*/
-        GPIO_pin_mode__output_OD_PU, /*!< Output Open Drain Pull-Up.*/
-        GPIO_pin_mode__output_OD_PD, /*!< Output Open Drain Pull-Down.*/
+        GPIO_pin_mode__analog,    /*!< Analog input/output.*/
+        GPIO_pin_mode__input,     /*!< Input.*/
+        GPIO_pin_mode__output_PP, /*!< Output Push-Pull.*/
+        GPIO_pin_mode__output_OD, /*!< Output Open Drain.*/
         GPIO_pin_mode_amount,
 } GPIO_pin_mode_t;
+
+/**
+ * GPIO pin pull mode definitions.
+ */
+typedef enum {
+        GPIO_pin_pull_mode__none,
+        GPIO_pin_pull_mode__pull_down,
+        GPIO_pin_pull_mode__pull_up,
+        GPIO_pin_pull_mode_amount,
+} GPIO_pin_pull_mode_t;
 
 /**
  * Type represent pin multiplexer.
@@ -673,11 +679,12 @@ typedef enum {
  * Type represent pin in port configuration.
  */
 typedef struct {
-        GPIO_pin_in_port_t pin;   /*!< Pin address.*/
-        GPIO_pin_speed_t   speed; /*!< Pin speed.*/
-        GPIO_pin_mode_t    mode;  /*!< Pin mode.*/
-        GPIO_pin_mux_t     mux;   /*!< Pin multiplexer.*/
-        bool               state; /*!< Pin state in case of output.*/
+        GPIO_pin_in_port_t   pin;   /*!< Pin address.*/
+        GPIO_pin_speed_t     speed; /*!< Pin speed.*/
+        GPIO_pin_mode_t      mode;  /*!< Pin mode.*/
+        GPIO_pin_pull_mode_t pull;  /*!< Pin pull mode.*/
+        GPIO_pin_mux_t       mux;   /*!< Pin multiplexer.*/
+        bool                 state; /*!< Pin output state.*/
 } GPIO_pin_in_port_conf_t;
 
 /*==============================================================================
