@@ -62,7 +62,7 @@ static const struct UART_rich_config UART_DEFAULT_CONFIG = {
         .basic.rx_enable = __UART_DEFAULT_RX_ENABLE__,
         .basic.baud      = __UART_DEFAULT_BAUD__,
         .LIN_break_bits  = UART_LIN_BREAK__10_BITS,
-        .RS485_DE_pin    = {port_idx:IOCTL_GPIO_PIN_IDX__NONE, pin_idx:IOCTL_GPIO_PIN_IDX__NONE},
+        .RS485_DE_pin    = {port_idx:IOCTL_GPIO_PIN_IDX__NULL, pin_idx:IOCTL_GPIO_PIN_IDX__NULL},
         .basic.features  = 0,
 };
 
