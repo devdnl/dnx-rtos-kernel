@@ -77,11 +77,11 @@
   Local types, enums definitions
 ==============================================================================*/
 struct GPIO_reg {
-        GPIO_t  *const GPIO;
-        uint32_t       IOPEN;
-        uint32_t       CRL;
-        uint32_t       CRH;
-        uint16_t       ODR;
+        GPIO_t  *GPIO;
+        uint32_t IOPEN;
+        uint32_t CRL;
+        uint32_t CRH;
+        uint16_t ODR;
 };
 
 /*==============================================================================
@@ -487,23 +487,23 @@ static int set_pin_conf(const GPIO_pin_in_port_conf_t *conf)
         }
 
         u8_t CR_shift;
-        u8_t shift = conf->pin.pin_idx;
+        u8_t ODR_shift = conf->pin.pin_idx;
         volatile u32_t *CR;
         volatile u32_t *ODR;
 
         if (conf->pin.pin_idx >= 8) {
                 CR_shift = (conf->pin.pin_idx - 8) * 4;
-                CR       = const_cast(&GPIOx[conf->pin.port_idx].CRH);
-                ODR      = const_cast(&GPIOx[conf->pin.port_idx].ODR);
+                CR       = &GPIOx[conf->pin.port_idx].GPIO->CRH;
+                ODR      = &GPIOx[conf->pin.port_idx].GPIO->ODR;
 
         } else {
                 CR_shift = (conf->pin.pin_idx - 0) * 4;
-                CR       = const_cast(&GPIOx[conf->pin.port_idx].CRL);
-                ODR      = const_cast(&GPIOx[conf->pin.port_idx].ODR);
+                CR       = &GPIOx[conf->pin.port_idx].GPIO->CRL;
+                ODR      = &GPIOx[conf->pin.port_idx].GPIO->ODR;
         }
 
         CLEAR_BIT(*CR, (GPIO_CRL_CNF0 | GPIO_CRL_MODE0) << CR_shift);
-        CLEAR_BIT(*ODR, (GPIO_ODR_ODR0) << shift);
+        CLEAR_BIT(*ODR, (GPIO_ODR_ODR0) << ODR_shift);
 
         switch (conf->mode) {
         default:
@@ -520,7 +520,7 @@ static int set_pin_conf(const GPIO_pin_in_port_conf_t *conf)
 
         case GPIO_pin_mode__input_PU:
                 SET_BIT(*CR, (GPIO_CRL_CNF0_1) << CR_shift);
-                SET_BIT(*ODR, (GPIO_ODR_ODR0) << shift);
+                SET_BIT(*ODR, (GPIO_ODR_ODR0) << ODR_shift);
                 break;
 
         case GPIO_pin_mode__output_OD:
@@ -531,9 +531,9 @@ static int set_pin_conf(const GPIO_pin_in_port_conf_t *conf)
 
         case GPIO_pin_mode__output_PP:
                 if (conf->state) {
-                        SET_BIT(*ODR, (GPIO_ODR_ODR0) << shift);
+                        SET_BIT(*ODR, (GPIO_ODR_ODR0) << ODR_shift);
                 } else {
-                        CLEAR_BIT(*ODR, (GPIO_ODR_ODR0) << shift);
+                        CLEAR_BIT(*ODR, (GPIO_ODR_ODR0) << ODR_shift);
                 }
 
                 switch (conf->speed) {
@@ -583,24 +583,24 @@ static int get_pin_conf(GPIO_pin_in_port_conf_t *conf)
         }
 
         u8_t CR_shift;
-        u8_t shift = conf->pin.pin_idx;
+        u8_t ODR_shift = conf->pin.pin_idx;
         volatile u32_t *CR;
         volatile u32_t *ODR;
 
         if (conf->pin.pin_idx >= 8) {
                 CR_shift = (conf->pin.pin_idx - 8) * 4;
-                CR       = const_cast(&GPIOx[conf->pin.port_idx].CRH);
-                ODR      = const_cast(&GPIOx[conf->pin.port_idx].ODR);
+                CR       = &GPIOx[conf->pin.port_idx].GPIO->CRH;
+                ODR      = &GPIOx[conf->pin.port_idx].GPIO->ODR;
 
         } else {
                 CR_shift = (conf->pin.pin_idx - 0) * 4;
-                CR       = const_cast(&GPIOx[conf->pin.port_idx].CRL);
-                ODR      = const_cast(&GPIOx[conf->pin.port_idx].ODR);
+                CR       = &GPIOx[conf->pin.port_idx].GPIO->CRL;
+                ODR      = &GPIOx[conf->pin.port_idx].GPIO->ODR;
         }
 
         u32_t CNF  = (*CR >> CR_shift) & GPIO_CRL_CNF0;
         u32_t MODE = (*CR >> CR_shift) & GPIO_CRL_MODE0;
-        u32_t PODR = (*ODR >> shift) & GPIO_ODR_ODR0;
+        u32_t PODR = (*ODR >> ODR_shift) & GPIO_ODR_ODR0;
 
         if (MODE == ((0 * GPIO_CRL_MODE0_1) | (0 * GPIO_CRL_MODE0_0))) {
 
