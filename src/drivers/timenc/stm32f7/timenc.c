@@ -39,7 +39,6 @@ Brief   Timer driven AB encoder
   Local macros
 ==============================================================================*/
 #define TIMER           TIM7
-#define TIM_NULL        {.TIM = NULL, .APBENR = NULL, .APBENR_TIMEN = 0, .APBRSTR = NULL, .APBRSTR_TIMRST}
 
 /*==============================================================================
   Local object types

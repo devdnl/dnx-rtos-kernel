@@ -41,7 +41,6 @@ TOOLCHAIN = $(__PROJECT_TOOLCHAIN__)
 AFLAGS   = -c \
            -g \
            -ggdb3 \
-           -include ./config/config.h \
            -include ./build/defs.h \
            $(CPUCONFIG_AFLAGS)
 
@@ -111,6 +110,7 @@ LFLAGS   = -g \
            -Wl,-Map=$(TARGET_PATH)/$(PROJECT).map,--cref,--no-warn-mismatch \
            -Wall \
            -specs=nano.specs -specs=rdimon.specs \
+           -Wl,--print-memory-usage \
            -lm
 
 #---------------------------------------------------------------------------------------------------
@@ -345,8 +345,6 @@ hex :
 	@$(ECHO) 'Creating objects size list...'
 	@$(SIZE) -B -t --common $(TARGET_PATH)/$(PROJECT).a > $(TARGET_PATH)/$(PROJECT).size
 
-	@$(ECHO) "Flash image size: $$($(SIZEOF) $(TARGET_PATH)/$(PROJECT).bin) bytes\n"
-
 ####################################################################################################
 # show compile status
 ####################################################################################################
@@ -373,7 +371,7 @@ generate :
 
 	@$(ECHO) "Adding drivers to the project..."
 	@$(MKDIR) $(GEN_DRIVERS_DIR)
-	@$(SHELL) $(ADDDRIVERS) ./$(SYS_DRV_LOC) ./$(GEN_DRIVERS_DIR)
+	@$(SHELL) $(ADDDRIVERS) ./$(SYS_DRV_LOC) ./$(GEN_DRIVERS_DIR) $(TARGET)
 
 	@$(ECHO) "Obtaining git hash..."
 	@$(ECHO) "#define COMMIT_HASH \"$(shell git rev-parse --short HEAD 2>/dev/null)"\" > build/defs.h

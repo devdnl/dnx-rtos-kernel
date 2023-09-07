@@ -87,6 +87,8 @@ struct GPIO_reg {
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
+static int set_pin_conf(const GPIO_pin_in_port_conf_t *conf);
+static int get_pin_conf(GPIO_pin_in_port_conf_t *conf);
 
 /*==============================================================================
   Local object definitions
@@ -377,7 +379,7 @@ API_MOD_IOCTL(GPIO, void *device_handle, int request, void *arg)
                         break;
                 }
 
-                case IOCTL_GPIO__SET_PIN_STATE_IN_PORT: {
+                case IOCTL_GPIO__SET_PIN_IN_PORT_STATE: {
                         GPIO_pin_in_port_state_t *pin = arg;
                         if ((pin->pin.port_idx < ARRAY_SIZE(GPIOx)) && (pin->pin.pin_idx < 16)) {
                                 if (pin->state) {
@@ -390,7 +392,7 @@ API_MOD_IOCTL(GPIO, void *device_handle, int request, void *arg)
                         break;
                 }
 
-                case IOCTL_GPIO__GET_PIN_STATE_IN_PORT: {
+                case IOCTL_GPIO__GET_PIN_IN_PORT_STATE: {
                         GPIO_pin_in_port_state_t *pin = arg;
                         if ((pin->pin.port_idx < ARRAY_SIZE(GPIOx)) && (pin->pin.pin_idx < 16)) {
                                 pin->state = (GPIOx[pin->pin.port_idx].GPIO->IDR & (1 << pin->pin.pin_idx)) ? 1 : 0;
@@ -398,6 +400,14 @@ API_MOD_IOCTL(GPIO, void *device_handle, int request, void *arg)
                         }
                         break;
                 }
+
+                case IOCTL_GPIO__SET_PIN_IN_PORT_CONF:
+                        err = set_pin_conf(arg);
+                        break;
+
+                case IOCTL_GPIO__GET_PIN_IN_PORT_CONF:
+                        err = get_pin_conf(arg);
+                        break;
 
                 default:
                         err = EBADRQC;
@@ -441,6 +451,207 @@ API_MOD_STAT(GPIO, void *device_handle, struct vfs_dev_stat *device_stat)
         device_stat->st_size  = 2;
         device_stat->st_major = (hdl->IOPEN >> 4);
         device_stat->st_minor = 0;
+
+        return ESUCC;
+}
+
+//==============================================================================
+/**
+ * @brief Set pin configuration.
+ *
+ * @param conf          pin configuration
+ *
+ * @return One of errno value (errno.h)
+ */
+//==============================================================================
+static int set_pin_conf(const GPIO_pin_in_port_conf_t *conf)
+{
+        if (conf->pin.port_idx >= ARRAY_SIZE(GPIOx)) {
+                return EINVAL;
+        }
+
+        if (conf->pin.pin_idx >= 16) {
+                return EINVAL;
+        }
+
+        if (conf->mode >= GPIO_pin_mode_amount) {
+                return EINVAL;
+        }
+
+        if (conf->mux >= GPIO_pin_mux_amount) {
+                return EINVAL;
+        }
+
+        if (conf->speed >= GPIO_pin_speed_amount) {
+                return EINVAL;
+        }
+
+        u8_t CR_shift;
+        u8_t shift = conf->pin.pin_idx;
+        volatile u32_t *CR;
+        volatile u32_t *ODR;
+
+        if (conf->pin.pin_idx >= 8) {
+                CR_shift = (conf->pin.pin_idx - 8) * 4;
+                CR       = const_cast(&GPIOx[conf->pin.port_idx].CRH);
+                ODR      = const_cast(&GPIOx[conf->pin.port_idx].ODR);
+
+        } else {
+                CR_shift = (conf->pin.pin_idx - 0) * 4;
+                CR       = const_cast(&GPIOx[conf->pin.port_idx].CRL);
+                ODR      = const_cast(&GPIOx[conf->pin.port_idx].ODR);
+        }
+
+        CLEAR_BIT(*CR, (GPIO_CRL_CNF0 | GPIO_CRL_MODE0) << CR_shift);
+        CLEAR_BIT(*ODR, (GPIO_ODR_ODR0) << shift);
+
+        switch (conf->mode) {
+        default:
+        case GPIO_pin_mode__analog:
+                break;
+
+        case GPIO_pin_mode__input:
+                SET_BIT(*CR, (GPIO_CRL_CNF0_0) << CR_shift);
+                break;
+
+        case GPIO_pin_mode__input_PD:
+                SET_BIT(*CR, (GPIO_CRL_CNF0_1) << CR_shift);
+                break;
+
+        case GPIO_pin_mode__input_PU:
+                SET_BIT(*CR, (GPIO_CRL_CNF0_1) << CR_shift);
+                SET_BIT(*ODR, (GPIO_ODR_ODR0) << shift);
+                break;
+
+        case GPIO_pin_mode__output_OD:
+        case GPIO_pin_mode__output_OD_PU:
+        case GPIO_pin_mode__output_OD_PD:
+                SET_BIT(*CR, (GPIO_CRL_CNF0_0) << CR_shift);
+                // fall through
+
+        case GPIO_pin_mode__output_PP:
+                if (conf->state) {
+                        SET_BIT(*ODR, (GPIO_ODR_ODR0) << shift);
+                } else {
+                        CLEAR_BIT(*ODR, (GPIO_ODR_ODR0) << shift);
+                }
+
+                switch (conf->speed) {
+                default:
+                case GPIO_pin_speed__low:
+                        SET_BIT(*CR, (GPIO_CRL_MODE0_1) << CR_shift);
+                        break;
+
+                case GPIO_pin_speed__medium:
+                        SET_BIT(*CR, (GPIO_CRL_MODE0_0) << CR_shift);
+                        break;
+
+
+                case GPIO_pin_speed__high:
+                case GPIO_pin_speed__very_high:
+                        SET_BIT(*CR, (GPIO_CRL_MODE0_1 | GPIO_CRL_MODE0_0) << CR_shift);
+                        break;
+                }
+
+                if (conf->mux == GPIO_pin_mux__alternate_function_output) {
+                        SET_BIT(*CR, GPIO_CRL_CNF0_1 << CR_shift);
+                }
+
+                break;
+        }
+
+        return ESUCC;
+}
+
+//==============================================================================
+/**
+ * @brief Get pin configuration.
+ *
+ * @param conf          pin configuration
+ *
+ * @return One of errno value (errno.h)
+ */
+//==============================================================================
+static int get_pin_conf(GPIO_pin_in_port_conf_t *conf)
+{
+        if (conf->pin.port_idx >= ARRAY_SIZE(GPIOx)) {
+                return EINVAL;
+        }
+
+        if (conf->pin.pin_idx >= 16) {
+                return EINVAL;
+        }
+
+        u8_t CR_shift;
+        u8_t shift = conf->pin.pin_idx;
+        volatile u32_t *CR;
+        volatile u32_t *ODR;
+
+        if (conf->pin.pin_idx >= 8) {
+                CR_shift = (conf->pin.pin_idx - 8) * 4;
+                CR       = const_cast(&GPIOx[conf->pin.port_idx].CRH);
+                ODR      = const_cast(&GPIOx[conf->pin.port_idx].ODR);
+
+        } else {
+                CR_shift = (conf->pin.pin_idx - 0) * 4;
+                CR       = const_cast(&GPIOx[conf->pin.port_idx].CRL);
+                ODR      = const_cast(&GPIOx[conf->pin.port_idx].ODR);
+        }
+
+        u32_t CNF  = (*CR >> CR_shift) & GPIO_CRL_CNF0;
+        u32_t MODE = (*CR >> CR_shift) & GPIO_CRL_MODE0;
+        u32_t PODR = (*ODR >> shift) & GPIO_ODR_ODR0;
+
+        if (MODE == ((0 * GPIO_CRL_MODE0_1) | (0 * GPIO_CRL_MODE0_0))) {
+
+                conf->state = false;
+
+                if (CNF == ((0 * GPIO_CRL_CNF0_1) | (0 * GPIO_CRL_CNF0_0))) {
+                        conf->mode = GPIO_pin_mode__analog;
+
+                } else if (CNF == ((0 * GPIO_CRL_CNF0_1) | (1 * GPIO_CRL_CNF0_0))) {
+                        conf->mode = GPIO_pin_mode__input;
+
+                } else {
+                        if (PODR & GPIO_ODR_ODR0) {
+                                conf->mode = GPIO_pin_mode__input_PU;
+                        } else {
+                                conf->mode = GPIO_pin_mode__input_PD;
+                        }
+                }
+
+        } else {
+                if (MODE == ((0 * GPIO_CRL_MODE0_1) | (1 * GPIO_CRL_MODE0_0))) {
+                        conf->speed = GPIO_pin_speed__medium;
+
+                } else if (MODE == ((1 * GPIO_CRL_MODE0_1) | (0 * GPIO_CRL_MODE0_0))) {
+                        conf->speed = GPIO_pin_speed__low;
+
+                } else if (MODE == ((1 * GPIO_CRL_MODE0_1) | (1 * GPIO_CRL_MODE0_0))) {
+                        conf->speed = GPIO_pin_speed__high;
+                }
+
+                if (CNF == ((0 * GPIO_CRL_CNF0_1) | (0 * GPIO_CRL_CNF0_0))) {
+                        conf->mode  = GPIO_pin_mode__output_PP;
+                        conf->mux   = GPIO_pin_mux__disable;
+                        conf->state = PODR & GPIO_ODR_ODR0;
+
+                } else if (CNF == ((0 * GPIO_CRL_CNF0_1) | (1 * GPIO_CRL_CNF0_0))) {
+                        conf->mode  = GPIO_pin_mode__output_OD;
+                        conf->mux   = GPIO_pin_mux__disable;
+                        conf->state = PODR & GPIO_ODR_ODR0;
+
+                } else if (CNF == ((1 * GPIO_CRL_CNF0_1) | (0 * GPIO_CRL_CNF0_0))) {
+                        conf->mode  = GPIO_pin_mode__output_PP;
+                        conf->mux   = GPIO_pin_mux__alternate_function_output;
+                        conf->state = PODR & GPIO_ODR_ODR0;
+
+                } else if (CNF == ((1 * GPIO_CRL_CNF0_1) | (1 * GPIO_CRL_CNF0_0))) {
+                        conf->mode  = GPIO_pin_mode__output_OD;
+                        conf->mux   = GPIO_pin_mux__alternate_function_output;
+                        conf->state = PODR & GPIO_ODR_ODR0;
+                }
+        }
 
         return ESUCC;
 }

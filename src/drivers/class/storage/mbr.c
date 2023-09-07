@@ -29,6 +29,8 @@ Brief   MBR handling functions.
   Include files
 ==============================================================================*/
 #include "drivers/class/storage/mbr.h"
+#include "lib/sys/types.h"
+#include "lib/cast.h"
 
 /*==============================================================================
   Local macros

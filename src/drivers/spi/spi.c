@@ -129,6 +129,7 @@ API_MOD_INIT(SPI, void **device_handle, u8_t major, u8_t minor, const void *conf
 
                 if (config) {
                         hdl->config = *cast(SPI_config_t*, config);
+                        slave_deselect(hdl);
                 }
 
                 sys_device_unlock(&hdl->lock, true);
@@ -367,6 +368,7 @@ API_MOD_IOCTL(SPI, void *device_handle, int request, void *arg)
         case IOCTL_SPI__SET_CONFIGURATION:
                 if (arg) {
                         hdl->config = *cast(SPI_config_t*, arg);
+                        slave_deselect(hdl);
                         err = ESUCC;
                 } else {
                         err = EINVAL;
