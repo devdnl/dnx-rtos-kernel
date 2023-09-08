@@ -39,7 +39,6 @@ extern "C" {
   Include files
 ==============================================================================*/
 #include "stm32f1/stm32f10x.h"
-#include "stm32f1/gpio_macros.h"
 
 /*==============================================================================
   Exported symbolic constants/macros
@@ -50,6 +49,31 @@ enum port##_##number##_CFG {\
         _##port##_PIN_##number##_MODE  = (mode),\
         _##port##_PIN_##number##_STATE = (state)\
 }
+
+/** concat macro */
+#define _CONCAT(x, y) x##y
+
+/** define GPIO pin outputs types and speeds (do not edit) */
+#define _GPIO_OUT_PUSH_PULL_10MHZ               0x01
+#define _GPIO_OUT_PUSH_PULL_2MHZ                0x02
+#define _GPIO_OUT_PUSH_PULL_50MHZ               0x03
+#define _GPIO_OUT_OPEN_DRAIN_10MHZ              0x05
+#define _GPIO_OUT_OPEN_DRAIN_2MHZ               0x06
+#define _GPIO_OUT_OPEN_DRAIN_50MHZ              0x07
+#define _GPIO_ALT_OUT_PUSH_PULL_10MHZ           0x09
+#define _GPIO_ALT_OUT_PUSH_PULL_2MHZ            0x0A
+#define _GPIO_ALT_OUT_PUSH_PULL_50MHZ           0x0B
+#define _GPIO_ALT_OUT_OPEN_DRAIN_10MHZ          0x0D
+#define _GPIO_ALT_OUT_OPEN_DRAIN_2MHZ           0x0E
+#define _GPIO_ALT_OUT_OPEN_DRAIN_50MHZ          0x0F
+#define _GPIO_ANALOG                            0x00
+#define _GPIO_IN_FLOAT                          0x04
+#define _GPIO_IN_PULLED                         0x08
+
+/** define pin state (do not edit) */
+#define _FLOAT                                  0U
+#define _LOW                                    0U
+#define _HIGH                                   1U
 
 /** GPIO pin NONE definition */
 #define _GPIO_NONE_BASE 0
@@ -195,33 +219,9 @@ _PIN_CONFIGURATION(GPIOG,14, __GPIO_PG_PIN_14_MODE__, __GPIO_PG_PIN_14_STATE__);
 _PIN_CONFIGURATION(GPIOG,15, __GPIO_PG_PIN_15_MODE__, __GPIO_PG_PIN_15_STATE__);
 #endif
 
-#define _CNF(_v)                        (((_v) >> 4) & 3)
-#define _MODER(_v)                      (((_v) >> 2) & 3)
-#define _PXODR(_v)                      (((_v) >> 0) & 3)
-#define _MODE(_cnf, _moder, _pxodr)     ( (((_cnf) & 3) << 4) | (((_moder) & 3) << 2) | (((_pxodr) & 3) << 0) )
-
 /*==============================================================================
   Exported types, enums definitions
 ==============================================================================*/
-typedef enum {
-        GPIO_MODE__PP_10MHz      = _MODE(0, 1, 2),
-        GPIO_MODE__PP_2MHz       = _MODE(0, 2, 2),
-        GPIO_MODE__PP_50MHz      = _MODE(0, 3, 2),
-        GPIO_MODE__OD_10MHz      = _MODE(1, 1, 2),
-        GPIO_MODE__OD_2MHz       = _MODE(1, 2, 2),
-        GPIO_MODE__OD_50MHz      = _MODE(1, 3, 2),
-        GPIO_MODE__AF_PP_10MHz   = _MODE(2, 1, 2),
-        GPIO_MODE__AF_PP_2MHz    = _MODE(2, 2, 2),
-        GPIO_MODE__AF_PP_50MHz   = _MODE(2, 3, 2),
-        GPIO_MODE__AF_OD_10MHz   = _MODE(3, 1, 2),
-        GPIO_MODE__AF_OD_2MHz    = _MODE(3, 2, 2),
-        GPIO_MODE__AF_OD_50MHz   = _MODE(3, 3, 2),
-        GPIO_MODE__ANALOG        = _MODE(0, 0, 2),
-        GPIO_MODE__IN            = _MODE(1, 0, 2),
-        GPIO_MODE__IN_PD         = _MODE(2, 0, 0),
-        GPIO_MODE__IN_PU         = _MODE(2, 0, 1),
-} GPIO_mode_t;
-
 /*==============================================================================
   Exported object declarations
 ==============================================================================*/

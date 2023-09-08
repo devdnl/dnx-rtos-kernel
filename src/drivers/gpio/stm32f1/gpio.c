@@ -35,7 +35,6 @@
 ==============================================================================*/
 #include "drivers/driver.h"
 #include "stm32f1/gpio_cfg.h"
-#include "stm32f1/gpio_macros.h"
 #include "stm32f1/stm32f10x.h"
 #include "../gpio_ioctl.h"
 
@@ -713,81 +712,32 @@ i8_t _GPIO_DDI_get_pin(u8_t port_idx, u8_t pin_idx)
 
 //==============================================================================
 /**
- * @brief  Function set pin mode.
- * @param  port_idx      Port index.
- * @param  pin_idx       Pin index.
- * @param  mode          Pin mode
+ * @brief  Function set pin configuration.
+ * @param  conf         pin configuration
+ * @return Errno value.
  */
 //==============================================================================
-void _GPIO_DDI_set_pin_mode(u8_t port_idx, u8_t pin_idx, int mode)
+int _GPIO_DDI_set_pin_conf(const GPIO_pin_in_port_conf_t *conf)
 {
-        if ((port_idx < ARRAY_SIZE(GPIOx)) && (pin_idx < 16)) {
-                sys_ISR_disable();
-
-                volatile u32_t *CR = (pin_idx < 8) ? &GPIOx[port_idx].GPIO->CRL
-                                                   : &GPIOx[port_idx].GPIO->CRH;
-
-                u8_t shift = 4 * ((pin_idx < 8) ? pin_idx : pin_idx - 8);
-
-                if (_PXODR(mode) <= 1) {
-                        if (_PXODR(mode)) {
-                                SET_BIT(GPIOx[port_idx].GPIO->ODR, (1 << pin_idx));
-                        } else {
-                                CLEAR_BIT(GPIOx[port_idx].GPIO->ODR, (1 << pin_idx));
-                        }
-                }
-
-                CLEAR_BIT(*CR, (GPIO_CRL_MODE0 | GPIO_CRL_CNF0 << shift));
-                SET_BIT(*CR, ((_CNF(mode) << 2) | (_MODER(mode) << 0) << shift));
-
-                sys_ISR_enable();
-        }
+        sys_ISR_disable();
+        int err = set_pin_conf(conf);
+        sys_ISR_enable();
+        return err;
 }
 
 //==============================================================================
 /**
- * @brief  Function get pin mode.
- * @param  port_idx      Port index.
- * @param  pin_idx       Pin index.
- * @param  mode          Pin mode
- * @return On success 0 is returned.
+ * @brief  Function set pin configuration.
+ * @param  conf         pin configuration
+ * @return Errno value.
  */
 //==============================================================================
-int _GPIO_DDI_get_pin_mode(u8_t port_idx, u8_t pin_idx, int *mode)
+int _GPIO_DDI_get_pin_conf(GPIO_pin_in_port_conf_t *conf)
 {
-        if ((port_idx < ARRAY_SIZE(GPIOx)) && (pin_idx < 16) && mode) {
-                sys_ISR_disable();
-
-                volatile u32_t *CR = (pin_idx < 8) ? &GPIOx[port_idx].GPIO->CRL
-                                                   : &GPIOx[port_idx].GPIO->CRH;
-
-                u8_t shift = 4 * ((pin_idx < 8) ? pin_idx : pin_idx - 8);
-
-                *CR >>= shift;
-
-                *mode = ((((*CR >> 2) & 3) << 4)) // CNF
-                      | ((((*CR >> 0) & 3) << 2)) // MODE
-                      | (((GPIOx[port_idx].GPIO->ODR >> pin_idx) & 1) << 0);
-
-                sys_ISR_enable();
-
-                return 0;
-        } else {
-                return EINVAL;
-        }
-}
-
-//==============================================================================
-/**
- * @brief  Function set pin multiplexer (internal peripheral connection).
- * @param  port_idx      Port index.
- * @param  pin_idx       Pin index.
- * @param  mux           Pin multiplexer
- */
-//==============================================================================
-void _GPIO_DDI_set_pin_mux(u8_t port_idx, u8_t pin_idx, int mux)
-{
-        UNUSED_ARG3(port_idx, pin_idx, mux);
+        sys_ISR_disable();
+        int err = get_pin_conf(conf);
+        sys_ISR_enable();
+        return err;
 }
 
 /*==============================================================================

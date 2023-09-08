@@ -341,24 +341,22 @@ static void reset(I2C_dev_t *hdl, bool reinit)
         I2C_recovery_t *recovery = &_I2C[hdl->major]->recovery;
 
         if (recovery->enable && (hdl->config.mode == I2C_MODE__MASTER)) {
+                i8_t SDA_state = _GPIO_DDI_get_pin(recovery->SDA.port_idx,
+                                                   recovery->SDA.pin_idx);
 
-                i8_t state = _GPIO_DDI_get_pin(recovery->SDA.port_idx,
-                                               recovery->SDA.pin_idx);
-                int SCL_mode = 0;
-                int err = _GPIO_DDI_get_pin_mode(recovery->SCL.port_idx,
-                                                 recovery->SCL.pin_idx,
-                                                 &SCL_mode);
-
+                GPIO_pin_in_port_conf_t SCL_pin_conf;
+                SCL_pin_conf.pin.port_idx = recovery->SCL.port_idx;
+                SCL_pin_conf.pin.pin_idx  = recovery->SCL.pin_idx;
+                int err = _GPIO_DDI_get_pin_conf(&SCL_pin_conf);
                 if (err) {
                         dev_dbg(hdl, "invalid SCL pin - recovery skipped");
-                }
 
-                if ((state == 0) && (err == 0)) {
+                } else if (SDA_state == 0) {
                         dev_dbg(hdl, "detected SDA low - bus recovery");
 
-                        _GPIO_DDI_set_pin_mode(recovery->SCL.port_idx,
-                                               recovery->SCL.pin_idx,
-                                               GPIO_MODE__OD);
+                        GPIO_pin_in_port_conf_t pin_conf = SCL_pin_conf;
+                        pin_conf.mux = GPIO_pin_mux__disable;
+                        _GPIO_DDI_set_pin_conf(&pin_conf);
 
                         for (int i = 0; i < 10; i++) {
                                 _GPIO_DDI_clear_pin(recovery->SCL.port_idx,
@@ -370,14 +368,12 @@ static void reset(I2C_dev_t *hdl, bool reinit)
                                 sys_sleep_ms(1);
                         }
 
-                        _GPIO_DDI_set_pin_mode(recovery->SCL.port_idx,
-                                               recovery->SCL.pin_idx,
-                                               SCL_mode);
+                        _GPIO_DDI_set_pin_conf(&SCL_pin_conf);
 
-                        state = _GPIO_DDI_get_pin(recovery->SDA.port_idx,
-                                                  recovery->SDA.pin_idx);
+                        SDA_state = _GPIO_DDI_get_pin(recovery->SDA.port_idx,
+                                                      recovery->SDA.pin_idx);
 
-                        dev_dbg(hdl, "recovery %s", (state == 1) ? "success" : "fail");
+                        dev_dbg(hdl, "recovery %s", (SDA_state == 1) ? "success" : "fail");
                 }
         }
 }
