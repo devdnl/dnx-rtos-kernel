@@ -560,9 +560,9 @@ static int set_pin_conf(const GPIO_pin_in_port_conf_t *conf)
         u8_t pin_idx = conf->pin.pin_idx;
 
         size_t AFR_shift     = ((pin_idx >= 8) ? (pin_idx - 8) : pin_idx) * 4;
-        size_t MODER_shift   = ((pin_idx >= 8) ? (pin_idx - 8) : pin_idx) * 2;
-        size_t PUPDR_shift   = ((pin_idx >= 8) ? (pin_idx - 8) : pin_idx) * 2;
-        size_t OSPEEDR_shift = ((pin_idx >= 8) ? (pin_idx - 8) : pin_idx) * 2;
+        size_t MODER_shift   = pin_idx * 2;
+        size_t PUPDR_shift   = pin_idx * 2;
+        size_t OSPEEDR_shift = pin_idx * 2;
         size_t OTYPER_shift  = conf->pin.pin_idx;
         size_t ODR_shift     = conf->pin.pin_idx;
         __IO u32_t *AFR      = &GPIOx[major].GPIO->AFR[pin_idx / 8];
@@ -678,15 +678,17 @@ static int get_pin_conf(GPIO_pin_in_port_conf_t *conf)
         u8_t pin_idx = conf->pin.pin_idx;
 
         size_t AFR_shift     = ((pin_idx >= 8) ? (pin_idx - 8) : pin_idx) * 4;
-        size_t MODER_shift   = ((pin_idx >= 8) ? (pin_idx - 8) : pin_idx) * 2;
-        size_t PUPDR_shift   = ((pin_idx >= 8) ? (pin_idx - 8) : pin_idx) * 2;
-        size_t OSPEEDR_shift = ((pin_idx >= 8) ? (pin_idx - 8) : pin_idx) * 2;
+        size_t MODER_shift   = pin_idx * 2;
+        size_t PUPDR_shift   = pin_idx * 2;
+        size_t OSPEEDR_shift = pin_idx * 2;
         size_t OTYPER_shift  = conf->pin.pin_idx;
+        size_t ODR_shift     = conf->pin.pin_idx;
         u32_t AFR            = (GPIOx[major].GPIO->AFR[pin_idx / 8] >> AFR_shift) & GPIO_AFRL_AFRL0_Msk;
         u32_t MODER          = (GPIOx[major].GPIO->MODER >> MODER_shift) & GPIO_MODER_MODER0_Msk;
         u32_t PUPDR          = (GPIOx[major].GPIO->PUPDR >> PUPDR_shift) & GPIO_PUPDR_PUPDR0_Msk;
         u32_t OSPEEDR        = (GPIOx[major].GPIO->OSPEEDR >> OSPEEDR_shift) & GPIO_OSPEEDER_OSPEEDR0_Msk;
         u32_t OTYPER         = (GPIOx[major].GPIO->OTYPER >> OTYPER_shift) & GPIO_OTYPER_OT_0;
+        u32_t ODR            = (GPIOx[major].GPIO->ODR >> ODR_shift) & GPIO_ODR_0;
 
         conf->mode  = GPIO_pin_mode__analog;
         conf->mux   = GPIO_pin_mux__disable;
@@ -714,16 +716,16 @@ static int get_pin_conf(GPIO_pin_in_port_conf_t *conf)
                 conf->mode = GPIO_pin_mode__analog;
 
         } else {
-                if (OSPEEDR == ((0 * GPIO_OSPEEDER_OSPEEDR0_1) | (0 * GPIO_OSPEEDER_OSPEEDR0_1))) {
+                if (OSPEEDR == ((0 * GPIO_OSPEEDER_OSPEEDR0_1) | (0 * GPIO_OSPEEDER_OSPEEDR0_0))) {
                         conf->speed = GPIO_pin_speed__low;
 
-                } else if (OSPEEDR == ((0 * GPIO_OSPEEDER_OSPEEDR0_1) | (1 * GPIO_OSPEEDER_OSPEEDR0_1))) {
+                } else if (OSPEEDR == ((0 * GPIO_OSPEEDER_OSPEEDR0_1) | (1 * GPIO_OSPEEDER_OSPEEDR0_0))) {
                         conf->speed = GPIO_pin_speed__medium;
 
-                } else if (OSPEEDR == ((1 * GPIO_OSPEEDER_OSPEEDR0_1) | (0 * GPIO_OSPEEDER_OSPEEDR0_1))) {
+                } else if (OSPEEDR == ((1 * GPIO_OSPEEDER_OSPEEDR0_1) | (0 * GPIO_OSPEEDER_OSPEEDR0_0))) {
                         conf->speed = GPIO_pin_speed__high;
 
-                } else if (OSPEEDR == ((1 * GPIO_OSPEEDER_OSPEEDR0_1) | (1 * GPIO_OSPEEDER_OSPEEDR0_1))) {
+                } else if (OSPEEDR == ((1 * GPIO_OSPEEDER_OSPEEDR0_1) | (1 * GPIO_OSPEEDER_OSPEEDR0_0))) {
                         conf->speed = GPIO_pin_speed__very_high;
                 }
 
@@ -736,6 +738,8 @@ static int get_pin_conf(GPIO_pin_in_port_conf_t *conf)
                 if (MODER == ((1 * GPIO_MODER_MODER0_1) | (0 * GPIO_MODER_MODER0_0))) {
                         conf->mux = AFR + GPIO_pin_mux__AF0_MCO;
                 }
+
+                conf->state = ODR;
         }
 
         return ESUCC;
