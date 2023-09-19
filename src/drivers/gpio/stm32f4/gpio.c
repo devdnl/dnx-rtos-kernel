@@ -521,7 +521,6 @@ API_MOD_STAT(GPIO, void *device_handle, struct vfs_dev_stat *device_stat)
         return ESUCC;
 }
 
-
 //==============================================================================
 /**
  * @brief Set pin configuration.
@@ -745,7 +744,6 @@ static int get_pin_conf(GPIO_pin_in_port_conf_t *conf)
 
         return ESUCC;
 }
-
 
 //==============================================================================
 /**

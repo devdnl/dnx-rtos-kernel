@@ -35,7 +35,6 @@
 ==============================================================================*/
 #include "drivers/driver.h"
 #include "stm32h7/gpio_cfg.h"
-#include "stm32h7/gpio_macros.h"
 #include "stm32h7/stm32h7xx.h"
 #include "../gpio_ioctl.h"
 
@@ -138,6 +137,8 @@ struct GPIO_reg {
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
+static int set_pin_conf(const GPIO_pin_in_port_conf_t *conf);
+static int get_pin_conf(GPIO_pin_in_port_conf_t *conf);
 
 /*==============================================================================
   Local object definitions
@@ -444,7 +445,7 @@ API_MOD_IOCTL(GPIO, void *device_handle, int request, void *arg)
                         break;
                 }
 
-                case IOCTL_GPIO__SET_PIN_STATE_IN_PORT: {
+                case IOCTL_GPIO__SET_PIN_IN_PORT_STATE: {
                         GPIO_pin_in_port_state_t *pin = arg;
                         if ((pin->pin.port_idx < ARRAY_SIZE(GPIOx)) && (pin->pin.pin_idx < 16)) {
                                 if (pin->state) {
@@ -457,7 +458,7 @@ API_MOD_IOCTL(GPIO, void *device_handle, int request, void *arg)
                         break;
                 }
 
-                case IOCTL_GPIO__GET_PIN_STATE_IN_PORT: {
+                case IOCTL_GPIO__GET_PIN_IN_PORT_STATE: {
                         GPIO_pin_in_port_state_t *pin = arg;
                         if ((pin->pin.port_idx < ARRAY_SIZE(GPIOx)) && (pin->pin.pin_idx < 16)) {
                                 pin->state = (GPIOx[pin->pin.port_idx].GPIO->IDR & (1 << pin->pin.pin_idx)) ? 1 : 0;
@@ -465,6 +466,14 @@ API_MOD_IOCTL(GPIO, void *device_handle, int request, void *arg)
                         }
                         break;
                 }
+
+                case IOCTL_GPIO__SET_PIN_IN_PORT_CONF:
+                        err = set_pin_conf(arg);
+                        break;
+
+                case IOCTL_GPIO__GET_PIN_IN_PORT_CONF:
+                        err = get_pin_conf(arg);
+                        break;
 
                 default:
                         err = EBADRQC;
@@ -508,6 +517,230 @@ API_MOD_STAT(GPIO, void *device_handle, struct vfs_dev_stat *device_stat)
         device_stat->st_size  = 2;
         device_stat->st_major = (hdl->IOPEN >> 4);
         device_stat->st_minor = 0;
+
+        return ESUCC;
+}
+
+//==============================================================================
+/**
+ * @brief Set pin configuration.
+ *
+ * @param conf          pin configuration
+ *
+ * @return One of errno value (errno.h)
+ */
+//==============================================================================
+static int set_pin_conf(const GPIO_pin_in_port_conf_t *conf)
+{
+        if (conf->pin.port_idx >= ARRAY_SIZE(GPIOx)) {
+                return EINVAL;
+        }
+
+        if (conf->pin.pin_idx >= 16) {
+                return EINVAL;
+        }
+
+        if (conf->mode >= GPIO_pin_mode_amount) {
+                return EINVAL;
+        }
+
+        if (conf->mux >= GPIO_pin_mux_amount) {
+                return EINVAL;
+        }
+
+        if (conf->speed >= GPIO_pin_speed_amount) {
+                return EINVAL;
+        }
+
+        if (conf->pull >= GPIO_pin_pull_mode_amount) {
+                return EINVAL;
+        }
+
+        u8_t major   = conf->pin.port_idx;
+        u8_t pin_idx = conf->pin.pin_idx;
+
+        size_t AFR_shift     = ((pin_idx >= 8) ? (pin_idx - 8) : pin_idx) * 4;
+        size_t MODER_shift   = pin_idx * 2;
+        size_t PUPDR_shift   = pin_idx * 2;
+        size_t OSPEEDR_shift = pin_idx * 2;
+        size_t OTYPER_shift  = conf->pin.pin_idx;
+        size_t ODR_shift     = conf->pin.pin_idx;
+        __IO u32_t *AFR      = &GPIOx[major].GPIO->AFR[pin_idx / 8];
+        __IO u32_t *MODER    = &GPIOx[major].GPIO->MODER;
+        __IO u32_t *PUPDR    = &GPIOx[major].GPIO->PUPDR;
+        __IO u32_t *OSPEEDR  = &GPIOx[major].GPIO->OSPEEDR;
+        __IO u32_t *OTYPER   = &GPIOx[major].GPIO->OTYPER;
+        __IO u32_t *ODR      = &GPIOx[major].GPIO->ODR;
+
+        CLEAR_BIT(*MODER, GPIO_MODER_MODE0 << MODER_shift);
+        CLEAR_BIT(*OTYPER, GPIO_OTYPER_OT0 << OTYPER_shift);
+        CLEAR_BIT(*OSPEEDR, GPIO_OSPEEDR_OSPEED0 << OSPEEDR_shift);
+        CLEAR_BIT(*PUPDR, GPIO_PUPDR_PUPD0 << PUPDR_shift);
+        CLEAR_BIT(*ODR, GPIO_ODR_OD0 << ODR_shift);
+        CLEAR_BIT(*AFR, GPIO_AFRL_AFRL0 << AFR_shift);
+
+        switch (conf->mode) {
+        default:
+        case GPIO_pin_mode__analog:
+                SET_BIT(*MODER, (GPIO_MODER_MODE0_1 | GPIO_MODER_MODE0_0) << MODER_shift);
+                break;
+
+        case GPIO_pin_mode__input:
+                switch (conf->pull) {
+                default:
+                case GPIO_pin_pull_mode__none:
+                        break;
+
+                case GPIO_pin_pull_mode__pull_up:
+                        SET_BIT(*PUPDR, GPIO_PUPDR_PUPD0_0 << PUPDR_shift);
+                        break;
+
+                case GPIO_pin_pull_mode__pull_down:
+                        SET_BIT(*PUPDR, GPIO_PUPDR_PUPD0_1 << PUPDR_shift);
+                        break;
+                }
+                break;
+
+        case GPIO_pin_mode__output_OD:
+                SET_BIT(*OTYPER, GPIO_OTYPER_OT0 << OTYPER_shift);
+                // fall through
+
+        case GPIO_pin_mode__output_PP:
+                if (conf->state) {
+                        SET_BIT(*ODR, GPIO_ODR_OD0 << ODR_shift);
+                }
+
+                if (conf->mux == GPIO_pin_mux__disable) {
+                        SET_BIT(*MODER, GPIO_MODER_MODE0_0 << MODER_shift);
+                } else {
+                        SET_BIT(*MODER, GPIO_MODER_MODE0_1 << MODER_shift);
+                        SET_BIT(*AFR, ((conf->mux - GPIO_pin_mux__AF0_MCO) & GPIO_AFRL_AFSEL0_Msk) << AFR_shift);
+                }
+
+                switch (conf->pull) {
+                default:
+                case GPIO_pin_pull_mode__none:
+                        break;
+
+                case GPIO_pin_pull_mode__pull_up:
+                        SET_BIT(*PUPDR, GPIO_PUPDR_PUPD0_0 << PUPDR_shift);
+                        break;
+
+                case GPIO_pin_pull_mode__pull_down:
+                        SET_BIT(*PUPDR, GPIO_PUPDR_PUPD0_1 << PUPDR_shift);
+                        break;
+                }
+
+                switch (conf->speed) {
+                default:
+                case GPIO_pin_speed__low:
+                        break;
+
+                case GPIO_pin_speed__medium:
+                        SET_BIT(*OSPEEDR, GPIO_OSPEEDR_OSPEED0_0 << OSPEEDR_shift);
+                        break;
+
+                case GPIO_pin_speed__high:
+                        SET_BIT(*OSPEEDR, GPIO_OSPEEDR_OSPEED0_1 << OSPEEDR_shift);
+                        break;
+
+                case GPIO_pin_speed__very_high:
+                        SET_BIT(*OSPEEDR, (GPIO_OSPEEDR_OSPEED0_1 | GPIO_OSPEEDR_OSPEED0_0) << OSPEEDR_shift);
+                        break;
+                }
+
+                break;
+        }
+
+        return ESUCC;
+}
+
+//==============================================================================
+/**
+ * @brief Get pin configuration.
+ *
+ * @param conf          pin configuration
+ *
+ * @return One of errno value (errno.h)
+ */
+//==============================================================================
+static int get_pin_conf(GPIO_pin_in_port_conf_t *conf)
+{
+        if (conf->pin.port_idx >= ARRAY_SIZE(GPIOx)) {
+                return EINVAL;
+        }
+
+        if (conf->pin.pin_idx >= 16) {
+                return EINVAL;
+        }
+
+        u8_t major   = conf->pin.port_idx;
+        u8_t pin_idx = conf->pin.pin_idx;
+
+        size_t AFR_shift     = ((pin_idx >= 8) ? (pin_idx - 8) : pin_idx) * 4;
+        size_t MODER_shift   = pin_idx * 2;
+        size_t PUPDR_shift   = pin_idx * 2;
+        size_t OSPEEDR_shift = pin_idx * 2;
+        size_t OTYPER_shift  = conf->pin.pin_idx;
+        size_t ODR_shift     = conf->pin.pin_idx;
+        u32_t AFR            = (GPIOx[major].GPIO->AFR[pin_idx / 8] >> AFR_shift) & GPIO_AFRL_AFSEL0_Msk;
+        u32_t MODER          = (GPIOx[major].GPIO->MODER >> MODER_shift) & GPIO_MODER_MODE0_Msk;
+        u32_t PUPDR          = (GPIOx[major].GPIO->PUPDR >> PUPDR_shift) & GPIO_PUPDR_PUPD0_Msk;
+        u32_t OSPEEDR        = (GPIOx[major].GPIO->OSPEEDR >> OSPEEDR_shift) & GPIO_OSPEEDR_OSPEED0_Msk;
+        u32_t OTYPER         = (GPIOx[major].GPIO->OTYPER >> OTYPER_shift) & GPIO_OTYPER_OT0_Msk;
+        u32_t ODR            = (GPIOx[major].GPIO->ODR >> ODR_shift) & GPIO_ODR_OD0_Msk;
+
+        conf->mode  = GPIO_pin_mode__analog;
+        conf->mux   = GPIO_pin_mux__disable;
+        conf->pull  = GPIO_pin_pull_mode__none;
+        conf->speed = GPIO_pin_speed__low;
+        conf->state = false;
+
+        if (PUPDR == ((0 * GPIO_PUPDR_PUPD0_1) | (0 * GPIO_PUPDR_PUPD0_0))) {
+                conf->pull = GPIO_pin_pull_mode__none;
+
+        } else if (PUPDR == ((0 * GPIO_PUPDR_PUPD0_1) | (1 * GPIO_PUPDR_PUPD0_0))) {
+                conf->pull = GPIO_pin_pull_mode__pull_up;
+
+        } else if (PUPDR == ((1 * GPIO_PUPDR_PUPD0_1) | (0 * GPIO_PUPDR_PUPD0_0))) {
+                conf->pull = GPIO_pin_pull_mode__pull_down;
+
+        } else if (PUPDR == ((1 * GPIO_PUPDR_PUPD0_1) | (1 * GPIO_PUPDR_PUPD0_0))) {
+                conf->pull = GPIO_pin_pull_mode__none;
+        }
+
+        if (MODER == ((0 * GPIO_MODER_MODE0_1) | (0 * GPIO_MODER_MODE0_0))) {
+                conf->mode = GPIO_pin_mode__input;
+
+        } else if (MODER == ((1 * GPIO_MODER_MODE0_1) | (1 * GPIO_MODER_MODE0_0))) {
+                conf->mode = GPIO_pin_mode__analog;
+
+        } else {
+                if (OSPEEDR == ((0 * GPIO_OSPEEDR_OSPEED0_1) | (0 * GPIO_OSPEEDR_OSPEED0_0))) {
+                        conf->speed = GPIO_pin_speed__low;
+
+                } else if (OSPEEDR == ((0 * GPIO_OSPEEDR_OSPEED0_1) | (1 * GPIO_OSPEEDR_OSPEED0_0))) {
+                        conf->speed = GPIO_pin_speed__medium;
+
+                } else if (OSPEEDR == ((1 * GPIO_OSPEEDR_OSPEED0_1) | (0 * GPIO_OSPEEDR_OSPEED0_0))) {
+                        conf->speed = GPIO_pin_speed__high;
+
+                } else if (OSPEEDR == ((1 * GPIO_OSPEEDR_OSPEED0_1) | (1 * GPIO_OSPEEDR_OSPEED0_0))) {
+                        conf->speed = GPIO_pin_speed__very_high;
+                }
+
+                if (OTYPER & GPIO_OTYPER_OT0) {
+                        conf->mode = GPIO_pin_mode__output_OD;
+                } else {
+                        conf->mode = GPIO_pin_mode__output_PP;
+                }
+
+                if (MODER == ((1 * GPIO_MODER_MODE0_1) | (0 * GPIO_MODER_MODE0_0))) {
+                        conf->mux = AFR + GPIO_pin_mux__AF0_MCO;
+                }
+
+                conf->state = ODR;
+        }
 
         return ESUCC;
 }
@@ -559,77 +792,32 @@ i8_t _GPIO_DDI_get_pin(u8_t port_idx, u8_t pin_idx)
 
 //==============================================================================
 /**
- * @brief  Function set pin mode.
- * @param  port_idx      Port index.
- * @param  pin_idx       Pin index.
- * @param  mode          Pin mode
+ * @brief  Function set pin configuration.
+ * @param  conf         pin configuration
+ * @return Errno value.
  */
 //==============================================================================
-void _GPIO_DDI_set_pin_mode(u8_t port_idx, u8_t pin_idx, int mode)
+int _GPIO_DDI_set_pin_conf(const GPIO_pin_in_port_conf_t *conf)
 {
-        if ((port_idx < ARRAY_SIZE(GPIOx)) && (pin_idx < 16)) {
-                sys_ISR_disable();
-
-                CLEAR_BIT(GPIOx[port_idx].GPIO->PUPDR, (0x3 << (pin_idx*2)));
-                SET_BIT(GPIOx[port_idx].GPIO->PUPDR, _PUPDR(mode) << (pin_idx * 2));
-
-                CLEAR_BIT(GPIOx[port_idx].GPIO->OTYPER, (1 << pin_idx));
-                SET_BIT(GPIOx[port_idx].GPIO->OTYPER, _OTYPER(mode) << pin_idx);
-
-                CLEAR_BIT(GPIOx[port_idx].GPIO->MODER, (0x3 << (pin_idx*2)));
-                SET_BIT(GPIOx[port_idx].GPIO->MODER, _MODER(mode) << (pin_idx * 2));
-
-                sys_ISR_enable();
-        }
+        sys_ISR_disable();
+        int err = set_pin_conf(conf);
+        sys_ISR_enable();
+        return err;
 }
 
 //==============================================================================
 /**
- * @brief  Function get pin mode.
- * @param  port_idx      Port index.
- * @param  pin_idx       Pin index.
- * @param  mode          Pin mode
- * @return On success 0 is returned.
+ * @brief  Function set pin configuration.
+ * @param  conf         pin configuration
+ * @return Errno value.
  */
 //==============================================================================
-int _GPIO_DDI_get_pin_mode(u8_t port_idx, u8_t pin_idx, int *mode)
+int _GPIO_DDI_get_pin_conf(GPIO_pin_in_port_conf_t *conf)
 {
-        if ((port_idx < ARRAY_SIZE(GPIOx)) && (pin_idx < 16) && mode) {
-                sys_ISR_disable();
-
-                *mode = _MODE((GPIOx[port_idx].GPIO->MODER >> (pin_idx * 2)) & 3,
-                              (GPIOx[port_idx].GPIO->OTYPER >> pin_idx) & 1,
-                              (GPIOx[port_idx].GPIO->PUPDR >> (pin_idx * 2)) & 3);
-
-                sys_ISR_enable();
-
-                return 0;
-        } else {
-                return EINVAL;
-        }
-}
-
-//==============================================================================
-/**
- * @brief  Function set pin multiplexer (internal peripheral connection).
- * @param  port_idx      Port index.
- * @param  pin_idx       Pin index.
- * @param  mux           Pin multiplexer
- */
-//==============================================================================
-void _GPIO_DDI_set_pin_mux(u8_t port_idx, u8_t pin_idx, int mux)
-{
-        if ((port_idx < ARRAY_SIZE(GPIOx)) && (pin_idx < 16) && (mux < 16)) {
-
-                sys_ISR_disable();
-
-                int reg = pin_idx / 8;
-
-                CLEAR_BIT(GPIOx[port_idx].GPIO->AFR[reg], (0xF << (pin_idx*4)));
-                SET_BIT(GPIOx[port_idx].GPIO->AFR[reg], ((mux & 0xF) << (pin_idx*4)));
-
-                sys_ISR_enable();
-        }
+        sys_ISR_disable();
+        int err = get_pin_conf(conf);
+        sys_ISR_enable();
+        return err;
 }
 
 /*==============================================================================
