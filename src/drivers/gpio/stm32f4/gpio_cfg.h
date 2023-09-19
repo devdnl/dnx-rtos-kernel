@@ -39,7 +39,6 @@ extern "C" {
   Include files
 ==============================================================================*/
 #include "stm32f4/stm32f4xx.h"
-#include "stm32f4/gpio_macros.h"
 
 /*==============================================================================
   Exported symbolic constants/macros
@@ -60,6 +59,36 @@ enum port##_##number##_CFG {\
         _##port##_PIN_##number##_STATE = (state),\
         _##port##_PIN_##number##_AF    = (af),\
 }
+
+/** concat macro */
+#define _CONCAT(x, y) x##y
+
+/** speed (do not edit) */
+#define _GPIO_SPEED_LOW                         0x00
+#define _GPIO_SPEED_MEDIUM                      0x01
+#define _GPIO_SPEED_HIGH                        0x02
+#define _GPIO_SPEED_VERY_HIGH                   0x03
+
+/** [mmmm tttt pppp] (do not edit) */
+#define _GPIO_MODE_IN                           0x000
+#define _GPIO_MODE_IN_PU                        0x001
+#define _GPIO_MODE_IN_PD                        0x002
+#define _GPIO_MODE_PP                           0x100
+#define _GPIO_MODE_OD                           0x110
+#define _GPIO_MODE_OD_PU                        0x111
+#define _GPIO_MODE_OD_PD                        0x112
+#define _GPIO_MODE_AF_PP                        0x200
+#define _GPIO_MODE_AF_PP_PU                     0x201
+#define _GPIO_MODE_AF_PP_PD                     0x202
+#define _GPIO_MODE_AF_OD                        0x210
+#define _GPIO_MODE_AF_OD_PU                     0x211
+#define _GPIO_MODE_AF_OD_PD                     0x212
+#define _GPIO_MODE_ANALOG                       0x300
+
+/** define pin state (do not edit) */
+#define _FLOAT                                  0U
+#define _LOW                                    0U
+#define _HIGH                                   1U
 
 /** GPIO pin NONE definition */
 #define _GPIO_NONE_BASE 0
