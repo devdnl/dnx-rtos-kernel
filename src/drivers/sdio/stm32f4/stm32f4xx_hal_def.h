@@ -1,11 +1,11 @@
 /*==============================================================================
-File    sdio_cfg.h
+File    stm32f7xx_hal_def.h
 
 Author  Daniel Zorychta
 
-Brief   SD Card Interface Driver
+Brief   .
 
-        Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2021 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -25,39 +25,83 @@ Brief   SD Card Interface Driver
 
 ==============================================================================*/
 
-#ifndef _SDIO_CFG_H_
-#define _SDIO_CFG_H_
+/**
+@defgroup SRC_SYSTEM_DRIVERS_SDIO_STM32F7_STM32F7XX_HAL_DEF_H_ SRC_SYSTEM_DRIVERS_SDIO_STM32F7_STM32F7XX_HAL_DEF_H_
+
+Detailed Doxygen description.
+*/
+/**@{*/
+
+#pragma once
+
+/*==============================================================================
+  Include files
+==============================================================================*/
+#include "drivers/driver.h"
+#include "stm32f4/stm32f4xx.h"
+#include "stm32f4/dma_ddi.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/*==============================================================================
-  Include files
-==============================================================================*/
-#include "config.h"
+#if defined(SDIO)
 
 /*==============================================================================
   Exported macros
 ==============================================================================*/
-#define _SDIO_USE_DMA_NEVER             0
-#define _SDIO_USE_DMA_IFAVAILABLE       1
-#define _SDIO_USE_DMA_ALWAYS            2
+//#define SDMMC1
+#define HAL_SD_MODULE_ENABLED
 
-#define _SDIO_CFG_NEGEDGE               __SDIO_CFG_NEGEDGE__
-#define _SDIO_CFG_BUS_WIDE              __SDIO_CFG_BUS_WIDE__
-#define _SDIO_CFG_PWRSAVE               __SDIO_CFG_PWRSAVE__
-#define _SDIO_CFG_USEDMA                __SDIO_CFG_USEDMA__
-#define _SDIO_CFG_CARD_TIMEOUT          __SDIO_CFG_CARD_TIMEOUT__
-#define _SDIO_CFG_CLKDIV                (((__SDIO_CFG_CKDIV__) < 2) ? 0 : ((__SDIO_CFG_CKDIV__) - 2))
-#define _SDIO_CFG_BYPASS                (((__SDIO_CFG_CKDIV__) < 2) ? SDIO_CLKCR_BYPASS : 0)
-#define _SDIO_CFG_ACMD6_BUS_WIDE        ((2 * ((_SDIO_CFG_BUS_WIDE) >> SDIO_CLKCR_WIDBUS_Pos)) & 0x3)
-#define _SDIO_CFG_INIT_CLKDIV           158
-#define _SDIO_CFG_IRQ_PRIORITY          __SDIO_IRQ_PRIORITY__
+#define assert_param(...)
+#define HAL_GetTick()                   sys_get_uptime_ms()
+#define HAL_Delay(_ms)                  sys_sleep_ms(_ms)
+#define __weak                          __attribute__ ((weak))
+#define UNUSED(_x)                      UNUSED_ARG1(_x)
 
 /*==============================================================================
   Exported object types
 ==============================================================================*/
+/**
+  * @brief  HAL Status structures definition
+  */
+typedef enum
+{
+        SD_HAL_OK = ESUCC,
+        SD_HAL_TIMEOUT = ETIME,
+        SD_HAL_BUSY = EBUSY,
+        SD_HAL_ERROR = EIO,
+} HAL_StatusTypeDef;
+
+/**
+  * @brief  HAL Lock structures definition
+  */
+typedef enum
+{
+        SD_HAL_UNLOCKED = 0x00U,
+        SD_HAL_LOCKED   = 0x01U
+} HAL_LockTypeDef;
+
+/**
+  * @brief  DMA handle Structure definition
+  */
+typedef struct __DMA_HandleTypeDef
+{
+  u32_t                      dmad;                                                             /*!< DMA descriptor */
+
+  _DMA_DDI_config_t          Config;                                                           /*!< DMA configuration */
+
+  u32_t                      Status;                                                           /*!< Status flags */
+
+  void                       *Parent;                                                          /*!< Parent object state                    */
+
+  void                       (* XferCpltCallback)( struct __DMA_HandleTypeDef * hdma);         /*!< DMA transfer complete callback         */
+
+  void                       (* XferErrorCallback)( struct __DMA_HandleTypeDef * hdma);        /*!< DMA transfer error callback            */
+
+  __IO uint32_t              ErrorCode;                                                        /*!< DMA Error code                          */
+
+}DMA_HandleTypeDef;
 
 /*==============================================================================
   Exported objects
@@ -71,11 +115,13 @@ extern "C" {
   Exported inline functions
 ==============================================================================*/
 
+#endif
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _SDIO_CFG_H_ */
+/**@}*/
 /*==============================================================================
   End of file
 ==============================================================================*/
