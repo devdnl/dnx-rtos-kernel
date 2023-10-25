@@ -9,15 +9,19 @@ AlignConsecutiveDeclarations:
   Enabled: true
 AlignConsecutiveMacros:
   Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: false
 AlignEscapedNewlines: Left
-AlignTrailingComments: true
 AllowAllArgumentsOnNextLine: false
 AllowAllConstructorInitializersOnNextLine: false
 AllowAllParametersOfDeclarationOnNextLine: false
 AllowShortBlocksOnASingleLine: Never
 AllowShortEnumsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: None
+BreakBeforeBinaryOperators: None
 BitFieldColonSpacing: Before
+PenaltyBreakAssignment: 1000
+InsertNewlineAtEOF: true
 ColumnLimit: 90
 ConstructorInitializerIndentWidth: 8
 ContinuationIndentWidth: 8
