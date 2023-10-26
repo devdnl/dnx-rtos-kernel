@@ -1,9 +1,9 @@
 /*==============================================================================
-File     sdio_flags.h
+File     sdmmc_flags.h
 
 Author   Daniel Zorychta
 
-Brief    SD Card Interface Driver
+Brief    SDMMC Card Interface Driver
 
          Copyright (C) 2023 Daniel Zorychta <daniel.zorychta@gmail.com>
 
@@ -32,8 +32,8 @@ Brief    SD Card Interface Driver
  *       All other flag definitions and statements are ignored.
  */
 
-#ifndef _SDIO_FLAGS_H_
-#define _SDIO_FLAGS_H_
+#ifndef _SDMMC_FLAGS_H_
+#define _SDMMC_FLAGS_H_
 
 /*--
 this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > SDIO",
@@ -50,54 +50,62 @@ this:AddWidget("Combobox", "Clock polarity")
 this:AddItem("SDIO_CK generated on rising edge", "SDIO_CLOCK_EDGE_RISING")
 this:AddItem("SDIO_CK generated on falling edge", "SDIO_CLOCK_EDGE_FALLING")
 --*/
-#define __SDIO_CFG_SDMMC1_CLOCK_EDGE__ SDIO_CLOCK_EDGE_RISING
+#define __SDMMC_CFG_SDMMC1_CLOCK_EDGE__ SDIO_CLOCK_EDGE_RISING
 
 /*--
 this:AddWidget("Combobox", "Hardware flow control")
 this:AddItem("Disable", "SDIO_HARDWARE_FLOW_CONTROL_DISABLE")
 this:AddItem("Enable", "SDIO_HARDWARE_FLOW_CONTROL_ENABLE")
 --*/
-#define __SDIO_CFG_SDMMC1_HW_FLOW_CTRL__ SDIO_HARDWARE_FLOW_CONTROL_DISABLE
+#define __SDMMC_CFG_SDMMC1_HW_FLOW_CTRL__ SDIO_HARDWARE_FLOW_CONTROL_DISABLE
 
 /*--
 this:AddWidget("Combobox", "Bus wide")
 this:AddItem("1-bit wide bus", "SDIO_BUS_WIDE_1B")
 this:AddItem("4-bit wide bus", "SDIO_BUS_WIDE_4B")
+this:AddItem("8-bit wide bus", "SDIO_BUS_WIDE_8B")
 --*/
-#define __SDIO_CFG_SDMMC1_BUS_WIDE__ SDIO_BUS_WIDE_4B
+#define __SDMMC_CFG_SDMMC1_BUS_WIDE__ SDIO_BUS_WIDE_4B
 
 /*--
 this:AddWidget("Spinbox", 1, 256, "Clock divide factor")
 --*/
-#define __SDIO_CFG_SDMMC1_CKDIV__ 3
+#define __SDMMC_CFG_SDMMC1_CKDIV__ 3
 
 /*--
 this:AddWidget("Spinbox", 100, 2000, "Card operation timeout [ms]")
 --*/
-#define __SDIO_CFG_SDMMC1_CARD_TIMEOUT__ 5000
+#define __SDMMC_CFG_SDMMC1_CARD_TIMEOUT__ 5000
 
 /*--
 this:AddWidget("Combobox", "Power save")
 this:AddItem("Disable", "SDIO_CLOCK_POWER_SAVE_DISABLE")
 this:AddItem("Enable", "SDIO_CLOCK_POWER_SAVE_ENABLE")
 --*/
-#define __SDIO_CFG_SDMMC1_PWRSAVE__ SDIO_CLOCK_POWER_SAVE_DISABLE
+#define __SDMMC_CFG_SDMMC1_PWRSAVE__ SDIO_CLOCK_POWER_SAVE_DISABLE
+
+/*--
+this:AddWidget("Combobox", "Device type")
+this:AddItem("SD Card", "_SDMMC_TYPE_SDCARD")
+this:AddItem("MMC/eMMC", "_SDMMC_TYPE_MMC")
+--*/
+#define __SDMMC_CFG_SDMMC1_TYPE__ _SDMMC_TYPE_SDCARD
 
 /*--
 this:AddWidget("Combobox", "Driver mode")
-this:AddItem("Polling", "_SDIO_MODE_POLLING")
-this:AddItem("IRQ", "_SDIO_MODE_IRQ")
-this:AddItem("DMA", "_SDIO_MODE_DMA")
+this:AddItem("Polling", "_SDMMC_MODE_POLLING")
+this:AddItem("IRQ", "_SDMMC_MODE_IRQ")
+this:AddItem("DMA", "_SDMMC_MODE_DMA")
 --*/
-#define __SDIO_CFG_SDMMC1_MODE__ _SDIO_MODE_DMA
+#define __SDMMC_CFG_SDMMC1_MODE__ _SDMMC_MODE_DMA
 
 /*--
 this:AddWidget("Combobox", "IRQ priority")
 uC.AddPriorityItems(this, false)
 --*/
-#define __SDIO_CFG_SDMMC1_IRQ_PRIORITY__ 13
+#define __SDMMC_CFG_SDMMC1_IRQ_PRIORITY__ 13
 
-#endif /* _SDIO_FLAGS_H_ */
+#endif /* _SDMMC_FLAGS_H_ */
 /*==============================================================================
   End of file
 ==============================================================================*/

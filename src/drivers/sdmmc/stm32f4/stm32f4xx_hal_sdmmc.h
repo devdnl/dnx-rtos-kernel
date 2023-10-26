@@ -40,11 +40,13 @@ Detailed Doxygen description.
 #include "drivers/driver.h"
 #include "stm32f4/stm32f4xx.h"
 #include "stm32f4/dma_ddi.h"
+#include "stm32f4/lib/misc.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#if defined(ARCH_stm32f4)
 #if defined(SDIO)
 
 /*==============================================================================
@@ -53,35 +55,9 @@ extern "C" {
 //#define SDMMC1
 #define HAL_SD_MODULE_ENABLED
 
-#define assert_param(...)
-#define HAL_GetTick()                   sys_get_uptime_ms()
-#define HAL_Delay(_ms)                  sys_sleep_ms(_ms)
-#define __weak                          __attribute__ ((weak))
-#define UNUSED(_x)                      UNUSED_ARG1(_x)
-
 /*==============================================================================
   Exported object types
 ==============================================================================*/
-/**
-  * @brief  HAL Status structures definition
-  */
-typedef enum
-{
-        SD_HAL_OK = ESUCC,
-        SD_HAL_TIMEOUT = ETIME,
-        SD_HAL_BUSY = EBUSY,
-        SD_HAL_ERROR = EIO,
-} HAL_StatusTypeDef;
-
-/**
-  * @brief  HAL Lock structures definition
-  */
-typedef enum
-{
-        SD_HAL_UNLOCKED = 0x00U,
-        SD_HAL_LOCKED   = 0x01U
-} HAL_LockTypeDef;
-
 /**
   * @brief  DMA handle Structure definition
   */
@@ -115,6 +91,7 @@ typedef struct __DMA_HandleTypeDef
   Exported inline functions
 ==============================================================================*/
 
+#endif
 #endif
 
 #ifdef __cplusplus

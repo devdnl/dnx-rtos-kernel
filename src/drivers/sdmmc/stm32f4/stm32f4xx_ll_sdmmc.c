@@ -156,7 +156,8 @@
   */
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32f4xx_hal_sd.h"
+#include "stm32f4xx_hal_sdmmc.h"
+#include "stm32f4xx_ll_sdmmc.h"
 
 #if defined(SDIO)
 
@@ -231,7 +232,7 @@ HAL_StatusTypeDef SDIO_Init(SDIO_TypeDef *SDIOx, SDIO_InitTypeDef Init)
   /* Write to SDMMC CLKCR */
   MODIFY_REG(SDIOx->CLKCR, CLKCR_CLEAR_MASK, tmpreg);
 
-  return SD_HAL_OK;
+  return HAL_OK;
 }
 
 
@@ -276,7 +277,7 @@ HAL_StatusTypeDef SDIO_WriteFIFO(SDIO_TypeDef *SDIOx, uint32_t *pWriteData)
   /* Write data to FIFO */
   SDIOx->FIFO = *pWriteData;
 
-  return SD_HAL_OK;
+  return HAL_OK;
 }
 
 /**
@@ -308,7 +309,7 @@ HAL_StatusTypeDef SDIO_PowerState_ON(SDIO_TypeDef *SDIOx)
   /* Set power state to ON */
   SDIOx->POWER = SDIO_POWER_PWRCTRL;
 
-  return SD_HAL_OK;
+  return HAL_OK;
 }
 
 /**
@@ -321,7 +322,7 @@ HAL_StatusTypeDef SDIO_PowerState_OFF(SDIO_TypeDef *SDIOx)
   /* Set power state to OFF */
   SDIOx->POWER = (uint32_t)0x00000000;
 
-  return SD_HAL_OK;
+  return HAL_OK;
 }
 
 /**
@@ -368,7 +369,7 @@ HAL_StatusTypeDef SDIO_SendCommand(SDIO_TypeDef *SDIOx, SDIO_CmdInitTypeDef *Com
   /* Write to SDMMC CMD register */
   MODIFY_REG(SDIOx->CMD, CMD_CLEAR_MASK, tmpreg);
 
-  return SD_HAL_OK;
+  return HAL_OK;
 }
 
 /**
@@ -440,7 +441,7 @@ HAL_StatusTypeDef SDIO_ConfigData(SDIO_TypeDef *SDIOx, SDIO_DataInitTypeDef* Dat
   /* Write to SDMMC DCTRL */
   MODIFY_REG(SDIOx->DCTRL, DCTRL_CLEAR_MASK, tmpreg);
 
-  return SD_HAL_OK;
+  return HAL_OK;
 
 }
 
@@ -481,7 +482,7 @@ HAL_StatusTypeDef SDIO_SetSDMMCReadWaitMode(SDIO_TypeDef *SDIOx, uint32_t SDIO_R
   /* Set SDMMC read wait mode */
   MODIFY_REG(SDIOx->DCTRL, SDIO_DCTRL_RWMOD, SDIO_ReadWaitMode);
 
-  return SD_HAL_OK;
+  return HAL_OK;
 }
 
 /**
@@ -864,7 +865,7 @@ uint32_t SDMMC_CmdAppCommand(SDIO_TypeDef *SDIOx, uint32_t Argument)
   (void)SDIO_SendCommand(SDIOx, &sdmmc_cmdinit);
 
   /* Check for error conditions */
-  /* If there is a SD_HAL_ERROR, it is a MMC card, else
+  /* If there is a HAL_ERROR, it is a MMC card, else
   it is a SD card: SD card 2.0 (voltage range mismatch)
      or SD card 1.x */
   errorstate = SDMMC_GetCmdResp1(SDIOx, SDMMC_CMD_APP_CMD, SDIO_CMDTIMEOUT);

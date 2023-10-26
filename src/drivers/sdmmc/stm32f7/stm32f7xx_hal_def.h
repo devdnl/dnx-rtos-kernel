@@ -40,6 +40,8 @@ Detailed Doxygen description.
 #include "drivers/driver.h"
 #include "stm32f7/stm32f7xx.h"
 
+#if defined(ARCH_stm32f7)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -129,6 +131,8 @@ typedef struct __DMA_HandleTypeDef
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif
 
 /**@}*/

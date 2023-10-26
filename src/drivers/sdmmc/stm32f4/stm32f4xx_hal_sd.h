@@ -20,8 +20,7 @@
 #ifndef STM32F4xx_HAL_SD_H
 #define STM32F4xx_HAL_SD_H
 
-#include "stm32f4xx_hal_sd.h"
-#include "stm32f4xx_hal_def.h"
+#include "stm32f4xx_hal_sdmmc.h"
 
 #ifdef __cplusplus
  extern "C" {
@@ -288,7 +287,7 @@ typedef void (*pSD_CallbackTypeDef)           (SD_HandleTypeDef *hsd);
   * @{
   */
 
-#define BLOCKSIZE   512U /*!< Block size is 512 bytes */
+#define SD_BLOCKSIZE   ((uint32_t)512U) /*!< Block size is 512 bytes */
 
 /** @defgroup SD_Exported_Constansts_Group1 SD Error status enumeration Structure definition
   * @{
