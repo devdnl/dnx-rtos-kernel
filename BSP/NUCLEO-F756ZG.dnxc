@@ -63,7 +63,7 @@
 				["value"]="_NO_";
 			};
 			[16]={
-				["key"]="__ENABLE_SDIO__";
+				["key"]="__ENABLE_SDMMC__";
 				["value"]="_YES_";
 			};
 			[17]={

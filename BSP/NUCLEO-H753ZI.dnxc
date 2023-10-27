@@ -63,66 +63,62 @@
 				["value"]="_NO_";
 			};
 			[16]={
-				["key"]="__ENABLE_SDIO__";
-				["value"]="_NO_";
-			};
-			[17]={
 				["key"]="__ENABLE_SDSPI__";
 				["value"]="_NO_";
 			};
-			[18]={
+			[17]={
 				["key"]="__ENABLE_TTY__";
 				["value"]="_YES_";
 			};
-			[19]={
+			[18]={
 				["key"]="__ENABLE_DHT11__";
 				["value"]="_NO_";
 			};
-			[20]={
+			[19]={
 				["key"]="__ENABLE_EMI__";
 				["value"]="_NO_";
 			};
-			[21]={
+			[20]={
 				["key"]="__ENABLE_DMA__";
 				["value"]="_NO_";
 			};
-			[22]={
+			[21]={
 				["key"]="__ENABLE_DCI__";
 				["value"]="_NO_";
 			};
-			[23]={
+			[22]={
 				["key"]="__ENABLE_CAN__";
 				["value"]="_NO_";
 			};
-			[24]={
+			[23]={
 				["key"]="__ENABLE_NVM__";
 				["value"]="_NO_";
 			};
-			[25]={
+			[24]={
 				["key"]="__ENABLE_PWM__";
 				["value"]="_NO_";
 			};
-			[26]={
+			[25]={
 				["key"]="__ENABLE_SPIEE__";
 				["value"]="_NO_";
 			};
-			[27]={
+			[26]={
 				["key"]="__ENABLE_SND__";
 				["value"]="_NO_";
 			};
-			[28]={
+			[27]={
 				["key"]="__ENABLE_PART__";
 				["value"]="_NO_";
 			};
-			[29]={
+			[28]={
 				["key"]="__ENABLE_URANDOM__";
 				["value"]="_NO_";
 			};
-			[30]={
+			[29]={
 				["key"]="__ENABLE_ZERO__";
 				["value"]="_NO_";
 			};
-			[31]={
+			[30]={
 				["key"]="__ENABLE_TIMENC__";
 				["value"]="_NO_";
 			};
