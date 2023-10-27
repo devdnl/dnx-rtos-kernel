@@ -1388,7 +1388,7 @@
 			};
 			[201]={
 				["key"]="__GPIO_PC_PIN_8_NAME__";
-				["value"]="SDIO_D0";
+				["value"]="SDMMC_D0";
 			};
 			[202]={
 				["key"]="__GPIO_PC_PIN_8_SPEED__";
@@ -1408,7 +1408,7 @@
 			};
 			[206]={
 				["key"]="__GPIO_PC_PIN_9_NAME__";
-				["value"]="SDIO_D1";
+				["value"]="SDMMC_D1";
 			};
 			[207]={
 				["key"]="__GPIO_PC_PIN_9_SPEED__";
@@ -1428,7 +1428,7 @@
 			};
 			[211]={
 				["key"]="__GPIO_PC_PIN_10_NAME__";
-				["value"]="SDIO_D2";
+				["value"]="SDMMC_D2";
 			};
 			[212]={
 				["key"]="__GPIO_PC_PIN_10_SPEED__";
@@ -1448,7 +1448,7 @@
 			};
 			[216]={
 				["key"]="__GPIO_PC_PIN_11_NAME__";
-				["value"]="SDIO_D3";
+				["value"]="SDMMC_D3";
 			};
 			[217]={
 				["key"]="__GPIO_PC_PIN_11_SPEED__";
@@ -1468,7 +1468,7 @@
 			};
 			[221]={
 				["key"]="__GPIO_PC_PIN_12_NAME__";
-				["value"]="SDIO_CK";
+				["value"]="SDMMC_CK";
 			};
 			[222]={
 				["key"]="__GPIO_PC_PIN_12_SPEED__";
@@ -1588,7 +1588,7 @@
 			};
 			[251]={
 				["key"]="__GPIO_PD_PIN_2_NAME__";
-				["value"]="SDIO_CMD";
+				["value"]="SDMMC_CMD";
 			};
 			[252]={
 				["key"]="__GPIO_PD_PIN_2_SPEED__";
@@ -4370,15 +4370,15 @@
 		["arch/stm32f7/sdmmc_flags.h"]={
 			[1]={
 				["key"]="__SDMMC_CFG_SDMMC1_CLOCK_EDGE__";
-				["value"]="SDIO_CLOCK_EDGE_RISING";
+				["value"]="SDMMC_CLOCK_EDGE_RISING";
 			};
 			[2]={
 				["key"]="__SDMMC_CFG_SDMMC1_HW_FLOW_CTRL__";
-				["value"]="SDIO_HARDWARE_FLOW_CONTROL_DISABLE";
+				["value"]="SDMMC_HARDWARE_FLOW_CONTROL_DISABLE";
 			};
 			[3]={
 				["key"]="__SDMMC_CFG_SDMMC1_BUS_WIDE__";
-				["value"]="SDIO_BUS_WIDE_4B";
+				["value"]="SDMMC_BUS_WIDE_4B";
 			};
 			[4]={
 				["key"]="__SDMMC_CFG_SDMMC1_CKDIV__";
@@ -4390,7 +4390,7 @@
 			};
 			[6]={
 				["key"]="__SDMMC_CFG_SDMMC1_PWRSAVE__";
-				["value"]="SDIO_CLOCK_POWER_SAVE_DISABLE";
+				["value"]="SDMMC_CLOCK_POWER_SAVE_DISABLE";
 			};
 			[7]={
 				["key"]="__SDMMC_CFG_SDMMC1_TYPE__";
@@ -4406,15 +4406,15 @@
 			};
 			[10]={
 				["key"]="__SDMMC_CFG_SDMMC2_CLOCK_EDGE__";
-				["value"]="SDIO_CLOCK_EDGE_RISING";
+				["value"]="SDMMC_CLOCK_EDGE_RISING";
 			};
 			[11]={
 				["key"]="__SDMMC_CFG_SDMMC2_HW_FLOW_CTRL__";
-				["value"]="SDIO_HARDWARE_FLOW_CONTROL_DISABLE";
+				["value"]="SDMMC_HARDWARE_FLOW_CONTROL_DISABLE";
 			};
 			[12]={
 				["key"]="__SDMMC_CFG_SDMMC2_BUS_WIDE__";
-				["value"]="SDIO_BUS_WIDE_4B";
+				["value"]="SDMMC_BUS_WIDE_4B";
 			};
 			[13]={
 				["key"]="__SDMMC_CFG_SDMMC2_CKDIV__";
@@ -4426,7 +4426,7 @@
 			};
 			[15]={
 				["key"]="__SDMMC_CFG_SDMMC2_PWRSAVE__";
-				["value"]="SDIO_CLOCK_POWER_SAVE_DISABLE";
+				["value"]="SDMMC_CLOCK_POWER_SAVE_DISABLE";
 			};
 			[16]={
 				["key"]="__SDMMC_CFG_SDMMC2_TYPE__";
