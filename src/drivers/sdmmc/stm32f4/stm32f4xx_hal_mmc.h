@@ -134,7 +134,7 @@ typedef struct
 
   __IO uint32_t                ErrorCode;        /*!< MMC Card Error codes                 */
 
-  DMA_HandleTypeDef            *hdma;            /*!< SD Rx/Tx DMA handle parameters      */
+  DMA_HandleTypeDef            *hdma;            /*!< SD Rx/Tx DMA handle parameters       */
 
   HAL_MMC_CardInfoTypeDef      MmcCard;          /*!< MMC Card information                 */
 

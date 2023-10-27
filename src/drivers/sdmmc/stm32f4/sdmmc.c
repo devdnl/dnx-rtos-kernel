@@ -253,9 +253,8 @@ API_MOD_RELEASE(SDMMC, void *device_handle)
 /**
  * @brief Open device.
  *
- * @param[in ]          *device_handle          device allocated memory
- * @param[in ]           flags                  file operation flags (O_RDONLY, O_WRONLY,
- * O_RDWR)
+ * @param[in ] device_handle     device allocated memory
+ * @param[in ] flags             file operation flags (O_RDONLY, O_WRONLY, O_RDWR)
  *
  * @return One of errno value (errno.h).
  */
@@ -550,7 +549,7 @@ static int register_DMA_channel(SDMMC_t *hdl)
         dmah->Config.cb_half            = NULL;
         dmah->Config.cb_next            = NULL;
         dmah->Config.data_number        = 0;
-        dmah->Config.peripheral_address = cast(u32_t, &SDIO->FIFO);
+        dmah->Config.peripheral_address = cast(u32_t, &SDMMC[hdl->major].instance->FIFO);
         dmah->Config.memory_address[0]  = 0;
         dmah->Config.memory_address[1]  = 0;
         dmah->Config.IRQ_priority       = SDMMC[hdl->major].IRQ_priority;
@@ -860,12 +859,18 @@ static int card_wait_ready(SDMMC_t *hdl)
 //==============================================================================
 static int card_check_sdmmc_error(SDMMC_t *hdl)
 {
+        u32_t hal_err = HAL_SD_ERROR_NONE;
+
+        if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
 #if IS_SD_USING
-        u32_t hal_err = HAL_SD_GetError(&hdl->handle.sd);
+                hal_err = HAL_SD_GetError(&hdl->handle.sd);
 #endif
+        } else {
 #if IS_MMC_USING
-        u32_t hal_err = HAL_MMC_GetError(&hdl->handle.mmc);
+                hal_err = HAL_MMC_GetError(&hdl->handle.mmc);
 #endif
+        }
+
         if (hal_err == HAL_SD_ERROR_NONE) {
                 return 0;
         }

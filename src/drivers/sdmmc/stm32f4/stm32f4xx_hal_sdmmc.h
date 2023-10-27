@@ -1,11 +1,11 @@
 /*==============================================================================
-File    stm32f7xx_hal_def.h
+File    stm32f4xx_hal_sdmmc.h
 
 Author  Daniel Zorychta
 
-Brief   .
+Brief   SDMMC HAL definitions.
 
-        Copyright (C) 2021 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2023 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -52,8 +52,8 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
-//#define SDMMC1
 #define HAL_SD_MODULE_ENABLED
+#define HAL_MMC_MODULE_ENABLED
 
 /*==============================================================================
   Exported object types

@@ -11,9 +11,7 @@ ifeq ($(__ENABLE_SDMMC__), _YES_)
    endif
    ifeq ($(TARGET), stm32f7)
       CSRC_ARCH   += drivers/sdmmc/$(TARGET)/sdmmc.c
-      CSRC_ARCH   += drivers/sdmmc/$(TARGET)/stm32f7xx_hal_mmc_ex.c
       CSRC_ARCH   += drivers/sdmmc/$(TARGET)/stm32f7xx_hal_mmc.c
-      CSRC_ARCH   += drivers/sdmmc/$(TARGET)/stm32f7xx_hal_sd_ex.c
       CSRC_ARCH   += drivers/sdmmc/$(TARGET)/stm32f7xx_hal_sd.c
       CSRC_ARCH   += drivers/sdmmc/$(TARGET)/stm32f7xx_ll_sdmmc.c
       CXXSRC_ARCH +=

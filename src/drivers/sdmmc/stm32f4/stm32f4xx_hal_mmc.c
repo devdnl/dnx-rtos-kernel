@@ -1672,18 +1672,18 @@ void HAL_MMC_IRQHandler(MMC_HandleTypeDef *hmmc)
     else if((context & MMC_CONTEXT_DMA) != 0U)
     {
       /* Abort the MMC DMA Streams */
-    if(((context & MMC_CONTEXT_WRITE_SINGLE_BLOCK) != 0U) || ((context & MMC_CONTEXT_WRITE_MULTIPLE_BLOCK) != 0U))
-    {
+      if(((context & MMC_CONTEXT_WRITE_SINGLE_BLOCK) != 0U) || ((context & MMC_CONTEXT_WRITE_MULTIPLE_BLOCK) != 0U))
+      {
         /* Abort DMA in IT mode */
         MMC_DMATxAbort(hmmc->hdma);
-    }
-    else if(((context & MMC_CONTEXT_READ_SINGLE_BLOCK) != 0U) || ((context & MMC_CONTEXT_READ_MULTIPLE_BLOCK) != 0U))
-    {
+      }
+      else if(((context & MMC_CONTEXT_READ_SINGLE_BLOCK) != 0U) || ((context & MMC_CONTEXT_READ_MULTIPLE_BLOCK) != 0U))
+      {
         /* Abort DMA in IT mode */
         MMC_DMARxAbort(hmmc->hdma);
-    }
-    else
-    {
+      }
+      else
+      {
         hmmc->ErrorCode = HAL_MMC_ERROR_NONE;
         hmmc->State = HAL_MMC_STATE_READY;
 #if defined (USE_HAL_MMC_REGISTER_CALLBACKS) && (USE_HAL_MMC_REGISTER_CALLBACKS == 1U)

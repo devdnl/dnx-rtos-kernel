@@ -1206,7 +1206,7 @@ HAL_StatusTypeDef HAL_SD_ReadBlocks_DMA(SD_HandleTypeDef *hsd, uint8_t *pData, u
 
     /* Enable the DMA Channel */
     hsd->hdma->Config.cb_finish          = SD_DMA_finished;
-    hsd->hdma->Config.data_number        = (SD_BLOCKSIZE * NumberOfBlocks) / sizeof(SDIO->FIFO);
+    hsd->hdma->Config.data_number        = (SD_BLOCKSIZE * NumberOfBlocks) / sizeof(hsd->Instance->FIFO);
     hsd->hdma->Config.memory_address[0]  = cast(u32_t, pData);
     hsd->hdma->Config.transfer_direction = _DMA_DDI_TRANSFER_DIRECTION_PERIPHERAL_TO_MEMORY;
 
@@ -1359,7 +1359,7 @@ HAL_StatusTypeDef HAL_SD_WriteBlocks_DMA(SD_HandleTypeDef *hsd, const uint8_t *p
 
     /* Enable the DMA Channel */
     hsd->hdma->Config.cb_finish          = SD_DMA_finished;
-    hsd->hdma->Config.data_number        = (SD_BLOCKSIZE * NumberOfBlocks) / sizeof(SDIO->FIFO);
+    hsd->hdma->Config.data_number        = (SD_BLOCKSIZE * NumberOfBlocks) / sizeof(hsd->Instance->FIFO);
     hsd->hdma->Config.memory_address[0]  = cast(u32_t, pData);
     hsd->hdma->Config.transfer_direction = _DMA_DDI_TRANSFER_DIRECTION_MEMORY_TO_PERIPHERAL;
 

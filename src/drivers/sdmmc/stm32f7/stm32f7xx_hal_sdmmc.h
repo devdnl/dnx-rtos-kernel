@@ -1,11 +1,11 @@
 /*==============================================================================
-File    stm32f7xx_hal_def.h
+File    stm32f7xx_hal_sdmmc.h
 
 Author  Daniel Zorychta
 
-Brief   .
+Brief   SDMMC HAL definitions.
 
-        Copyright (C) 2021 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2023 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -39,81 +39,43 @@ Detailed Doxygen description.
 ==============================================================================*/
 #include "drivers/driver.h"
 #include "stm32f7/stm32f7xx.h"
-
-#if defined(ARCH_stm32f7)
+#include "stm32f7/dma_ddi.h"
+#include "stm32f7/lib/misc.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#if defined(ARCH_stm32f7)
+#if defined(SDMMC1) || defined(SDMMC2)
+
 /*==============================================================================
   Exported macros
 ==============================================================================*/
-//#define SDMMC1
 #define HAL_SD_MODULE_ENABLED
-
-#define assert_param(...)
-#define HAL_GetTick()                   sys_get_uptime_ms()
-#define HAL_Delay(_ms)                  sys_sleep_ms(_ms)
-#define __weak                          __attribute__ ((weak))
-#define UNUSED(_x)                      UNUSED_ARG1(_x)
+#define HAL_MMC_MODULE_ENABLED
 
 /*==============================================================================
   Exported object types
 ==============================================================================*/
 /**
-  * @brief  HAL Status structures definition
-  */
-typedef enum
-{
-        SD_HAL_OK = ESUCC,
-        SD_HAL_TIMEOUT = ETIME,
-        SD_HAL_BUSY = EBUSY,
-        SD_HAL_ERROR = EIO,
-} HAL_StatusTypeDef;
-
-/**
-  * @brief  HAL Lock structures definition
-  */
-typedef enum
-{
-        SD_HAL_UNLOCKED = 0x00U,
-        SD_HAL_LOCKED   = 0x01U
-} HAL_LockTypeDef;
-
-
-/**
   * @brief  DMA handle Structure definition
   */
 typedef struct __DMA_HandleTypeDef
 {
-  DMA_Stream_TypeDef         *Instance;                                                    /*!< Register base address                  */
-// FIXME
-//  DMA_InitTypeDef            Init;                                                         /*!< DMA communication parameters           */
+  u32_t                      dmad;                                                             /*!< DMA descriptor */
 
-  HAL_LockTypeDef            Lock;                                                         /*!< DMA locking object                     */
-// FIXME
-//  __IO HAL_DMA_StateTypeDef  State;                                                        /*!< DMA transfer state                     */
+  _DMA_DDI_config_t          Config;                                                           /*!< DMA configuration */
 
-  void                       *Parent;                                                      /*!< Parent object state                    */
+  u32_t                      Status;                                                           /*!< Status flags */
 
-  void                       (* XferCpltCallback)( struct __DMA_HandleTypeDef * hdma);     /*!< DMA transfer complete callback         */
+  void                       *Parent;                                                          /*!< Parent object state                    */
 
-  void                       (* XferHalfCpltCallback)( struct __DMA_HandleTypeDef * hdma); /*!< DMA Half transfer complete callback    */
+  void                       (* XferCpltCallback)( struct __DMA_HandleTypeDef * hdma);         /*!< DMA transfer complete callback         */
 
-  void                       (* XferM1CpltCallback)( struct __DMA_HandleTypeDef * hdma);   /*!< DMA transfer complete Memory1 callback */
+  void                       (* XferErrorCallback)( struct __DMA_HandleTypeDef * hdma);        /*!< DMA transfer error callback            */
 
-  void                       (* XferM1HalfCpltCallback)( struct __DMA_HandleTypeDef * hdma);   /*!< DMA transfer Half complete Memory1 callback */
-
-  void                       (* XferErrorCallback)( struct __DMA_HandleTypeDef * hdma);    /*!< DMA transfer error callback            */
-
-  void                       (* XferAbortCallback)( struct __DMA_HandleTypeDef * hdma);    /*!< DMA transfer Abort callback            */
-
- __IO uint32_t               ErrorCode;                                                    /*!< DMA Error code                          */
-
- uint32_t                    StreamBaseAddress;                                            /*!< DMA Stream Base Address                */
-
- uint32_t                    StreamIndex;                                                  /*!< DMA Stream Index                       */
+  __IO uint32_t              ErrorCode;                                                        /*!< DMA Error code                          */
 
 }DMA_HandleTypeDef;
 
@@ -129,10 +91,11 @@ typedef struct __DMA_HandleTypeDef
   Exported inline functions
 ==============================================================================*/
 
-#ifdef __cplusplus
-}
+#endif
 #endif
 
+#ifdef __cplusplus
+}
 #endif
 
 /**@}*/

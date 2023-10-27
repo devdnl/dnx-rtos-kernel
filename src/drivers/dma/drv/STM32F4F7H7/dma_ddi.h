@@ -105,7 +105,7 @@ typedef struct {
                 _DMA_DDI_MEMORY_BURST_SINGLE_TRANSFER,
                 _DMA_DDI_MEMORY_BURST_4_BEATS,
                 _DMA_DDI_MEMORY_BURST_8_BEATS,
-                _DMA_DDI_MEMORY_BURRT_16_BEATS,
+                _DMA_DDI_MEMORY_BURST_16_BEATS,
         } memory_burst:2;
 
         enum {

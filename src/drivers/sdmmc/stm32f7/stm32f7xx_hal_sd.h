@@ -6,13 +6,12 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2017 STMicroelectronics.
-  * All rights reserved.</center></h2>
+  * Copyright (c) 2017 STMicroelectronics.
+  * All rights reserved.
   *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                       opensource.org/licenses/BSD-3-Clause
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -21,14 +20,14 @@
 #ifndef STM32F7xx_HAL_SD_H
 #define STM32F7xx_HAL_SD_H
 
-/* Includes ------------------------------------------------------------------*/
-#include "stm32f7xx_ll_sdmmc.h"
-
 #ifdef __cplusplus
  extern "C" {
 #endif
 
 #if defined(SDMMC1)
+
+/* Includes ------------------------------------------------------------------*/
+#include "stm32f7xx_ll_sdmmc.h"
 
 /** @addtogroup STM32F7xx_HAL_Driver
   * @{
@@ -55,7 +54,7 @@ typedef enum
   HAL_SD_STATE_BUSY                   = 0x00000003U,  /*!< SD process ongoing                  */
   HAL_SD_STATE_PROGRAMMING            = 0x00000004U,  /*!< SD Programming State                */
   HAL_SD_STATE_RECEIVING              = 0x00000005U,  /*!< SD Receiving State                  */
-  HAL_SD_STATE_TRANSFER               = 0x00000006U,  /*!< SD Transfert State                  */
+  HAL_SD_STATE_TRANSFER               = 0x00000006U,  /*!< SD Transfer State                  */
   HAL_SD_STATE_ERROR                  = 0x0000000FU   /*!< SD is in error state                */
 }HAL_SD_StateTypeDef;
 /**
@@ -138,17 +137,13 @@ typedef struct
 
   __IO uint32_t                ErrorCode;        /*!< SD Card Error codes                 */
 
-  DMA_HandleTypeDef            *hdmatx;          /*!< SD Tx DMA handle parameters         */
-
-  DMA_HandleTypeDef            *hdmarx;          /*!< SD Rx DMA handle parameters         */
+  DMA_HandleTypeDef            *hdma;            /*!< SD Rx/Tx DMA handle parameters       */
 
   HAL_SD_CardInfoTypeDef       SdCard;           /*!< SD Card information                 */
 
   uint32_t                     CSD[4];           /*!< SD card specific data table         */
 
   uint32_t                     CID[4];           /*!< SD card identification number table */
-
-  void                         *CtxPtr;          /*!< Driver context pointer              */
 
 #if defined (USE_HAL_SD_REGISTER_CALLBACKS) && (USE_HAL_SD_REGISTER_CALLBACKS == 1U)
   void (* TxCpltCallback)                 (struct __SD_HandleTypeDef *hsd);
@@ -159,6 +154,7 @@ typedef struct
   void (* MspInitCallback)                (struct __SD_HandleTypeDef *hsd);
   void (* MspDeInitCallback)              (struct __SD_HandleTypeDef *hsd);
 #endif /* USE_HAL_SD_REGISTER_CALLBACKS */
+  void *CtxPtr; /*!< Context */
 }SD_HandleTypeDef;
 
 /**
@@ -289,7 +285,7 @@ typedef void (*pSD_CallbackTypeDef)           (SD_HandleTypeDef *hsd);
   * @{
   */
 
-#define BLOCKSIZE   512U /*!< Block size is 512 bytes */
+#define SD_BLOCKSIZE   512U /*!< Block size is 512 bytes */
 
 /** @defgroup SD_Exported_Constansts_Group1 SD Error status enumeration Structure definition
   * @{
@@ -759,5 +755,3 @@ HAL_StatusTypeDef HAL_SD_Abort_IT(SD_HandleTypeDef *hsd);
 
 
 #endif /* STM32F7xx_HAL_SD_H */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

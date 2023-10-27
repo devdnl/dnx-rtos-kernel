@@ -4367,70 +4367,78 @@
 				["value"]="(0 << 12)";
 			};
 		};
-		["arch/stm32f7/sdio_flags.h"]={
+		["arch/stm32f7/sdmmc_flags.h"]={
 			[1]={
-				["key"]="__SDIO_CFG_SDMMC1_CLOCK_EDGE__";
-				["value"]="SDMMC_CLOCK_EDGE_RISING";
+				["key"]="__SDMMC_CFG_SDMMC1_CLOCK_EDGE__";
+				["value"]="SDIO_CLOCK_EDGE_RISING";
 			};
 			[2]={
-				["key"]="__SDIO_CFG_SDMMC1_HW_FLOW_CTRL__";
-				["value"]="SDMMC_HARDWARE_FLOW_CONTROL_ENABLE";
+				["key"]="__SDMMC_CFG_SDMMC1_HW_FLOW_CTRL__";
+				["value"]="SDIO_HARDWARE_FLOW_CONTROL_DISABLE";
 			};
 			[3]={
-				["key"]="__SDIO_CFG_SDMMC1_BUS_WIDE__";
-				["value"]="SDMMC_BUS_WIDE_4B";
+				["key"]="__SDMMC_CFG_SDMMC1_BUS_WIDE__";
+				["value"]="SDIO_BUS_WIDE_4B";
 			};
 			[4]={
-				["key"]="__SDIO_CFG_SDMMC1_CKDIV__";
-				["value"]="1";
+				["key"]="__SDMMC_CFG_SDMMC1_CKDIV__";
+				["value"]="3";
 			};
 			[5]={
-				["key"]="__SDIO_CFG_SDMMC1_CARD_TIMEOUT__";
-				["value"]="500";
+				["key"]="__SDMMC_CFG_SDMMC1_CARD_TIMEOUT__";
+				["value"]="5000";
 			};
 			[6]={
-				["key"]="__SDIO_CFG_SDMMC1_PWRSAVE__";
-				["value"]="SDMMC_CLOCK_POWER_SAVE_DISABLE";
+				["key"]="__SDMMC_CFG_SDMMC1_PWRSAVE__";
+				["value"]="SDIO_CLOCK_POWER_SAVE_DISABLE";
 			};
 			[7]={
-				["key"]="__SDIO_CFG_SDMMC1_MODE__";
-				["value"]="_SDIO_MODE_IRQ";
+				["key"]="__SDMMC_CFG_SDMMC1_TYPE__";
+				["value"]="_SDMMC_TYPE_SDCARD";
 			};
 			[8]={
-				["key"]="__SDIO_CFG_SDMMC1_IRQ_PRIORITY__";
-				["value"]="__CPU_DEFAULT_IRQ_PRIORITY__";
+				["key"]="__SDMMC_CFG_SDMMC1_MODE__";
+				["value"]="_SDMMC_MODE_DMA";
 			};
 			[9]={
-				["key"]="__SDIO_CFG_SDMMC2_CLOCK_EDGE__";
-				["value"]="SDMMC_CLOCK_EDGE_RISING";
+				["key"]="__SDMMC_CFG_SDMMC1_IRQ_PRIORITY__";
+				["value"]="13";
 			};
 			[10]={
-				["key"]="__SDIO_CFG_SDMMC2_HW_FLOW_CTRL__";
-				["value"]="SDMMC_HARDWARE_FLOW_CONTROL_ENABLE";
+				["key"]="__SDMMC_CFG_SDMMC2_CLOCK_EDGE__";
+				["value"]="SDIO_CLOCK_EDGE_RISING";
 			};
 			[11]={
-				["key"]="__SDIO_CFG_SDMMC2_BUS_WIDE__";
-				["value"]="SDMMC_BUS_WIDE_4B";
+				["key"]="__SDMMC_CFG_SDMMC2_HW_FLOW_CTRL__";
+				["value"]="SDIO_HARDWARE_FLOW_CONTROL_DISABLE";
 			};
 			[12]={
-				["key"]="__SDIO_CFG_SDMMC2_CKDIV__";
-				["value"]="1";
+				["key"]="__SDMMC_CFG_SDMMC2_BUS_WIDE__";
+				["value"]="SDIO_BUS_WIDE_4B";
 			};
 			[13]={
-				["key"]="__SDIO_CFG_SDMMC2_CARD_TIMEOUT__";
-				["value"]="500";
+				["key"]="__SDMMC_CFG_SDMMC2_CKDIV__";
+				["value"]="3";
 			};
 			[14]={
-				["key"]="__SDIO_CFG_SDMMC2_PWRSAVE__";
-				["value"]="SDMMC_CLOCK_POWER_SAVE_DISABLE";
+				["key"]="__SDMMC_CFG_SDMMC2_CARD_TIMEOUT__";
+				["value"]="5000";
 			};
 			[15]={
-				["key"]="__SDIO_CFG_SDMMC2_MODE__";
-				["value"]="_SDIO_MODE_IRQ";
+				["key"]="__SDMMC_CFG_SDMMC2_PWRSAVE__";
+				["value"]="SDIO_CLOCK_POWER_SAVE_DISABLE";
 			};
 			[16]={
-				["key"]="__SDIO_CFG_SDMMC2_IRQ_PRIORITY__";
-				["value"]="__CPU_DEFAULT_IRQ_PRIORITY__";
+				["key"]="__SDMMC_CFG_SDMMC2_TYPE__";
+				["value"]="_SDMMC_TYPE_SDCARD";
+			};
+			[17]={
+				["key"]="__SDMMC_CFG_SDMMC2_MODE__";
+				["value"]="_SDMMC_MODE_DMA";
+			};
+			[18]={
+				["key"]="__SDMMC_CFG_SDMMC2_IRQ_PRIORITY__";
+				["value"]="13";
 			};
 		};
 		["arch/stm32f7/spi_flags.h"]={
