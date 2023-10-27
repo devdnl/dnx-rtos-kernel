@@ -1362,6 +1362,7 @@ static void HAL_SDMMC_MspDeInit(SDMMC_t *hdl)
         CLEAR_BIT(*SDMMC[hdl->major].RCC_APBENR, SDMMC[hdl->major].RCC_APBENR_SDMMCEN);
 }
 
+#if IS_SD_USING
 //==============================================================================
 /**
  * @brief  Basic SD interface initialization.
@@ -1385,6 +1386,7 @@ void HAL_SD_MspDeInit(SD_HandleTypeDef *hsd)
 {
         HAL_SDMMC_MspDeInit(hsd->CtxPtr);
 }
+#endif
 
 //==============================================================================
 /**
@@ -1410,6 +1412,7 @@ void HAL_MMC_MspDeInit(MMC_HandleTypeDef *hmmc)
         HAL_SDMMC_MspDeInit(hmmc->CtxPtr);
 }
 
+#if IS_SD_USING
 //==============================================================================
 /**
  * @brief  Rx complete callback.
@@ -1448,7 +1451,9 @@ void HAL_SD_ErrorCallback(SD_HandleTypeDef *hsd)
         SDMMC_t *hdl = hsd->CtxPtr;
         sys_semaphore_signal_from_ISR(hdl->sem_xfer_complete, &hdl->irq_yield);
 }
+#endif
 
+#if IS_MMC_USING
 //==============================================================================
 /**
  * @brief  Rx complete callback.
@@ -1487,6 +1492,7 @@ void HAL_MMC_ErrorCallback(MMC_HandleTypeDef *hmmc)
         SDMMC_t *hdl = hmmc->CtxPtr;
         sys_semaphore_signal_from_ISR(hdl->sem_xfer_complete, &hdl->irq_yield);
 }
+#endif
 
 //==============================================================================
 /**

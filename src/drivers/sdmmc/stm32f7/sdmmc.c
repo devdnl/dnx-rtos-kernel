@@ -1428,6 +1428,7 @@ void HAL_MMC_MspDeInit(MMC_HandleTypeDef *hmmc)
         HAL_SDMMC_MspDeInit(hmmc->CtxPtr);
 }
 
+#if IS_SD_USING
 //==============================================================================
 /**
  * @brief  Rx complete callback.
@@ -1466,7 +1467,9 @@ void HAL_SD_ErrorCallback(SD_HandleTypeDef *hsd)
         SDMMC_t *hdl = hsd->CtxPtr;
         sys_semaphore_signal_from_ISR(hdl->sem_xfer_complete, &hdl->irq_yield);
 }
+#endif
 
+#if IS_MMC_USING
 //==============================================================================
 /**
  * @brief  Rx complete callback.
@@ -1505,6 +1508,7 @@ void HAL_MMC_ErrorCallback(MMC_HandleTypeDef *hmmc)
         SDMMC_t *hdl = hmmc->CtxPtr;
         sys_semaphore_signal_from_ISR(hdl->sem_xfer_complete, &hdl->irq_yield);
 }
+#endif
 
 //==============================================================================
 /**
