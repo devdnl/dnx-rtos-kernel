@@ -115,6 +115,7 @@ typedef struct {
 ==============================================================================*/
 static int card_initialize(SDMMC_t *hdl);
 static int card_wait_ready(SDMMC_t *hdl);
+static int card_check_sdmmc_error(SDMMC_t *hdl);
 static int card_write_blocks(SDMMC_t *hdl, const u8_t *src, uint32_t block_address,
         uint32_t blocks);
 static int card_write_blocks_IT(SDMMC_t *hdl, const u8_t *src, uint32_t block_address,
@@ -156,11 +157,11 @@ static const sdmmc_info_t SDMMC[] = {
                 .bus_wide           = __SDMMC_CFG_SDMMC1_BUS_WIDE__,
                 .hardware_flow_ctrl = __SDMMC_CFG_SDMMC1_HW_FLOW_CTRL__,
                 .mode               = __SDMMC_CFG_SDMMC1_MODE__,
+                .card_type          = __SDMMC_CFG_SDMMC1_TYPE__,
                 .DMA_channel        = 4,
                 .DMA_major          = 1,
                 .DMA_stream_pri     = 3,
                 .DMA_stream_alt     = 6,
-                .card_type          = __SDMMC_CFG_SDMMC1_TYPE__,
         },
 #endif
 #if defined(SDMMC2)
@@ -169,19 +170,19 @@ static const sdmmc_info_t SDMMC[] = {
                 .RCC_APBENR         = &RCC->APB2ENR,
                 .RCC_APBENR_SDMMCEN = RCC_APB2ENR_SDMMC2EN,
                 .IRQn               = SDMMC2_IRQn,
-                .IRQ_priority       = __SDMMC_CFG_SDMMC1_IRQ_PRIORITY__,
-                .card_timeout       = __SDMMC_CFG_SDMMC1_CARD_TIMEOUT__,
-                .clock_edge         = __SDMMC_CFG_SDMMC1_CLOCK_EDGE__,
-                .clock_power_save   = __SDMMC_CFG_SDMMC1_PWRSAVE__,
-                .clock_div          = __SDMMC_CFG_SDMMC1_CKDIV__ - 1,
-                .bus_wide           = __SDMMC_CFG_SDMMC1_BUS_WIDE__,
-                .hardware_flow_ctrl = __SDMMC_CFG_SDMMC1_HW_FLOW_CTRL__,
-                .mode               = __SDMMC_CFG_SDMMC1_MODE__,
+                .IRQ_priority       = __SDMMC_CFG_SDMMC2_IRQ_PRIORITY__,
+                .card_timeout       = __SDMMC_CFG_SDMMC2_CARD_TIMEOUT__,
+                .clock_edge         = __SDMMC_CFG_SDMMC2_CLOCK_EDGE__,
+                .clock_power_save   = __SDMMC_CFG_SDMMC2_PWRSAVE__,
+                .clock_div          = __SDMMC_CFG_SDMMC2_CKDIV__ - 1,
+                .bus_wide           = __SDMMC_CFG_SDMMC2_BUS_WIDE__,
+                .hardware_flow_ctrl = __SDMMC_CFG_SDMMC2_HW_FLOW_CTRL__,
+                .mode               = __SDMMC_CFG_SDMMC2_MODE__,
+                .card_type          = __SDMMC_CFG_SDMMC2_TYPE__,
                 .DMA_channel        = 11,
                 .DMA_major          = 1,
                 .DMA_stream_pri     = 0,
                 .DMA_stream_alt     = 5,
-                .card_type          = __SDMMC_CFG_SDMMC1_TYPE__,
         }
 #endif
 };
@@ -714,8 +715,7 @@ static int card_initialize(SDMMC_t *hdl)
                         }
 
                         if (err) {
-                                dev_dbg(hdl, "error code: %08Xh",
-                                        hdl->handle.sd.ErrorCode);
+                                card_check_sdmmc_error(hdl);
                                 HAL_SD_DeInit(&hdl->handle.sd);
                         } else {
                                 break;
@@ -805,6 +805,7 @@ static int card_initialize(SDMMC_t *hdl)
                         }
 
                         if (err) {
+                                card_check_sdmmc_error(hdl);
                                 HAL_MMC_DeInit(&hdl->handle.mmc);
                         } else {
                                 break;

@@ -106,6 +106,7 @@ typedef struct {
 ==============================================================================*/
 static int card_initialize(SDMMC_t *hdl);
 static int card_wait_ready(SDMMC_t *hdl);
+static int card_check_sdmmc_error(SDMMC_t *hdl);
 static int card_write_blocks(SDMMC_t *hdl, const u8_t *src, uint32_t block_address,
         uint32_t blocks);
 static int card_write_blocks_IT(SDMMC_t *hdl, const u8_t *src, uint32_t block_address,
@@ -146,11 +147,11 @@ static const sdmmc_info_t SDMMC[] = {
                 .bus_wide           = __SDMMC_CFG_SDMMC1_BUS_WIDE__,
                 .hardware_flow_ctrl = __SDMMC_CFG_SDMMC1_HW_FLOW_CTRL__,
                 .mode               = __SDMMC_CFG_SDMMC1_MODE__,
+                .card_type          = __SDMMC_CFG_SDMMC1_TYPE__,
                 .DMA_channel        = 4,
                 .DMA_major          = 1,
                 .DMA_stream_pri     = 3,
                 .DMA_stream_alt     = 6,
-                .card_type          = __SDMMC_CFG_SDMMC1_TYPE__,
         },
 };
 
@@ -787,6 +788,7 @@ static int card_initialize(SDMMC_t *hdl)
                         }
 
                         if (err) {
+                                card_check_sdmmc_error(hdl);
                                 HAL_MMC_DeInit(&hdl->handle.mmc);
                         } else {
                                 break;
@@ -1362,7 +1364,6 @@ static void HAL_SDMMC_MspDeInit(SDMMC_t *hdl)
         CLEAR_BIT(*SDMMC[hdl->major].RCC_APBENR, SDMMC[hdl->major].RCC_APBENR_SDMMCEN);
 }
 
-#if IS_SD_USING
 //==============================================================================
 /**
  * @brief  Basic SD interface initialization.
@@ -1386,7 +1387,6 @@ void HAL_SD_MspDeInit(SD_HandleTypeDef *hsd)
 {
         HAL_SDMMC_MspDeInit(hsd->CtxPtr);
 }
-#endif
 
 //==============================================================================
 /**
