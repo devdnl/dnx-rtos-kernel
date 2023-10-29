@@ -667,10 +667,13 @@ static int card_initialize(SDMMC_t *hdl)
                                 if (SDMMC[hdl->major].bus_wide != SDIO_BUS_WIDE_1B) {
                                         if (HAL_SD_ConfigWideBusOperation(&hdl->handle.sd,
                                                     SDIO_BUS_WIDE_4B) == HAL_OK) {
-                                                dev_dbg(hdl, "switched to 4-bit bus");
+                                                dev_dbg(hdl, "using 4-bit wide bus");
                                         } else {
-                                                dev_dbg(hdl, "4-bit bus not supported");
+                                                dev_dbg(hdl, "4-bit wide bus not supported");
+                                                dev_dbg(hdl, "using 1-bit wide bus");
                                         }
+                                } else {
+                                        dev_dbg(hdl, "using 1-bit wide bus");
                                 }
 
                                 HAL_SD_CardInfoTypeDef info;
