@@ -549,56 +549,6 @@
 				["value"]="12";
 			};
 		};
-		["arch/stm32f4/eth_flags.h"]={
-			[1]={
-				["key"]="__ETH_CHECKSUM_BY_HARDWARE__";
-				["value"]="ETH_CHECKSUM_BY_HARDWARE";
-			};
-			[2]={
-				["key"]="__ETH_SPEED__";
-				["value"]="ETH_SPEED_100M";
-			};
-			[3]={
-				["key"]="__ETH_RXBUFNB__";
-				["value"]="10";
-			};
-			[4]={
-				["key"]="__ETH_TXBUFNB__";
-				["value"]="3";
-			};
-			[5]={
-				["key"]="__ETH_DEVICE__";
-				["value"]="LAN8742A";
-			};
-			[6]={
-				["key"]="__ETH_PHY_SR__";
-				["value"]="31";
-			};
-			[7]={
-				["key"]="__ETH_PHY_SPEED_STATUS_BM__";
-				["value"]="0x0004";
-			};
-			[8]={
-				["key"]="__ETH_PHY_DUPLEX_STATUS_BM__";
-				["value"]="0x0010";
-			};
-			[9]={
-				["key"]="__ETH_PHY_ADDRESS__";
-				["value"]="0";
-			};
-			[10]={
-				["key"]="__ETH_PHY_RESET_DELAY__";
-				["value"]="250";
-			};
-			[11]={
-				["key"]="__ETH_PHY_CONFIG_DELAY__";
-				["value"]="500";
-			};
-			[12]={
-				["key"]="__ETH_PHY_AUTONEGOTIATION__";
-				["value"]="ETH_AUTONEGOTIATION_DISABLE";
-			};
-		};
 		["arch/stm32f4/emi_flags.h"]={
 			[1]={
 				["key"]="__EMI_SDRAM_RPIPE__";
@@ -691,6 +641,56 @@
 			[23]={
 				["key"]="__EMI_SDRAM_2_TRCD__";
 				["value"]="16";
+			};
+		};
+		["arch/stm32f4/eth_flags.h"]={
+			[1]={
+				["key"]="__ETH_CHECKSUM_BY_HARDWARE__";
+				["value"]="ETH_CHECKSUM_BY_HARDWARE";
+			};
+			[2]={
+				["key"]="__ETH_SPEED__";
+				["value"]="ETH_SPEED_100M";
+			};
+			[3]={
+				["key"]="__ETH_RXBUFNB__";
+				["value"]="10";
+			};
+			[4]={
+				["key"]="__ETH_TXBUFNB__";
+				["value"]="3";
+			};
+			[5]={
+				["key"]="__ETH_DEVICE__";
+				["value"]="LAN8742A";
+			};
+			[6]={
+				["key"]="__ETH_PHY_SR__";
+				["value"]="31";
+			};
+			[7]={
+				["key"]="__ETH_PHY_SPEED_STATUS_BM__";
+				["value"]="0x0004";
+			};
+			[8]={
+				["key"]="__ETH_PHY_DUPLEX_STATUS_BM__";
+				["value"]="0x0010";
+			};
+			[9]={
+				["key"]="__ETH_PHY_ADDRESS__";
+				["value"]="0";
+			};
+			[10]={
+				["key"]="__ETH_PHY_RESET_DELAY__";
+				["value"]="250";
+			};
+			[11]={
+				["key"]="__ETH_PHY_CONFIG_DELAY__";
+				["value"]="500";
+			};
+			[12]={
+				["key"]="__ETH_PHY_AUTONEGOTIATION__";
+				["value"]="ETH_AUTONEGOTIATION_DISABLE";
 			};
 		};
 		["arch/stm32f4/gpio_flags.h"]={
@@ -5077,6 +5077,34 @@
 				["value"]="_YES_";
 			};
 		};
+		["network/network_flags.h"]={
+			[1]={
+				["key"]="__ENABLE_TCPIP_STACK__";
+				["value"]="_NO_";
+			};
+			[2]={
+				["key"]="__ENABLE_SIPC_STACK__";
+				["value"]="_NO_";
+			};
+			[3]={
+				["key"]="__ENABLE_CANNET_STACK__";
+				["value"]="_NO_";
+			};
+		};
+		["network/sipc_flags.h"]={
+			[1]={
+				["key"]="__NETWORK_SIPC_INTERFACE_PATH__";
+				["value"]="\"/dev/nc\"";
+			};
+			[2]={
+				["key"]="__NETWORK_SIPC_DEBUG_ON__";
+				["value"]="_NO_";
+			};
+			[3]={
+				["key"]="__NETWORK_SIPC_RECV_BUF_SIZE__";
+				["value"]="2048";
+			};
+		};
 		["network/tcpip_flags.h"]={
 			[1]={
 				["key"]="__NETWORK_MEMP_OVERFLOW_CHECK__";
@@ -5701,34 +5729,6 @@
 			[156]={
 				["key"]="__NETWORK_DHCP6_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
-			};
-		};
-      ["network/network_flags.h"]={
-         [1.000000]={
-            ["key"]="__ENABLE_TCPIP_STACK__";
-            ["value"]="_NO_";
-         };
-         [2.000000]={
-            ["key"]="__ENABLE_SIPC_STACK__";
-            ["value"]="_NO_";
-         };
-         [3.000000]={
-            ["key"]="__ENABLE_CANNET_STACK__";
-            ["value"]="_NO_";
-         };
-      };
-		["network/sipc_flags.h"]={
-			[1]={
-				["key"]="__NETWORK_SIPC_INTERFACE_PATH__";
-				["value"]="\"/dev/nc\"";
-			};
-			[2]={
-				["key"]="__NETWORK_SIPC_DEBUG_ON__";
-				["value"]="_NO_";
-			};
-			[3]={
-				["key"]="__NETWORK_SIPC_RECV_BUF_SIZE__";
-				["value"]="2048";
 			};
 		};
 		["os/os_flags.h"]={

@@ -303,7 +303,7 @@ typedef void (*pSD_TransceiverCallbackTypeDef)(FlagStatus status);
   * @{
   */
 
-#define BLOCKSIZE   ((uint32_t)512U) /*!< Block size is 512 bytes */
+#define SD_BLOCKSIZE   ((uint32_t)512U) /*!< Block size is 512 bytes */
 
 /** @defgroup SD_Exported_Constansts_Group1 SD Error status enumeration Structure definition
   * @{
@@ -636,8 +636,8 @@ void              HAL_SD_MspDeInit(SD_HandleTypeDef *hsd);
 /* Blocking mode: Polling */
 HAL_StatusTypeDef HAL_SD_ReadBlocks(SD_HandleTypeDef *hsd, uint8_t *pData, uint32_t BlockAdd, uint32_t NumberOfBlocks,
                                     uint32_t Timeout);
-HAL_StatusTypeDef HAL_SD_WriteBlocks(SD_HandleTypeDef *hsd, const uint8_t *pData, uint32_t BlockAdd, uint32_t NumberOfBlocks,
-                                     uint32_t Timeout);
+HAL_StatusTypeDef HAL_SD_WriteBlocks(SD_HandleTypeDef *hsd, const uint8_t *pData, uint32_t BlockAdd,
+                                     uint32_t NumberOfBlocks, uint32_t Timeout);
 HAL_StatusTypeDef HAL_SD_Erase(SD_HandleTypeDef *hsd, uint32_t BlockStartAdd, uint32_t BlockEndAdd);
 /* Non-Blocking mode: IT */
 HAL_StatusTypeDef HAL_SD_ReadBlocks_IT(SD_HandleTypeDef *hsd, uint8_t *pData, uint32_t BlockAdd,

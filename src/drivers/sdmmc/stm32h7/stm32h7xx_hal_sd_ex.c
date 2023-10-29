@@ -45,6 +45,8 @@
   * @{
   */
 
+#ifdef HAL_SD_MODULE_ENABLED
+
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
@@ -86,7 +88,7 @@ HAL_StatusTypeDef HAL_SDEx_ConfigDMAMultiBuffer(SD_HandleTypeDef *hsd, uint32_t 
   {
     hsd->Instance->IDMABASE0 = (uint32_t) pDataBuffer0;
     hsd->Instance->IDMABASE1 = (uint32_t) pDataBuffer1;
-    hsd->Instance->IDMABSIZE = (uint32_t)(BLOCKSIZE * BufferSize);
+    hsd->Instance->IDMABSIZE = (uint32_t)(SD_BLOCKSIZE * BufferSize);
 
     return HAL_OK;
   }
@@ -145,7 +147,7 @@ HAL_StatusTypeDef HAL_SDEx_ReadBlocksDMAMultiBuffer(SD_HandleTypeDef *hsd, uint3
 
     /* Configure the SD DPSM (Data Path State Machine) */
     config.DataTimeOut   = SDMMC_DATATIMEOUT;
-    config.DataLength    = BLOCKSIZE * NumberOfBlocks;
+    config.DataLength    = SD_BLOCKSIZE * NumberOfBlocks;
     config.DataBlockSize = SDMMC_DATABLOCK_SIZE_512B;
     config.TransferDir   = SDMMC_TRANSFER_DIR_TO_SDMMC;
     config.TransferMode  = SDMMC_TRANSFER_MODE_BLOCK;
@@ -229,7 +231,7 @@ HAL_StatusTypeDef HAL_SDEx_WriteBlocksDMAMultiBuffer(SD_HandleTypeDef *hsd, uint
 
     /* Configure the SD DPSM (Data Path State Machine) */
     config.DataTimeOut   = SDMMC_DATATIMEOUT;
-    config.DataLength    = BLOCKSIZE * NumberOfBlocks;
+    config.DataLength    = SD_BLOCKSIZE * NumberOfBlocks;
     config.DataBlockSize = SDMMC_DATABLOCK_SIZE_512B;
     config.TransferDir   = SDMMC_TRANSFER_DIR_TO_CARD;
     config.TransferMode  = SDMMC_TRANSFER_MODE_BLOCK;
@@ -300,6 +302,8 @@ HAL_StatusTypeDef HAL_SDEx_ChangeDMABuffer(SD_HandleTypeDef *hsd, HAL_SDEx_DMABu
 /**
   * @}
   */
+
+#endif /* HAL_SD_MODULE_ENABLED */
 
 /**
   * @}

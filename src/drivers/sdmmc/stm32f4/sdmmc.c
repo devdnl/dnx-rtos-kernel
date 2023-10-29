@@ -669,7 +669,8 @@ static int card_initialize(SDMMC_t *hdl)
                                                     SDIO_BUS_WIDE_4B) == HAL_OK) {
                                                 dev_dbg(hdl, "using 4-bit wide bus");
                                         } else {
-                                                dev_dbg(hdl, "4-bit wide bus not supported");
+                                                dev_dbg(hdl,
+                                                        "4-bit wide bus not supported");
                                                 dev_dbg(hdl, "using 1-bit wide bus");
                                         }
                                 } else {
@@ -817,40 +818,31 @@ static int card_wait_ready(SDMMC_t *hdl)
         u64_t timeout = sys_get_uptime_ms() +
                 max(SDMMC[hdl->major].card_timeout / 10, 100);
 
-        if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
+        while (sys_get_uptime_ms() < timeout) {
+
+                uint32_t state          = 0;
+                uint32_t expected_state = 0;
+
+                if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
 #if IS_SD_USING
-                HAL_SD_CardStateTypeDef state;
-                while ((state = HAL_SD_GetCardState(&hdl->handle.sd)) !=
-                        HAL_SD_CARD_TRANSFER) {
-
-                        sys_sleep_ms(1);
-
-                        if (sys_get_uptime_ms() >= timeout) {
-                                return ETIME;
-                        }
-                }
-#else
-                return EFAULT;
+                        state          = HAL_SD_GetCardState(&hdl->handle.sd);
+                        expected_state = HAL_SD_CARD_TRANSFER;
 #endif
-
-        } else {
+                } else {
 #if IS_MMC_USING
-                HAL_MMC_CardStateTypeDef state;
-                while ((state = HAL_MMC_GetCardState(&hdl->handle.mmc)) !=
-                        HAL_MMC_CARD_TRANSFER) {
-
-                        sys_sleep_ms(1);
-
-                        if (sys_get_uptime_ms() >= timeout) {
-                                return ETIME;
-                        }
-                }
-#else
-                return EFAULT;
+                        state          = HAL_MMC_GetCardState(&hdl->handle.mmc);
+                        expected_state = HAL_MMC_CARD_TRANSFER;
 #endif
+                }
+
+                if (state == expected_state) {
+                        return 0;
+                } else {
+                        sys_sleep_ms(1);
+                }
         }
 
-        return 0;
+        return ETIME;
 }
 
 //==============================================================================
@@ -993,23 +985,23 @@ static int card_check_sdmmc_error(SDMMC_t *hdl)
         }
 
         if (hal_err & HAL_SD_ERROR_ADDR_OUT_OF_RANGE) {
-                dev_dbg(hdl, "Error when addressed block is out of range");
+                dev_dbg(hdl, "Addressed block is out of range");
         }
 
         if (hal_err & HAL_SD_ERROR_REQUEST_NOT_APPLICABLE) {
-                dev_dbg(hdl, "Error when command request is not applicable");
+                dev_dbg(hdl, "Command request is not applicable");
         }
 
         if (hal_err & HAL_SD_ERROR_PARAM) {
-                dev_dbg(hdl, "the used parameter is not valid");
+                dev_dbg(hdl, "The used parameter is not valid");
         }
 
         if (hal_err & HAL_SD_ERROR_UNSUPPORTED_FEATURE) {
-                dev_dbg(hdl, "Error when feature is not insupported");
+                dev_dbg(hdl, "Feature is not supported");
         }
 
         if (hal_err & HAL_SD_ERROR_BUSY) {
-                dev_dbg(hdl, "Error when transfer process is busy");
+                dev_dbg(hdl, "Transfer process is busy");
                 err = EBUSY;
         }
 
@@ -1084,36 +1076,25 @@ static int card_write_blocks_IT(SDMMC_t *hdl, const u8_t *src, uint32_t block_ad
         if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
 #if IS_SD_USING
                 err = HAL_SD_WriteBlocks_IT(&hdl->handle.sd, src, block_address, blocks);
-                if (!err) {
-                        err = sys_semaphore_wait(hdl->sem_xfer_complete,
-                                SDMMC[hdl->major].card_timeout);
-                        if (err) {
-                                dev_dbg(hdl, "write timeout");
-                                card_check_sdmmc_error(hdl);
-                        } else {
-                                err = card_check_sdmmc_error(hdl);
-                        }
-                } else {
-                        err = card_check_sdmmc_error(hdl);
-                }
 #endif
         } else {
 #if IS_MMC_USING
                 err = HAL_MMC_WriteBlocks_IT(&hdl->handle.mmc, src, block_address,
                         blocks);
-                if (!err) {
-                        err = sys_semaphore_wait(hdl->sem_xfer_complete,
-                                SDMMC[hdl->major].card_timeout);
-                        if (err) {
-                                dev_dbg(hdl, "write timeout");
-                                card_check_sdmmc_error(hdl);
-                        } else {
-                                err = card_check_sdmmc_error(hdl);
-                        }
+#endif
+        }
+
+        if (!err) {
+                err = sys_semaphore_wait(hdl->sem_xfer_complete,
+                        SDMMC[hdl->major].card_timeout);
+                if (err) {
+                        dev_dbg(hdl, "write timeout");
+                        card_check_sdmmc_error(hdl);
                 } else {
                         err = card_check_sdmmc_error(hdl);
                 }
-#endif
+        } else {
+                err = card_check_sdmmc_error(hdl);
         }
 
         return err;
@@ -1154,19 +1135,6 @@ static int card_write_blocks_DMA(SDMMC_t *hdl, const u8_t *src, uint32_t block_a
                         err = HAL_SD_WriteBlocks_IT(&hdl->handle.sd, src, block_address,
                                 blocks);
                 }
-
-                if (!err) {
-                        err = sys_semaphore_wait(hdl->sem_xfer_complete,
-                                SDMMC[hdl->major].card_timeout);
-                        if (err) {
-                                dev_dbg(hdl, "write timeout");
-                                card_check_sdmmc_error(hdl);
-                        } else {
-                                err = card_check_sdmmc_error(hdl);
-                        }
-                } else {
-                        err = card_check_sdmmc_error(hdl);
-                }
 #endif
         } else {
 #if IS_MMC_USING
@@ -1177,20 +1145,20 @@ static int card_write_blocks_DMA(SDMMC_t *hdl, const u8_t *src, uint32_t block_a
                         err = HAL_MMC_WriteBlocks_IT(&hdl->handle.mmc, src, block_address,
                                 blocks);
                 }
+#endif
+        }
 
-                if (!err) {
-                        err = sys_semaphore_wait(hdl->sem_xfer_complete,
-                                SDMMC[hdl->major].card_timeout);
-                        if (err) {
-                                dev_dbg(hdl, "write timeout");
-                                card_check_sdmmc_error(hdl);
-                        } else {
-                                err = card_check_sdmmc_error(hdl);
-                        }
+        if (!err) {
+                err = sys_semaphore_wait(hdl->sem_xfer_complete,
+                        SDMMC[hdl->major].card_timeout);
+                if (err) {
+                        dev_dbg(hdl, "write timeout");
+                        card_check_sdmmc_error(hdl);
                 } else {
                         err = card_check_sdmmc_error(hdl);
                 }
-#endif
+        } else {
+                err = card_check_sdmmc_error(hdl);
         }
 
         return err;

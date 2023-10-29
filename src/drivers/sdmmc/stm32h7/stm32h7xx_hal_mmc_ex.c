@@ -46,6 +46,8 @@
   * @{
   */
 
+#ifdef HAL_MMC_MODULE_ENABLED
+
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
@@ -340,6 +342,8 @@ HAL_StatusTypeDef HAL_MMCEx_ChangeDMABuffer(MMC_HandleTypeDef *hmmc, HAL_MMCEx_D
 /**
   * @}
   */
+
+#endif /* HAL_MMC_MODULE_ENABLED */
 
 /**
   * @}

@@ -4291,6 +4291,34 @@
 				["value"]="_YES_";
 			};
 		};
+		["network/network_flags.h"]={
+			[1]={
+				["key"]="__ENABLE_TCPIP_STACK__";
+				["value"]="_NO_";
+			};
+			[2]={
+				["key"]="__ENABLE_SIPC_STACK__";
+				["value"]="_NO_";
+			};
+			[3]={
+				["key"]="__ENABLE_CANNET_STACK__";
+				["value"]="_NO_";
+			};
+		};
+		["network/sipc_flags.h"]={
+			[1]={
+				["key"]="__NETWORK_SIPC_INTERFACE_PATH__";
+				["value"]="\"/dev/nc\"";
+			};
+			[2]={
+				["key"]="__NETWORK_SIPC_DEBUG_ON__";
+				["value"]="_NO_";
+			};
+			[3]={
+				["key"]="__NETWORK_SIPC_RECV_BUF_SIZE__";
+				["value"]="2048";
+			};
+		};
 		["network/tcpip_flags.h"]={
 			[1]={
 				["key"]="__NETWORK_MEMP_OVERFLOW_CHECK__";
@@ -4915,34 +4943,6 @@
 			[156]={
 				["key"]="__NETWORK_DHCP6_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
-			};
-		};
-      ["network/network_flags.h"]={
-         [1.000000]={
-            ["key"]="__ENABLE_TCPIP_STACK__";
-            ["value"]="_NO_";
-         };
-         [2.000000]={
-            ["key"]="__ENABLE_SIPC_STACK__";
-            ["value"]="_NO_";
-         };
-         [3.000000]={
-            ["key"]="__ENABLE_CANNET_STACK__";
-            ["value"]="_NO_";
-         };
-      };
-		["network/sipc_flags.h"]={
-			[1]={
-				["key"]="__NETWORK_SIPC_INTERFACE_PATH__";
-				["value"]="\"/dev/nc\"";
-			};
-			[2]={
-				["key"]="__NETWORK_SIPC_DEBUG_ON__";
-				["value"]="_NO_";
-			};
-			[3]={
-				["key"]="__NETWORK_SIPC_RECV_BUF_SIZE__";
-				["value"]="2048";
 			};
 		};
 		["os/os_flags.h"]={

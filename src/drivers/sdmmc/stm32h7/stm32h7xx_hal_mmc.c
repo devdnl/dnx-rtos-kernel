@@ -254,6 +254,8 @@
   * @{
   */
 
+#ifdef HAL_MMC_MODULE_ENABLED
+
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /** @addtogroup MMC_Private_Defines
@@ -455,8 +457,15 @@ HAL_StatusTypeDef HAL_MMC_InitCard(MMC_HandleTypeDef *hmmc)
 
   /* wait 74 Cycles: required power up waiting time before starting
      the MMC initialization sequence */
-  sdmmc_clk = sdmmc_clk / (2U * Init.ClockDiv);
-  HAL_Delay(1U + (74U * 1000U / (sdmmc_clk)));
+  if (Init.ClockDiv != 0U)
+  {
+    sdmmc_clk = sdmmc_clk / (2U * Init.ClockDiv);
+  }
+
+  if (sdmmc_clk != 0U)
+  {
+    HAL_Delay(1U + (74U * 1000U / (sdmmc_clk)));
+  }
 
   /* Identify card operating voltage */
   errorstate = MMC_PowerON(hmmc);
@@ -593,7 +602,8 @@ __weak void HAL_MMC_MspDeInit(MMC_HandleTypeDef *hmmc)
   * @retval HAL status
   */
 HAL_StatusTypeDef HAL_MMC_ReadBlocks(MMC_HandleTypeDef *hmmc, uint8_t *pData, uint32_t BlockAdd,
-                                     uint32_t NumberOfBlocks, uint32_t Timeout)
+                                     uint32_t NumberOfBlocks,
+                                     uint32_t Timeout)
 {
   SDMMC_DataInitTypeDef config;
   uint32_t errorstate;
@@ -984,8 +994,8 @@ HAL_StatusTypeDef HAL_MMC_WriteBlocks(MMC_HandleTypeDef *hmmc, const uint8_t *pD
   * @param  NumberOfBlocks: Number of blocks to read.
   * @retval HAL status
   */
-HAL_StatusTypeDef HAL_MMC_ReadBlocks_IT(MMC_HandleTypeDef *hmmc, uint8_t *pData,
-                                        uint32_t BlockAdd, uint32_t NumberOfBlocks)
+HAL_StatusTypeDef HAL_MMC_ReadBlocks_IT(MMC_HandleTypeDef *hmmc, uint8_t *pData, uint32_t BlockAdd,
+                                        uint32_t NumberOfBlocks)
 {
   SDMMC_DataInitTypeDef config;
   uint32_t errorstate;
@@ -1211,8 +1221,8 @@ HAL_StatusTypeDef HAL_MMC_WriteBlocks_IT(MMC_HandleTypeDef *hmmc, const uint8_t 
   * @param  NumberOfBlocks: Number of blocks to read.
   * @retval HAL status
   */
-HAL_StatusTypeDef HAL_MMC_ReadBlocks_DMA(MMC_HandleTypeDef *hmmc, uint8_t *pData,
-                                         uint32_t BlockAdd, uint32_t NumberOfBlocks)
+HAL_StatusTypeDef HAL_MMC_ReadBlocks_DMA(MMC_HandleTypeDef *hmmc, uint8_t *pData, uint32_t BlockAdd,
+                                         uint32_t NumberOfBlocks)
 {
   SDMMC_DataInitTypeDef config;
   uint32_t errorstate;
@@ -1864,6 +1874,9 @@ __weak void HAL_MMC_AbortCallback(MMC_HandleTypeDef *hmmc)
 /**
   * @brief  Register a User MMC Callback
   *         To be used instead of the weak (surcharged) predefined callback
+  * @note   The HAL_MMC_RegisterCallback() may be called before HAL_MMC_Init() in 
+  *         HAL_MMC_STATE_RESET to register callbacks for HAL_MMC_MSP_INIT_CB_ID 
+  *         and HAL_MMC_MSP_DEINIT_CB_ID.
   * @param hmmc : MMC handle
   * @param CallbackId : ID of the callback to be registered
   *        This parameter can be one of the following values:
@@ -1891,9 +1904,6 @@ HAL_StatusTypeDef HAL_MMC_RegisterCallback(MMC_HandleTypeDef *hmmc, HAL_MMC_Call
     hmmc->ErrorCode |= HAL_MMC_ERROR_INVALID_CALLBACK;
     return HAL_ERROR;
   }
-
-  /* Process locked */
-  __HAL_LOCK(hmmc);
 
   if (hmmc->State == HAL_MMC_STATE_READY)
   {
@@ -1963,14 +1973,15 @@ HAL_StatusTypeDef HAL_MMC_RegisterCallback(MMC_HandleTypeDef *hmmc, HAL_MMC_Call
     status =  HAL_ERROR;
   }
 
-  /* Release Lock */
-  __HAL_UNLOCK(hmmc);
   return status;
 }
 
 /**
   * @brief  Unregister a User MMC Callback
   *         MMC Callback is redirected to the weak (surcharged) predefined callback
+  * @note   The HAL_MMC_UnRegisterCallback() may be called before HAL_MMC_Init() in 
+  *         HAL_MMC_STATE_RESET to register callbacks for HAL_MMC_MSP_INIT_CB_ID 
+  *         and HAL_MMC_MSP_DEINIT_CB_ID.
   * @param hmmc : MMC handle
   * @param CallbackId : ID of the callback to be unregistered
   *        This parameter can be one of the following values:
@@ -1989,9 +2000,6 @@ HAL_StatusTypeDef HAL_MMC_RegisterCallback(MMC_HandleTypeDef *hmmc, HAL_MMC_Call
 HAL_StatusTypeDef HAL_MMC_UnRegisterCallback(MMC_HandleTypeDef *hmmc, HAL_MMC_CallbackIDTypeDef CallbackId)
 {
   HAL_StatusTypeDef status = HAL_OK;
-
-  /* Process locked */
-  __HAL_LOCK(hmmc);
 
   if (hmmc->State == HAL_MMC_STATE_READY)
   {
@@ -2061,8 +2069,6 @@ HAL_StatusTypeDef HAL_MMC_UnRegisterCallback(MMC_HandleTypeDef *hmmc, HAL_MMC_Ca
     status =  HAL_ERROR;
   }
 
-  /* Release Lock */
-  __HAL_UNLOCK(hmmc);
   return status;
 }
 #endif /* USE_HAL_MMC_REGISTER_CALLBACKS */
@@ -2691,35 +2697,90 @@ HAL_MMC_CardStateTypeDef HAL_MMC_GetCardState(MMC_HandleTypeDef *hmmc)
   */
 HAL_StatusTypeDef HAL_MMC_Abort(MMC_HandleTypeDef *hmmc)
 {
-  HAL_MMC_CardStateTypeDef CardState;
+  uint32_t error_code;
+  uint32_t tickstart;
 
-  /* DIsable All interrupts */
-  __HAL_MMC_DISABLE_IT(hmmc, SDMMC_IT_DATAEND | SDMMC_IT_DCRCFAIL | SDMMC_IT_DTIMEOUT | \
-                       SDMMC_IT_TXUNDERR | SDMMC_IT_RXOVERR);
-
-  /* Clear All flags */
-  __HAL_MMC_CLEAR_FLAG(hmmc, SDMMC_STATIC_DATA_FLAGS);
-
-  /* If IDMA Context, disable Internal DMA */
-  hmmc->Instance->IDMACTRL = SDMMC_DISABLE_IDMA;
-
-  hmmc->State = HAL_MMC_STATE_READY;
-
-  /* Initialize the MMC operation */
-  hmmc->Context = MMC_CONTEXT_NONE;
-
-  CardState = HAL_MMC_GetCardState(hmmc);
-  if ((CardState == HAL_MMC_CARD_RECEIVING) || (CardState == HAL_MMC_CARD_SENDING))
+  if (hmmc->State == HAL_MMC_STATE_BUSY)
   {
+    /* DIsable All interrupts */
+    __HAL_MMC_DISABLE_IT(hmmc, SDMMC_IT_DATAEND | SDMMC_IT_DCRCFAIL | SDMMC_IT_DTIMEOUT | \
+                         SDMMC_IT_TXUNDERR | SDMMC_IT_RXOVERR);
+    __SDMMC_CMDTRANS_DISABLE(hmmc->Instance);
+
+    /*we will send the CMD12 in all cases in order to stop the data transfers*/
+    /*In case the data transfer just finished , the external memory will not respond and will return HAL_MMC_ERROR_CMD_RSP_TIMEOUT*/
+    /*In case the data transfer aborted , the external memory will respond and will return HAL_MMC_ERROR_NONE*/
+    /*Other scenario will return HAL_ERROR*/
+
     hmmc->ErrorCode = SDMMC_CmdStopTransfer(hmmc->Instance);
-  }
-  if (hmmc->ErrorCode != HAL_MMC_ERROR_NONE)
-  {
-    return HAL_ERROR;
+    error_code = hmmc->ErrorCode;
+    if ((error_code != HAL_MMC_ERROR_NONE) && (error_code != HAL_MMC_ERROR_CMD_RSP_TIMEOUT))
+    {
+      return HAL_ERROR;
+    }
+
+    tickstart = HAL_GetTick();
+    if ((hmmc->Instance->DCTRL & SDMMC_DCTRL_DTDIR) == SDMMC_TRANSFER_DIR_TO_CARD)
+    {
+      if (hmmc->ErrorCode == HAL_MMC_ERROR_NONE)
+      {
+         while(!__HAL_MMC_GET_FLAG(hmmc, SDMMC_FLAG_DABORT | SDMMC_FLAG_BUSYD0END))
+        {
+           if ((HAL_GetTick() - tickstart) >=  SDMMC_DATATIMEOUT)
+           {
+              hmmc->ErrorCode = HAL_MMC_ERROR_TIMEOUT;
+              hmmc->State = HAL_MMC_STATE_READY;
+              return HAL_TIMEOUT;
+           }
+        }
+      }
+
+      if (hmmc->ErrorCode == HAL_MMC_ERROR_CMD_RSP_TIMEOUT)
+      {
+        while(!__HAL_MMC_GET_FLAG(hmmc, SDMMC_FLAG_DATAEND))
+        {
+           if ((HAL_GetTick() - tickstart) >=  SDMMC_DATATIMEOUT)
+           {
+              hmmc->ErrorCode = HAL_MMC_ERROR_TIMEOUT;
+              hmmc->State = HAL_MMC_STATE_READY;
+              return HAL_TIMEOUT;
+           }
+        }
+      }
+    }
+    else if ((hmmc->Instance->DCTRL & SDMMC_DCTRL_DTDIR) == SDMMC_TRANSFER_DIR_TO_SDMMC)
+    {
+      while(!__HAL_MMC_GET_FLAG(hmmc, SDMMC_FLAG_DABORT | SDMMC_FLAG_DATAEND))
+      {
+           if ((HAL_GetTick() - tickstart) >=  SDMMC_DATATIMEOUT)
+           {
+              hmmc->ErrorCode = HAL_MMC_ERROR_TIMEOUT;
+              hmmc->State = HAL_MMC_STATE_READY;
+              return HAL_TIMEOUT;
+           }
+      }
+    }
+    else
+    {
+      /* Nothing to do*/
+    }
+
+    /*The reason of all these while conditions previously is that we need to wait the SDMMC and clear the appropriate flags that will be set depending of the abort/non abort of the memory */
+    /*Not waiting the SDMMC flags will cause the next SDMMC_DISABLE_IDMA to not get cleared and will result in next SDMMC read/write operation to fail */
+
+    /*SDMMC ready for clear data flags*/
+    __HAL_MMC_CLEAR_FLAG(hmmc, SDMMC_FLAG_BUSYD0END);
+    __HAL_MMC_CLEAR_FLAG(hmmc, SDMMC_STATIC_DATA_FLAGS);
+      /* If IDMA Context, disable Internal DMA */
+    hmmc->Instance->IDMACTRL = SDMMC_DISABLE_IDMA;
+
+    hmmc->State = HAL_MMC_STATE_READY;
+
+    /* Initialize the MMC operation */
+    hmmc->Context = MMC_CONTEXT_NONE;
   }
   return HAL_OK;
 }
-
 /**
   * @brief  Abort the current transfer and disable the MMC (IT mode).
   * @param  hmmc: pointer to a MMC_HandleTypeDef structure that contains
@@ -4279,6 +4340,8 @@ __weak void HAL_MMCEx_Write_DMADoubleBuf1CpltCallback(MMC_HandleTypeDef *hmmc)
 /**
   * @}
   */
+
+#endif /* HAL_MMC_MODULE_ENABLED */
 
 /**
   * @}

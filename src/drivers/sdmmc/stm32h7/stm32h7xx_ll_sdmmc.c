@@ -163,6 +163,8 @@
   * @{
   */
 
+#if defined (HAL_SD_MODULE_ENABLED) || defined (HAL_MMC_MODULE_ENABLED)
+
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 #define SystemCoreClock         ((uint32_t)550000000UL)
@@ -1635,6 +1637,7 @@ static uint32_t SDMMC_GetCmdError(SDMMC_TypeDef *SDMMCx)
   * @}
   */
 
+#endif /* HAL_SD_MODULE_ENABLED || HAL_MMC_MODULE_ENABLED */
 /**
   * @}
   */

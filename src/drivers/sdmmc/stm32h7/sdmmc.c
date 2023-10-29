@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   SD/MMC/eMMC Card Driver.
 
-        Copyright (C) 2022 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2023 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@ Brief   SD/MMC/eMMC Card Driver.
 
 ==============================================================================*/
 
+#pragma GCC optimize("Os")
+
 /*==============================================================================
   Include files
 ==============================================================================*/
@@ -33,12 +35,13 @@ Brief   SD/MMC/eMMC Card Driver.
 #include "stm32h7/dma_ddi.h"
 #include "stm32h7xx_hal_mmc.h"
 #include "stm32h7xx_hal_sd.h"
-#include "stm32h7xx_hal_sdmmc.h"
 
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define MTX_TIMEOUT         2500
+#define MTX_TIMEOUT         25000
+
+#define SDMMC_BLOCKSIZE     SD_BLOCKSIZE
 
 #define _SDMMC_MODE_POLLING 0
 #define _SDMMC_MODE_IRQ     1
@@ -109,14 +112,15 @@ typedef struct {
 ==============================================================================*/
 static int card_initialize(SDMMC_t *hdl);
 static int card_wait_ready(SDMMC_t *hdl);
+static int card_check_sdmmc_error(SDMMC_t *hdl);
 static int card_write_blocks(SDMMC_t *hdl, const u8_t *src, uint32_t block_address,
-        uint32_t blocks, uint32_t timeout);
+        uint32_t blocks);
 static int card_write_blocks_IT(SDMMC_t *hdl, const u8_t *src, uint32_t block_address,
         uint32_t blocks);
 static int card_write_blocks_DMA(SDMMC_t *hdl, const u8_t *src, uint32_t block_address,
         uint32_t blocks);
 static int card_read_blocks(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
-        uint32_t blocks, uint32_t timeout);
+        uint32_t blocks);
 static int card_read_blocks_IT(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
         uint32_t blocks);
 static int card_read_blocks_DMA(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
@@ -143,7 +147,7 @@ static const sdmmc_info_t SDMMC[] = {
                 .RCC_APBENR_SDMMCEN = RCC_AHB3ENR_SDMMC1EN,
                 .IRQn               = SDMMC1_IRQn,
                 .IRQ_priority       = __SDMMC_CFG_SDMMC1_IRQ_PRIORITY__,
-                .card_timeout       = __SDMMC_CFG_SDMMC1_TIMEOUT__,
+                .card_timeout       = __SDMMC_CFG_SDMMC1_CARD_TIMEOUT__,
                 .clock_edge         = __SDMMC_CFG_SDMMC1_CLOCK_EDGE__,
                 .clock_power_save   = __SDMMC_CFG_SDMMC1_PWRSAVE__,
                 .clock_div          = __SDMMC_CFG_SDMMC1_CKDIV__ - 1,
@@ -161,7 +165,7 @@ static const sdmmc_info_t SDMMC[] = {
                 .RCC_APBENR_SDMMCEN = RCC_AHB2ENR_SDMMC2EN,
                 .IRQn               = SDMMC2_IRQn,
                 .IRQ_priority       = __SDMMC_CFG_SDMMC2_IRQ_PRIORITY__,
-                .card_timeout       = __SDMMC_CFG_SDMMC2_TIMEOUT__,
+                .card_timeout       = __SDMMC_CFG_SDMMC2_CARD_TIMEOUT__,
                 .clock_edge         = __SDMMC_CFG_SDMMC2_CLOCK_EDGE__,
                 .clock_power_save   = __SDMMC_CFG_SDMMC2_PWRSAVE__,
                 .clock_div          = __SDMMC_CFG_SDMMC2_CKDIV__ - 1,
@@ -243,8 +247,7 @@ API_MOD_INIT(SDMMC, void **device_handle, u8_t major, u8_t minor, const void *co
 API_MOD_RELEASE(SDMMC, void *device_handle)
 {
         SDMMC_t *hdl = device_handle;
-
-        kmtx_t *mtx = hdl->mtx;
+        kmtx_t  *mtx = hdl->mtx;
 
         int err = sys_mutex_lock(mtx, MTX_TIMEOUT);
         if (!err) {
@@ -274,9 +277,8 @@ API_MOD_RELEASE(SDMMC, void *device_handle)
 /**
  * @brief Open device.
  *
- * @param[in ]          *device_handle          device allocated memory
- * @param[in ]           flags                  file operation flags (O_RDONLY, O_WRONLY,
- * O_RDWR)
+ * @param[in ] device_handle     device allocated memory
+ * @param[in ] flags             file operation flags (O_RDONLY, O_WRONLY, O_RDWR)
  *
  * @return One of errno value (errno.h).
  */
@@ -324,17 +326,21 @@ API_MOD_WRITE(SDMMC, void *device_handle, const u8_t *src, size_t count, fpos_t 
 
         SDMMC_t *hdl = device_handle;
 
+        if ((*fpos & (SDMMC_BLOCKSIZE - 1)) != 0) {
+                return EINVAL;
+        }
+
+        if ((count & (SDMMC_BLOCKSIZE - 1)) != 0) {
+                return EINVAL;
+        }
+
         int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (err) {
                 return err;
         }
 
-        if (((*fpos & (BLOCKSIZE - 1)) != 0) or ((count & (BLOCKSIZE - 1)) != 0)) {
-                return EINVAL;
-        }
-
-        u32_t block_address = *fpos / BLOCKSIZE;
-        u32_t blocks        = count / BLOCKSIZE;
+        u32_t block_address = *fpos / SDMMC_BLOCKSIZE;
+        u32_t blocks        = count / SDMMC_BLOCKSIZE;
 
         for (int i = 0; i < 5; i++) {
 
@@ -345,8 +351,7 @@ API_MOD_WRITE(SDMMC, void *device_handle, const u8_t *src, size_t count, fpos_t 
 
                 if (hdl->mode == _SDMMC_MODE_POLLING) {
 
-                        err = card_write_blocks(hdl, src, block_address, blocks,
-                                SDMMC[hdl->major].card_timeout);
+                        err = card_write_blocks(hdl, src, block_address, blocks);
 
                 } else if (hdl->mode == _SDMMC_MODE_IRQ) {
 
@@ -364,9 +369,9 @@ API_MOD_WRITE(SDMMC, void *device_handle, const u8_t *src, size_t count, fpos_t 
                 if (!err) {
                         *wrcnt += count;
                         break;
+
                 } else {
-                        dev_dbg(hdl, "write error %d @ block %u", err, block_address);
-                        sys_sleep_ms(25);
+                        dev_dbg(hdl, "write error %d at block %u", err, block_address);
 
                         if (i >= 3) {
                                 card_initialize(hdl);
@@ -400,17 +405,21 @@ API_MOD_READ(SDMMC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
 
         SDMMC_t *hdl = device_handle;
 
+        if ((*fpos & (SDMMC_BLOCKSIZE - 1)) != 0) {
+                return EINVAL;
+        }
+
+        if ((count & (SDMMC_BLOCKSIZE - 1)) != 0) {
+                return EINVAL;
+        }
+
         int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (err) {
                 return err;
         }
 
-        if (((*fpos & (BLOCKSIZE - 1)) != 0) or ((count & (BLOCKSIZE - 1)) != 0)) {
-                return EINVAL;
-        }
-
-        u32_t block_address = *fpos / BLOCKSIZE;
-        u32_t blocks        = count / BLOCKSIZE;
+        u32_t block_address = *fpos / SDMMC_BLOCKSIZE;
+        u32_t blocks        = count / SDMMC_BLOCKSIZE;
 
         for (int i = 0; i < 5; i++) {
 
@@ -421,8 +430,7 @@ API_MOD_READ(SDMMC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
 
                 if (hdl->mode == _SDMMC_MODE_POLLING) {
 
-                        err = card_read_blocks(hdl, dst, block_address, blocks,
-                                SDMMC[hdl->major].card_timeout);
+                        err = card_read_blocks(hdl, dst, block_address, blocks);
 
                 } else if (hdl->mode == _SDMMC_MODE_IRQ) {
 
@@ -441,8 +449,7 @@ API_MOD_READ(SDMMC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
                         *rdcnt += count;
                         break;
                 } else {
-                        dev_dbg(hdl, "read error %d @ block %u", err, block_address);
-                        sys_sleep_ms(25);
+                        dev_dbg(hdl, "read error %d at block %u", err, block_address);
 
                         if (i >= 3) {
                                 card_initialize(hdl);
@@ -527,335 +534,6 @@ API_MOD_STAT(SDMMC, void *device_handle, struct vfs_dev_stat *device_stat)
 
 //==============================================================================
 /**
- * @brief  Write blocks to SD/MMC by using polling method.
- *
- * @param  hdl                  driver handle
- * @param  src                  source buffer
- * @param  block_address        block address
- * @param  blocks               blocks to write
- * @param  timeout              timeout in milliseconds
- *
- * @return One of errno value (errno.h).
- */
-//==============================================================================
-static int card_write_blocks(SDMMC_t *hdl, const u8_t *src, uint32_t block_address,
-        uint32_t blocks, uint32_t timeout)
-{
-        if (SDMMC[SDMMC_1].card_type == _SDMMC_TYPE_SDCARD) {
-#if IS_SD_USING
-                return HAL_SD_WriteBlocks(&hdl->handle.sd, src, block_address, blocks,
-                        timeout);
-#endif
-        } else {
-#if IS_MMC_USING
-                return HAL_MMC_WriteBlocks(&hdl->handle.mmc, src, block_address, blocks,
-                        timeout);
-#endif
-        }
-
-        return EFAULT;
-}
-
-//==============================================================================
-/**
- * @brief  Write blocks to SD/MMC by using interrupts.
- *
- * @param  hdl                  driver handle
- * @param  src                  source buffer
- * @param  block_address        block address
- * @param  blocks               blocks to write
- * @param  timeout              timeout in milliseconds
- *
- * @return One of errno value (errno.h).
- */
-//==============================================================================
-static int card_write_blocks_IT(SDMMC_t *hdl, const u8_t *src, uint32_t block_address,
-        uint32_t blocks)
-{
-        int err = EFAULT;
-
-        if (SDMMC[SDMMC_1].card_type == _SDMMC_TYPE_SDCARD) {
-#if IS_SD_USING
-                err = HAL_SD_WriteBlocks_IT(&hdl->handle.sd, src, block_address, blocks);
-#endif
-        } else {
-#if IS_MMC_USING
-                err = HAL_MMC_WriteBlocks_IT(&hdl->handle.mmc, src, block_address,
-                        blocks);
-#endif
-        }
-
-        if (!err) {
-                err = sys_semaphore_wait(hdl->sem_xfer_complete,
-                        SDMMC[hdl->major].card_timeout);
-        }
-
-        return err;
-}
-
-//==============================================================================
-/**
- * @brief  Write blocks to SD/MMC by using DMA.
- *
- * @param  hdl                  driver handle
- * @param  src                  source buffer
- * @param  block_address        block address
- * @param  blocks               blocks to write
- * @param  timeout              timeout in milliseconds
- *
- * @return One of errno value (errno.h).
- */
-//==============================================================================
-static int card_write_blocks_DMA(SDMMC_t *hdl, const u8_t *src, uint32_t block_address,
-        uint32_t blocks)
-{
-        int err = EFAULT;
-
-        bool mem_dma = sys_is_mem_dma_capable(src) &&
-                (((uintptr_t)src % _HEAP_ALIGN_) == 0);
-
-        if (mem_dma) {
-                _cpuctl_clean_invalidate_dcache_by_addr(const_cast(src),
-                        blocks * BLOCKSIZE);
-        }
-
-        if (SDMMC[SDMMC_1].card_type == _SDMMC_TYPE_SDCARD) {
-#if IS_SD_USING
-                if (mem_dma) {
-                        err = HAL_SD_WriteBlocks_DMA(&hdl->handle.sd, src, block_address,
-                                blocks);
-                } else {
-                        err = HAL_SD_WriteBlocks_IT(&hdl->handle.sd, src, block_address,
-                                blocks);
-                }
-#endif
-        } else {
-#if IS_MMC_USING
-                if (mem_dma) {
-                        err = HAL_MMC_WriteBlocks_DMA(&hdl->handle.mmc, src,
-                                block_address, blocks);
-                } else {
-                        err = HAL_MMC_WriteBlocks_IT(&hdl->handle.mmc, src, block_address,
-                                blocks);
-                }
-#endif
-        }
-
-        if (!err) {
-                err = sys_semaphore_wait(hdl->sem_xfer_complete,
-                        SDMMC[hdl->major].card_timeout);
-        }
-
-        return err;
-}
-
-//==============================================================================
-/**
- * @brief  Read blocks to SD/MMC by using polling method.
- *
- * @param  hdl                  driver handle
- * @param  dst                  destination buffer
- * @param  block_address        block address
- * @param  blocks               blocks to write
- * @param  timeout              timeout in milliseconds
- *
- * @return One of errno value (errno.h).
- */
-//==============================================================================
-static int card_read_blocks(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
-        uint32_t blocks, uint32_t timeout)
-{
-        if (SDMMC[SDMMC_1].card_type == _SDMMC_TYPE_SDCARD) {
-#if IS_SD_USING
-                return HAL_SD_ReadBlocks(&hdl->handle.sd, dst, block_address, blocks,
-                        timeout);
-#endif
-        } else {
-#if IS_MMC_USING
-                return HAL_MMC_ReadBlocks(&hdl->handle.mmc, dst, block_address, blocks,
-                        timeout);
-#endif
-        }
-
-        return EFAULT;
-}
-
-//==============================================================================
-/**
- * @brief  Read blocks to SD/MMC by using interrupts.
- *
- * @param  hdl                  driver handle
- * @param  dst                  destination buffer
- * @param  block_address        block address
- * @param  blocks               blocks to write
- * @param  timeout              timeout in milliseconds
- *
- * @return One of errno value (errno.h).
- */
-//==============================================================================
-static int card_read_blocks_IT(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
-        uint32_t blocks)
-{
-        int err = EFAULT;
-
-        if (SDMMC[SDMMC_1].card_type == _SDMMC_TYPE_SDCARD) {
-#if IS_SD_USING
-                err = HAL_SD_ReadBlocks_IT(&hdl->handle.sd, dst, block_address, blocks);
-#endif
-        } else {
-#if IS_MMC_USING
-                err = HAL_MMC_ReadBlocks_IT(&hdl->handle.mmc, dst, block_address, blocks);
-#endif
-        }
-
-        if (!err) {
-                err = sys_semaphore_wait(hdl->sem_xfer_complete,
-                        SDMMC[hdl->major].card_timeout);
-        }
-
-        return err;
-}
-
-//==============================================================================
-/**
- * @brief  Read blocks to SD/MMC by using DMA.
- *
- * @param  hdl                  driver handle
- * @param  dst                  destination buffer
- * @param  block_address        block address
- * @param  blocks               blocks to write
- * @param  timeout              timeout in milliseconds
- *
- * @return One of errno value (errno.h).
- */
-//==============================================================================
-static int card_read_blocks_DMA(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
-        uint32_t blocks)
-{
-        int err = EFAULT;
-
-        bool mem_dma = sys_is_mem_dma_capable(dst) &&
-                (((uintptr_t)dst % _HEAP_ALIGN_) == 0);
-
-        if (SDMMC[SDMMC_1].card_type == _SDMMC_TYPE_SDCARD) {
-#if IS_SD_USING
-                if (mem_dma) {
-                        err = HAL_SD_ReadBlocks_DMA(&hdl->handle.sd, dst, block_address,
-                                blocks);
-                } else {
-                        err = HAL_SD_ReadBlocks_IT(&hdl->handle.sd, dst, block_address,
-                                blocks);
-                }
-#endif
-        } else {
-#if IS_MMC_USING
-                if (mem_dma) {
-                        err = HAL_MMC_ReadBlocks_DMA(&hdl->handle.mmc, dst, block_address,
-                                blocks);
-                } else {
-                        err = HAL_MMC_ReadBlocks_IT(&hdl->handle.mmc, dst, block_address,
-                                blocks);
-                }
-#endif
-        }
-
-        if (!err) {
-                err = sys_semaphore_wait(hdl->sem_xfer_complete,
-                        SDMMC[hdl->major].card_timeout);
-        }
-
-        if (!err && mem_dma) {
-                size_t cache_line_size = 32;
-                _cpuctl_invalidate_dcache_by_addr(dst - cache_line_size,
-                        blocks * BLOCKSIZE + 2 * cache_line_size);
-        }
-
-        return err;
-}
-
-//==============================================================================
-/**
- * @brief  Basic interface initialization.
- *
- * @param  hdl          driver instance
- */
-//==============================================================================
-static void HAL_SDMMC_MspInit(SDMMC_t *hdl)
-{
-        SET_BIT(*SDMMC[hdl->major].RCC_APBENR, SDMMC[hdl->major].RCC_APBENR_SDMMCEN);
-
-        if (hdl->mode != _SDMMC_MODE_POLLING) {
-                NVIC_SetPriority(SDMMC[hdl->major].IRQn, SDMMC[hdl->major].IRQ_priority);
-                NVIC_ClearPendingIRQ(SDMMC[hdl->major].IRQn);
-                NVIC_EnableIRQ(SDMMC[hdl->major].IRQn);
-        }
-}
-
-//==============================================================================
-/**
- * @brief  Basic interface de-initialization.
- *
- * @param  hdl          driver instance
- */
-//==============================================================================
-static void HAL_SDMMC_MspDeInit(SDMMC_t *hdl)
-{
-        NVIC_ClearPendingIRQ(SDMMC[hdl->major].IRQn);
-        NVIC_DisableIRQ(SDMMC[hdl->major].IRQn);
-
-        CLEAR_BIT(*SDMMC[hdl->major].RCC_APBENR, SDMMC[hdl->major].RCC_APBENR_SDMMCEN);
-}
-
-//==============================================================================
-/**
- * @brief  Basic MMC interface initialization.
- *
- * @param  hsd          SD handle
- */
-//==============================================================================
-void HAL_MMC_MspInit(MMC_HandleTypeDef *hmmc)
-{
-        HAL_SDMMC_MspInit(hmmc->CtxPtr);
-}
-
-//==============================================================================
-/**
- * @brief  Basic SD interface initialization.
- *
- * @param  hsd          SD handle
- */
-//==============================================================================
-void HAL_SD_MspInit(SD_HandleTypeDef *hsd)
-{
-        HAL_SDMMC_MspInit(hsd->CtxPtr);
-}
-
-//==============================================================================
-/**
- * @brief  Basic SD interface de-initialization.
- *
- * @param  hsd          SD handle
- */
-//==============================================================================
-void HAL_SD_MspDeInit(SD_HandleTypeDef *hsd)
-{
-        HAL_SDMMC_MspDeInit(hsd->CtxPtr);
-}
-
-//==============================================================================
-/**
- * @brief  Basic MMC interface de-initialization.
- *
- * @param  hsd          SD handle
- */
-//==============================================================================
-void HAL_MMC_MspDeInit(MMC_HandleTypeDef *hmmc)
-{
-        HAL_SDMMC_MspDeInit(hmmc->CtxPtr);
-}
-
-//==============================================================================
-/**
  * @brief  Card initialization.
  *
  * @param  hdl          device handle
@@ -904,10 +582,14 @@ static int card_initialize(SDMMC_t *hdl)
                                 if (SDMMC[hdl->major].bus_wide != SDMMC_BUS_WIDE_1B) {
                                         if (HAL_SD_ConfigWideBusOperation(&hdl->handle.sd,
                                                     SDMMC_BUS_WIDE_4B) == HAL_OK) {
-                                                dev_dbg(hdl, "switched to 4-bit bus");
+                                                dev_dbg(hdl, "using 4-bit wide bus");
                                         } else {
-                                                dev_dbg(hdl, "4-bit bus not supported");
+                                                dev_dbg(hdl,
+                                                        "4-bit wide bus not supported");
+                                                dev_dbg(hdl, "using 1-bit wide bus");
                                         }
+                                } else {
+                                        dev_dbg(hdl, "using 1-bit wide bus");
                                 }
 
                                 if (SDMMC[hdl->major].speed_mode !=
@@ -961,13 +643,13 @@ static int card_initialize(SDMMC_t *hdl)
                         }
 
                         if (err) {
+                                card_check_sdmmc_error(hdl);
                                 HAL_SD_DeInit(&hdl->handle.sd);
                         } else {
                                 break;
                         }
                 }
 #endif
-
         } else {
 #if IS_MMC_USING
                 hdl->handle.mmc.CtxPtr = hdl;
@@ -1070,6 +752,7 @@ static int card_initialize(SDMMC_t *hdl)
                         }
 
                         if (err) {
+                                card_check_sdmmc_error(hdl);
                                 HAL_MMC_DeInit(&hdl->handle.mmc);
                         } else {
                                 break;
@@ -1092,48 +775,584 @@ static int card_initialize(SDMMC_t *hdl)
 //==============================================================================
 static int card_wait_ready(SDMMC_t *hdl)
 {
-        size_t timeout = SDMMC[hdl->major].card_timeout / 10;
+        u64_t timeout = sys_get_uptime_ms() +
+                max(SDMMC[hdl->major].card_timeout / 10, 100);
+
+        while (sys_get_uptime_ms() < timeout) {
+
+                uint32_t state          = 0;
+                uint32_t expected_state = 0;
+
+                if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
+#if IS_SD_USING
+                        state          = HAL_SD_GetCardState(&hdl->handle.sd);
+                        expected_state = HAL_SD_CARD_TRANSFER;
+#endif
+                } else {
+#if IS_MMC_USING
+                        state          = HAL_MMC_GetCardState(&hdl->handle.mmc);
+                        expected_state = HAL_MMC_CARD_TRANSFER;
+#endif
+                }
+
+                if (state == expected_state) {
+                        return 0;
+                } else {
+                        sys_sleep_ms(1);
+                }
+        }
+
+        return ETIME;
+}
+
+//==============================================================================
+/**
+ * @brief  Check SD/MMC card error.
+ *
+ * @param  hdl          device handle
+ *
+ * @return One of errno value (errno.h).
+ */
+//==============================================================================
+static int card_check_sdmmc_error(SDMMC_t *hdl)
+{
+        u32_t hal_err = HAL_SD_ERROR_NONE;
 
         if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
 #if IS_SD_USING
-                HAL_SD_CardStateTypeDef state;
-                while ((state = HAL_SD_GetCardState(&hdl->handle.sd)) !=
-                        HAL_SD_CARD_TRANSFER) {
-
-                        sys_sleep_ms(1);
-
-                        if (--timeout == 0) {
-                                return ETIME;
-                        }
-                }
-#else
-                return EFAULT;
+                hal_err = HAL_SD_GetError(&hdl->handle.sd);
 #endif
-
         } else {
 #if IS_MMC_USING
-                HAL_MMC_CardStateTypeDef state;
-                while ((state = HAL_MMC_GetCardState(&hdl->handle.mmc)) !=
-                        HAL_MMC_CARD_TRANSFER) {
-
-                        sys_sleep_ms(1);
-
-                        if (--timeout == 0) {
-                                return ETIME;
-                        }
-                }
-#else
-                return EFAULT;
+                hal_err = HAL_MMC_GetError(&hdl->handle.mmc);
 #endif
         }
 
-        return 0;
+        if (hal_err == HAL_SD_ERROR_NONE) {
+                return 0;
+        }
+
+        int err = EIO;
+
+        if (hal_err & HAL_SD_ERROR_CMD_CRC_FAIL) {
+                dev_dbg(hdl, "Command response received (but CRC check failed)");
+        }
+
+        if (hal_err & HAL_SD_ERROR_DATA_CRC_FAIL) {
+                dev_dbg(hdl, "Data block sent/received (CRC check failed)");
+        }
+
+        if (hal_err & HAL_SD_ERROR_CMD_RSP_TIMEOUT) {
+                dev_dbg(hdl, "Command response timeout");
+                err = ETIME;
+        }
+
+        if (hal_err & HAL_SD_ERROR_DATA_TIMEOUT) {
+                dev_dbg(hdl, "Data timeout");
+                err = ETIME;
+        }
+
+        if (hal_err & HAL_SD_ERROR_TX_UNDERRUN) {
+                dev_dbg(hdl, "Transmit FIFO underrun");
+        }
+
+        if (hal_err & HAL_SD_ERROR_RX_OVERRUN) {
+                dev_dbg(hdl, "Receive FIFO overrun");
+        }
+
+        if (hal_err & HAL_SD_ERROR_ADDR_MISALIGNED) {
+                dev_dbg(hdl, "Misaligned address");
+        }
+
+        if (hal_err & HAL_SD_ERROR_BLOCK_LEN_ERR) {
+                dev_dbg(hdl,
+                        "Transferred block length is not allowed for the card or "
+                        "the number of transferred bytes does not match the block "
+                        "length");
+        }
+
+        if (hal_err & HAL_SD_ERROR_ERASE_SEQ_ERR) {
+                dev_dbg(hdl, "An error in the sequence of erase command occurs");
+        }
+
+        if (hal_err & HAL_SD_ERROR_BAD_ERASE_PARAM) {
+                dev_dbg(hdl, "An invalid selection for erase groups");
+        }
+
+        if (hal_err & HAL_SD_ERROR_WRITE_PROT_VIOLATION) {
+                dev_dbg(hdl, "Attempt to program a write protect block");
+        }
+
+        if (hal_err & HAL_SD_ERROR_LOCK_UNLOCK_FAILED) {
+                dev_dbg(hdl,
+                        "Sequence or password error has been detected in unlock "
+                        "command or if there was an attempt to access a locked card");
+        }
+
+        if (hal_err & HAL_SD_ERROR_COM_CRC_FAILED) {
+                dev_dbg(hdl, "CRC check of the previous command failed");
+        }
+
+        if (hal_err & HAL_SD_ERROR_ILLEGAL_CMD) {
+                dev_dbg(hdl, "Command is not legal for the card state ");
+        }
+        if (hal_err & HAL_SD_ERROR_CARD_ECC_FAILED) {
+                dev_dbg(hdl,
+                        "Card internal ECC was applied but failed to correct the "
+                        "data");
+        }
+        if (hal_err & HAL_SD_ERROR_CC_ERR) {
+                dev_dbg(hdl, "Internal card controller error");
+        }
+
+        if (hal_err & HAL_SD_ERROR_GENERAL_UNKNOWN_ERR) {
+                dev_dbg(hdl, "General or unknown error");
+        }
+
+        if (hal_err & HAL_SD_ERROR_STREAM_READ_UNDERRUN) {
+                dev_dbg(hdl, "The card could not sustain data reading in stream rmode");
+        }
+
+        if (hal_err & HAL_SD_ERROR_STREAM_WRITE_OVERRUN) {
+                dev_dbg(hdl,
+                        "The card could not sustain data programming in stream mode", );
+        }
+
+        if (hal_err & HAL_SD_ERROR_CID_CSD_OVERWRITE) {
+                dev_dbg(hdl, "CID/CSD overwrite error");
+        }
+
+        if (hal_err & HAL_SD_ERROR_WP_ERASE_SKIP) {
+                dev_dbg(hdl, "Only partial address space was erased");
+        }
+
+        if (hal_err & HAL_SD_ERROR_CARD_ECC_DISABLED) {
+                dev_dbg(hdl, "Command has been executed without using internal ECC");
+        }
+
+        if (hal_err & HAL_SD_ERROR_ERASE_RESET) {
+                dev_dbg(hdl,
+                        "Erase sequence was cleared before executing because an "
+                        "out of erase sequence command was received");
+        }
+
+        if (hal_err & HAL_SD_ERROR_AKE_SEQ_ERR) {
+                dev_dbg(hdl, "Error in sequence of authentication");
+        }
+
+        if (hal_err & HAL_SD_ERROR_INVALID_VOLTRANGE) {
+                dev_dbg(hdl, "Invalid voltage range");
+        }
+
+        if (hal_err & HAL_SD_ERROR_ADDR_OUT_OF_RANGE) {
+                dev_dbg(hdl, "Addressed block is out of range");
+        }
+
+        if (hal_err & HAL_SD_ERROR_REQUEST_NOT_APPLICABLE) {
+                dev_dbg(hdl, "Command request is not applicable");
+        }
+
+        if (hal_err & HAL_SD_ERROR_PARAM) {
+                dev_dbg(hdl, "The used parameter is not valid");
+        }
+
+        if (hal_err & HAL_SD_ERROR_UNSUPPORTED_FEATURE) {
+                dev_dbg(hdl, "Feature is not supported");
+        }
+
+        if (hal_err & HAL_SD_ERROR_BUSY) {
+                dev_dbg(hdl, "Transfer process is busy");
+                err = EBUSY;
+        }
+
+        if (hal_err & HAL_SD_ERROR_DMA) {
+                dev_dbg(hdl, "Error while DMA transfer");
+        }
+
+        if (hal_err & HAL_SD_ERROR_TIMEOUT) {
+                dev_dbg(hdl, "Timeout error");
+                err = ETIME;
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Write blocks to SD/MMC by using polling method.
+ *
+ * @param  hdl                  driver handle
+ * @param  src                  source buffer
+ * @param  block_address        block address
+ * @param  blocks               blocks to write
+ *
+ * @return One of errno value (errno.h).
+ */
+//==============================================================================
+static int card_write_blocks(SDMMC_t *hdl, const u8_t *src, uint32_t block_address,
+        uint32_t blocks)
+{
+        int err = EFAULT;
+
+        if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
+#if IS_SD_USING
+                err = HAL_SD_WriteBlocks(&hdl->handle.sd, src, block_address, blocks,
+                        SDMMC[hdl->major].card_timeout);
+                if (err) {
+                        err = card_check_sdmmc_error(hdl);
+                }
+#endif
+        } else {
+#if IS_MMC_USING
+                err = HAL_MMC_WriteBlocks(&hdl->handle.mmc, src, block_address, blocks,
+                        SDMMC[hdl->major].card_timeout);
+                if (err) {
+                        err = card_check_sdmmc_error(hdl);
+                }
+#endif
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Write blocks to SD/MMC by using interrupts.
+ *
+ * @param  hdl                  driver handle
+ * @param  src                  source buffer
+ * @param  block_address        block address
+ * @param  blocks               blocks to write
+ * @param  timeout              timeout in milliseconds
+ *
+ * @return One of errno value (errno.h).
+ */
+//==============================================================================
+static int card_write_blocks_IT(SDMMC_t *hdl, const u8_t *src, uint32_t block_address,
+        uint32_t blocks)
+{
+        int err = EFAULT;
+
+        if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
+#if IS_SD_USING
+                err = HAL_SD_WriteBlocks_IT(&hdl->handle.sd, src, block_address, blocks);
+#endif
+        } else {
+#if IS_MMC_USING
+                err = HAL_MMC_WriteBlocks_IT(&hdl->handle.mmc, src, block_address,
+                        blocks);
+#endif
+        }
+
+        if (!err) {
+                err = sys_semaphore_wait(hdl->sem_xfer_complete,
+                        SDMMC[hdl->major].card_timeout);
+                if (err) {
+                        dev_dbg(hdl, "write timeout");
+                        card_check_sdmmc_error(hdl);
+                } else {
+                        err = card_check_sdmmc_error(hdl);
+                }
+        } else {
+                err = card_check_sdmmc_error(hdl);
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Write blocks to SD/MMC by using DMA.
+ *
+ * @param  hdl                  driver handle
+ * @param  src                  source buffer
+ * @param  block_address        block address
+ * @param  blocks               blocks to write
+ * @param  timeout              timeout in milliseconds
+ *
+ * @return One of errno value (errno.h).
+ */
+//==============================================================================
+static int card_write_blocks_DMA(SDMMC_t *hdl, const u8_t *src, uint32_t block_address,
+        uint32_t blocks)
+{
+        int err = EFAULT;
+
+        bool mem_dma = sys_is_mem_dma_capable(src) &&
+                (((uintptr_t)src % _HEAP_ALIGN_) == 0);
+
+        if (mem_dma) {
+                _cpuctl_clean_invalidate_dcache_by_addr(const_cast(src),
+                        blocks * SDMMC_BLOCKSIZE);
+        }
+
+        if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
+#if IS_SD_USING
+                if (mem_dma) {
+                        err = HAL_SD_WriteBlocks_DMA(&hdl->handle.sd, src, block_address,
+                                blocks);
+                } else {
+                        err = HAL_SD_WriteBlocks_IT(&hdl->handle.sd, src, block_address,
+                                blocks);
+                }
+#endif
+        } else {
+#if IS_MMC_USING
+                if (mem_dma) {
+                        err = HAL_MMC_WriteBlocks_DMA(&hdl->handle.mmc, src,
+                                block_address, blocks);
+                } else {
+                        err = HAL_MMC_WriteBlocks_IT(&hdl->handle.mmc, src, block_address,
+                                blocks);
+                }
+#endif
+        }
+
+        if (!err) {
+                err = sys_semaphore_wait(hdl->sem_xfer_complete,
+                        SDMMC[hdl->major].card_timeout);
+                if (err) {
+                        dev_dbg(hdl, "write timeout");
+                        card_check_sdmmc_error(hdl);
+                } else {
+                        err = card_check_sdmmc_error(hdl);
+                }
+        } else {
+                err = card_check_sdmmc_error(hdl);
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Read blocks to SD/MMC by using polling method.
+ *
+ * @param  hdl                  driver handle
+ * @param  dst                  destination buffer
+ * @param  block_address        block address
+ * @param  blocks               blocks to write
+ *
+ * @return One of errno value (errno.h).
+ */
+//==============================================================================
+static int card_read_blocks(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
+        uint32_t blocks)
+{
+        int err = EFAULT;
+
+        if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
+#if IS_SD_USING
+                err = HAL_SD_ReadBlocks(&hdl->handle.sd, dst, block_address, blocks,
+                        SDMMC[hdl->major].card_timeout);
+#endif
+        } else {
+#if IS_MMC_USING
+                err = HAL_MMC_ReadBlocks(&hdl->handle.mmc, dst, block_address, blocks,
+                        SDMMC[hdl->major].card_timeout);
+#endif
+        }
+
+        if (err) {
+                err = card_check_sdmmc_error(hdl);
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Read blocks to SD/MMC by using interrupts.
+ *
+ * @param  hdl                  driver handle
+ * @param  dst                  destination buffer
+ * @param  block_address        block address
+ * @param  blocks               blocks to write
+ * @param  timeout              timeout in milliseconds
+ *
+ * @return One of errno value (errno.h).
+ */
+//==============================================================================
+static int card_read_blocks_IT(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
+        uint32_t blocks)
+{
+        int err = EFAULT;
+
+        if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
+#if IS_SD_USING
+                err = HAL_SD_ReadBlocks_IT(&hdl->handle.sd, dst, block_address, blocks);
+#endif
+        } else {
+#if IS_MMC_USING
+                err = HAL_MMC_ReadBlocks_IT(&hdl->handle.mmc, dst, block_address, blocks);
+#endif
+        }
+
+        if (!err) {
+                err = sys_semaphore_wait(hdl->sem_xfer_complete,
+                        SDMMC[hdl->major].card_timeout);
+                if (err) {
+                        dev_dbg(hdl, "read timeout");
+                        card_check_sdmmc_error(hdl);
+                } else {
+                        err = card_check_sdmmc_error(hdl);
+                }
+        } else {
+                err = card_check_sdmmc_error(hdl);
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Read blocks to SD/MMC by using DMA.
+ *
+ * @param  hdl                  driver handle
+ * @param  dst                  destination buffer
+ * @param  block_address        block address
+ * @param  blocks               blocks to write
+ *
+ * @return One of errno value (errno.h).
+ */
+//==============================================================================
+static int card_read_blocks_DMA(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
+        uint32_t blocks)
+{
+        int err = EFAULT;
+
+        bool mem_dma = sys_is_mem_dma_capable(dst) &&
+                (((uintptr_t)dst % _HEAP_ALIGN_) == 0);
+
+        if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
+#if IS_SD_USING
+                if (mem_dma) {
+                        err = HAL_SD_ReadBlocks_DMA(&hdl->handle.sd, dst, block_address,
+                                blocks);
+                } else {
+                        err = HAL_SD_ReadBlocks_IT(&hdl->handle.sd, dst, block_address,
+                                blocks);
+                }
+#endif
+        } else {
+#if IS_MMC_USING
+                if (mem_dma) {
+                        err = HAL_MMC_ReadBlocks_DMA(&hdl->handle.mmc, dst, block_address,
+                                blocks);
+                } else {
+                        err = HAL_MMC_ReadBlocks_IT(&hdl->handle.mmc, dst, block_address,
+                                blocks);
+                }
+#endif
+        }
+
+        if (!err) {
+                err = sys_semaphore_wait(hdl->sem_xfer_complete,
+                        SDMMC[hdl->major].card_timeout);
+                if (err) {
+                        dev_dbg(hdl, "read timeout");
+                        card_check_sdmmc_error(hdl);
+                } else {
+                        err = card_check_sdmmc_error(hdl);
+                }
+        } else {
+                err = card_check_sdmmc_error(hdl);
+        }
+
+        if (!err && mem_dma) {
+                size_t cache_line_size = 32;
+                _cpuctl_invalidate_dcache_by_addr(dst - cache_line_size,
+                        blocks * SDMMC_BLOCKSIZE + 2 * cache_line_size);
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Basic interface initialization.
+ *
+ * @param  hdl          driver instance
+ */
+//==============================================================================
+static void HAL_SDMMC_MspInit(SDMMC_t *hdl)
+{
+        SET_BIT(*SDMMC[hdl->major].RCC_APBENR, SDMMC[hdl->major].RCC_APBENR_SDMMCEN);
+
+        if (hdl->mode != _SDMMC_MODE_POLLING) {
+                NVIC_SetPriority(SDMMC[hdl->major].IRQn, SDMMC[hdl->major].IRQ_priority);
+                NVIC_ClearPendingIRQ(SDMMC[hdl->major].IRQn);
+                NVIC_EnableIRQ(SDMMC[hdl->major].IRQn);
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Basic interface de-initialization.
+ *
+ * @param  hdl          driver instance
+ */
+//==============================================================================
+static void HAL_SDMMC_MspDeInit(SDMMC_t *hdl)
+{
+        NVIC_ClearPendingIRQ(SDMMC[hdl->major].IRQn);
+        NVIC_DisableIRQ(SDMMC[hdl->major].IRQn);
+
+        CLEAR_BIT(*SDMMC[hdl->major].RCC_APBENR, SDMMC[hdl->major].RCC_APBENR_SDMMCEN);
+}
+
+//==============================================================================
+/**
+ * @brief  Basic SD interface initialization.
+ *
+ * @param  hsd          SD handle
+ */
+//==============================================================================
+void HAL_SD_MspInit(SD_HandleTypeDef *hsd)
+{
+        HAL_SDMMC_MspInit(hsd->CtxPtr);
+}
+
+//==============================================================================
+/**
+ * @brief  Basic SD interface de-initialization.
+ *
+ * @param  hsd          SD handle
+ */
+//==============================================================================
+void HAL_SD_MspDeInit(SD_HandleTypeDef *hsd)
+{
+        HAL_SDMMC_MspDeInit(hsd->CtxPtr);
+}
+
+//==============================================================================
+/**
+ * @brief  Basic MMC interface initialization.
+ *
+ * @param  hsd          SD handle
+ */
+//==============================================================================
+void HAL_MMC_MspInit(MMC_HandleTypeDef *hmmc)
+{
+        HAL_SDMMC_MspInit(hmmc->CtxPtr);
+}
+
+//==============================================================================
+/**
+ * @brief  Basic MMC interface de-initialization.
+ *
+ * @param  hsd          SD handle
+ */
+//==============================================================================
+void HAL_MMC_MspDeInit(MMC_HandleTypeDef *hmmc)
+{
+        HAL_SDMMC_MspDeInit(hmmc->CtxPtr);
 }
 
 #if IS_SD_USING
 //==============================================================================
 /**
- * @brief  SD Rx complete callback.
+ * @brief  Rx complete callback.
  *
  * @param  hsd          SD handle
  */
@@ -1146,7 +1365,7 @@ void HAL_SD_RxCpltCallback(SD_HandleTypeDef *hsd)
 
 //==============================================================================
 /**
- * @brief  SD Tx complete callback.
+ * @brief  Tx complete callback.
  *
  * @param  hsd          SD handle
  */
@@ -1156,32 +1375,58 @@ void HAL_SD_TxCpltCallback(SD_HandleTypeDef *hsd)
         SDMMC_t *hdl = hsd->CtxPtr;
         sys_semaphore_signal_from_ISR(hdl->sem_xfer_complete, &hdl->irq_yield);
 }
+
+//==============================================================================
+/**
+ * @brief  Tx complete callback.
+ *
+ * @param  hsd          SD handle
+ */
+//==============================================================================
+void HAL_SD_ErrorCallback(SD_HandleTypeDef *hsd)
+{
+        SDMMC_t *hdl = hsd->CtxPtr;
+        sys_semaphore_signal_from_ISR(hdl->sem_xfer_complete, &hdl->irq_yield);
+}
 #endif
 
 #if IS_MMC_USING
 //==============================================================================
 /**
- * @brief  MMC Rx complete callback.
+ * @brief  Rx complete callback.
  *
  * @param  hsd          SD handle
  */
 //==============================================================================
-void HAL_MMC_RxCpltCallback(MMC_HandleTypeDef *hsd)
+void HAL_MMC_RxCpltCallback(MMC_HandleTypeDef *hmmc)
 {
-        SDMMC_t *hdl = hsd->CtxPtr;
+        SDMMC_t *hdl = hmmc->CtxPtr;
         sys_semaphore_signal_from_ISR(hdl->sem_xfer_complete, &hdl->irq_yield);
 }
 
 //==============================================================================
 /**
- * @brief  MMC Tx complete callback.
+ * @brief  Tx complete callback.
  *
  * @param  hsd          SD handle
  */
 //==============================================================================
-void HAL_MMC_TxCpltCallback(MMC_HandleTypeDef *hsd)
+void HAL_MMC_TxCpltCallback(MMC_HandleTypeDef *hmmc)
 {
-        SDMMC_t *hdl = hsd->CtxPtr;
+        SDMMC_t *hdl = hmmc->CtxPtr;
+        sys_semaphore_signal_from_ISR(hdl->sem_xfer_complete, &hdl->irq_yield);
+}
+
+//==============================================================================
+/**
+ * @brief  Tx complete callback.
+ *
+ * @param  hsd          SD handle
+ */
+//==============================================================================
+void HAL_MMC_ErrorCallback(MMC_HandleTypeDef *hmmc)
+{
+        SDMMC_t *hdl = hmmc->CtxPtr;
         sys_semaphore_signal_from_ISR(hdl->sem_xfer_complete, &hdl->irq_yield);
 }
 #endif
