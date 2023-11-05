@@ -42,7 +42,7 @@ Brief   Daniel Zorychta
 
 #define MSG(...)                printk("FLATFS: "__VA_ARGS__)
 
-#define MTX_TIMEOUT             2000
+#define MTX_TIMEOUT             60000
 
 #define MAGIC_BLOCK_FS          0x54414C46
 #define MAGIC_BLOCK_FILE        0x454C4946
@@ -445,35 +445,36 @@ API_FS_OPEN(flatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
                                 }
                         }
 
+                        if (err) {
+                                goto finish;
+                        }
+
                         /*
                          * Opened block should be a regular file
                          */
                         if (S_ISREG(blk->mode)) {
 
-                                if (!err) {
-                                        if (flags & O_TRUNC) {
-                                                time_t mtime = 0;
-                                                sys_gettime(&mtime);
+                                if (flags & O_TRUNC) {
+                                        time_t mtime = 0;
+                                        sys_gettime(&mtime);
 
-                                                blk->size  = 0;
-                                                blk->mtime = mtime;
+                                        blk->size  = 0;
+                                        blk->mtime = mtime;
 
-                                                err = file_block_write(hdl, file->node_num, blk);
-                                        }
-
-                                        if (flags & O_APPEND) {
-                                                *fpos = blk->size;
+                                        err = file_block_write(hdl, file->node_num, blk);
+                                        if (err) {
+                                                goto finish;
                                         }
                                 }
 
-                                if (!err) {
-                                        if (sys_llist_push_back(hdl->open_files, file) == file) {
-                                                err = 0;
-                                        } else {
-                                                err = ENOMEM;
-                                        }
+                                if (flags & O_APPEND) {
+                                        *fpos = blk->size;
+                                }
+
+                                if (sys_llist_push_back(hdl->open_files, file) == file) {
+                                        err = 0;
                                 } else {
-                                        sys_free(cast(void**, &file));
+                                        err = ENOMEM;
                                 }
                         } else {
                                 err = EISDIR;
@@ -481,6 +482,10 @@ API_FS_OPEN(flatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
 
                         finish:
                         sys_mutex_unlock(hdl->mtx);
+                }
+
+                if (err) {
+                        sys_free(cast(void**, &file));
                 }
         }
 
@@ -1057,6 +1062,8 @@ API_FS_OPENDIR(flatfs, void *fs_handle, const char *path, kdir_t *dir)
                                 err = sys_llist_push_back(list, entry) ? 0 : ENOMEM;
                                 if (not err) {
                                         sys_llist_unique(list);
+                                } else {
+                                        sys_free(cast(void**, &entry));
                                 }
                         }
 
