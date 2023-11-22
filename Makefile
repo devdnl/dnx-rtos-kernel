@@ -53,6 +53,7 @@ CFLAGS   = -c \
            -Wall \
            -Wextra \
            -Wparentheses \
+           -nostdlib\
            -mno-unaligned-access \
            -Werror=implicit-function-declaration \
            -Werror=int-conversion \
@@ -87,6 +88,7 @@ CXXFLAGS = -c \
            -mno-unaligned-access \
            -Wall \
            -Wextra \
+           -nostdlib\
            -Wparentheses \
            -Werror=parentheses \
            -Werror=type-limits \

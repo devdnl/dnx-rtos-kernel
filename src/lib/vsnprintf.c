@@ -120,6 +120,8 @@
  *
  *   %p         - print pointer
  *                printf("Pointer: %p", main); => Pointer: 0x4028B4
+ *
+ *   %z?        - print size_t
  */
 //==============================================================================
 int _vsnprintf(char *buf, size_t size, const char *format, va_list arg)
@@ -237,7 +239,7 @@ int _vsnprintf(char *buf, size_t size, const char *format, va_list arg)
                 }
 
                 // check long long values
-                if (chr == 'l') {
+                if ((chr == 'l') || (chr == 'z')) {
                         long_ctr++;
 
                         if (!get_format_char()) {
