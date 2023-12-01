@@ -1563,7 +1563,7 @@ static int new_absolute_path(const struct vfs_path *path, enum path_correction c
 
         // memory allocation
         char *abspath;
-        int err = _kzalloc(_MM_KRN, abslen, _CPUCTL_FAST_MEM, 0, 0, cast(void*, &abspath));
+        int err = _kzalloc(_MM_KRN, abslen, _cpuctl_fast_mem, 0, 0, cast(void*, &abspath));
         if (!err) {
                 if (path->PATH[0] == '/') {
                         strcpy(abspath, path->PATH);
@@ -1582,7 +1582,7 @@ static int new_absolute_path(const struct vfs_path *path, enum path_correction c
                 size_t plen = strsize(abspath);
 
                 if (_mm_align(plen) < _mm_align(abslen)) {
-                        if (_kzalloc(_MM_KRN, plen, _CPUCTL_FAST_MEM, 0, 0, cast(void**, new_path)) == 0) {
+                        if (_kzalloc(_MM_KRN, plen, _cpuctl_fast_mem, 0, 0, cast(void**, new_path)) == 0) {
                                 strcpy(*new_path, abspath);
                                 _kfree(_MM_KRN, cast(void*, &abspath));
                                 abspath = *new_path;

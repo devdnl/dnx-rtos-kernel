@@ -49,22 +49,22 @@
 #define SysCtrl_SLEEPDEEP ((uint32_t)0x00000004)
 
 #define AXISRAM_HEAP_START ((void *)&__heap_start)
-#define AXISRAM_HEAP_SIZE  ((size_t)&__heap_size)
+#define AXISRAM_HEAP_SIZE  ((size_t) & __heap_size)
 
 #define SRAM1_START ((void *)&__ram1_start)
-#define SRAM1_SIZE  ((size_t)&__ram1_size)
+#define SRAM1_SIZE  ((size_t) & __ram1_size)
 
 #define SRAM2_START ((void *)&__ram2_start)
-#define SRAM2_SIZE  ((size_t)&__ram2_size)
+#define SRAM2_SIZE  ((size_t) & __ram2_size)
 
 #define SRAM3_START ((void *)&__ram3_start)
-#define SRAM3_SIZE  ((size_t)&__ram3_size)
+#define SRAM3_SIZE  ((size_t) & __ram3_size)
 
 #define SRAM4_START ((void *)&__ram4_start)
-#define SRAM4_SIZE  ((size_t)&__ram4_size)
+#define SRAM4_SIZE  ((size_t) & __ram4_size)
 
 #define DTCM_START ((void *)&__dtcm_start)
-#define DTCM_SIZE  ((size_t)&__dtcm_size)
+#define DTCM_SIZE  ((size_t) & __dtcm_size)
 
 // Memory Management Fault Status Register
 #define NVIC_MFSR (*(volatile unsigned char *)(0xE000ED28u))
@@ -243,6 +243,15 @@ static volatile uint32_t cpuctl_dummy;
 static volatile reg_dump_t reg_dump __attribute__((section(".noinit")));
 
 /*==============================================================================
+  External object definitions
+==============================================================================*/
+const char *_cpuctl_preferred_APP_RAM[]
+        = {"AXISRAM", "SDRAM", "PSRAM", "SRAM", "DTCM", "SRAM1", "SRAM2", "SRAM3", "SRAM4", NULL};
+
+const char *_cpuctl_fast_mem[] = {"DTCM", "AXISRAM", "SRAM1", "SRAM2", "SRAM3", "SRAM4",
+        "SDRAM", "PSRAM", "SRAM", NULL};
+
+/*==============================================================================
   Function definitions
 ==============================================================================*/
 
@@ -299,7 +308,7 @@ void _cpuctl_init(void)
                 "AXISRAM");
 
         if (DTCM_SIZE > 0) {
-                _mm_register_region(&dtcm, DTCM_START, DTCM_SIZE, 0, _CPUCTL_FAST_MEM);
+                _mm_register_region(&dtcm, DTCM_START, DTCM_SIZE, 0, "DTCM");
         }
 
         if (SRAM1_SIZE > 0) {

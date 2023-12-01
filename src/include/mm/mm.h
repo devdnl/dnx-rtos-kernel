@@ -102,10 +102,11 @@ extern bool   _mm_is_object_in_heap(const void *ptr);
 extern bool   _mm_is_rom_address(const void *ptr);
 extern bool   _mm_check_consistency(void);
 extern bool   _mm_is_dma_capable(const void *ptr);
+extern bool   _mm_is_mem_region(const  void *ptr, const char *regions[]);
 extern bool   _mm_is_cacheable(const void *ptr);
 extern const char *_mm_get_region_name(const void *ptr);
-extern int    _kzalloc(enum _mm_mem, size_t, const char*, u32_t, u32_t, void**, ...);
-extern int    _kmalloc(enum _mm_mem, size_t, const char*, u32_t, u32_t, void**, ...);
+extern int    _kzalloc(enum _mm_mem, size_t, const char**, u32_t, u32_t, void**, ...);
+extern int    _kmalloc(enum _mm_mem, size_t, const char**, u32_t, u32_t, void**, ...);
 extern int    _kfree(enum _mm_mem, void**, ...);
 
 /*==============================================================================

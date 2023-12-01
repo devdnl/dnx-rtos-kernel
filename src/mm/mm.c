@@ -77,7 +77,7 @@
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefreg,
+static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefreg[],
                   u32_t required, u32_t required_mask, void **mem, void *arg);
 
 /*==============================================================================
@@ -190,7 +190,7 @@ int _mm_register_region(_mm_region_t *region, void *start, size_t size, u32_t fl
  *
  * @param[in]  mpur             memory purpose
  * @param[in]  size             object size
- * @param[in]  prefreg          preferred region name
+ * @param[in]  prefreg          preferred region names, NULL terminated
  * @param[in]  required         required region features (DMA, cacheable)
  * @param[in]  required_mask    required region features mask (DMA, cacheable)
  * @param[out] mem              pointer to memory block pointer
@@ -199,7 +199,7 @@ int _mm_register_region(_mm_region_t *region, void *start, size_t size, u32_t fl
  * @return One of errno values.
  */
 //==============================================================================
-int _kzalloc(enum _mm_mem mpur, size_t size, const char *prefreg,
+int _kzalloc(enum _mm_mem mpur, size_t size, const char *prefreg[],
              u32_t required, u32_t required_mask, void **mem, ...)
 {
         va_list vaarg;
@@ -216,7 +216,7 @@ int _kzalloc(enum _mm_mem mpur, size_t size, const char *prefreg,
  *
  * @param[in]  mpur             memory purpose
  * @param[in]  size             object size
- * @param[in]  prefreg          preferred region name
+ * @param[in]  prefreg          preferred region names, NULL terminated
  * @param[in]  required         required region features (DMA, cacheable)
  * @param[in]  required_mask    required region features mask (DMA, cacheable)
  * @param[out] mem              pointer to memory block pointer
@@ -225,7 +225,7 @@ int _kzalloc(enum _mm_mem mpur, size_t size, const char *prefreg,
  * @return One of errno values.
  */
 //==============================================================================
-int _kmalloc(enum _mm_mem mpur, size_t size, const char *prefreg,
+int _kmalloc(enum _mm_mem mpur, size_t size, const char *prefreg[],
              u32_t required, u32_t required_mask, void **mem, ...)
 {
         va_list vaarg;
@@ -536,6 +536,47 @@ bool _mm_is_dma_capable(const void *ptr)
 
 //==============================================================================
 /**
+ * @brief  Function check if selected address is in specified memory region.
+ *
+ * @param  ptr          address to examine
+ * @param  in_regions   regions array string, NULL terminated
+ *
+ * @return If ptr is in specified region then true is returned, otherwise false.
+ */
+//==============================================================================
+bool _mm_is_mem_region(const  void *ptr, const char *in_regions[])
+{
+        if (ptr == NULL) {
+                return false;
+        }
+
+        if (in_regions == NULL) {
+                return false;
+        }
+
+        for (_mm_region_t *r = regions; r; r = r->next) {
+
+                const char **reg = in_regions;
+
+                while (*reg) {
+                        if (isstreq(*reg, r->name_ref)) {
+
+                                if (  (cast(uintptr_t, ptr) >= cast(uintptr_t, r->heap.ram))
+                                   && (cast(uintptr_t, ptr) < cast(uintptr_t, r->heap.ram_end)) ) {
+
+                                        return true;
+                                }
+                        }
+
+                        reg++;
+                }
+        }
+
+        return false;
+}
+
+//==============================================================================
+/**
  * @brief  Function check if address is in cacheable memory.
  *
  * @param  ptr          address to examine
@@ -605,7 +646,7 @@ const char *_mm_get_region_name(const void *ptr)
  * @param[in]      mpur             memory purpose
  * @param[in]      size             object size
  * @param[in]      clear            clear allocated block
- * @param[in]      prefreg          preferred memory region (reference name or !<reg-name> for force)
+ * @param[in]      prefreg          preferred memory region, if NULL any memory can be used
  * @param[in]      required         required region features (DMA, cacheable)
  * @param[in]      required_mask    required region features mask (DMA, cacheable)
  * @param[out]     mem              pointer to memory block pointer
@@ -614,22 +655,10 @@ const char *_mm_get_region_name(const void *ptr)
  * @return One of errno values.
  */
 //==============================================================================
-static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefreg,
+static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefreg[],
                   u32_t required, u32_t required_mask, void **mem, void *arg)
 {
         int err = EINVAL;
-
-        bool cont_search = true;
-
-        if (prefreg) {
-                if (prefreg[0] == '\0') {
-                        prefreg = NULL;
-
-                } else if (prefreg[0] == '!') {
-                        cont_search = false;
-                        prefreg++;
-                }
-        }
 
         if (mpur < _MM_COUNT && size && mem) {
                 i32_t *usage = NULL;
@@ -683,27 +712,30 @@ static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefre
                 void  *blk       = NULL;
                        err       = ENOMEM;
 
-                if (prefreg) {
-                        for (_mm_region_t *r = regions; r; r = r->next) {
-                                if (prefreg == r->name_ref) {
-                                        if ((r->flags & required_mask) == required) {
-                                                if (_heap_get_free(&r->heap) >= size) {
-                                                        blk = _heap_alloc(&r->heap, size, &allocated);
-                                                }
-                                        }
-                                        break;
-                                }
-                        }
-                }
-
-                if (!blk && cont_search) {
+                if (not prefreg) {
                         for (_mm_region_t *r = regions; r && !blk; r = r->next) {
                                 if ((r->flags & required_mask) == required) {
                                         if (_heap_get_free(&r->heap) >= size) {
                                                 blk = _heap_alloc(&r->heap, size, &allocated);
-                                                if (blk) break;
                                         }
                                 }
+                        }
+                } else {
+                        const char **preg = prefreg;
+
+                        while (*preg && !blk) {
+
+                                for (_mm_region_t *r = regions; r && !blk; r = r->next) {
+                                        if (isstreq(*preg, r->name_ref)) {
+                                                if ((r->flags & required_mask) == required) {
+                                                        if (_heap_get_free(&r->heap) >= size) {
+                                                                blk = _heap_alloc(&r->heap, size, &allocated);
+                                                        }
+                                                }
+                                        }
+                                }
+
+                                preg++;
                         }
                 }
 

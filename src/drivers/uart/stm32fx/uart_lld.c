@@ -47,7 +47,7 @@
 #define NDTR                    CNDTR
 #define _DMA_DDI_get_stream     _DMA_DDI_get_channel
 typedef DMA_Channel_TypeDef     DMA_Stream_TypeDef;
-#define UART_MEM                ""
+#define UART_MEM                NULL
 #elif defined(ARCH_stm32f3)
 #include "stm32f3/stm32f3xx.h"
 #include "stm32f3/lib/stm32f3xx_ll_rcc.h"
@@ -61,7 +61,7 @@ typedef DMA_Channel_TypeDef     DMA_Stream_TypeDef;
 #define NDTR                    CNDTR
 #define _DMA_DDI_get_stream     _DMA_DDI_get_channel
 typedef DMA_Channel_TypeDef     DMA_Stream_TypeDef;
-#define UART_MEM                ""
+#define UART_MEM                NULL
 #elif defined(ARCH_stm32f4)
 #include "stm32f4/stm32f4xx.h"
 #include "stm32f4/lib/stm32f4xx_rcc.h"
@@ -70,7 +70,7 @@ typedef DMA_Channel_TypeDef     DMA_Stream_TypeDef;
 #define TDR                     DR
 #define USART_CLKSOURCE_PCLK1   1
 #define USART_CLKSOURCE_PCLK2   2
-#define UART_MEM                ""
+#define UART_MEM                NULL
 #elif defined(ARCH_stm32f7)
 #include "stm32f7/stm32f7xx.h"
 #include "stm32f7/lib/stm32f7xx_ll_rcc.h"
@@ -81,7 +81,7 @@ typedef DMA_Channel_TypeDef     DMA_Stream_TypeDef;
 #define USART_SR_TC             USART_ISR_TC
 #define USART_SR_IDLE           USART_ISR_IDLE
 #define USART_SR_TXE            USART_ISR_TXE
-#define UART_MEM                ""
+#define UART_MEM                NULL
 #elif defined(ARCH_stm32h7)
 #include "stm32h7/stm32h7xx.h"
 #include "stm32h7/lib/stm32h7xx_ll_rcc.h"
@@ -92,7 +92,7 @@ typedef DMA_Channel_TypeDef     DMA_Stream_TypeDef;
 #define USART_SR_TC             USART_ISR_TC
 #define USART_SR_IDLE           USART_ISR_IDLE
 #define USART_SR_TXE            USART_ISR_TXE_TXFNF
-#define UART_MEM                "SRAM1"
+#define UART_MEM                (const char *[]){"SRAM1", "SRAM2", "SRAM3", "SRAM4", NULL}
 #endif
 
 /*==============================================================================

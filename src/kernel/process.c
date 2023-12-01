@@ -194,7 +194,7 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
         _process_t  *proc      = NULL;
         task_args_t *task_args = NULL;
 
-        int err = _kzalloc(_MM_KRN, sizeof(_process_t), _CPUCTL_FAST_MEM, 0, 0,
+        int err = _kzalloc(_MM_KRN, sizeof(_process_t), _cpuctl_fast_mem, 0, 0,
                 cast(void **, &proc));
         if (err) {
                 return err;
@@ -260,7 +260,7 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
                 proc->flag |= PROC_FLAG_KWORKER;
         }
 
-        err = _kzalloc(_MM_KRN, sizeof(*task_args), _CPUCTL_FAST_MEM, 0, 0,
+        err = _kzalloc(_MM_KRN, sizeof(*task_args), _cpuctl_fast_mem, 0, 0,
                 cast(void **, &task_args));
         if (err) {
                 goto finish;
@@ -1239,7 +1239,7 @@ int _process_thread_create(_process_t *proc, thread_func_t func,
 
                 if (id < __OS_PROCESS_MAX_THREADS__) {
                         task_args_t *args = NULL;
-                        err = _kmalloc(_MM_KRN, sizeof(*args), _CPUCTL_FAST_MEM, 0, 0,
+                        err = _kmalloc(_MM_KRN, sizeof(*args), _cpuctl_fast_mem, 0, 0,
                                 cast(void *, &args));
                         if (!err) {
 
@@ -1961,7 +1961,7 @@ int _process_descriptor_allocate(_process_t *process, int *desc, res_header_t *r
                         if (not found) {
                                 if (chain->next == NULL) {
                                         err = _kzalloc(_MM_KRN, sizeof(dchain_t),
-                                                _CPUCTL_FAST_MEM, 0, 0,
+                                                _cpuctl_fast_mem, 0, 0,
                                                 cast(void **, &chain->next));
                                         if (err) {
                                                 chain->next = NULL;
@@ -3002,7 +3002,7 @@ static int allocate_process_globals(_process_t *proc, size_t app_ctx_size,
 
         if (*usrprog->globals_size > 0) {
                 res_header_t *mem;
-                err = _kzalloc(_MM_PROG, *usrprog->globals_size, NULL,
+                err = _kzalloc(_MM_PROG, *usrprog->globals_size, _cpuctl_preferred_APP_RAM,
                         _MM_FLAG__DMA_CAPABLE, _MM_FLAG__DMA_CAPABLE, cast(void *, &mem));
                 if (!err) {
                         proc->globals = &mem[1];
@@ -3012,8 +3012,8 @@ static int allocate_process_globals(_process_t *proc, size_t app_ctx_size,
 
         if (!err and (app_ctx_size > 0)) {
                 res_header_t *ctx;
-                err = _kzalloc(_MM_PROG, app_ctx_size, NULL, _MM_FLAG__DMA_CAPABLE,
-                        _MM_FLAG__DMA_CAPABLE, cast(void *, &ctx));
+                err = _kzalloc(_MM_PROG, app_ctx_size, _cpuctl_preferred_APP_RAM,
+                        _MM_FLAG__DMA_CAPABLE, _MM_FLAG__DMA_CAPABLE, cast(void *, &ctx));
                 if (!err) {
                         proc->app_ctx = &ctx[1];
                         _process_register_resource(proc, ctx);

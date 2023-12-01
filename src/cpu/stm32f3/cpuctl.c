@@ -44,35 +44,35 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define SRAM_HEAP_START         ((void *)&__heap_start)
-#define SRAM_HEAP_SIZE          ((size_t)&__heap_size)
+#define SRAM_HEAP_START ((void *)&__heap_start)
+#define SRAM_HEAP_SIZE  ((size_t) & __heap_size)
 
-#define CCM_START               ((void *)&__ccm_start)
-#define CCM_SIZE                ((size_t)&__ccm_size)
+#define CCM_START       ((void *)&__ccm_start)
+#define CCM_SIZE        ((size_t) & __ccm_size)
 
 // Memory Management Fault Status Register
-#define NVIC_MFSR               (*(volatile unsigned char*)(0xE000ED28u))
+#define NVIC_MFSR (*(volatile unsigned char *)(0xE000ED28u))
 
 // Bus Fault Status Register
-#define NVIC_BFSR               (*(volatile unsigned char*)(0xE000ED29u))
+#define NVIC_BFSR (*(volatile unsigned char *)(0xE000ED29u))
 
 // Usage Fault Status Register
-#define NVIC_UFSR               (*(volatile unsigned short*)(0xE000ED2Au))
+#define NVIC_UFSR (*(volatile unsigned short *)(0xE000ED2Au))
 
 // Hard Fault Status Register
-#define NVIC_HFSR               (*(volatile unsigned int*)(0xE000ED2Cu))
+#define NVIC_HFSR (*(volatile unsigned int *)(0xE000ED2Cu))
 
 // Debug Fault Status Register
-#define NVIC_DFSR               (*(volatile unsigned int*)(0xE000ED30u))
+#define NVIC_DFSR (*(volatile unsigned int *)(0xE000ED30u))
 
 // MemManage Fault Address Register
-#define NVIC_MFAR               (*(volatile unsigned int*)(0xE000ED34u))
+#define NVIC_MFAR (*(volatile unsigned int *)(0xE000ED34u))
 
 // Bus Fault Manage Address Register
-#define NVIC_BFAR               (*(volatile unsigned int*)(0xE000ED38u))
+#define NVIC_BFAR (*(volatile unsigned int *)(0xE000ED38u))
 
 // Auxiliary Fault Status Register
-#define NVIC_AFSR               (*(volatile unsigned int*)(0xE000ED3Cu))
+#define NVIC_AFSR (*(volatile unsigned int *)(0xE000ED3Cu))
 
 /*==============================================================================
   Local types, enums definitions
@@ -83,17 +83,17 @@ typedef struct {
         uint32_t R2;
         uint32_t R3;
         uint32_t R12;
-        uint32_t LR;    // Link register.
-        uint32_t PC;    // Program counter.
-        uint32_t PSR;   // Program status register.
-        uint32_t MFSR;  // Memory Management Fault Status Register.
-        uint32_t BFSR;  // Bus Fault Status Register.
-        uint32_t UFSR;  // Usage Fault Status Register.
-        uint32_t HFSR;  // Hard Fault Status Register.
-        uint32_t DFSR;  // Debug Fault Status Register.
-        uint32_t BFAR;  // Bus Fault Manage Address Register.
-        uint32_t AFSR;  // Auxiliary Fault Status Register.
-        uint32_t MFAR;  // MemManage Fault Address Register
+        uint32_t LR; // Link register.
+        uint32_t PC; // Program counter.
+        uint32_t PSR; // Program status register.
+        uint32_t MFSR; // Memory Management Fault Status Register.
+        uint32_t BFSR; // Bus Fault Status Register.
+        uint32_t UFSR; // Usage Fault Status Register.
+        uint32_t HFSR; // Hard Fault Status Register.
+        uint32_t DFSR; // Debug Fault Status Register.
+        uint32_t BFAR; // Bus Fault Manage Address Register.
+        uint32_t AFSR; // Auxiliary Fault Status Register.
+        uint32_t MFAR; // MemManage Fault Address Register
 } reg_dump_t;
 
 /*==============================================================================
@@ -112,7 +112,14 @@ extern void *__ccm_size;
 static _mm_region_t sram;
 static _mm_region_t ccm;
 
-static volatile reg_dump_t reg_dump __attribute__ ((section (".noinit")));
+static volatile reg_dump_t reg_dump __attribute__((section(".noinit")));
+
+/*==============================================================================
+  External object definitions
+==============================================================================*/
+const char *_cpuctl_preferred_APP_RAM[] = {"SRAM", NULL};
+
+const char *_cpuctl_fast_mem[] = {"CCM", "SRAM", NULL};
 
 /*==============================================================================
   Function definitions
@@ -134,7 +141,7 @@ void _cpuctl_init(void)
         NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
 
         /* enable FPU */
-        SCB->CPACR |= ((3 << 20)|(3 << 22));
+        SCB->CPACR |= ((3 << 20) | (3 << 22));
 
 #if __CPU_DISABLE_INTER_OF_MCYCLE_INSTR__ == _YES_
         /* disable interrupting multi-cycle instructions */
@@ -144,27 +151,42 @@ void _cpuctl_init(void)
         /* enable sleep on idle debug */
         SET_BIT(DBGMCU->CR, DBGMCU_CR_DBG_SLEEP);
 
-        #if (__OS_MONITOR_CPU_LOAD__ > 0)
+#if (__OS_MONITOR_CPU_LOAD__ > 0)
         _cpuctl_init_CPU_load_counter();
-        #endif
+#endif
 
-        _mm_register_region(&sram, SRAM_HEAP_START, SRAM_HEAP_SIZE, _MM_FLAG__DMA_CAPABLE, "SRAM");
+        _mm_register_region(&sram, SRAM_HEAP_START, SRAM_HEAP_SIZE, _MM_FLAG__DMA_CAPABLE,
+                "SRAM");
 
         if (CCM_SIZE > 0) {
-                _mm_register_region(&ccm, CCM_START, CCM_SIZE, 0, _CPUCTL_FAST_MEM);
+                _mm_register_region(&ccm, CCM_START, CCM_SIZE, 0, "CCM");
         }
 
 #if __CPU_SHOW_AND_CLEAR_RESET_SOURCE__
         u32_t CSR = RCC->CSR;
         SET_BIT(RCC->CSR, RCC_CSR_RMVF);
         printk("Reset source:");
-        if (CSR & RCC_CSR_LPWRRSTF) printk("  Low power reset");
-        if (CSR & RCC_CSR_WWDGRSTF) printk("  Window watchdog reset");
-        if (CSR & RCC_CSR_IWDGRSTF) printk("  Watchdog reset");
-        if (CSR & RCC_CSR_SFTRSTF)  printk("  Software reset");
-        if (CSR & RCC_CSR_PORRSTF)  printk("  POR reset");
-        if (CSR & RCC_CSR_PINRSTF)  printk("  Pin reset");
-        if (CSR & RCC_CSR_OBLRSTF)  printk("  OBL reset");
+        if (CSR & RCC_CSR_LPWRRSTF) {
+                printk("  Low power reset");
+        }
+        if (CSR & RCC_CSR_WWDGRSTF) {
+                printk("  Window watchdog reset");
+        }
+        if (CSR & RCC_CSR_IWDGRSTF) {
+                printk("  Watchdog reset");
+        }
+        if (CSR & RCC_CSR_SFTRSTF) {
+                printk("  Software reset");
+        }
+        if (CSR & RCC_CSR_PORRSTF) {
+                printk("  POR reset");
+        }
+        if (CSR & RCC_CSR_PINRSTF) {
+                printk("  Pin reset");
+        }
+        if (CSR & RCC_CSR_OBLRSTF) {
+                printk("  OBL reset");
+        }
 #endif
 }
 
@@ -187,7 +209,7 @@ void _cpuctl_shutdown_system(void)
 {
         __disable_irq();
 
-        for(;;) {
+        for (;;) {
                 __NOP();
         }
 }
@@ -307,8 +329,8 @@ void _cpuctl_init_CPU_load_counter(void)
 u32_t _cpuctl_get_CPU_load_counter_delta(void)
 {
         static uint32_t last;
-        bool  ovf = SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk;
-        u32_t now = SysTick->VAL;
+        bool            ovf = SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk;
+        u32_t           now = SysTick->VAL;
 
         u32_t delta;
         if (ovf) {
@@ -375,16 +397,19 @@ void _cpuctl_update_system_clocks(void)
 //==============================================================================
 void _cpuctl_delay_us(u16_t microseconds)
 {
-        u32_t ticks = ((u64_t)microseconds * SysTick->LOAD * __OS_TASK_SCHED_FREQ__) / 1000000;
+        u32_t ticks = ((u64_t)microseconds * SysTick->LOAD * __OS_TASK_SCHED_FREQ__) /
+                1000000;
 
         while (ticks > 0) {
                 i32_t now = SysTick->VAL;
 
                 if (now - ticks > 0) {
-                        while (SysTick->VAL > (u32_t)(now - ticks));
+                        while (SysTick->VAL > (u32_t)(now - ticks))
+                                ;
                         ticks = 0;
                 } else {
-                        while (SysTick->VAL <= (u32_t)now);
+                        while (SysTick->VAL <= (u32_t)now)
+                                ;
                         ticks -= now;
                 }
         }
@@ -422,15 +447,12 @@ void _cpuctl_print_exception(void)
 //==============================================================================
 void HardFault_Handler(void)
 {
-        __asm volatile
-        (
-                " tst lr, #4                                                \n"
-                " ite eq                                                    \n"
-                " mrseq r0, msp                                             \n"
-                " mrsne r0, psp                                             \n"
-                " ldr r1, [r0, #24]                                         \n"
-                " b get_registers_from_stack                                \n"
-        );
+        __asm volatile(" tst lr, #4                                                \n"
+                       " ite eq                                                    \n"
+                       " mrseq r0, msp                                             \n"
+                       " mrsne r0, psp                                             \n"
+                       " ldr r1, [r0, #24]                                         \n"
+                       " b get_registers_from_stack                                \n");
 }
 
 //==============================================================================

@@ -127,6 +127,13 @@ static _mm_region_t ccm;
 static volatile reg_dump_t reg_dump __attribute__ ((section (".noinit")));
 
 /*==============================================================================
+  External object definitions
+==============================================================================*/
+const char *_cpuctl_preferred_APP_RAM[] = {"SRAM1", "SRAM2", "SRAM3", NULL};
+
+const char *_cpuctl_fast_mem[] = {"CCM", "SRAM1", "SRAM2", "SRAM3", NULL};
+
+/*==============================================================================
   Function definitions
 ==============================================================================*/
 
@@ -165,7 +172,7 @@ void _cpuctl_init(void)
         _mm_register_region(&sram3, SRAM3_START, SRAM3_SIZE, _MM_FLAG__DMA_CAPABLE, "SRAM3");
 
         if (CCM_SIZE > 0) {
-                _mm_register_region(&ccm, CCM_START, CCM_SIZE, 0, _CPUCTL_FAST_MEM);
+                _mm_register_region(&ccm, CCM_START, CCM_SIZE, 0, "CCM");
         }
 
 #if __CPU_SHOW_AND_CLEAR_RESET_SOURCE__

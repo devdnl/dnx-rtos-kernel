@@ -5012,6 +5012,21 @@ static inline bool sys_is_mem_dma_capable(const void *ptr)
 
 //==============================================================================
 /**
+ * @brief  Function check if selected address is in specified memory region.
+ *
+ * @param  ptr          address to examine
+ * @param  regions      regions array string, NULL terminated
+ *
+ * @return If ptr is in specified region then true is returned, otherwise false.
+ */
+//==============================================================================
+static inline bool sys_is_mem_region(const void *ptr, const char *regions[])
+{
+        return _mm_is_mem_region(ptr, regions);
+}
+
+//==============================================================================
+/**
  * @brief  Function return region name of selected address.
  *
  * @param  ptr          address to examine

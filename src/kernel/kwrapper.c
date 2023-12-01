@@ -42,13 +42,13 @@
 /** CALCULATIONS */
 #define _CEILING(x, y) (((x) + (y)-1) / (y))
 
-#define MS2TICK(ms)                                                     \
+#define MS2TICK(ms)                                                       \
         (((ms) <= (1000 / (configTICK_RATE_HZ))                           \
-                         ? 1                                            \
+                         ? 1                                              \
                          : _CEILING((ms), (1000 / (configTICK_RATE_HZ)))) \
                 + 1)
 
-#define BLOCK_TIME_MS   250
+#define BLOCK_TIME_MS 250
 
 /*==============================================================================
   Local types, enums definitions
@@ -520,7 +520,7 @@ int _semaphore_create(size_t cnt_max, size_t cnt_init, ksem_t **sem)
         int err = EINVAL;
 
         if (cnt_max > 0 && sem) {
-                err = _kzalloc(_MM_KRN, sizeof(ksem_t), _CPUCTL_FAST_MEM, 0, 0,
+                err = _kzalloc(_MM_KRN, sizeof(ksem_t), _cpuctl_fast_mem, 0, 0,
                         cast(void **, sem));
                 if (err == ESUCC) {
 
@@ -721,7 +721,7 @@ int _mutex_create(enum kmtx_type type, kmtx_t **mtx)
         int err = EINVAL;
 
         if (type <= KMTX_TYPE_NORMAL && mtx) {
-                err = _kzalloc(_MM_KRN, sizeof(kmtx_t), _CPUCTL_FAST_MEM, 0, 0,
+                err = _kzalloc(_MM_KRN, sizeof(kmtx_t), _cpuctl_fast_mem, 0, 0,
                         cast(void **, mtx));
                 if (err == ESUCC) {
                         if (type == KMTX_TYPE_RECURSIVE) {
@@ -882,7 +882,7 @@ int _spinlock_create(u32_t loop_delay_ms, kspinlock_t **spinlock)
         int err = EINVAL;
 
         if (spinlock) {
-                err = _kzalloc(_MM_KRN, sizeof(kspinlock_t), _CPUCTL_FAST_MEM, 0, 0,
+                err = _kzalloc(_MM_KRN, sizeof(kspinlock_t), _cpuctl_fast_mem, 0, 0,
                         cast(void **, spinlock));
                 if (not err) {
                         (*spinlock)->loop_delay_ms = loop_delay_ms;
@@ -999,7 +999,7 @@ int _flag_create(kflag_t **flag)
         int err = EINVAL;
 
         if (flag) {
-                err = _kzalloc(_MM_KRN, sizeof(kflag_t), _CPUCTL_FAST_MEM, 0, 0,
+                err = _kzalloc(_MM_KRN, sizeof(kflag_t), _cpuctl_fast_mem, 0, 0,
                         cast(void **, flag));
                 if (err == ESUCC) {
                         (*flag)->object = xEventGroupCreateStatic(&(*flag)->buffer);
@@ -1161,7 +1161,7 @@ int _queue_create(size_t length, size_t item_size, kqueue_t **queue)
 
         if (length && item_size && queue) {
                 err = _kzalloc(_MM_KRN, sizeof(kqueue_t) + (length * item_size),
-                        _CPUCTL_FAST_MEM, 0, 0, cast(void **, queue));
+                        _cpuctl_fast_mem, 0, 0, cast(void **, queue));
                 if (err == ESUCC) {
                         (*queue)->object = xQueueCreateStatic(length, item_size,
                                 cast(uint8_t *, &(*queue)[1]), &(*queue)->buffer);

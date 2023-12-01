@@ -112,6 +112,13 @@ static u32_t ticks_per_us;
 static volatile reg_dump_t reg_dump __attribute__((section(".noinit")));
 
 /*==============================================================================
+  External object definitions
+==============================================================================*/
+const char *_cpuctl_preferred_APP_RAM[] = {"SRAM", NULL};
+
+const char *_cpuctl_fast_mem[] = {"SRAM", NULL};
+
+/*==============================================================================
   Function definitions
 ==============================================================================*/
 

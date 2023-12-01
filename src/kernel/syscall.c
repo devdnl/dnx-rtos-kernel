@@ -1316,7 +1316,8 @@ static int syscall_malloc(syscallrq_t *rq)
         GETARG(void **, blk);
 
         void *mem = NULL;
-        int   err = _kmalloc(_MM_PROG, *size, NULL, _MM_FLAG__DMA_CAPABLE, _MM_FLAG__DMA_CAPABLE, &mem);
+        int   err = _kmalloc(_MM_PROG, *size, _cpuctl_preferred_APP_RAM,
+                _MM_FLAG__DMA_CAPABLE, _MM_FLAG__DMA_CAPABLE, &mem);
         if (!err) {
                 err = _process_register_resource(GETPROCESS(), mem);
                 if (err) {
@@ -1344,7 +1345,8 @@ static int syscall_zalloc(syscallrq_t *rq)
         GETARG(void **, blk);
 
         void *mem = NULL;
-        int   err = _kzalloc(_MM_PROG, *size, NULL, _MM_FLAG__DMA_CAPABLE, _MM_FLAG__DMA_CAPABLE, &mem);
+        int   err = _kzalloc(_MM_PROG, *size, _cpuctl_preferred_APP_RAM,
+                _MM_FLAG__DMA_CAPABLE, _MM_FLAG__DMA_CAPABLE, &mem);
         if (!err) {
                 err = _process_register_resource(GETPROCESS(), mem);
                 if (err) {

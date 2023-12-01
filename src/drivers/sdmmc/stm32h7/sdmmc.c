@@ -132,6 +132,11 @@ static int card_read_blocks_DMA(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
 MODULE_NAME(SDMMC);
 
 /*
+ * SDMMC1 supported memories
+ */
+static const char *SDMMC1_RAM[] = {"AXISRAM", "SDRAM", "SRAM", "PSRAM", "NOR", NULL};
+
+/*
  * For IRQ purpose only.
  */
 static SDMMC_t *sdmmc[SDMMC_COUNT];
@@ -339,6 +344,15 @@ API_MOD_WRITE(SDMMC, void *device_handle, const u8_t *src, size_t count, fpos_t 
                 return err;
         }
 
+        u32_t mode = hdl->mode;
+
+        if (hdl->major == 0) {
+                if (not sys_is_mem_region(src, SDMMC1_RAM)) {
+                        dev_dbg(hdl, "address %08lXh out of DMA range - using IRQ mode", src);
+                        mode = _SDMMC_MODE_IRQ;
+                }
+        }
+
         u32_t block_address = *fpos / SDMMC_BLOCKSIZE;
         u32_t blocks        = count / SDMMC_BLOCKSIZE;
 
@@ -349,15 +363,15 @@ API_MOD_WRITE(SDMMC, void *device_handle, const u8_t *src, size_t count, fpos_t 
                         dev_dbg(hdl, "card busy at write transfer");
                 }
 
-                if (hdl->mode == _SDMMC_MODE_POLLING) {
+                if (mode == _SDMMC_MODE_POLLING) {
 
                         err = card_write_blocks(hdl, src, block_address, blocks);
 
-                } else if (hdl->mode == _SDMMC_MODE_IRQ) {
+                } else if (mode == _SDMMC_MODE_IRQ) {
 
                         err = card_write_blocks_IT(hdl, src, block_address, blocks);
 
-                } else if (hdl->mode == _SDMMC_MODE_DMA) {
+                } else if (mode == _SDMMC_MODE_DMA) {
 
                         err = card_write_blocks_DMA(hdl, src, block_address, blocks);
 
@@ -418,6 +432,15 @@ API_MOD_READ(SDMMC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
                 return err;
         }
 
+        u32_t mode = hdl->mode;
+
+        if (hdl->major == 0) {
+                if (not sys_is_mem_region(dst, SDMMC1_RAM)) {
+                        dev_dbg(hdl, "address %08lXh out of DMA range - using IRQ mode", dst);
+                        mode = _SDMMC_MODE_IRQ;
+                }
+        }
+
         u32_t block_address = *fpos / SDMMC_BLOCKSIZE;
         u32_t blocks        = count / SDMMC_BLOCKSIZE;
 
@@ -428,15 +451,15 @@ API_MOD_READ(SDMMC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
                         dev_dbg(hdl, "card busy at read transfer");
                 }
 
-                if (hdl->mode == _SDMMC_MODE_POLLING) {
+                if (mode == _SDMMC_MODE_POLLING) {
 
                         err = card_read_blocks(hdl, dst, block_address, blocks);
 
-                } else if (hdl->mode == _SDMMC_MODE_IRQ) {
+                } else if (mode == _SDMMC_MODE_IRQ) {
 
                         err = card_read_blocks_IT(hdl, dst, block_address, blocks);
 
-                } else if (hdl->mode == _SDMMC_MODE_DMA) {
+                } else if (mode == _SDMMC_MODE_DMA) {
 
                         err = card_read_blocks_DMA(hdl, dst, block_address, blocks);
 
