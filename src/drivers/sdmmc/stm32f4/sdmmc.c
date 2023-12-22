@@ -557,7 +557,7 @@ static int register_DMA_channel(SDMMC_t *hdl)
         dmah->Config.channel            = SDMMC[hdl->major].DMA_channel;
         dmah->Config.release            = false;
         dmah->Config.mode               = _DMA_DDI_MODE_FIFO;
-        dmah->Config.fifo_threshold     = _DMA_DDI_FIFO_THRESHOLD_FULL;
+        dmah->Config.fifo_threshold     = _DMA_DDI_FIFO_THRESHOLD_1_2;
         dmah->Config.memory_burst       = _DMA_DDI_MEMORY_BURST_4_BEATS;
         dmah->Config.peripheral_burst   = _DMA_DDI_PERIPHERAL_BURST_4_BEATS;
         dmah->Config.double_buffer_mode = _DMA_DDI_DOUBLE_BUFFER_MODE_DISABLED;

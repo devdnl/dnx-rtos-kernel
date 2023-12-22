@@ -483,6 +483,14 @@ static int sdram_init(void)
          *    The SDRAM clock frequency, RBURST and RPIPE must be programmed
          *    in the FMC_SDCR1 register.
          */
+        if (__EMI_SDRAM_TWR__ < __EMI_SDRAM_TRAS__ – __EMI_SDRAM_1_TRCD__) {
+                printk("EMI: SDRAM1 invalid tWR value!");
+        }
+
+        if (__EMI_SDRAM_TWR__ < __EMI_SDRAM_TRAS__ – __EMI_SDRAM_2_TRCD__) {
+                printk("EMI: SDRAM2 invalid tWR value!");
+        }
+
         FMC_BANK_5_6->SDCR[0] = ((__EMI_SDRAM_RPIPE__  & 3) << FMC_SDCRx_RPIPE_Pos)
                               | ((__EMI_SDRAM_RBURST__ & 1) << FMC_SDCRx_RBURST_Pos)
                               | ((__EMI_SDRAM_SDCLK__  & 3) << FMC_SDCRx_SDCLK_Pos)
