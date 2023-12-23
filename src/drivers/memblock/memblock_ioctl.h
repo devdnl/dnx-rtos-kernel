@@ -37,10 +37,11 @@ memory address can be mapped as file.
 
 \section drv-memblock-ddesc Details
 \subsection drv-memblock-ddesc-num Meaning of major and minor numbers
-The major number set next independent device in system.
+Major and minor numbers set independent device in system.
 
 \subsubsection drv-memblock-ddesc-numres Numeration restrictions
-Only major number is used to create new node. Minor should be set to 0.
+Major and minor numbers can be used to create new node. Different minor number
+is treated as different device even major number is the same.
 
 \subsection drv-memblock-ddesc-init Driver initialization
 To initialize driver the following code can be used:

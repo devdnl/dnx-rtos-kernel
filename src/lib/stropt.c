@@ -222,7 +222,7 @@ size_t _stropt_get_string_copy(const char *opts, const char *var, char *buf, siz
 /**
  * @brief  Function return integer value from given configuration.
  *
- * Function found expression: VAR=BOOL(false, true, on, off, enable, disable, yes, no).
+ * Function found expression: VAR=BOOL(false, true, on, off, enable, disable, yes, no, set, reset, 1, 0).
  *
  * @param opts          options to analyse
  * @param var           variable to search
@@ -243,14 +243,18 @@ int _stropt_get_bool(const char *opts, const char *var, int defval)
                 if (val && len) {
                         if (  (strncmp(val, "false", 5) == 0)
                            || (strncmp(val, "off", 3) == 0)
+                           || (strncmp(val, "0", 1) == 0)
                            || (strncmp(val, "disable", 7) == 0)
+                           || (strncmp(val, "reset", 5) == 0)
                            || (strncmp(val, "no", 2) == 0)) {
 
                                 retval = 0;
 
                         } else if (  (strncmp(val, "true", 4) == 0)
                                   || (strncmp(val, "on", 2) == 0)
+                                  || (strncmp(val, "1", 1) == 0)
                                   || (strncmp(val, "enable", 6) == 0)
+                                  || (strncmp(val, "set", 3) == 0)
                                   || (strncmp(val, "yes", 3) == 0)) {
 
                                 retval = 1;

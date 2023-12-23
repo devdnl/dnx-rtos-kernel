@@ -43,7 +43,8 @@ def encdec(buf, seed):
 def make_file_descriptor(file_size, file_crc32, prng_seed, file_name, file_data, fout):
 
     flags = 0
-    if encrypted:  flags = flags | (1 << 0)
+    if encrypted:
+        flags = flags | (1 << 0)
 
     desc_data = pack('<IIIIII', len(file_name),  binascii.crc32(bytes(file_name.encode('utf-8'))), file_size,
          file_crc32, prng_seed, flags)
@@ -88,6 +89,8 @@ def make_container_header(number_of_files):
 
     if encrypted:
         flags = (1 << 0)
+    else:
+        desc_seed = 0
 
     desc = pack('<III', desc_seed, number_of_files, flags)
     crc  = binascii.crc32(desc)
@@ -125,16 +128,13 @@ if __name__ == "__main__":
 
     file_list.sort()
 
-    for file_name in file_list:
-        print(file_name)
-
     # create output file
     with open(output, "wb") as fout:
 
         entry_list = []
 
         # foma header
-        fout.write(b"ROMFS\n")
+        fout.write(b"FPKG\n")
 
         # skip header (max header size 64 bytes)
         fout.seek(64)

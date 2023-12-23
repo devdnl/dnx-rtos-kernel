@@ -75,19 +75,15 @@ MODULE_NAME(MEMBLOCK);
 //==============================================================================
 API_MOD_INIT(MEMBLOCK, void **device_handle, u8_t major, u8_t minor, const void *config)
 {
-        int err = EFAULT;
+        int err = sys_zalloc(sizeof(MEMBLOCK_t), device_handle);
+        if (!err) {
+                MEMBLOCK_t *hdl = *device_handle;
 
-        if (minor == 0) {
-                err = sys_zalloc(sizeof(MEMBLOCK_t), device_handle);
-                if (!err) {
-                        MEMBLOCK_t *hdl = *device_handle;
+                hdl->major = major;
+                hdl->minor = minor;
 
-                        hdl->major = major;
-                        hdl->minor = minor;
-
-                        if (config) {
-                                hdl->config = *cast(const MEMBLOCK_config_t *, config);
-                        }
+                if (config) {
+                        hdl->config = *cast(const MEMBLOCK_config_t *, config);
                 }
         }
 
