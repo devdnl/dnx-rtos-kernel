@@ -29,7 +29,7 @@
 #ifndef _CONFIG_H_
 #define _CONFIG_H_
 
-#include "../../config/config.h"
+#include "../../build/defs.h"
 
 #if _CONFIG_VERSION != 20221030
 #error Configuration version mismatch!

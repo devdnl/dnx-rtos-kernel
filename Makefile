@@ -25,7 +25,12 @@
 #
 ####################################################################################################
 
-include ./config/config.h
+ifeq ($(CONFIG_DIR),)
+	CONFIG_DIR=./config
+endif
+
+CONFIG=$(CONFIG_DIR)/config.h
+include $(CONFIG)
 
 ####################################################################################################
 # PROJECT CONFIGURATION
@@ -41,7 +46,6 @@ TOOLCHAIN = $(__PROJECT_TOOLCHAIN__)
 AFLAGS   = -c \
            -g \
            -ggdb3 \
-           -include ./build/defs.h \
            $(CPUCONFIG_AFLAGS)
 
 CFLAGS   = -c \
@@ -70,9 +74,10 @@ CFLAGS   = -c \
            -Werror=stringop-overflow \
            -Werror=overflow \
            -Wno-enum-conversion \
-           -include ./config/config.h \
+           -include $(CONFIG) \
            -include ./build/defs.h \
-           -I./build\
+           -I./build \
+           -I$(CONFIG_DIR) \
            -DCOMPILE_EPOCH_TIME=$(shell $(DATE) "+%s") \
            $(CPUCONFIG_CFLAGS)
 
@@ -98,10 +103,11 @@ CXXFLAGS = -c \
            -Werror=switch \
            -Werror=stringop-overflow \
            -Werror=overflow \
-           -include ./config/config.h \
+           -include $(CONFIG) \
            -DCOMPILE_EPOCH_TIME=$(shell $(DATE) "+%s") \
            -include ./build/defs.h \
-           -I./build\
+           -I./build \
+           -I$(CONFIG_DIR) \
            $(CPUCONFIG_CXXFLAGS)
 
 LFLAGS   = -g \
@@ -373,10 +379,11 @@ generate :
 
 	@$(ECHO) "Adding drivers to the project..."
 	@$(MKDIR) $(GEN_DRIVERS_DIR)
-	@$(SHELL) $(ADDDRIVERS) ./$(SYS_DRV_LOC) ./$(GEN_DRIVERS_DIR) $(TARGET)
+	@$(SHELL) $(ADDDRIVERS) ./$(SYS_DRV_LOC) ./$(GEN_DRIVERS_DIR) $(TARGET) $(CONFIG_DIR)
 
 	@$(ECHO) "Obtaining git hash..."
-	@$(ECHO) "#define COMMIT_HASH \"$(shell git rev-parse --short HEAD 2>/dev/null)"\" > build/defs.h
+	@$(ECHO) "#include \"../$(CONFIG)\"" > build/defs.h
+	@$(ECHO) "#define COMMIT_HASH \"$(shell git rev-parse --short HEAD 2>/dev/null)"\" >> build/defs.h
 	@$(ECHO) "#define BRANCH_NAME \"$(shell git symbolic-ref --short HEAD 2>/dev/null)"\" >> build/defs.h
 
 ####################################################################################################

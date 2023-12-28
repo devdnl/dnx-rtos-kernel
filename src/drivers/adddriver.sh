@@ -19,8 +19,8 @@ module_list=
 #-------------------------------------------------------------------------------
 function check_args()
 {
-    if [ "$1" == "" ] || [ "$2" == "" ] || [ "$3" == "" ]; then
-        echo "Usage: $(basename $0) <path_to_scan> <output_path> <architecture>"
+    if [ "$1" == "" ] || [ "$2" == "" ] || [ "$3" == "" ] || [ "$4" == "" ]; then
+        echo "Usage: $(basename $0) <path_to_scan> <output_path> <architecture> <config-dir>"
         exit 1
     fi
 }
@@ -184,7 +184,7 @@ function create_ioctl_application_requests_file()
 
     cp src/include/drivers/ioctl_macros.h "$2/../ioctl/drivers/ioctl_macros.h"
     cp -r src/include/drivers/class "$2/../ioctl/drivers/"
-    cp config/arch/$3/gpio_flags.h "$2/../ioctl/gpio_defs.h"
+    cp $4/arch/$3/gpio_flags.h "$2/../ioctl/gpio_defs.h"
 }
 
 #-------------------------------------------------------------------------------
@@ -194,7 +194,7 @@ function create_ioctl_application_requests_file()
 #-------------------------------------------------------------------------------
 function main()
 {
-    check_args "$1" "$2" "$3"
+    check_args "$1" "$2" "$3" "$4"
 
     ioctl_groups_file_path="$2/$ioctl_groups_file_name"
     ioctl_requests_file_path="$2/$ioctl_requests_file_name"
@@ -205,7 +205,7 @@ function main()
     create_driver_registration_file_h $1 > "$2/$driver_registration_file_h"
     create_ioctl_groups_file > "$ioctl_groups_file_path"
     create_ioctl_requests_file $1 > "$ioctl_requests_file_path"
-    create_ioctl_application_requests_file $1 $2 $3
+    create_ioctl_application_requests_file $1 $2 $3 $4
 }
 
-main "$1" "$2" "$3"
+main "$1" "$2" "$3" "$4"
