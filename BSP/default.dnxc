@@ -3,15 +3,15 @@
 	["file"]={
 		["arch/arch_flags.h"]={
 			[1.000000]={
-				["key"]="__ENABLE_USBH__";
+				["key"]="__ENABLE_ADC__";
 				["value"]="_NO_";
 			};
 			[2.000000]={
-				["key"]="__ENABLE_GPIO__";
-				["value"]="_YES_";
+				["key"]="__ENABLE_AFM__";
+				["value"]="_NO_";
 			};
 			[3.000000]={
-				["key"]="__ENABLE_AFM__";
+				["key"]="__ENABLE_CAN__";
 				["value"]="_NO_";
 			};
 			[4.000000]={
@@ -19,111 +19,127 @@
 				["value"]="_YES_";
 			};
 			[5.000000]={
-				["key"]="__ENABLE_RTC__";
-				["value"]="_NO_";
-			};
-			[6.000000]={
 				["key"]="__ENABLE_CRC__";
 				["value"]="_NO_";
 			};
-			[7.000000]={
-				["key"]="__ENABLE_ETH__";
-				["value"]="_NO_";
-			};
-			[8.000000]={
-				["key"]="__ENABLE_SPI__";
-				["value"]="_NO_";
-			};
-			[9.000000]={
-				["key"]="__ENABLE_UART__";
-				["value"]="_YES_";
-			};
-			[10.000000]={
-				["key"]="__ENABLE_WDG__";
-				["value"]="_NO_";
-			};
-			[11.000000]={
-				["key"]="__ENABLE_USBD__";
-				["value"]="_NO_";
-			};
-			[12.000000]={
-				["key"]="__ENABLE_I2C__";
-				["value"]="_NO_";
-			};
-			[13.000000]={
-				["key"]="__ENABLE_IRQ__";
-				["value"]="_NO_";
-			};
-			[14.000000]={
-				["key"]="__ENABLE_LOOP__";
-				["value"]="_NO_";
-			};
-			[15.000000]={
-				["key"]="__ENABLE_I2CEE__";
-				["value"]="_NO_";
-			};
-			[16.000000]={
-				["key"]="__ENABLE_SDMMC__";
-				["value"]="_NO_";
-			};
-			[17.000000]={
-				["key"]="__ENABLE_SDSPI__";
-				["value"]="_NO_";
-			};
-			[18.000000]={
-				["key"]="__ENABLE_TTY__";
-				["value"]="_YES_";
-			};
-			[19.000000]={
-				["key"]="__ENABLE_DHT11__";
-				["value"]="_NO_";
-			};
-			[20.000000]={
-				["key"]="__ENABLE_EMI__";
-				["value"]="_NO_";
-			};
-			[21.000000]={
-				["key"]="__ENABLE_DMA__";
-				["value"]="_NO_";
-			};
-			[22.000000]={
+			[6.000000]={
 				["key"]="__ENABLE_DCI__";
 				["value"]="_NO_";
 			};
-			[23.000000]={
-				["key"]="__ENABLE_CAN__";
+			[7.000000]={
+				["key"]="__ENABLE_DHT11__";
 				["value"]="_NO_";
 			};
-			[24.000000]={
+			[8.000000]={
+				["key"]="__ENABLE_DMA__";
+				["value"]="_NO_";
+			};
+			[9.000000]={
+				["key"]="__ENABLE_EMI__";
+				["value"]="_NO_";
+			};
+			[10.000000]={
+				["key"]="__ENABLE_ETH__";
+				["value"]="_NO_";
+			};
+			[11.000000]={
+				["key"]="__ENABLE_FBRIDGE__";
+				["value"]="_NO_";
+			};
+			[12.000000]={
+				["key"]="__ENABLE_GPIO__";
+				["value"]="_YES_";
+			};
+			[13.000000]={
+				["key"]="__ENABLE_I2C__";
+				["value"]="_NO_";
+			};
+			[14.000000]={
+				["key"]="__ENABLE_I2CEE__";
+				["value"]="_NO_";
+			};
+			[15.000000]={
+				["key"]="__ENABLE_IRQ__";
+				["value"]="_NO_";
+			};
+			[16.000000]={
+				["key"]="__ENABLE_LOOP__";
+				["value"]="_NO_";
+			};
+			[17.000000]={
+				["key"]="__ENABLE_LTDC__";
+				["value"]="_NO_";
+			};
+			[18.000000]={
+				["key"]="__ENABLE_MEMBLOCK__";
+				["value"]="_NO_";
+			};
+			[19.000000]={
 				["key"]="__ENABLE_NVM__";
 				["value"]="_NO_";
 			};
-			[25.000000]={
-				["key"]="__ENABLE_PWM__";
-				["value"]="_NO_";
-			};
-			[26.000000]={
-				["key"]="__ENABLE_SPIEE__";
-				["value"]="_NO_";
-			};
-			[27.000000]={
-				["key"]="__ENABLE_SND__";
-				["value"]="_NO_";
-			};
-			[28.000000]={
+			[20.000000]={
 				["key"]="__ENABLE_PART__";
 				["value"]="_NO_";
 			};
+			[21.000000]={
+				["key"]="__ENABLE_PWM__";
+				["value"]="_NO_";
+			};
+			[22.000000]={
+				["key"]="__ENABLE_RTC__";
+				["value"]="_NO_";
+			};
+			[23.000000]={
+				["key"]="__ENABLE_SDMMC__";
+				["value"]="_NO_";
+			};
+			[24.000000]={
+				["key"]="__ENABLE_SDSPI__";
+				["value"]="_NO_";
+			};
+			[25.000000]={
+				["key"]="__ENABLE_SND__";
+				["value"]="_NO_";
+			};
+			[26.000000]={
+				["key"]="__ENABLE_SPI__";
+				["value"]="_NO_";
+			};
+			[27.000000]={
+				["key"]="__ENABLE_SPIEE__";
+				["value"]="_NO_";
+			};
+			[28.000000]={
+				["key"]="__ENABLE_TIMENC__";
+				["value"]="_NO_";
+			};
 			[29.000000]={
+				["key"]="__ENABLE_TTY__";
+				["value"]="_YES_";
+			};
+			[30.000000]={
+				["key"]="__ENABLE_UART__";
+				["value"]="_YES_";
+			};
+			[31.000000]={
 				["key"]="__ENABLE_URANDOM__";
 				["value"]="_NO_";
 			};
-			[30.000000]={
-				["key"]="__ENABLE_ZERO__";
+			[32.000000]={
+				["key"]="__ENABLE_USBD__";
 				["value"]="_NO_";
 			};
-			[31.000000]={
-				["key"]="__ENABLE_TIMENC__";
+			[33.000000]={
+				["key"]="__ENABLE_USBH__";
+				["value"]="_NO_";
+			};
+			[34.000000]={
+				["key"]="__ENABLE_WDG__";
+				["value"]="_NO_";
+			};
+			[35.000000]={
+				["key"]="__ENABLE_ZERO__";
 				["value"]="_NO_";
 			};
 		};
@@ -160,6 +176,12 @@
 		["arch/noarch/zero_flags.h"]={
 			[1.000000]={
 				["key"]="__ZERO_CFG_EXAMPLE__";
+				["value"]="_NO_";
+			};
+		};
+		["arch/stm32f1/adc_flags.h"]={
+			[1.000000]={
+				["key"]="__ADC_CFG_EXAMPLE__";
 				["value"]="_NO_";
 			};
 		};
@@ -475,64 +497,64 @@
 				["value"]="_NO_";
 			};
 			[7.000000]={
+				["key"]="__CPU_SHOW_AND_CLEAR_RESET_SOURCE__";
+				["value"]="_YES_";
+			};
+			[8.000000]={
 				["key"]="__CPU_VTOR_TAB_POSITION__";
 				["value"]="0x00000";
 			};
-			[8.000000]={
+			[9.000000]={
 				["key"]="__CUSTOM_LD_SCRIPT__";
 				["value"]="_NO_";
 			};
-			[9.000000]={
+			[10.000000]={
 				["key"]="__CUSTOM_LD_SCRIPT_FILE__";
-				["value"]="\"./config/custom_script.ld\"";
+				["value"]="\"custom_script.ld\"";
 			};
 		};
 		["arch/stm32f1/eth_flags.h"]={
 			[1.000000]={
-				["key"]="__ETH_CHECKSUM_BY_HARDWARE__";
-				["value"]="ETH_CHECKSUM_BY_HARDWARE";
-			};
-			[2.000000]={
 				["key"]="__ETH_SPEED__";
 				["value"]="ETH_SPEED_100M";
 			};
-			[3.000000]={
+			[2.000000]={
 				["key"]="__ETH_RXBUFNB__";
 				["value"]="3";
 			};
-			[4.000000]={
+			[3.000000]={
 				["key"]="__ETH_TXBUFNB__";
 				["value"]="3";
 			};
-			[5.000000]={
+			[4.000000]={
 				["key"]="__ETH_DEVICE__";
 				["value"]="DP83848";
 			};
-			[6.000000]={
+			[5.000000]={
 				["key"]="__ETH_PHY_SR__";
 				["value"]="16";
 			};
-			[7.000000]={
+			[6.000000]={
 				["key"]="__ETH_PHY_SPEED_STATUS_BM__";
 				["value"]="0x0002";
 			};
-			[8.000000]={
+			[7.000000]={
 				["key"]="__ETH_PHY_DUPLEX_STATUS_BM__";
 				["value"]="0x0004";
 			};
-			[9.000000]={
+			[8.000000]={
 				["key"]="__ETH_PHY_ADDRESS__";
 				["value"]="0";
 			};
-			[10.000000]={
+			[9.000000]={
 				["key"]="__ETH_PHY_RESET_DELAY__";
 				["value"]="250";
 			};
-			[11.000000]={
+			[10.000000]={
 				["key"]="__ETH_PHY_CONFIG_DELAY__";
 				["value"]="500";
 			};
-			[12.000000]={
+			[11.000000]={
 				["key"]="__ETH_PHY_AUTONEGOTIATION__";
 				["value"]="ETH_AUTONEGOTIATION_ENABLE";
 			};
@@ -2385,16 +2407,20 @@
 				["value"]="_YES_";
 			};
 			[9.000000]={
+				["key"]="__CPU_SHOW_AND_CLEAR_RESET_SOURCE__";
+				["value"]="_YES_";
+			};
+			[10.000000]={
 				["key"]="__CPU_VTOR_TAB_POSITION__";
 				["value"]="0x00000";
 			};
-			[10.000000]={
+			[11.000000]={
 				["key"]="__CUSTOM_LD_SCRIPT__";
 				["value"]="_NO_";
 			};
-			[11.000000]={
+			[12.000000]={
 				["key"]="__CUSTOM_LD_SCRIPT_FILE__";
-				["value"]="\"./config/custom_script.ld\"";
+				["value"]="\"custom_script.ld\"";
 			};
 		};
 		["arch/stm32f3/gpio_flags.h"]={
@@ -6271,7 +6297,7 @@
 		};
 		["arch/stm32f4/afm_flags.h"]={
 			[1.000000]={
-				["key"]="__AFM_SWP_EMI__";
+				["key"]="__AFM_SWP_FMC__";
 				["value"]="(0 << 10)";
 			};
 			[2.000000]={
@@ -6289,6 +6315,10 @@
 			[5.000000]={
 				["key"]="__AFM_BKPRAM_ENABLE__";
 				["value"]="_NO_";
+			};
+			[6.000000]={
+				["key"]="__AFM_CMP_PD__";
+				["value"]="(0 << SYSCFG_CMPCR_CMP_PD_Pos)";
 			};
 		};
 		["arch/stm32f4/can_flags.h"]={
@@ -6549,16 +6579,20 @@
 				["value"]="_YES_";
 			};
 			[9.000000]={
+				["key"]="__CPU_SHOW_AND_CLEAR_RESET_SOURCE__";
+				["value"]="_YES_";
+			};
+			[10.000000]={
 				["key"]="__CPU_VTOR_TAB_POSITION__";
 				["value"]="0x00000";
 			};
-			[10.000000]={
+			[11.000000]={
 				["key"]="__CUSTOM_LD_SCRIPT__";
 				["value"]="_NO_";
 			};
-			[11.000000]={
+			[12.000000]={
 				["key"]="__CUSTOM_LD_SCRIPT_FILE__";
-				["value"]="\"./config/custom_script.ld\"";
+				["value"]="\"custom_script.ld\"";
 			};
 		};
 		["arch/stm32f4/dci_flags.h"]={
@@ -6659,57 +6693,7 @@
 				["value"]="12";
 			};
 		};
-		["arch/stm32f4/eth_flags.h"]={
-			[1.000000]={
-				["key"]="__ETH_CHECKSUM_BY_HARDWARE__";
-				["value"]="ETH_CHECKSUM_BY_HARDWARE";
-			};
-			[2.000000]={
-				["key"]="__ETH_SPEED__";
-				["value"]="ETH_SPEED_100M";
-			};
-			[3.000000]={
-				["key"]="__ETH_RXBUFNB__";
-				["value"]="10";
-			};
-			[4.000000]={
-				["key"]="__ETH_TXBUFNB__";
-				["value"]="10";
-			};
-			[5.000000]={
-				["key"]="__ETH_DEVICE__";
-				["value"]="LAN8742A";
-			};
-			[6.000000]={
-				["key"]="__ETH_PHY_SR__";
-				["value"]="31";
-			};
-			[7.000000]={
-				["key"]="__ETH_PHY_SPEED_STATUS_BM__";
-				["value"]="0x0004";
-			};
-			[8.000000]={
-				["key"]="__ETH_PHY_DUPLEX_STATUS_BM__";
-				["value"]="0x0010";
-			};
-			[9.000000]={
-				["key"]="__ETH_PHY_ADDRESS__";
-				["value"]="0";
-			};
-			[10.000000]={
-				["key"]="__ETH_PHY_RESET_DELAY__";
-				["value"]="250";
-			};
-			[11.000000]={
-				["key"]="__ETH_PHY_CONFIG_DELAY__";
-				["value"]="500";
-			};
-			[12.000000]={
-				["key"]="__ETH_PHY_AUTONEGOTIATION__";
-				["value"]="ETH_AUTONEGOTIATION_DISABLE";
-			};
-		};
-		["arch/stm32f4/fmc_flags.h"]={
+		["arch/stm32f4/emi_flags.h"]={
 			[1.000000]={
 				["key"]="__EMI_SDRAM_RPIPE__";
 				["value"]="0";
@@ -6743,80 +6727,122 @@
 				["value"]="16";
 			};
 			[9.000000]={
+				["key"]="__EMI_SDRAM_TWR__";
+				["value"]="2";
+			};
+			[10.000000]={
 				["key"]="__EMI_SDRAM_TMRD__";
 				["value"]="16";
 			};
-			[10.000000]={
+			[11.000000]={
 				["key"]="__EMI_SDRAM_NRFS__";
 				["value"]="8";
 			};
-			[11.000000]={
+			[12.000000]={
 				["key"]="__EMI_SDRAM_REFRESH_RATE_MS__";
 				["value"]="64";
 			};
-			[12.000000]={
+			[13.000000]={
 				["key"]="__EMI_SDRAM_1_ENABLE__";
 				["value"]="1";
 			};
-			[13.000000]={
+			[14.000000]={
 				["key"]="__EMI_SDRAM_1_NB__";
 				["value"]="1";
 			};
-			[14.000000]={
+			[15.000000]={
 				["key"]="__EMI_SDRAM_1_MWID__";
 				["value"]="1";
 			};
-			[15.000000]={
+			[16.000000]={
 				["key"]="__EMI_SDRAM_1_NR__";
 				["value"]="1";
 			};
-			[16.000000]={
+			[17.000000]={
 				["key"]="__EMI_SDRAM_1_NC__";
 				["value"]="0";
 			};
-			[17.000000]={
+			[18.000000]={
 				["key"]="__EMI_SDRAM_1_TRCD__";
 				["value"]="16";
 			};
-			[18.000000]={
+			[19.000000]={
 				["key"]="__EMI_SDRAM_1_HEAP_REGIONS__";
 				["value"]="1";
 			};
-			[19.000000]={
+			[20.000000]={
 				["key"]="__EMI_SDRAM_1_HEAP_REGION_SIZE__";
 				["value"]="8192";
 			};
-			[20.000000]={
+			[21.000000]={
 				["key"]="__EMI_SDRAM_2_ENABLE__";
 				["value"]="0";
 			};
-			[21.000000]={
+			[22.000000]={
 				["key"]="__EMI_SDRAM_2_NB__";
 				["value"]="1";
 			};
-			[22.000000]={
+			[23.000000]={
 				["key"]="__EMI_SDRAM_2_MWID__";
 				["value"]="1";
 			};
-			[23.000000]={
+			[24.000000]={
 				["key"]="__EMI_SDRAM_2_NR__";
 				["value"]="1";
 			};
-			[24.000000]={
+			[25.000000]={
 				["key"]="__EMI_SDRAM_2_NC__";
 				["value"]="0";
 			};
-			[25.000000]={
+			[26.000000]={
 				["key"]="__EMI_SDRAM_2_TRCD__";
 				["value"]="16";
 			};
-			[26.000000]={
+			[27.000000]={
 				["key"]="__EMI_SDRAM_2_HEAP_REGIONS__";
 				["value"]="1";
 			};
-			[27.000000]={
+			[28.000000]={
 				["key"]="__EMI_SDRAM_2_HEAP_REGION_SIZE__";
 				["value"]="8192";
+			};
+		};
+		["arch/stm32f4/eth_flags.h"]={
+			[1.000000]={
+				["key"]="__ETH_RXBUFNB__";
+				["value"]="10";
+			};
+			[2.000000]={
+				["key"]="__ETH_TXBUFNB__";
+				["value"]="3";
+			};
+			[3.000000]={
+				["key"]="__ETH_DEVICE__";
+				["value"]="LAN8742A";
+			};
+			[4.000000]={
+				["key"]="__ETH_PHY_SR__";
+				["value"]="31";
+			};
+			[5.000000]={
+				["key"]="__ETH_PHY_SPEED_STATUS_BM__";
+				["value"]="0x0004";
+			};
+			[6.000000]={
+				["key"]="__ETH_PHY_DUPLEX_STATUS_BM__";
+				["value"]="0x0010";
+			};
+			[7.000000]={
+				["key"]="__ETH_PHY_ADDRESS__";
+				["value"]="0";
+			};
+			[8.000000]={
+				["key"]="__ETH_PHY_RESET_DELAY__";
+				["value"]="250";
+			};
+			[9.000000]={
+				["key"]="__ETH_PHY_CONFIG_DELAY__";
+				["value"]="500";
 			};
 		};
 		["arch/stm32f4/gpio_flags.h"]={
@@ -10510,41 +10536,41 @@
 			};
 		};
 		["arch/stm32f4/sdmmc_flags.h"]={
-			[1]={
+			[1.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_CLOCK_EDGE__";
-				["value"]="SDMMC_CLOCK_EDGE_RISING";
+				["value"]="SDIO_CLOCK_EDGE_RISING";
 			};
-			[2]={
+			[2.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_HW_FLOW_CTRL__";
-				["value"]="SDMMC_HARDWARE_FLOW_CONTROL_DISABLE";
+				["value"]="SDIO_HARDWARE_FLOW_CONTROL_DISABLE";
 			};
-			[3]={
+			[3.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_BUS_WIDE__";
-				["value"]="SDMMC_BUS_WIDE_4B";
+				["value"]="SDIO_BUS_WIDE_4B";
 			};
-			[4]={
+			[4.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_CKDIV__";
-				["value"]="3";
+				["value"]="1";
 			};
-			[5]={
+			[5.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_CARD_TIMEOUT__";
-				["value"]="5000";
+				["value"]="500";
 			};
-			[6]={
+			[6.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_PWRSAVE__";
-				["value"]="SDMMC_CLOCK_POWER_SAVE_DISABLE";
+				["value"]="SDIO_CLOCK_POWER_SAVE_DISABLE";
 			};
-			[7]={
+			[7.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_TYPE__";
 				["value"]="_SDMMC_TYPE_SDCARD";
 			};
-			[8]={
+			[8.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_MODE__";
 				["value"]="_SDMMC_MODE_DMA";
 			};
-			[9]={
+			[9.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_IRQ_PRIORITY__";
-				["value"]="13";
+				["value"]="__CPU_DEFAULT_IRQ_PRIORITY__";
 			};
 		};
 		["arch/stm32f4/snd_flags.h"]={
@@ -11087,14 +11113,18 @@
 		};
 		["arch/stm32f4/usbh_flags.h"]={
 			[1.000000]={
+				["key"]="__USBH_PHY_RESET_PIN__";
+				["value"]="NONE";
+			};
+			[2.000000]={
 				["key"]="__USBH_DEBUG_MSG__";
 				["value"]="_NO_";
 			};
-			[2.000000]={
+			[3.000000]={
 				["key"]="__USBH_ENABLE_DMA_TRANSFER__";
 				["value"]="_YES_";
 			};
-			[3.000000]={
+			[4.000000]={
 				["key"]="__USBH_IRQ_PRIORITY__";
 				["value"]="__CPU_DEFAULT_IRQ_PRIORITY__";
 			};
@@ -11119,8 +11149,8 @@
 		};
 		["arch/stm32f7/afm_flags.h"]={
 			[1.000000]={
-				["key"]="__AFM_SWP_EMI__";
-				["value"]="(0 << SYSCFG_MEMRMP_SWP_EMI_Pos)";
+				["key"]="__AFM_SWP_FMC__";
+				["value"]="(0 << SYSCFG_MEMRMP_SWP_FMC_Pos)";
 			};
 			[2.000000]={
 				["key"]="__AFM_SWP_FB__";
@@ -11465,76 +11495,190 @@
 				["value"]="_YES_";
 			};
 			[9.000000]={
+				["key"]="__CPU_SHOW_AND_CLEAR_RESET_SOURCE__";
+				["value"]="_YES_";
+			};
+			[10.000000]={
 				["key"]="__CPU_ICACHE_ENABLE__";
 				["value"]="_NO_";
 			};
-			[10.000000]={
+			[11.000000]={
 				["key"]="__CPU_DCACHE_ENABLE__";
 				["value"]="_NO_";
 			};
-			[11.000000]={
+			[12.000000]={
 				["key"]="__CPU_RAM1_RAM2_CACHE_DISABLE__";
 				["value"]="_NO_";
 			};
-			[12.000000]={
+			[13.000000]={
 				["key"]="__CPU_VTOR_TAB_POSITION__";
 				["value"]="0x00000";
 			};
-			[13.000000]={
+			[14.000000]={
 				["key"]="__CUSTOM_LD_SCRIPT__";
 				["value"]="_NO_";
 			};
-			[14.000000]={
+			[15.000000]={
 				["key"]="__CUSTOM_LD_SCRIPT_FILE__";
-				["value"]="\"./config/custom_script.ld\"";
+				["value"]="\"custom_script.ld\"";
+			};
+		};
+		["arch/stm32f7/emi_flags.h"]={
+			[1.000000]={
+				["key"]="__EMI_SDRAM_RPIPE__";
+				["value"]="0";
+			};
+			[2.000000]={
+				["key"]="__EMI_SDRAM_RBURST__";
+				["value"]="1";
+			};
+			[3.000000]={
+				["key"]="__EMI_SDRAM_SDCLK__";
+				["value"]="2";
+			};
+			[4.000000]={
+				["key"]="__EMI_SDRAM_TRP__";
+				["value"]="16";
+			};
+			[5.000000]={
+				["key"]="__EMI_SDRAM_TRC__";
+				["value"]="16";
+			};
+			[6.000000]={
+				["key"]="__EMI_SDRAM_CAS__";
+				["value"]="3";
+			};
+			[7.000000]={
+				["key"]="__EMI_SDRAM_TRAS__";
+				["value"]="16";
+			};
+			[8.000000]={
+				["key"]="__EMI_SDRAM_TXSR__";
+				["value"]="16";
+			};
+			[9.000000]={
+				["key"]="__EMI_SDRAM_TWR__";
+				["value"]="2";
+			};
+			[10.000000]={
+				["key"]="__EMI_SDRAM_TMRD__";
+				["value"]="16";
+			};
+			[11.000000]={
+				["key"]="__EMI_SDRAM_NRFS__";
+				["value"]="8";
+			};
+			[12.000000]={
+				["key"]="__EMI_SDRAM_REFRESH_RATE_MS__";
+				["value"]="64";
+			};
+			[13.000000]={
+				["key"]="__EMI_SDRAM_1_ENABLE__";
+				["value"]="1";
+			};
+			[14.000000]={
+				["key"]="__EMI_SDRAM_1_NB__";
+				["value"]="1";
+			};
+			[15.000000]={
+				["key"]="__EMI_SDRAM_1_MWID__";
+				["value"]="1";
+			};
+			[16.000000]={
+				["key"]="__EMI_SDRAM_1_NR__";
+				["value"]="1";
+			};
+			[17.000000]={
+				["key"]="__EMI_SDRAM_1_NC__";
+				["value"]="0";
+			};
+			[18.000000]={
+				["key"]="__EMI_SDRAM_1_TRCD__";
+				["value"]="16";
+			};
+			[19.000000]={
+				["key"]="__EMI_SDRAM_1_HEAP_REGIONS__";
+				["value"]="1";
+			};
+			[20.000000]={
+				["key"]="__EMI_SDRAM_1_HEAP_REGION_SIZE__";
+				["value"]="8192";
+			};
+			[21.000000]={
+				["key"]="__EMI_SDRAM_2_ENABLE__";
+				["value"]="0";
+			};
+			[22.000000]={
+				["key"]="__EMI_SDRAM_2_NB__";
+				["value"]="1";
+			};
+			[23.000000]={
+				["key"]="__EMI_SDRAM_2_MWID__";
+				["value"]="1";
+			};
+			[24.000000]={
+				["key"]="__EMI_SDRAM_2_NR__";
+				["value"]="1";
+			};
+			[25.000000]={
+				["key"]="__EMI_SDRAM_2_NC__";
+				["value"]="0";
+			};
+			[26.000000]={
+				["key"]="__EMI_SDRAM_2_TRCD__";
+				["value"]="16";
+			};
+			[27.000000]={
+				["key"]="__EMI_SDRAM_2_HEAP_REGIONS__";
+				["value"]="1";
+			};
+			[28.000000]={
+				["key"]="__EMI_SDRAM_2_HEAP_REGION_SIZE__";
+				["value"]="8192";
 			};
 		};
 		["arch/stm32f7/eth_flags.h"]={
 			[1.000000]={
-				["key"]="__ETH_CHECKSUM_BY_HARDWARE__";
-				["value"]="ETH_CHECKSUM_BY_HARDWARE";
-			};
-			[2.000000]={
 				["key"]="__ETH_SPEED__";
 				["value"]="ETH_SPEED_100M";
 			};
-			[3.000000]={
+			[2.000000]={
 				["key"]="__ETH_RXBUFNB__";
 				["value"]="10";
 			};
-			[4.000000]={
+			[3.000000]={
 				["key"]="__ETH_TXBUFNB__";
 				["value"]="10";
 			};
-			[5.000000]={
+			[4.000000]={
 				["key"]="__ETH_DEVICE__";
 				["value"]="LAN8742A";
 			};
-			[6.000000]={
+			[5.000000]={
 				["key"]="__ETH_PHY_SR__";
 				["value"]="31";
 			};
-			[7.000000]={
+			[6.000000]={
 				["key"]="__ETH_PHY_SPEED_STATUS_BM__";
 				["value"]="0x0004";
 			};
-			[8.000000]={
+			[7.000000]={
 				["key"]="__ETH_PHY_DUPLEX_STATUS_BM__";
 				["value"]="0x0010";
 			};
-			[9.000000]={
+			[8.000000]={
 				["key"]="__ETH_PHY_ADDRESS__";
 				["value"]="0";
 			};
-			[10.000000]={
+			[9.000000]={
 				["key"]="__ETH_PHY_RESET_DELAY__";
 				["value"]="250";
 			};
-			[11.000000]={
+			[10.000000]={
 				["key"]="__ETH_PHY_CONFIG_DELAY__";
 				["value"]="500";
 			};
-			[12.000000]={
+			[11.000000]={
 				["key"]="__ETH_PHY_AUTONEGOTIATION__";
 				["value"]="ETH_AUTONEGOTIATION_ENABLE";
 			};
@@ -15322,77 +15466,77 @@
 			};
 		};
 		["arch/stm32f7/sdmmc_flags.h"]={
-			[1]={
+			[1.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_CLOCK_EDGE__";
 				["value"]="SDMMC_CLOCK_EDGE_RISING";
 			};
-			[2]={
+			[2.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_HW_FLOW_CTRL__";
-				["value"]="SDMMC_HARDWARE_FLOW_CONTROL_DISABLE";
+				["value"]="SDMMC_HARDWARE_FLOW_CONTROL_ENABLE";
 			};
-			[3]={
+			[3.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_BUS_WIDE__";
 				["value"]="SDMMC_BUS_WIDE_4B";
 			};
-			[4]={
+			[4.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_CKDIV__";
-				["value"]="3";
+				["value"]="1";
 			};
-			[5]={
+			[5.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_CARD_TIMEOUT__";
-				["value"]="5000";
+				["value"]="500";
 			};
-			[6]={
+			[6.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_PWRSAVE__";
 				["value"]="SDMMC_CLOCK_POWER_SAVE_DISABLE";
 			};
-			[7]={
+			[7.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_TYPE__";
 				["value"]="_SDMMC_TYPE_SDCARD";
 			};
-			[8]={
+			[8.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_MODE__";
 				["value"]="_SDMMC_MODE_DMA";
 			};
-			[9]={
+			[9.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_IRQ_PRIORITY__";
-				["value"]="13";
+				["value"]="__CPU_DEFAULT_IRQ_PRIORITY__";
 			};
-			[10]={
+			[10.000000]={
 				["key"]="__SDMMC_CFG_SDMMC2_CLOCK_EDGE__";
 				["value"]="SDMMC_CLOCK_EDGE_RISING";
 			};
-			[11]={
+			[11.000000]={
 				["key"]="__SDMMC_CFG_SDMMC2_HW_FLOW_CTRL__";
-				["value"]="SDMMC_HARDWARE_FLOW_CONTROL_DISABLE";
+				["value"]="SDMMC_HARDWARE_FLOW_CONTROL_ENABLE";
 			};
-			[12]={
+			[12.000000]={
 				["key"]="__SDMMC_CFG_SDMMC2_BUS_WIDE__";
 				["value"]="SDMMC_BUS_WIDE_4B";
 			};
-			[13]={
+			[13.000000]={
 				["key"]="__SDMMC_CFG_SDMMC2_CKDIV__";
-				["value"]="3";
+				["value"]="1";
 			};
-			[14]={
+			[14.000000]={
 				["key"]="__SDMMC_CFG_SDMMC2_CARD_TIMEOUT__";
-				["value"]="5000";
+				["value"]="500";
 			};
-			[15]={
+			[15.000000]={
 				["key"]="__SDMMC_CFG_SDMMC2_PWRSAVE__";
 				["value"]="SDMMC_CLOCK_POWER_SAVE_DISABLE";
 			};
-			[16]={
+			[16.000000]={
 				["key"]="__SDMMC_CFG_SDMMC2_TYPE__";
 				["value"]="_SDMMC_TYPE_SDCARD";
 			};
-			[17]={
+			[17.000000]={
 				["key"]="__SDMMC_CFG_SDMMC2_MODE__";
 				["value"]="_SDMMC_MODE_DMA";
 			};
-			[18]={
+			[18.000000]={
 				["key"]="__SDMMC_CFG_SDMMC2_IRQ_PRIORITY__";
-				["value"]="13";
+				["value"]="__CPU_DEFAULT_IRQ_PRIORITY__";
 			};
 		};
 		["arch/stm32f7/spi_flags.h"]={
@@ -15647,292 +15791,440 @@
 				["value"]="625";
 			};
 		};
+		["arch/stm32h7/afm_flags.h"]={
+			[1.000000]={
+				["key"]="__AFM_PC3SO__";
+				["value"]="(0 << SYSCFG_PMCR_PC3SO_Pos)";
+			};
+			[2.000000]={
+				["key"]="__AFM_PC2SO__";
+				["value"]="(0 << SYSCFG_PMCR_PC2SO_Pos)";
+			};
+			[3.000000]={
+				["key"]="__AFM_PA1SO__";
+				["value"]="(0 << SYSCFG_PMCR_PA1SO_Pos)";
+			};
+			[4.000000]={
+				["key"]="__AFM_PA0SO__";
+				["value"]="(0 << SYSCFG_PMCR_PA0SO_Pos)";
+			};
+			[5.000000]={
+				["key"]="__AFM_MII_RMII_SEL__";
+				["value"]="(0 << SYSCFG_PMCR_EPIS_SEL_Pos)";
+			};
+			[6.000000]={
+				["key"]="__AFM_BOOSTVDDSEL__";
+				["value"]="(0 << SYSCFG_PMCR_BOOSTVDDSEL_Pos)";
+			};
+			[7.000000]={
+				["key"]="__AFM_BOOSTEREN__";
+				["value"]="(0 << SYSCFG_PMCR_BOOSTEN_Pos)";
+			};
+			[8.000000]={
+				["key"]="__AFM_PB9_FMP__";
+				["value"]="(0 << SYSCFG_PMCR_I2C_PB9_FMP_Pos)";
+			};
+			[9.000000]={
+				["key"]="__AFM_PB8_FMP__";
+				["value"]="(0 << SYSCFG_PMCR_I2C_PB8_FMP_Pos)";
+			};
+			[10.000000]={
+				["key"]="__AFM_PB7_FMP__";
+				["value"]="(0 << SYSCFG_PMCR_I2C_PB7_FMP_Pos)";
+			};
+			[11.000000]={
+				["key"]="__AFM_PB6_FMP__";
+				["value"]="(0 << SYSCFG_PMCR_I2C_PB6_FMP_Pos)";
+			};
+			[12.000000]={
+				["key"]="__AFM_I2C4_FMP__";
+				["value"]="(0 << SYSCFG_PMCR_I2C4_FMP_Pos)";
+			};
+			[13.000000]={
+				["key"]="__AFM_I2C3_FMP__";
+				["value"]="(0 << SYSCFG_PMCR_I2C3_FMP_Pos)";
+			};
+			[14.000000]={
+				["key"]="__AFM_I2C2_FMP__";
+				["value"]="(0 << SYSCFG_PMCR_I2C2_FMP_Pos)";
+			};
+			[15.000000]={
+				["key"]="__AFM_I2C1_FMP__";
+				["value"]="(0 << SYSCFG_PMCR_I2C1_FMP_Pos)";
+			};
+			[16.000000]={
+				["key"]="__AFM_AXISRAML__";
+				["value"]="(0 << SYSCFG_CFGR_AXISRAML_Pos)";
+			};
+			[17.000000]={
+				["key"]="__AFM_ITCML__";
+				["value"]="(0 << SYSCFG_CFGR_ITCML_Pos)";
+			};
+			[18.000000]={
+				["key"]="__AFM_DTCML__";
+				["value"]="(0 << SYSCFG_CFGR_DTCML_Pos)";
+			};
+			[19.000000]={
+				["key"]="__AFM_SRAM1L__";
+				["value"]="(0 << SYSCFG_CFGR_SRAM1L_Pos)";
+			};
+			[20.000000]={
+				["key"]="__AFM_SRAM2L__";
+				["value"]="(0 << SYSCFG_CFGR_SRAM2L_Pos)";
+			};
+			[21.000000]={
+				["key"]="__AFM_SRAM3L__";
+				["value"]="(0 << SYSCFG_CFGR_SRAM3L_Pos)";
+			};
+			[22.000000]={
+				["key"]="__AFM_SRAM4L__";
+				["value"]="(0 << SYSCFG_CFGR_SRAM4L_Pos)";
+			};
+			[23.000000]={
+				["key"]="__AFM_BKRAML__";
+				["value"]="(0 << SYSCFG_CFGR_BKRAML_Pos)";
+			};
+			[24.000000]={
+				["key"]="__AFM_CM7L__";
+				["value"]="(0 << SYSCFG_CFGR_CM7L_Pos)";
+			};
+			[25.000000]={
+				["key"]="__AFM_FLASHL__";
+				["value"]="(0 << SYSCFG_CFGR_FLASHL_Pos)";
+			};
+			[26.000000]={
+				["key"]="__AFM_PVDL__";
+				["value"]="(0 << SYSCFG_CFGR_PVDL_Pos)";
+			};
+			[27.000000]={
+				["key"]="__AFM_HSLV__";
+				["value"]="(0 << SYSCFG_CCCSR_HSLV_Pos)";
+			};
+			[28.000000]={
+				["key"]="__AFM_CS__";
+				["value"]="(0 << SYSCFG_CCCSR_CS_Pos)";
+			};
+			[29.000000]={
+				["key"]="__AFM_PCC__";
+				["value"]="0";
+			};
+			[30.000000]={
+				["key"]="__AFM_NCC__";
+				["value"]="0";
+			};
+			[31.000000]={
+				["key"]="__AFM_CMP_EN__";
+				["value"]="(0 << SYSCFG_CCCSR_EN_Pos)";
+			};
+			[32.000000]={
+				["key"]="__AFM_D1SBRST__";
+				["value"]="(0 << SYSCFG_UR13_D1SBRST_Pos)";
+			};
+			[33.000000]={
+				["key"]="__AFM_D1STPRST__";
+				["value"]="(0 << SYSCFG_UR14_D1STPRST_Pos)";
+			};
+		};
+		["arch/stm32h7/can_flags.h"]={
+			[1.000000]={
+				["key"]="__CAN_CFG_DEBUG_FREEZE__";
+				["value"]="_YES_";
+			};
+			[2.000000]={
+				["key"]="__CAN_CFG_RX_FIFO_SIZE__";
+				["value"]="16";
+			};
+		};
 		["arch/stm32h7/clk_flags.h"]={
 			[1.000000]={
+				["key"]="__CLK_SUPPLY_SOURCE__";
+				["value"]="PWR_LDO_SUPPLY";
+			};
+			[2.000000]={
 				["key"]="__CLK_LSI_ON__";
 				["value"]="ENABLE";
 			};
-			[2.000000]={
+			[3.000000]={
 				["key"]="__CLK_LSE_ON__";
 				["value"]="ENABLE";
 			};
-			[3.000000]={
+			[4.000000]={
 				["key"]="__CLK_HSE_ON__";
 				["value"]="_CLK_BAYPASS";
 			};
-			[4.000000]={
+			[5.000000]={
 				["key"]="__CLK_PLL_SRC__";
 				["value"]="LL_RCC_PLLSOURCE_HSI";
 			};
-			[5.000000]={
+			[6.000000]={
 				["key"]="__CLK_PLL1_ON__";
 				["value"]="_YES_";
 			};
-			[6.000000]={
+			[7.000000]={
 				["key"]="__CLK_PLL1_M__";
 				["value"]="8";
 			};
-			[7.000000]={
+			[8.000000]={
 				["key"]="__CLK_PLL1_N__";
 				["value"]="60";
 			};
-			[8.000000]={
+			[9.000000]={
 				["key"]="__CLK_PLL1_P_ENABLE__";
 				["value"]="_YES_";
 			};
-			[9.000000]={
+			[10.000000]={
 				["key"]="__CLK_PLL1_P__";
 				["value"]="1";
 			};
-			[10.000000]={
+			[11.000000]={
 				["key"]="__CLK_PLL1_Q_ENABLE__";
 				["value"]="_YES_";
 			};
-			[11.000000]={
+			[12.000000]={
 				["key"]="__CLK_PLL1_Q__";
 				["value"]="1";
 			};
-			[12.000000]={
+			[13.000000]={
 				["key"]="__CLK_PLL1_R_ENABLE__";
 				["value"]="_NO_";
 			};
-			[13.000000]={
+			[14.000000]={
 				["key"]="__CLK_PLL1_R__";
 				["value"]="1";
 			};
-			[14.000000]={
+			[15.000000]={
 				["key"]="__CLK_PLL2_ON__";
 				["value"]="_YES_";
 			};
-			[15.000000]={
+			[16.000000]={
 				["key"]="__CLK_PLL2_M__";
 				["value"]="8";
 			};
-			[16.000000]={
+			[17.000000]={
 				["key"]="__CLK_PLL2_N__";
 				["value"]="60";
 			};
-			[17.000000]={
+			[18.000000]={
 				["key"]="__CLK_PLL2_P_ENABLE__";
 				["value"]="_YES_";
 			};
-			[18.000000]={
+			[19.000000]={
 				["key"]="__CLK_PLL2_P__";
 				["value"]="1";
 			};
-			[19.000000]={
+			[20.000000]={
 				["key"]="__CLK_PLL2_Q_ENABLE__";
 				["value"]="_YES_";
 			};
-			[20.000000]={
+			[21.000000]={
 				["key"]="__CLK_PLL2_Q__";
 				["value"]="1";
 			};
-			[21.000000]={
+			[22.000000]={
 				["key"]="__CLK_PLL2_R_ENABLE__";
 				["value"]="_NO_";
 			};
-			[22.000000]={
+			[23.000000]={
 				["key"]="__CLK_PLL2_R__";
 				["value"]="1";
 			};
-			[23.000000]={
+			[24.000000]={
 				["key"]="__CLK_PLL3_ON__";
 				["value"]="_YES_";
 			};
-			[24.000000]={
+			[25.000000]={
 				["key"]="__CLK_PLL3_M__";
 				["value"]="8";
 			};
-			[25.000000]={
+			[26.000000]={
 				["key"]="__CLK_PLL3_N__";
 				["value"]="60";
 			};
-			[26.000000]={
+			[27.000000]={
 				["key"]="__CLK_PLL3_P_ENABLE__";
 				["value"]="_YES_";
 			};
-			[27.000000]={
+			[28.000000]={
 				["key"]="__CLK_PLL3_P__";
 				["value"]="1";
 			};
-			[28.000000]={
+			[29.000000]={
 				["key"]="__CLK_PLL3_Q_ENABLE__";
 				["value"]="_YES_";
 			};
-			[29.000000]={
+			[30.000000]={
 				["key"]="__CLK_PLL3_Q__";
 				["value"]="1";
 			};
-			[30.000000]={
+			[31.000000]={
 				["key"]="__CLK_PLL3_R_ENABLE__";
 				["value"]="_NO_";
 			};
-			[31.000000]={
+			[32.000000]={
 				["key"]="__CLK_PLL3_R__";
 				["value"]="1";
 			};
-			[32.000000]={
+			[33.000000]={
 				["key"]="__CLK_SYSCLK_SRC__";
 				["value"]="LL_RCC_SYS_CLKSOURCE_PLL1";
 			};
-			[33.000000]={
+			[34.000000]={
 				["key"]="__CLK_SYSCLK_DIV__";
 				["value"]="LL_RCC_SYSCLK_DIV_1";
 			};
-			[34.000000]={
+			[35.000000]={
 				["key"]="__CLK_AHB_DIV__";
 				["value"]="LL_RCC_AHB_DIV_2";
 			};
-			[35.000000]={
+			[36.000000]={
 				["key"]="__CLK_APB1_DIV__";
 				["value"]="LL_RCC_APB1_DIV_2";
 			};
-			[36.000000]={
+			[37.000000]={
 				["key"]="__CLK_APB2_DIV__";
 				["value"]="LL_RCC_APB2_DIV_2";
 			};
-			[37.000000]={
+			[38.000000]={
 				["key"]="__CLK_APB3_DIV__";
 				["value"]="LL_RCC_APB3_DIV_2";
 			};
-			[38.000000]={
+			[39.000000]={
 				["key"]="__CLK_APB4_DIV__";
 				["value"]="LL_RCC_APB4_DIV_4";
 			};
-			[39.000000]={
+			[40.000000]={
 				["key"]="__CLK_SRC_UART16__";
 				["value"]="LL_RCC_USART16_CLKSOURCE_PCLK2";
 			};
-			[40.000000]={
+			[41.000000]={
 				["key"]="__CLK_SRC_UART234578__";
 				["value"]="LL_RCC_USART234578_CLKSOURCE_PCLK1";
 			};
-			[41.000000]={
+			[42.000000]={
 				["key"]="__CLK_SRC_LPUART1__";
 				["value"]="LL_RCC_LPUART1_CLKSOURCE_PCLK4";
 			};
-			[42.000000]={
+			[43.000000]={
 				["key"]="__CLK_SRC_I2C123__";
 				["value"]="LL_RCC_I2C123_CLKSOURCE_PCLK1";
 			};
-			[43.000000]={
+			[44.000000]={
 				["key"]="__CLK_SRC_I2C4__";
 				["value"]="LL_RCC_I2C4_CLKSOURCE_PCLK4";
 			};
-			[44.000000]={
+			[45.000000]={
 				["key"]="__CLK_SRC_LPTIM1__";
 				["value"]="LL_RCC_LPTIM1_CLKSOURCE_LSE";
 			};
-			[45.000000]={
+			[46.000000]={
 				["key"]="__CLK_SRC_LPTIM2__";
 				["value"]="LL_RCC_LPTIM2_CLKSOURCE_LSE";
 			};
-			[46.000000]={
+			[47.000000]={
 				["key"]="__CLK_SRC_LPTIM345__";
 				["value"]="LL_RCC_LPTIM345_CLKSOURCE_LSE";
 			};
-			[47.000000]={
+			[48.000000]={
 				["key"]="__CLK_SRC_CLKP__";
 				["value"]="LL_RCC_CLKP_CLKSOURCE_HSI";
 			};
-			[48.000000]={
+			[49.000000]={
 				["key"]="__CLK_SRC_SPDIF__";
 				["value"]="LL_RCC_SPDIF_CLKSOURCE_PLL1Q";
 			};
-			[49.000000]={
+			[50.000000]={
 				["key"]="__CLK_SRC_SAI1__";
 				["value"]="LL_RCC_SAI1_CLKSOURCE_PLL1Q";
 			};
-			[50.000000]={
+			[51.000000]={
 				["key"]="__CLK_SRC_SAI23__";
 				["value"]="LL_RCC_SAI23_CLKSOURCE_PLL1Q";
 			};
-			[51.000000]={
+			[52.000000]={
 				["key"]="__CLK_SRC_SAI2A__";
 				["value"]="LL_RCC_SAI2A_CLKSOURCE_PLL1Q";
 			};
-			[52.000000]={
+			[53.000000]={
 				["key"]="__CLK_SRC_SAI2B__";
 				["value"]="LL_RCC_SAI2B_CLKSOURCE_PLL1Q";
 			};
-			[53.000000]={
+			[54.000000]={
 				["key"]="__CLK_SRC_SAI4A__";
 				["value"]="LL_RCC_SAI4A_CLKSOURCE_PLL1Q";
 			};
-			[54.000000]={
+			[55.000000]={
 				["key"]="__CLK_SRC_SAI4B__";
 				["value"]="LL_RCC_SAI4B_CLKSOURCE_PLL1Q";
 			};
-			[55.000000]={
+			[56.000000]={
 				["key"]="__CLK_SRC_SDMMC__";
 				["value"]="LL_RCC_SDMMC_CLKSOURCE_PLL1Q";
 			};
-			[56.000000]={
+			[57.000000]={
 				["key"]="__CLK_SRC_RNG__";
 				["value"]="LL_RCC_RNG_CLKSOURCE_PLL1Q";
 			};
-			[57.000000]={
+			[58.000000]={
 				["key"]="__CLK_SRC_USB__";
 				["value"]="LL_RCC_USB_CLKSOURCE_PLL1Q";
 			};
-			[58.000000]={
+			[59.000000]={
 				["key"]="__CLK_SRC_CEC__";
 				["value"]="LL_RCC_CEC_CLKSOURCE_LSE";
 			};
-			[59.000000]={
+			[60.000000]={
 				["key"]="__CLK_SRC_DFSDM1__";
 				["value"]="LL_RCC_DFSDM1_CLKSOURCE_PCLK2";
 			};
-			[60.000000]={
+			[61.000000]={
 				["key"]="__CLK_SRC_DFSDM2__";
 				["value"]="LL_RCC_DFSDM2_CLKSOURCE_PCLK4";
 			};
-			[61.000000]={
-				["key"]="__CLK_SRC_EMI__";
-				["value"]="LL_RCC_EMI_CLKSOURCE_HCLK";
-			};
 			[62.000000]={
+				["key"]="__CLK_SRC_FMC__";
+				["value"]="LL_RCC_FMC_CLKSOURCE_HCLK";
+			};
+			[63.000000]={
 				["key"]="__CLK_SRC_QSPI__";
 				["value"]="LL_RCC_QSPI_CLKSOURCE_HCLK";
 			};
-			[63.000000]={
+			[64.000000]={
 				["key"]="__CLK_SRC_OSPI__";
 				["value"]="LL_RCC_OSPI_CLKSOURCE_HCLK";
 			};
-			[64.000000]={
+			[65.000000]={
 				["key"]="__CLK_SRC_DSI__";
 				["value"]="LL_RCC_DSI_CLKSOURCE_PHY";
 			};
-			[65.000000]={
+			[66.000000]={
 				["key"]="__CLK_SRC_SPI123__";
 				["value"]="LL_RCC_SPI123_CLKSOURCE_PLL1Q";
 			};
-			[66.000000]={
+			[67.000000]={
 				["key"]="__CLK_SRC_SPI45__";
 				["value"]="LL_RCC_SPI45_CLKSOURCE_PCLK2";
 			};
-			[67.000000]={
+			[68.000000]={
 				["key"]="__CLK_SRC_SPI6__";
 				["value"]="LL_RCC_SPI6_CLKSOURCE_PCLK4";
 			};
-			[68.000000]={
+			[69.000000]={
 				["key"]="__CLK_SRC_FDCAN__";
 				["value"]="LL_RCC_FDCAN_CLKSOURCE_HSE";
 			};
-			[69.000000]={
+			[70.000000]={
 				["key"]="__CLK_SRC_SWP__";
 				["value"]="LL_RCC_SWP_CLKSOURCE_PCLK1";
 			};
-			[70.000000]={
+			[71.000000]={
 				["key"]="__CLK_SRC_ADC__";
 				["value"]="LL_RCC_ADC_CLKSOURCE_PLL2P";
 			};
-			[71.000000]={
+			[72.000000]={
 				["key"]="__CLK_SYSCLK_SRC_STATUS__";
 				["value"]="LL_RCC_SYS_CLKSOURCE_STATUS_PLL1";
 			};
-			[72.000000]={
+			[73.000000]={
 				["key"]="__CLK_HCLK_FREQ__";
 				["value"]="240000000";
 			};
@@ -15971,24 +16263,188 @@
 				["value"]="_YES_";
 			};
 			[9.000000]={
-				["key"]="__CPU_ICACHE_ENABLE__";
+				["key"]="__CPU_SHOW_AND_CLEAR_RESET_SOURCE__";
 				["value"]="_YES_";
 			};
 			[10.000000]={
+				["key"]="__CPU_ICACHE_ENABLE__";
+				["value"]="_YES_";
+			};
+			[11.000000]={
 				["key"]="__CPU_DCACHE_ENABLE__";
 				["value"]="_NO_";
 			};
-			[11.000000]={
+			[12.000000]={
 				["key"]="__CPU_VTOR_TAB_POSITION__";
 				["value"]="0x00000";
 			};
-			[12.000000]={
+			[13.000000]={
 				["key"]="__CUSTOM_LD_SCRIPT__";
 				["value"]="_NO_";
 			};
-			[13.000000]={
+			[14.000000]={
 				["key"]="__CUSTOM_LD_SCRIPT_FILE__";
-				["value"]="\"./config/custom_script.ld\"";
+				["value"]="\"custom_script.ld\"";
+			};
+		};
+		["arch/stm32h7/emi_flags.h"]={
+			[1.000000]={
+				["key"]="__EMI_SDRAM_RPIPE__";
+				["value"]="0";
+			};
+			[2.000000]={
+				["key"]="__EMI_SDRAM_RBURST__";
+				["value"]="1";
+			};
+			[3.000000]={
+				["key"]="__EMI_SDRAM_SDCLK__";
+				["value"]="2";
+			};
+			[4.000000]={
+				["key"]="__EMI_SDRAM_TRP__";
+				["value"]="2";
+			};
+			[5.000000]={
+				["key"]="__EMI_SDRAM_TRC__";
+				["value"]="7";
+			};
+			[6.000000]={
+				["key"]="__EMI_SDRAM_CAS__";
+				["value"]="3";
+			};
+			[7.000000]={
+				["key"]="__EMI_SDRAM_TRAS__";
+				["value"]="4";
+			};
+			[8.000000]={
+				["key"]="__EMI_SDRAM_TXSR__";
+				["value"]="7";
+			};
+			[9.000000]={
+				["key"]="__EMI_SDRAM_TWR__";
+				["value"]="2";
+			};
+			[10.000000]={
+				["key"]="__EMI_SDRAM_TMRD__";
+				["value"]="2";
+			};
+			[11.000000]={
+				["key"]="__EMI_SDRAM_NRFS__";
+				["value"]="8";
+			};
+			[12.000000]={
+				["key"]="__EMI_SDRAM_REFRESH_RATE_MS__";
+				["value"]="64";
+			};
+			[13.000000]={
+				["key"]="__EMI_SDRAM_1_ENABLE__";
+				["value"]="0";
+			};
+			[14.000000]={
+				["key"]="__EMI_SDRAM_1_NB__";
+				["value"]="1";
+			};
+			[15.000000]={
+				["key"]="__EMI_SDRAM_1_MWID__";
+				["value"]="1";
+			};
+			[16.000000]={
+				["key"]="__EMI_SDRAM_1_NR__";
+				["value"]="1";
+			};
+			[17.000000]={
+				["key"]="__EMI_SDRAM_1_NC__";
+				["value"]="0";
+			};
+			[18.000000]={
+				["key"]="__EMI_SDRAM_1_TRCD__";
+				["value"]="2";
+			};
+			[19.000000]={
+				["key"]="__EMI_SDRAM_1_HEAP_REGIONS__";
+				["value"]="1";
+			};
+			[20.000000]={
+				["key"]="__EMI_SDRAM_1_HEAP_REGION_SIZE__";
+				["value"]="8192";
+			};
+			[21.000000]={
+				["key"]="__EMI_SDRAM_2_ENABLE__";
+				["value"]="1";
+			};
+			[22.000000]={
+				["key"]="__EMI_SDRAM_2_NB__";
+				["value"]="1";
+			};
+			[23.000000]={
+				["key"]="__EMI_SDRAM_2_MWID__";
+				["value"]="1";
+			};
+			[24.000000]={
+				["key"]="__EMI_SDRAM_2_NR__";
+				["value"]="1";
+			};
+			[25.000000]={
+				["key"]="__EMI_SDRAM_2_NC__";
+				["value"]="0";
+			};
+			[26.000000]={
+				["key"]="__EMI_SDRAM_2_TRCD__";
+				["value"]="2";
+			};
+			[27.000000]={
+				["key"]="__EMI_SDRAM_2_HEAP_REGIONS__";
+				["value"]="1";
+			};
+			[28.000000]={
+				["key"]="__EMI_SDRAM_2_HEAP_REGION_SIZE__";
+				["value"]="8192";
+			};
+		};
+		["arch/stm32h7/eth_flags.h"]={
+			[1.000000]={
+				["key"]="__ETH_SPEED__";
+				["value"]="ETH_SPEED_100M";
+			};
+			[2.000000]={
+				["key"]="__ETH_RXBUFNB__";
+				["value"]="10";
+			};
+			[3.000000]={
+				["key"]="__ETH_TXBUFNB__";
+				["value"]="10";
+			};
+			[4.000000]={
+				["key"]="__ETH_DEVICE__";
+				["value"]="LAN8742A";
+			};
+			[5.000000]={
+				["key"]="__ETH_PHY_SR__";
+				["value"]="31";
+			};
+			[6.000000]={
+				["key"]="__ETH_PHY_SPEED_STATUS_BM__";
+				["value"]="0x0004";
+			};
+			[7.000000]={
+				["key"]="__ETH_PHY_DUPLEX_STATUS_BM__";
+				["value"]="0x0010";
+			};
+			[8.000000]={
+				["key"]="__ETH_PHY_ADDRESS__";
+				["value"]="0";
+			};
+			[9.000000]={
+				["key"]="__ETH_PHY_RESET_DELAY__";
+				["value"]="250";
+			};
+			[10.000000]={
+				["key"]="__ETH_PHY_CONFIG_DELAY__";
+				["value"]="500";
+			};
+			[11.000000]={
+				["key"]="__ETH_PHY_AUTONEGOTIATION__";
+				["value"]="ETH_AUTONEGOTIATION_ENABLE";
 			};
 		};
 		["arch/stm32h7/gpio_flags.h"]={
@@ -19513,6 +19969,300 @@
 				["value"]="_LOW";
 			};
 		};
+		["arch/stm32h7/i2c_flags.h"]={
+			[1.000000]={
+				["key"]="__I2C1_SCL_FREQ__";
+				["value"]="100000";
+			};
+			[2.000000]={
+				["key"]="__I2C1_ANALOG_FILTER_DISABLE__";
+				["value"]="0";
+			};
+			[3.000000]={
+				["key"]="__I2C1_DIGITAL_FILTER__";
+				["value"]="0";
+			};
+			[4.000000]={
+				["key"]="__I2C1_SCL_RISE_TIME_ns__";
+				["value"]="100";
+			};
+			[5.000000]={
+				["key"]="__I2C1_SCL_FALL_TIME_ns__";
+				["value"]="100";
+			};
+			[6.000000]={
+				["key"]="__I2C1_DATA_HOLD_TIME_ns__";
+				["value"]="10";
+			};
+			[7.000000]={
+				["key"]="__I2C1_DATA_SETUP_TIME_ns__";
+				["value"]="10";
+			};
+			[8.000000]={
+				["key"]="__I2C1_IRQ_PRIORITY__";
+				["value"]="__CPU_DEFAULT_IRQ_PRIORITY__";
+			};
+			[9.000000]={
+				["key"]="__I2C2_SCL_FREQ__";
+				["value"]="100000";
+			};
+			[10.000000]={
+				["key"]="__I2C2_ANALOG_FILTER_DISABLE__";
+				["value"]="0";
+			};
+			[11.000000]={
+				["key"]="__I2C2_DIGITAL_FILTER__";
+				["value"]="0";
+			};
+			[12.000000]={
+				["key"]="__I2C2_SCL_RISE_TIME_ns__";
+				["value"]="100";
+			};
+			[13.000000]={
+				["key"]="__I2C2_SCL_FALL_TIME_ns__";
+				["value"]="100";
+			};
+			[14.000000]={
+				["key"]="__I2C2_DATA_HOLD_TIME_ns__";
+				["value"]="10";
+			};
+			[15.000000]={
+				["key"]="__I2C2_DATA_SETUP_TIME_ns__";
+				["value"]="10";
+			};
+			[16.000000]={
+				["key"]="__I2C2_IRQ_PRIORITY__";
+				["value"]="__CPU_DEFAULT_IRQ_PRIORITY__";
+			};
+			[17.000000]={
+				["key"]="__I2C3_SCL_FREQ__";
+				["value"]="100000";
+			};
+			[18.000000]={
+				["key"]="__I2C3_ANALOG_FILTER_DISABLE__";
+				["value"]="0";
+			};
+			[19.000000]={
+				["key"]="__I2C3_DIGITAL_FILTER__";
+				["value"]="0";
+			};
+			[20.000000]={
+				["key"]="__I2C3_SCL_RISE_TIME_ns__";
+				["value"]="100";
+			};
+			[21.000000]={
+				["key"]="__I2C3_SCL_FALL_TIME_ns__";
+				["value"]="100";
+			};
+			[22.000000]={
+				["key"]="__I2C3_DATA_HOLD_TIME_ns__";
+				["value"]="10";
+			};
+			[23.000000]={
+				["key"]="__I2C3_DATA_SETUP_TIME_ns__";
+				["value"]="10";
+			};
+			[24.000000]={
+				["key"]="__I2C3_IRQ_PRIORITY__";
+				["value"]="__CPU_DEFAULT_IRQ_PRIORITY__";
+			};
+			[25.000000]={
+				["key"]="__I2C4_SCL_FREQ__";
+				["value"]="100000";
+			};
+			[26.000000]={
+				["key"]="__I2C4_ANALOG_FILTER_DISABLE__";
+				["value"]="0";
+			};
+			[27.000000]={
+				["key"]="__I2C4_DIGITAL_FILTER__";
+				["value"]="0";
+			};
+			[28.000000]={
+				["key"]="__I2C4_SCL_RISE_TIME_ns__";
+				["value"]="640";
+			};
+			[29.000000]={
+				["key"]="__I2C4_SCL_FALL_TIME_ns__";
+				["value"]="20";
+			};
+			[30.000000]={
+				["key"]="__I2C4_DATA_HOLD_TIME_ns__";
+				["value"]="10";
+			};
+			[31.000000]={
+				["key"]="__I2C4_DATA_SETUP_TIME_ns__";
+				["value"]="10";
+			};
+			[32.000000]={
+				["key"]="__I2C4_IRQ_PRIORITY__";
+				["value"]="__CPU_DEFAULT_IRQ_PRIORITY__";
+			};
+			[33.000000]={
+				["key"]="__I2C5_SCL_FREQ__";
+				["value"]="100000";
+			};
+			[34.000000]={
+				["key"]="__I2C5_ANALOG_FILTER_DISABLE__";
+				["value"]="0";
+			};
+			[35.000000]={
+				["key"]="__I2C5_DIGITAL_FILTER__";
+				["value"]="0";
+			};
+			[36.000000]={
+				["key"]="__I2C5_SCL_RISE_TIME_ns__";
+				["value"]="100";
+			};
+			[37.000000]={
+				["key"]="__I2C5_SCL_FALL_TIME_ns__";
+				["value"]="100";
+			};
+			[38.000000]={
+				["key"]="__I2C5_DATA_HOLD_TIME_ns__";
+				["value"]="10";
+			};
+			[39.000000]={
+				["key"]="__I2C5_DATA_SETUP_TIME_ns__";
+				["value"]="10";
+			};
+			[40.000000]={
+				["key"]="__I2C5_IRQ_PRIORITY__";
+				["value"]="__CPU_DEFAULT_IRQ_PRIORITY__";
+			};
+		};
+		["arch/stm32h7/ltdc_flags.h"]={
+			[1.000000]={
+				["key"]="__LTDC_WIDTH__";
+				["value"]="480";
+			};
+			[2.000000]={
+				["key"]="__LTDC_HEIGHT__";
+				["value"]="272";
+			};
+			[3.000000]={
+				["key"]="__LTDC_HSYNC__";
+				["value"]="41";
+			};
+			[4.000000]={
+				["key"]="__LTDC_HBP__";
+				["value"]="13";
+			};
+			[5.000000]={
+				["key"]="__LTDC_HFP__";
+				["value"]="32";
+			};
+			[6.000000]={
+				["key"]="__LTDC_VSYNC__";
+				["value"]="10";
+			};
+			[7.000000]={
+				["key"]="__LTDC_VBP__";
+				["value"]="2";
+			};
+			[8.000000]={
+				["key"]="__LTDC_VFP__";
+				["value"]="2";
+			};
+			[9.000000]={
+				["key"]="__LTDC_HSPOLARITY__";
+				["value"]="LTDC_HSPOLARITY_AL";
+			};
+			[10.000000]={
+				["key"]="__LTDC_VSPOLARITY__";
+				["value"]="LTDC_VSPOLARITY_AL";
+			};
+			[11.000000]={
+				["key"]="__LTDC_DEPOLARITY__";
+				["value"]="LTDC_DEPOLARITY_AL";
+			};
+			[12.000000]={
+				["key"]="__LTDC_PCPOLARITY__";
+				["value"]="LTDC_PCPOLARITY_IPC";
+			};
+		};
+		["arch/stm32h7/sdmmc_flags.h"]={
+			[1.000000]={
+				["key"]="__SDMMC_CFG_SDMMC1_CLOCK_EDGE__";
+				["value"]="SDMMC_CLOCK_EDGE_RISING";
+			};
+			[2.000000]={
+				["key"]="__SDMMC_CFG_SDMMC1_HW_FLOW_CTRL__";
+				["value"]="SDMMC_HARDWARE_FLOW_CONTROL_ENABLE";
+			};
+			[3.000000]={
+				["key"]="__SDMMC_CFG_SDMMC1_BUS_WIDE__";
+				["value"]="SDMMC_BUS_WIDE_1B";
+			};
+			[4.000000]={
+				["key"]="__SDMMC_CFG_SDMMC1_CKDIV__";
+				["value"]="1";
+			};
+			[5.000000]={
+				["key"]="__SDMMC_CFG_SDMMC1_CARD_TIMEOUT__";
+				["value"]="500";
+			};
+			[6.000000]={
+				["key"]="__SDMMC_CFG_SDMMC1_PWRSAVE__";
+				["value"]="SDMMC_CLOCK_POWER_SAVE_DISABLE";
+			};
+			[7.000000]={
+				["key"]="__SDMMC_CFG_SDMMC1_TYPE__";
+				["value"]="_SDMMC_TYPE_SDCARD";
+			};
+			[8.000000]={
+				["key"]="__SDMMC_CFG_SDMMC1_MODE__";
+				["value"]="_SDMMC_MODE_DMA";
+			};
+			[9.000000]={
+				["key"]="__SDMMC_CFG_SDMMC1_SPEED_MODE__";
+				["value"]="SDMMC_SPEED_MODE_DEFAULT";
+			};
+			[10.000000]={
+				["key"]="__SDMMC_CFG_SDMMC1_IRQ_PRIORITY__";
+				["value"]="__CPU_DEFAULT_IRQ_PRIORITY__";
+			};
+			[11.000000]={
+				["key"]="__SDMMC_CFG_SDMMC2_CLOCK_EDGE__";
+				["value"]="SDMMC_CLOCK_EDGE_RISING";
+			};
+			[12.000000]={
+				["key"]="__SDMMC_CFG_SDMMC2_HW_FLOW_CTRL__";
+				["value"]="SDMMC_HARDWARE_FLOW_CONTROL_ENABLE";
+			};
+			[13.000000]={
+				["key"]="__SDMMC_CFG_SDMMC2_BUS_WIDE__";
+				["value"]="SDMMC_BUS_WIDE_1B";
+			};
+			[14.000000]={
+				["key"]="__SDMMC_CFG_SDMMC2_CKDIV__";
+				["value"]="1";
+			};
+			[15.000000]={
+				["key"]="__SDMMC_CFG_SDMMC2_CARD_TIMEOUT__";
+				["value"]="500";
+			};
+			[16.000000]={
+				["key"]="__SDMMC_CFG_SDMMC2_PWRSAVE__";
+				["value"]="SDMMC_CLOCK_POWER_SAVE_DISABLE";
+			};
+			[17.000000]={
+				["key"]="__SDMMC_CFG_SDMMC2_TYPE__";
+				["value"]="_SDMMC_TYPE_SDCARD";
+			};
+			[18.000000]={
+				["key"]="__SDMMC_CFG_SDMMC2_MODE__";
+				["value"]="_SDMMC_MODE_DMA";
+			};
+			[19.000000]={
+				["key"]="__SDMMC_CFG_SDMMC2_SPEED_MODE__";
+				["value"]="SDMMC_SPEED_MODE_DEFAULT";
+			};
+			[20.000000]={
+				["key"]="__SDMMC_CFG_SDMMC2_IRQ_PRIORITY__";
+				["value"]="__CPU_DEFAULT_IRQ_PRIORITY__";
+			};
+		};
 		["arch/stm32h7/uart_flags.h"]={
 			[1.000000]={
 				["key"]="__UART_DEFAULT_PARITY__";
@@ -19812,6 +20562,10 @@
 				["key"]="__FLATFS_LOG_ENABLE__";
 				["value"]="_NO_";
 			};
+			[2.000000]={
+				["key"]="__FLATFS_INDEX_SIZE__";
+				["value"]="0";
+			};
 		};
 		["filesystems/ramfs_flags.h"]={
 			[1.000000]={
@@ -19835,6 +20589,18 @@
 				["value"]="16";
 			};
 			[3.000000]={
+				["key"]="__NETWORK_CANNET_SEND_REPETITIONS__";
+				["value"]="3";
+			};
+			[4.000000]={
+				["key"]="__NETWORK_CANNET_SEND_REPETITIONS_INTERVAL_MIN__";
+				["value"]="3";
+			};
+			[5.000000]={
+				["key"]="__NETWORK_CANNET_SEND_REPETITIONS_INTERVAL_MAX__";
+				["value"]="250";
+			};
+			[6.000000]={
 				["key"]="__NETWORK_CANNET_DEBUG_ON__";
 				["value"]="_NO_";
 			};
@@ -20141,350 +20907,358 @@
 				["value"]="255";
 			};
 			[70.000000]={
+				["key"]="__NETWORK_TCP_MSL__";
+				["value"]="60";
+			};
+			[71.000000]={
 				["key"]="__NETWORK_TCP_WND__";
 				["value"]="3";
 			};
-			[71.000000]={
+			[72.000000]={
 				["key"]="__NETWORK_TCP_MAXRTX__";
 				["value"]="12";
 			};
-			[72.000000]={
+			[73.000000]={
 				["key"]="__NETWORK_TCP_SYNMAXRTX__";
 				["value"]="6";
 			};
-			[73.000000]={
+			[74.000000]={
 				["key"]="__NETWORK_LWIP_TCP_SACK_OUT__";
 				["value"]="0";
 			};
-			[74.000000]={
+			[75.000000]={
 				["key"]="__NETWORK_LWIP_TCP_MAX_SACK_NUM__";
 				["value"]="4";
 			};
-			[75.000000]={
+			[76.000000]={
 				["key"]="__NETWORK_TCP_MSS__";
 				["value"]="1460";
 			};
-			[76.000000]={
+			[77.000000]={
 				["key"]="__NETWORK_TCP_CALCULATE_EFF_SEND_MSS__";
 				["value"]="1";
 			};
-			[77.000000]={
+			[78.000000]={
 				["key"]="__NETWORK_TCP_SND_BUF__";
 				["value"]="4";
 			};
-			[78.000000]={
+			[79.000000]={
 				["key"]="__NETWORK_TCP_OOSEQ_MAX_BYTES__";
 				["value"]="0";
 			};
-			[79.000000]={
+			[80.000000]={
 				["key"]="__NETWORK_TCP_OOSEQ_MAX_PBUFS__";
 				["value"]="0";
 			};
-			[80.000000]={
+			[81.000000]={
 				["key"]="__NETWORK_TCP_LISTEN_BACKLOG__";
 				["value"]="0";
 			};
-			[81.000000]={
+			[82.000000]={
 				["key"]="__NETWORK_TCP_DEFAULT_LISTEN_BACKLOG__";
 				["value"]="255";
 			};
-			[82.000000]={
+			[83.000000]={
 				["key"]="__NETWORK_TCP_OVERSIZE__";
 				["value"]="TCP_MSS";
 			};
-			[83.000000]={
+			[84.000000]={
 				["key"]="__NETWORK_LWIP_TCP_TIMESTAMPS__";
 				["value"]="0";
 			};
-			[84.000000]={
+			[85.000000]={
 				["key"]="__NETWORK_LWIP_WND_SCALE__";
 				["value"]="0";
 			};
-			[85.000000]={
+			[86.000000]={
 				["key"]="__NETWORK_TCP_RCV_SCALE__";
 				["value"]="0";
 			};
-			[86.000000]={
+			[87.000000]={
 				["key"]="__NETWORK_PBUF_LINK_ENCAPSULATION_HLEN__";
 				["value"]="0";
 			};
-			[87.000000]={
+			[88.000000]={
 				["key"]="__NETWORK_LWIP_SINGLE_NETIF__";
 				["value"]="1";
 			};
-			[88.000000]={
+			[89.000000]={
 				["key"]="__NETWORK_LWIP_NETIF_HOSTNAME__";
 				["value"]="1";
 			};
-			[89.000000]={
+			[90.000000]={
 				["key"]="__NETWORK_LWIP_NETIF_HWADDRHINT__";
 				["value"]="0";
 			};
-			[90.000000]={
+			[91.000000]={
 				["key"]="__NETWORK_LWIP_LOOPIF_MULTICAST__";
 				["value"]="0";
 			};
-			[91.000000]={
+			[92.000000]={
 				["key"]="__NETWORK_LWIP_NETIF_LOOPBACK__";
 				["value"]="0";
 			};
-			[92.000000]={
-				["key"]="__NETWORK_LWIP_LOOPBACK_MAX_PBUFS__";
-				["value"]="0";
-			};
 			[93.000000]={
+				["key"]="__NETWORK_LWIP_LOOPBACK_MAX_PBUFS__";
+				["value"]="32";
+			};
+			[94.000000]={
 				["key"]="__NETWORK_TCPIP_THREAD_NAME__";
 				["value"]="\"tcpipd\"";
 			};
-			[94.000000]={
+			[95.000000]={
 				["key"]="__NETWORK_TCPIP_THREAD_STACKSIZE__";
 				["value"]="_STACK_DEPTH_LOW";
 			};
-			[95.000000]={
+			[96.000000]={
 				["key"]="__NETWORK_TCPIP_THREAD_PRIO__";
 				["value"]="0";
 			};
-			[96.000000]={
+			[97.000000]={
 				["key"]="__NETWORK_TCPIP_MBOX_SIZE__";
 				["value"]="8";
 			};
-			[97.000000]={
+			[98.000000]={
 				["key"]="__NETWORK_SLIPIF_THREAD_NAME__";
 				["value"]="\"slipifd\"";
 			};
-			[98.000000]={
+			[99.000000]={
 				["key"]="__NETWORK_SLIPIF_THREAD_STACKSIZE__";
 				["value"]="_STACK_DEPTH_LOW";
 			};
-			[99.000000]={
+			[100.000000]={
 				["key"]="__NETWORK_SLIPIF_THREAD_PRIO__";
 				["value"]="0";
 			};
-			[100.000000]={
+			[101.000000]={
 				["key"]="__NETWORK_DEFAULT_THREAD_NAME__";
 				["value"]="\"lwipd\"";
 			};
-			[101.000000]={
+			[102.000000]={
 				["key"]="__NETWORK_DEFAULT_THREAD_STACKSIZE__";
 				["value"]="_STACK_DEPTH_LOW";
 			};
-			[102.000000]={
+			[103.000000]={
 				["key"]="__NETWORK_DEFAULT_THREAD_PRIO__";
 				["value"]="0";
 			};
-			[103.000000]={
+			[104.000000]={
 				["key"]="__NETWORK_DEFAULT_RAW_RECVMBOX_SIZE__";
 				["value"]="8";
 			};
-			[104.000000]={
+			[105.000000]={
 				["key"]="__NETWORK_DEFAULT_UDP_RECVMBOX_SIZE__";
 				["value"]="8";
 			};
-			[105.000000]={
+			[106.000000]={
 				["key"]="__NETWORK_DEFAULT_TCP_RECVMBOX_SIZE__";
 				["value"]="8";
 			};
-			[106.000000]={
+			[107.000000]={
+				["key"]="__NETWORK_DEFAULT_TCP_TIMER_INTERVAL__";
+				["value"]="250";
+			};
+			[108.000000]={
 				["key"]="__NETWORK_DEFAULT_ACCEPTMBOX_SIZE__";
 				["value"]="8";
 			};
-			[107.000000]={
+			[109.000000]={
 				["key"]="__NETWORK_LWIP_TCPIP_TIMEOUT__";
 				["value"]="0";
 			};
-			[108.000000]={
+			[110.000000]={
 				["key"]="__NETWORK_LWIP_TCP_KEEPALIVE__";
 				["value"]="0";
 			};
-			[109.000000]={
+			[111.000000]={
 				["key"]="__NETWORK_LWIP_STATS__";
 				["value"]="0";
 			};
-			[110.000000]={
+			[112.000000]={
 				["key"]="__NETWORK_LWIP_CHECKSUM_CTRL_PER_NETIF__";
 				["value"]="0";
 			};
-			[111.000000]={
+			[113.000000]={
 				["key"]="__NETWORK_CHECKSUM_GEN_IP__";
 				["value"]="0";
 			};
-			[112.000000]={
+			[114.000000]={
 				["key"]="__NETWORK_CHECKSUM_GEN_UDP__";
 				["value"]="0";
 			};
-			[113.000000]={
+			[115.000000]={
 				["key"]="__NETWORK_CHECKSUM_GEN_TCP__";
 				["value"]="0";
 			};
-			[114.000000]={
+			[116.000000]={
 				["key"]="__NETWORK_CHECKSUM_GEN_ICMP__";
 				["value"]="0";
 			};
-			[115.000000]={
+			[117.000000]={
 				["key"]="__NETWORK_CHECKSUM_GEN_ICMP6__";
 				["value"]="0";
 			};
-			[116.000000]={
+			[118.000000]={
 				["key"]="__NETWORK_CHECKSUM_CHECK_IP__";
 				["value"]="1";
 			};
-			[117.000000]={
+			[119.000000]={
 				["key"]="__NETWORK_CHECKSUM_CHECK_UDP__";
 				["value"]="1";
 			};
-			[118.000000]={
+			[120.000000]={
 				["key"]="__NETWORK_CHECKSUM_CHECK_TCP__";
 				["value"]="1";
 			};
-			[119.000000]={
+			[121.000000]={
 				["key"]="__NETWORK_CHECKSUM_CHECK_ICMP__";
 				["value"]="1";
 			};
-			[120.000000]={
+			[122.000000]={
 				["key"]="__NETWORK_CHECKSUM_CHECK_ICMP6__";
 				["value"]="1";
 			};
-			[121.000000]={
+			[123.000000]={
 				["key"]="__NETWORK_LWIP_CHECKSUM_ON_COPY__";
 				["value"]="0";
 			};
-			[122.000000]={
+			[124.000000]={
 				["key"]="__NETWORK_LWIP_DBG_MIN_LEVEL__";
 				["value"]="LWIP_DBG_LEVEL_ALL";
 			};
-			[123.000000]={
+			[125.000000]={
 				["key"]="__NETWORK_LWIP_DBG_TYPES_ON__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[124.000000]={
+			[126.000000]={
 				["key"]="__NETWORK_ETHARP_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[125.000000]={
+			[127.000000]={
 				["key"]="__NETWORK_NETIF_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[126.000000]={
+			[128.000000]={
 				["key"]="__NETWORK_PBUF_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[127.000000]={
+			[129.000000]={
 				["key"]="__NETWORK_API_LIB_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[128.000000]={
+			[130.000000]={
 				["key"]="__NETWORK_API_MSG_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[129.000000]={
+			[131.000000]={
 				["key"]="__NETWORK_SOCKETS_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[130.000000]={
+			[132.000000]={
 				["key"]="__NETWORK_ICMP_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[131.000000]={
+			[133.000000]={
 				["key"]="__NETWORK_IGMP_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[132.000000]={
+			[134.000000]={
 				["key"]="__NETWORK_INET_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[133.000000]={
+			[135.000000]={
 				["key"]="__NETWORK_IP_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[134.000000]={
+			[136.000000]={
 				["key"]="__NETWORK_IP_REASS_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[135.000000]={
+			[137.000000]={
 				["key"]="__NETWORK_RAW_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[136.000000]={
+			[138.000000]={
 				["key"]="__NETWORK_MEM_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[137.000000]={
+			[139.000000]={
 				["key"]="__NETWORK_MEMP_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[138.000000]={
+			[140.000000]={
 				["key"]="__NETWORK_SYS_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[139.000000]={
+			[141.000000]={
 				["key"]="__NETWORK_TIMERS_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[140.000000]={
+			[142.000000]={
 				["key"]="__NETWORK_TCP_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[141.000000]={
+			[143.000000]={
 				["key"]="__NETWORK_TCP_INPUT_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[142.000000]={
+			[144.000000]={
 				["key"]="__NETWORK_TCP_FR_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[143.000000]={
+			[145.000000]={
 				["key"]="__NETWORK_TCP_RTO_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[144.000000]={
+			[146.000000]={
 				["key"]="__NETWORK_TCP_CWND_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[145.000000]={
+			[147.000000]={
 				["key"]="__NETWORK_TCP_WND_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[146.000000]={
+			[148.000000]={
 				["key"]="__NETWORK_TCP_OUTPUT_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[147.000000]={
+			[149.000000]={
 				["key"]="__NETWORK_TCP_RST_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[148.000000]={
+			[150.000000]={
 				["key"]="__NETWORK_TCP_QLEN_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[149.000000]={
+			[151.000000]={
 				["key"]="__NETWORK_UDP_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[150.000000]={
+			[152.000000]={
 				["key"]="__NETWORK_TCPIP_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[151.000000]={
+			[153.000000]={
 				["key"]="__NETWORK_SLIP_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[152.000000]={
+			[154.000000]={
 				["key"]="__NETWORK_DHCP_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[153.000000]={
+			[155.000000]={
 				["key"]="__NETWORK_AUTOIP_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[154.000000]={
+			[156.000000]={
 				["key"]="__NETWORK_DNS_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[155.000000]={
+			[157.000000]={
 				["key"]="__NETWORK_IP6_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
-			[156.000000]={
+			[158.000000]={
 				["key"]="__NETWORK_DHCP6_DEBUG__";
 				["value"]="LWIP_DBG_OFF";
 			};
@@ -20511,150 +21285,146 @@
 				["value"]="1000";
 			};
 			[6.000000]={
-				["key"]="__OS_TASK_MAX_USER_THREADS__";
-				["value"]="4";
+				["key"]="__OS_PROCESS_MAX_THREADS__";
+				["value"]="16";
 			};
 			[7.000000]={
-				["key"]="__OS_TASK_MAX_SYSTEM_THREADS__";
-				["value"]="6";
-			};
-			[8.000000]={
 				["key"]="__OS_SLEEP_ON_IDLE__";
 				["value"]="_NO_";
 			};
-			[9.000000]={
+			[8.000000]={
 				["key"]="__OS_COLOR_TERMINAL_ENABLE__";
 				["value"]="_YES_";
 			};
-			[10.000000]={
+			[9.000000]={
 				["key"]="__OS_MONITOR_CPU_LOAD__";
 				["value"]="_YES_";
 			};
-			[11.000000]={
+			[10.000000]={
 				["key"]="__OS_ENABLE_TIMEMAN__";
 				["value"]="_YES_";
 			};
-			[12.000000]={
+			[11.000000]={
 				["key"]="__OS_PRINTF_ENABLE__";
 				["value"]="_YES_";
 			};
-			[13.000000]={
+			[12.000000]={
 				["key"]="__OS_PRINTF_FLOAT_ENABLE__";
 				["value"]="_YES_";
 			};
-			[14.000000]={
+			[13.000000]={
 				["key"]="__OS_SCANF_ENABLE__";
 				["value"]="_YES_";
 			};
-			[15.000000]={
+			[14.000000]={
 				["key"]="__OS_ENABLE_MKDIR__";
 				["value"]="_YES_";
 			};
-			[16.000000]={
+			[15.000000]={
 				["key"]="__OS_ENABLE_GETCWD__";
 				["value"]="_YES_";
 			};
-			[17.000000]={
+			[16.000000]={
 				["key"]="__OS_ENABLE_MKFIFO__";
 				["value"]="_YES_";
 			};
-			[18.000000]={
+			[17.000000]={
 				["key"]="__OS_ENABLE_REMOVE__";
 				["value"]="_YES_";
 			};
-			[19.000000]={
+			[18.000000]={
 				["key"]="__OS_ENABLE_RENAME__";
 				["value"]="_NO_";
 			};
-			[20.000000]={
+			[19.000000]={
 				["key"]="__OS_ENABLE_CHMOD__";
 				["value"]="_NO_";
 			};
-			[21.000000]={
+			[20.000000]={
 				["key"]="__OS_ENABLE_CHOWN__";
 				["value"]="_NO_";
 			};
-			[22.000000]={
+			[21.000000]={
 				["key"]="__OS_ENABLE_STATFS__";
 				["value"]="_YES_";
 			};
-			[23.000000]={
+			[22.000000]={
 				["key"]="__OS_ENABLE_MKNOD__";
 				["value"]="_YES_";
 			};
-			[24.000000]={
+			[23.000000]={
 				["key"]="__OS_ENABLE_FSTAT__";
 				["value"]="_YES_";
 			};
-			[25.000000]={
+			[24.000000]={
 				["key"]="__OS_ENABLE_SYS_ASSERT__";
 				["value"]="_NO_";
 			};
-			[26.000000]={
+			[25.000000]={
 				["key"]="__OS_ENABLE_SHARED_MEMORY__";
 				["value"]="_NO_";
 			};
-			[27.000000]={
+			[26.000000]={
 				["key"]="__OS_SYSTEM_MSG_ENABLE__";
 				["value"]="_YES_";
 			};
-			[28.000000]={
+			[27.000000]={
 				["key"]="__OS_SYSTEM_SHEBANG_ENABLE__";
 				["value"]="_NO_";
 			};
-			[29.000000]={
+			[28.000000]={
 				["key"]="__OS_STREAM_BUFFER_LENGTH__";
 				["value"]="100";
 			};
-			[30.000000]={
+			[29.000000]={
 				["key"]="__OS_PIPE_LENGTH__";
 				["value"]="8";
 			};
-			[31.000000]={
+			[30.000000]={
 				["key"]="__HEAP_BLOCK_SIZE__";
 				["value"]="4";
 			};
-			[32.000000]={
+			[31.000000]={
 				["key"]="__OS_SYSTEM_MSG_COLS__";
 				["value"]="64";
 			};
-			[33.000000]={
-				["key"]="__OS_SYSTEM_MSG_ROWS__";
-				["value"]="24";
+			[32.000000]={
+				["key"]="__OS_SYSTEM_LOG_SIZE__";
+				["value"]="2048";
 			};
-			[34.000000]={
+			[33.000000]={
 				["key"]="__OS_SYSTEM_CACHE_SYNC_PERIOD__";
 				["value"]="30";
 			};
-			[35.000000]={
+			[34.000000]={
 				["key"]="__OS_MONITOR_NETWORK_MEMORY_USAGE_LIMIT__";
 				["value"]="0";
 			};
-			[36.000000]={
+			[35.000000]={
 				["key"]="__OS_ERRNO_STRING_LEN__";
 				["value"]="3";
 			};
-			[37.000000]={
+			[36.000000]={
 				["key"]="__OS_HEAP_SANITY_CHECK__";
 				["value"]="_NO_";
 			};
-			[38.000000]={
+			[37.000000]={
 				["key"]="__OS_HEAP_OVERFLOW_CHECK__";
 				["value"]="_NO_";
 			};
-			[39.000000]={
+			[38.000000]={
 				["key"]="__OS_HOSTNAME__";
 				["value"]="\"dnxboard\"";
 			};
-			[40.000000]={
+			[39.000000]={
 				["key"]="__OS_RTC_FILE_PATH__";
 				["value"]="\"/dev/rtc\"";
 			};
-			[41.000000]={
+			[40.000000]={
 				["key"]="__OS_INIT_PROG__";
 				["value"]="\"initd\"";
 			};
-			[42.000000]={
+			[41.000000]={
 				["key"]="__OS_SYSTEM_PROG__";
 				["value"]="\"dsh -e\"";
 			};
@@ -20679,6 +21449,10 @@
 			[5.000000]={
 				["key"]="__CPU_UART_TERM__";
 				["value"]="0";
+			};
+			[6.000000]={
+				["key"]="__PROJ_APPSET_TABLE_ADDRESS__";
+				["value"]="0x08010000";
 			};
 		};
 	};
