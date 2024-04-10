@@ -49,93 +49,127 @@ extern "C" {
 #include "stm32fx/spi_cfg.h"
 #include "stm32f7/stm32f7xx.h"
 #include "stm32f7/lib/stm32f7xx_ll_rcc.h"
+#elif defined(ARCH_stm32h7)
+#include "stm32h7/spi_cfg.h"
+#include "stm32h7/stm32h7xx.h"
+#include "stm32h7/lib/stm32h7xx_ll_rcc.h"
+#include "stm32h7/stm32h7xx_hal_spi.h"
 #endif
 
 /*==============================================================================
   Exported macros
 ==============================================================================*/
-#define _SPI_IRQ_WAIT_TIMEOUT           2500
+#define _SPI_IRQ_WAIT_TIMEOUT 2500
 
 /*==============================================================================
   Exported object types
 ==============================================================================*/
 #if defined(ARCH_stm32f1)
 enum {
-    #if defined(RCC_APB2ENR_SPI1EN)
+#if defined(RCC_APB2ENR_SPI1EN)
         _SPI1,
-    #endif
-    #if defined(RCC_APB1ENR_SPI2EN)
+#endif
+#if defined(RCC_APB1ENR_SPI2EN)
         _SPI2,
-    #endif
-    #if defined(RCC_APB1ENR_SPI3EN)
+#endif
+#if defined(RCC_APB1ENR_SPI3EN)
         _SPI3,
-    #endif
+#endif
         _NUMBER_OF_SPI_PERIPHERALS
 };
 #elif defined(ARCH_stm32f4)
 enum {
-    #if defined(RCC_APB2ENR_SPI1EN)
+#if defined(RCC_APB2ENR_SPI1EN)
         _SPI1,
-    #endif
-    #if defined(RCC_APB1ENR_SPI2EN)
+#endif
+#if defined(RCC_APB1ENR_SPI2EN)
         _SPI2,
-    #endif
-    #if defined(RCC_APB1ENR_SPI3EN)
+#endif
+#if defined(RCC_APB1ENR_SPI3EN)
         _SPI3,
-    #endif
-    #if defined(RCC_APB2ENR_SPI4EN)
+#endif
+#if defined(RCC_APB2ENR_SPI4EN)
         _SPI4,
-    #endif
-    #if defined(RCC_APB2ENR_SPI5EN)
+#endif
+#if defined(RCC_APB2ENR_SPI5EN)
         _SPI5,
-    #endif
-    #if defined(RCC_APB2ENR_SPI6EN)
+#endif
+#if defined(RCC_APB2ENR_SPI6EN)
         _SPI6,
-    #endif
+#endif
         _NUMBER_OF_SPI_PERIPHERALS
 };
 #elif defined(ARCH_stm32f7)
 enum {
-    #if defined(RCC_APB2ENR_SPI1EN)
+#if defined(RCC_APB2ENR_SPI1EN)
         _SPI1,
-    #endif
-    #if defined(RCC_APB1ENR_SPI2EN)
+#endif
+#if defined(RCC_APB1ENR_SPI2EN)
         _SPI2,
-    #endif
-    #if defined(RCC_APB1ENR_SPI3EN)
+#endif
+#if defined(RCC_APB1ENR_SPI3EN)
         _SPI3,
-    #endif
-    #if defined(RCC_APB2ENR_SPI4EN)
+#endif
+#if defined(RCC_APB2ENR_SPI4EN)
         _SPI4,
-    #endif
-    #if defined(RCC_APB2ENR_SPI5EN)
+#endif
+#if defined(RCC_APB2ENR_SPI5EN)
         _SPI5,
-    #endif
-    #if defined(RCC_APB2ENR_SPI6EN)
+#endif
+#if defined(RCC_APB2ENR_SPI6EN)
         _SPI6,
-    #endif
+#endif
+        _NUMBER_OF_SPI_PERIPHERALS
+};
+#elif defined(ARCH_stm32h7)
+enum {
+#if defined(RCC_APB2ENR_SPI1EN)
+        _SPI1,
+#endif
+#if defined(RCC_APB1LENR_SPI2EN)
+        _SPI2,
+#endif
+#if defined(RCC_APB1LENR_SPI3EN)
+        _SPI3,
+#endif
+#if defined(RCC_APB2ENR_SPI4EN)
+        _SPI4,
+#endif
+#if defined(RCC_APB2ENR_SPI5EN)
+        _SPI5,
+#endif
+#if defined(RCC_APB4ENR_SPI6EN)
+        _SPI6,
+#endif
         _NUMBER_OF_SPI_PERIPHERALS
 };
 #endif
 
 /* independent SPI instance */
 struct SPI_slave {
-        dev_lock_t               lock;                  //!< SPI slave lock
-        u8_t                     major;                 //!< SPI major number
-        SPI_config_t             config;                //!< SPI configuration
+        dev_lock_t   lock;
+        u8_t         major;
+        u8_t         minor;
+        SPI_config_t config;
 };
 
 /* general module data */
 struct SPI {
-        ksem_t                  *wait_irq_sem;          //!< IRQ detect semaphore
-        kmtx_t                  *periph_protect_mtx;    //!< SPI protection mutex
-        struct SPI_slave        *slave;                 //!< current handled slave
-        const u8_t              *tx_buffer;             //!< Tx buffer
-        u8_t                    *rx_buffer;             //!< Rx buffer
-        size_t                   count;                 //!< transaction length
-        dev_lock_t               RAW_mode;              //!< RAW mode (locked for specified process)
-        u8_t                     flush_byte;            //!< flush byte (read transaction)
-        u8_t                     slave_count;           //!< number of slaves
+        ksem_t           *wait_irq_sem;
+        kmtx_t           *periph_protect_mtx;
+        struct SPI_slave *current_slave;
+        const u8_t       *tx_buffer;
+        u8_t             *rx_buffer;
+        size_t            count;
+        dev_lock_t        RAW_mode;
+        u8_t              flush_byte;
+        u8_t              slave_count;
+        bool              irq_yield;
+
+#if defined(ARCH_stm32h7)
+        SPI_HandleTypeDef hspi;
+        u8_t              mode;
+#endif
 };
 
 /*==============================================================================
@@ -148,7 +182,8 @@ extern struct SPI *_SPI[];
 ==============================================================================*/
 extern int  _SPI_LLD__turn_on(u8_t major);
 extern void _SPI_LLD__turn_off(u8_t major);
-extern int  _SPI_LLD__transceive(struct SPI_slave *hdl, const u8_t *txbuf, u8_t *rxbuf, size_t count);
+extern int  _SPI_LLD__transceive(struct SPI_slave *hdl, const u8_t *txbuf, u8_t *rxbuf,
+         size_t count);
 extern void _SPI_LLD__apply_config(struct SPI_slave *hdl);
 extern void _SPI_LLD__halt(u8_t major);
 

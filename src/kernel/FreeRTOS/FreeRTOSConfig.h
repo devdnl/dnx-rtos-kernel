@@ -84,7 +84,7 @@ extern void _task_switched_in(void*, void*, void*);
 #define configUSE_TICKLESS_IDLE                 0
 #define configCPU_CLOCK_HZ                      _CPU_START_FREQUENCY_
 #define configTICK_RATE_HZ                      __OS_TASK_SCHED_FREQ__
-#define configMAX_PRIORITIES                    __OS_TASK_MAX_PRIORITIES__
+#define configMAX_PRIORITIES                    9
 #define configMINIMAL_STACK_SIZE                __OS_TASK_MIN_STACK_DEPTH__
 #define configTOTAL_HEAP_SIZE                   0
 #define configMAX_TASK_NAME_LEN                 1

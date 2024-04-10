@@ -437,7 +437,7 @@ u32_t _DMA_DDI_reserve(u8_t major, u8_t stream)
 //==============================================================================
 u32_t _DMA_DDI_reserve(u8_t major_mask)
 {
-        int dmad = 0;
+        u32_t dmad = 0;
 
         if (DMA_mem == NULL) {
                 printk("DMA: driver not initialized");
@@ -505,6 +505,26 @@ void _DMA_DDI_release(u32_t dmad)
                         DMA_Stream->PAR  = 0;
 
                         memset(RT_stream, 0, sizeof(DMA_RT_stream_t));
+                }
+        }
+}
+
+//==============================================================================
+/**
+ * @brief Function abort configured DMA transfer.
+ *
+ * @param dmad                  DMA descriptor.
+ */
+//==============================================================================
+void _DMA_DDI_abort(u32_t dmad)
+{
+        if (dmad && DMA_mem) {
+                DMA_RT_stream_t *RT_stream = &DMA_mem->DMA[GETMAJOR(dmad)].stream[GETSTREAM(dmad)];
+
+                if (RT_stream->dmad == dmad) {
+                        DMA_Stream_TypeDef *DMA_Stream = DMA_HW[GETMAJOR(dmad)].stream[GETSTREAM(dmad)];
+                        DMA_Stream->CR       = 0;
+                        clear_DMA_IRQ_flags(GETMAJOR(dmad), GETSTREAM(dmad));
                 }
         }
 }

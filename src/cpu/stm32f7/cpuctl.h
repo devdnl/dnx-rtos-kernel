@@ -53,7 +53,7 @@ extern "C" {
 #define vPortSVCHandler     SVC_Handler
 
 /* names of memory regions used by kernel */
-#define _CPUCTL_STACK_REGION_FLAGS _MM_FLAG__DMA_CAPABLE | _MM_FLAG__CACHEABLE
+#define _CPUCTL_STACK_REGION_FLAGS _MM_FLAG__DMA | _MM_FLAG__CACHE
 
 /* CACHE macros */
 #define _CPUCTL_CACHE_ALIGN 32
@@ -72,6 +72,7 @@ enum {
   Exported objects
 ==============================================================================*/
 extern const char *_cpuctl_preferred_APP_RAM[];
+extern const char *_cpuctl_preferred_FS_RAM[];
 extern const char *_cpuctl_fast_mem[];
 
 /*==============================================================================

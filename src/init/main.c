@@ -87,20 +87,17 @@ void dnxinit(void *arg)
 {
         UNUSED_ARG1(arg);
 
-        printk("Welcome to dnx RTOS %s!", dnx_RTOS_version);
-        printk("Running on platform %s", dnx_RTOS_platform_name);
-
 #if __OS_ENABLE_SHARED_MEMORY__ > 0
-        _assert(ESUCC == _shm_init());
+        _shm_init();
 #endif
 
-        _assert(ESUCC == _vfs_init());
+        _vfs_init();
 
 #if _ENABLE_NETWORK_
-        _assert(ESUCC == _net_init());
+        _net_init();
 #endif
 
-        _assert(ESUCC == _syscall_init());
+        _syscall_init();
 
         /*
          * This code reuse the main() stack that after kernel start is abandoned.
@@ -120,10 +117,15 @@ void dnxinit(void *arg)
 //==============================================================================
 int main(void)
 {
-        _assert(ESUCC == _mm_init());
+        _mm_init();
+        _printk_init();
+
+        printk("Welcome to dnx RTOS %s!", dnx_RTOS_version);
+        printk("Running on platform %s", dnx_RTOS_platform_name);
+
         _cpuctl_init();
-        _assert(ESUCC == _kernel_panic_init());
-        _assert(ESUCC == _task_create(dnxinit, "", (1024 / sizeof(StackType_t)), NULL, NULL));
+        _kernel_panic_init();
+        _task_create(dnxinit, "", (1024 / sizeof(StackType_t)), NULL, NULL);
         _kernel_start();
         return -1;
 }

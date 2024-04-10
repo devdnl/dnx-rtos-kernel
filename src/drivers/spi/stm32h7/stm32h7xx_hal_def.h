@@ -1,11 +1,11 @@
 /*==============================================================================
-File    spiee_cfg.h
+File    stm32h7xx_hal_def.h
 
 Author  Daniel Zorychta
 
-Brief   SPI EEPROM
+Brief   FDCAN HAL definitions.
 
-        Copyright (C) 2019 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2022 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -25,21 +25,46 @@ Brief   SPI EEPROM
 
 ==============================================================================*/
 
-#ifndef _SPIEE_CFG_H_
-#define _SPIEE_CFG_H_
+/**
+@defgroup FDCAN_STM32FX_STM32H7XX_HAL_DEF_H_ FDCAN_STM32FX_STM32H7XX_HAL_DEF_H_
+
+Detailed Doxygen description.
+*/
+/**@{*/
+
+#pragma once
+
+/*==============================================================================
+  Include files
+==============================================================================*/
+#include <stddef.h>
+#include "drivers/driver.h"
+
+#if defined(ARCH_stm32h7)
+#include "stm32h7xx.h"
+#include "stm32h7/lib/stm32h7xx_ll_rcc.h"
+#include "stm32h7/lib/misc.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/*==============================================================================
-  Include files
-==============================================================================*/
-#include "config.h"
+#if defined(ARCH_stm32h7)
 
 /*==============================================================================
   Exported macros
 ==============================================================================*/
+#define HAL_MAX_DELAY                   _MAX_DELAY_MS
+#define __HAL_UNLOCK(heth)              (heth->Lock = HAL_UNLOCKED)
+#define __HAL_LOCK(heth)                (heth->Lock = HAL_LOCKED)
+
+#ifndef UNUSED
+#define UNUSED(_x)                      UNUSED_ARG1(_x)
+#endif
+
+#define HAL_IS_BIT_SET(reg, bit)        ((reg) & (bit))
+#define HAL_IS_BIT_CLR(reg, bit)        (!HAL_IS_BIT_SET(reg, bit))
 
 /*==============================================================================
   Exported object types
@@ -57,11 +82,13 @@ extern "C" {
   Exported inline functions
 ==============================================================================*/
 
+#endif
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _SPIEE_CFG_H_ */
+/**@}*/
 /*==============================================================================
   End of file
 ==============================================================================*/

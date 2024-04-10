@@ -84,7 +84,7 @@ static int      dump_tty_buffer         (tty_t *tty, char *dst, size_t *size);
 MODULE_NAME(TTY);
 
 static const _thread_attr_t SERVICE_IN_ATTR = {
-        .stack_depth = _STACK_DEPTH_LOW,
+        .stack_depth = _STACK_DEPTH_VERY_LOW,
         .priority    = _PRIORITY_NORMAL,
         .detached    = true
 };

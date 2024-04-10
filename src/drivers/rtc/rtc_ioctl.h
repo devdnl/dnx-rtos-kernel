@@ -35,6 +35,8 @@ Driver handles real time clock peripheral.
 \section drv-rtc-sup-arch Supported architectures
 \li stm32f1
 \li stm32f4
+\li stm32f7
+\li stm32h7
 
 \section drv-rtc-ddesc Details
 \subsection drv-rtc-ddesc-num Meaning of major and minor numbers

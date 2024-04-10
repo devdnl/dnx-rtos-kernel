@@ -356,10 +356,10 @@ API_MOD_STAT(EMI, void *device_handle, struct vfs_dev_stat *device_stat)
 static int sdram_test(void *address, size_t size)
 {
         static const u32_t PATTERN[] = {
-                0x08080808,
-                0x80008000,
-                0xAAAA5555,
-                0x5555AAAA,
+                0x00000000,
+                0xFFFFFFFF,
+                0xAAAAAAAA,
+                0x55555555,
         };
 
         int err = 0;
@@ -392,10 +392,16 @@ static int sdram_test(void *address, size_t size)
         u32_t *ptr = address;
         size_t len = size / sizeof(u32_t);
 
+        clock_t tstart = sys_get_uptime_ms();
+
         while (len) {
                 *ptr++ = len;
                 len--;
         }
+
+        clock_t tstop = sys_get_uptime_ms();
+        float MiB_per_s = cast(float, (size / (tstop - tstart))) / 1024.0f / 1024.0f * 1000.0f;
+
 
         ptr = address;
         len = size / sizeof(u32_t);
@@ -409,7 +415,10 @@ static int sdram_test(void *address, size_t size)
                 len--;
         }
 
-        printk("EMI: memory test success.");
+        if (not err) {
+                printk("EMI: memory test success.");
+                printk("EMI: memory transfer: %0.3f MiB/s.", MiB_per_s);
+        }
 
         return err;
 }
@@ -684,14 +693,14 @@ static int register_heap_regions(void *addr, size_t mem_size, mem_region_t regio
         for (size_t i = 0; (i < (region_num - 1)) && (mem_size > 0); i++) {
                 size_t heap_sz = min(mem_size, region_size);
                 err = sys_register_region(&region[i], addr, heap_sz,
-                                          _MM_FLAG__DMA_CAPABLE, "SDRAM");
+                                          _MM_FLAG__DMA, "SDRAM");
                 addr     += heap_sz;
                 mem_size -= heap_sz;
         }
 
         if (mem_size > 0) {
                 err = sys_register_region(&region[region_num - 1], addr, mem_size,
-                                          _MM_FLAG__DMA_CAPABLE, "SDRAM");
+                                          _MM_FLAG__DMA, "SDRAM");
         }
 
         return err;

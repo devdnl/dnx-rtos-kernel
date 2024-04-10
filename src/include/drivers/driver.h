@@ -63,11 +63,11 @@ extern "C" {
 #ifndef DOXYGEN /* Doxygen documentation in sysfunc.h */
 #undef  sys_zalloc
 #define sys_zalloc(size_t__size, void__ppmem)\
-        _kzalloc(_MM_MOD, size_t__size, NULL, _MM_FLAG__DMA_CAPABLE, _MM_FLAG__DMA_CAPABLE, void__ppmem, _module_get_ID(_module_name_))
+        _kzalloc(_MM_MOD, size_t__size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, void__ppmem, _module_get_ID(_module_name_))
 
 #undef  sys_malloc
 #define sys_malloc(size_t__size, void__ppmem)\
-        _kmalloc(_MM_MOD, size_t__size, NULL, _MM_FLAG__DMA_CAPABLE, _MM_FLAG__DMA_CAPABLE, void__ppmem, _module_get_ID(_module_name_))
+        _kmalloc(_MM_MOD, size_t__size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, void__ppmem, _module_get_ID(_module_name_))
 
 #undef  sys_zalloc2
 #define sys_zalloc2(size_t__size, prefreg_name, required_features, required_features_mask, void__ppmem)\

@@ -69,7 +69,7 @@ extern "C" {
   Exported object types
 ==============================================================================*/
 /** private list object */
-typedef struct _llist llist_t;
+typedef struct _sys_llist llist_t;
 
 //==============================================================================
 /**

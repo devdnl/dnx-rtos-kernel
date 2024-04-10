@@ -36,7 +36,7 @@ Brief   SPI driver.
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define DEV_LOCK_TIMEOUT        _MAX_DELAY_MS
+#define DEV_LOCK_TIMEOUT _MAX_DELAY_MS
 
 /*==============================================================================
   Local object types
@@ -55,13 +55,12 @@ static void slave_deselect(struct SPI_slave *hdl);
 ==============================================================================*/
 /* default SPI config */
 static const SPI_config_t SPI_DEFAULT_CFG = {
-        .flush_byte  = _SPI_DEFAULT_CFG_FLUSH_BYTE,
         .clk_divider = _SPI_DEFAULT_CFG_CLK_DIVIDER,
         .mode        = _SPI_DEFAULT_CFG_MODE,
         .msb_first   = _SPI_DEFAULT_CFG_MSB_FIRST,
-        .CS_port_idx = 255,     // CS deactivated
-        .CS_pin_idx  = 255,     // CS deactivated
-        .CS_reverse  = false
+        .CS_port_idx = 255, // CS deactivated
+        .CS_pin_idx  = 255, // CS deactivated
+        .CS_reverse  = false,
 };
 
 /* pointers to memory of specified device */
@@ -99,7 +98,7 @@ API_MOD_INIT(SPI, void **device_handle, u8_t major, u8_t minor, const void *conf
 
         /* initialize SPI peripheral */
         if (_SPI[major] == NULL) {
-                err = sys_zalloc(sizeof(struct SPI), cast(void**, &_SPI[major]));
+                err = sys_zalloc(sizeof(struct SPI), cast(void **, &_SPI[major]));
                 if (err) {
                         goto finish;
                 }
@@ -109,7 +108,8 @@ API_MOD_INIT(SPI, void **device_handle, u8_t major, u8_t minor, const void *conf
                         goto finish;
                 }
 
-                err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &_SPI[major]->periph_protect_mtx);
+                err = sys_mutex_create(KMTX_TYPE_RECURSIVE,
+                        &_SPI[major]->periph_protect_mtx);
                 if (err) {
                         goto finish;
                 }
@@ -126,9 +126,10 @@ API_MOD_INIT(SPI, void **device_handle, u8_t major, u8_t minor, const void *conf
                 struct SPI_slave *hdl = *device_handle;
                 hdl->config           = SPI_DEFAULT_CFG;
                 hdl->major            = major;
+                hdl->minor            = minor;
 
                 if (config) {
-                        hdl->config = *cast(SPI_config_t*, config);
+                        hdl->config = *cast(SPI_config_t *, config);
                         slave_deselect(hdl);
                 }
 
@@ -137,7 +138,7 @@ API_MOD_INIT(SPI, void **device_handle, u8_t major, u8_t minor, const void *conf
                 _SPI[major]->slave_count++;
         }
 
-        finish:
+finish:
         if (err) {
                 release_resources(major);
         }
@@ -173,7 +174,8 @@ API_MOD_RELEASE(SPI, void *device_handle)
  * @brief Open device
  *
  * @param[in ]          *device_handle          device allocated memory
- * @param[in ]           flags                  file operation flags (O_RDONLY, O_WRONLY, O_RDWR)
+ * @param[in ]           flags                  file operation flags (O_RDONLY, O_WRONLY,
+ * O_RDWR)
  *
  * @return One of errno value (errno.h)
  */
@@ -222,21 +224,16 @@ API_MOD_CLOSE(SPI, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(SPI,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(SPI, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos,
+        size_t *wrcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fpos, fattr);
 
         struct SPI_slave *hdl = device_handle;
 
         // check if device is switched to RAW mode
-        clock_t tref = sys_get_uptime_ms();
-        bool RAW_mode = false;
+        clock_t tref     = sys_get_uptime_ms();
+        bool    RAW_mode = false;
 
         while (sys_device_is_locked(&_SPI[hdl->major]->RAW_mode)) {
 
@@ -290,21 +287,16 @@ API_MOD_WRITE(SPI,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(SPI,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(SPI, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
+        size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fpos, fattr);
 
         struct SPI_slave *hdl = device_handle;
 
         // check if device is switched to RAW mode
-        clock_t tref = sys_get_uptime_ms();
-        bool RAW_mode = false;
+        clock_t tref     = sys_get_uptime_ms();
+        bool    RAW_mode = false;
 
         while (sys_device_is_locked(&_SPI[hdl->major]->RAW_mode)) {
 
@@ -367,7 +359,7 @@ API_MOD_IOCTL(SPI, void *device_handle, int request, void *arg)
         switch (request) {
         case IOCTL_SPI__SET_CONFIGURATION:
                 if (arg) {
-                        hdl->config = *cast(SPI_config_t*, arg);
+                        hdl->config = *cast(SPI_config_t *, arg);
                         slave_deselect(hdl);
                         err = ESUCC;
                 } else {
@@ -377,8 +369,8 @@ API_MOD_IOCTL(SPI, void *device_handle, int request, void *arg)
 
         case IOCTL_SPI__GET_CONFIGURATION:
                 if (arg) {
-                        *cast(SPI_config_t*, arg) = hdl->config;
-                        err = ESUCC;
+                        *cast(SPI_config_t *, arg) = hdl->config;
+                        err                        = ESUCC;
                 } else {
                         err = EINVAL;
                 }
@@ -416,65 +408,66 @@ API_MOD_IOCTL(SPI, void *device_handle, int request, void *arg)
                 break;
 
         case IOCTL_SPI__TRANSCEIVE:
-                if (arg) {
-                        SPI_transceive_t *tr = arg;
-                        if (tr->count) {
-                                // check if device is switched to RAW mode
-                                clock_t tref = sys_get_uptime_ms();
-                                bool RAW_mode = false;
-
-                                while (sys_device_is_locked(&_SPI[hdl->major]->RAW_mode)) {
-
-                                        RAW_mode = true;
-
-                                        if (sys_device_get_access(&_SPI[hdl->major]->RAW_mode) == ESUCC) {
-                                                break;
-                                        } else {
-                                                if (sys_is_time_expired(tref, DEV_LOCK_TIMEOUT)) {
-                                                        return ETIME;
-                                                } else {
-                                                        sys_sleep_ms(10);
-                                                }
-                                        }
-                                }
-
-                                err = sys_mutex_trylock(_SPI[hdl->major]->periph_protect_mtx);
-                                if (!err) {
-                                        if (not RAW_mode) {
-                                                slave_deselect(hdl);
-                                                _SPI_LLD__apply_config(hdl);
-                                                slave_select(hdl);
-                                        }
-
-                                        for (SPI_transceive_t *t = tr; !err && t && t->count; t = t->next) {
-
-                                                if (not RAW_mode) {
-                                                        slave_select(hdl);
-                                                }
-
-                                                err = _SPI_LLD__transceive(hdl,
-                                                                           t->tx_buffer,
-                                                                           t->rx_buffer,
-                                                                           t->count);
-
-                                                if (not RAW_mode && t->separated) {
-                                                        slave_deselect(hdl);
-                                                }
-                                        }
-
-                                        if (not RAW_mode) {
-                                                slave_deselect(hdl);
-                                        }
-
-                                        sys_mutex_unlock(_SPI[hdl->major]->periph_protect_mtx);
-                                } else {
-                                        err = EBUSY;
-                                }
-                        } else {
-                                err = EINVAL;
-                        }
-                } else {
+                if (not arg) {
                         err = EINVAL;
+                        break;
+                }
+
+                SPI_transceive_t *tr = arg;
+                if (not tr->count) {
+                        err = EINVAL;
+                        break;
+                }
+
+                // check if device is switched to RAW mode
+                clock_t tref     = sys_get_uptime_ms();
+                bool    RAW_mode = false;
+
+                while (sys_device_is_locked(&_SPI[hdl->major]->RAW_mode)) {
+
+                        RAW_mode = true;
+
+                        if (sys_device_get_access(&_SPI[hdl->major]->RAW_mode) == ESUCC) {
+                                break;
+                        } else {
+                                if (sys_is_time_expired(tref, DEV_LOCK_TIMEOUT)) {
+                                        return ETIME;
+                                } else {
+                                        sys_sleep_ms(10);
+                                }
+                        }
+                }
+
+                err = sys_mutex_trylock(_SPI[hdl->major]->periph_protect_mtx);
+                if (!err) {
+                        if (not RAW_mode) {
+                                slave_deselect(hdl);
+                                _SPI_LLD__apply_config(hdl);
+                                slave_select(hdl);
+                        }
+
+                        for (SPI_transceive_t *t = tr; !err && t && t->count;
+                                t                = t->next) {
+
+                                if (not RAW_mode) {
+                                        slave_select(hdl);
+                                }
+
+                                err = _SPI_LLD__transceive(hdl, t->tx_buffer,
+                                        t->rx_buffer, t->count);
+
+                                if (not RAW_mode && t->separated) {
+                                        slave_deselect(hdl);
+                                }
+                        }
+
+                        if (not RAW_mode) {
+                                slave_deselect(hdl);
+                        }
+
+                        sys_mutex_unlock(_SPI[hdl->major]->periph_protect_mtx);
+                } else {
+                        err = EBUSY;
                 }
                 break;
 
@@ -561,7 +554,7 @@ static void release_resources(u8_t major)
 
                 _SPI_LLD__turn_off(major);
 
-                sys_free(cast(void**, &_SPI[major]));
+                sys_free(cast(void **, &_SPI[major]));
         }
 }
 
@@ -574,8 +567,9 @@ static void release_resources(u8_t major)
 //==============================================================================
 static void slave_select(struct SPI_slave *hdl)
 {
-    (hdl->config.CS_reverse == true) ?  _GPIO_DDI_set_pin(hdl->config.CS_port_idx, hdl->config.CS_pin_idx):
-                                        _GPIO_DDI_clear_pin(hdl->config.CS_port_idx, hdl->config.CS_pin_idx);
+        (hdl->config.CS_reverse == true)
+                ? _GPIO_DDI_set_pin(hdl->config.CS_port_idx, hdl->config.CS_pin_idx)
+                : _GPIO_DDI_clear_pin(hdl->config.CS_port_idx, hdl->config.CS_pin_idx);
 }
 
 //==============================================================================
@@ -587,8 +581,9 @@ static void slave_select(struct SPI_slave *hdl)
 //==============================================================================
 static void slave_deselect(struct SPI_slave *hdl)
 {
-    (hdl->config.CS_reverse == true) ?  _GPIO_DDI_clear_pin(hdl->config.CS_port_idx, hdl->config.CS_pin_idx):
-                                        _GPIO_DDI_set_pin(hdl->config.CS_port_idx, hdl->config.CS_pin_idx);
+        (hdl->config.CS_reverse == true)
+                ? _GPIO_DDI_clear_pin(hdl->config.CS_port_idx, hdl->config.CS_pin_idx)
+                : _GPIO_DDI_set_pin(hdl->config.CS_port_idx, hdl->config.CS_pin_idx);
 }
 
 /*==============================================================================

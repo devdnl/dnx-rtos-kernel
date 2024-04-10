@@ -655,8 +655,8 @@ int _UART_LLD__turn_on(struct UART_mem *hdl)
                                 uart_dma_t *dmabuf;
                                 size_t dma_buf_size = sizeof(*dmabuf) + buf_len + _CPUCTL_CACHE_ALIGN;
 
-                                err = sys_zalloc2(dma_buf_size, UART_MEM, _MM_FLAG__DMA_CAPABLE,
-                                                  _MM_FLAG__DMA_CAPABLE, cast(void**, &dmabuf));
+                                err = sys_zalloc2(dma_buf_size, UART_MEM, _MM_FLAG__DMA,
+                                                  _MM_FLAG__DMA, cast(void**, &dmabuf));
                                 if (!err) {
                                         dmabuf->buflen = buf_len;
                                         dmabuf->buf    = (void*)DMA_ALIGN_UP((u32_t)&dmabuf->buf_holder);

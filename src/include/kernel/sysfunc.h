@@ -5725,7 +5725,7 @@ static inline struct tm *sys_localtime_r(const time_t *timer, struct tm *tm)
 
         mem_region_t ram2;
 
-        int err = sys_register_region(&ram2, 0x20001000, 16384, _MM_FLAG__DMA_CAPABLE,
+        int err = sys_register_region(&ram2, 0x20001000, 16384, _MM_FLAG__DMA,
  "RAM2"); if (!err) {
                 // ...
         }

@@ -175,6 +175,15 @@ extern int _DMA_DDI_transfer(u32_t dmad, _DMA_DDI_config_t *config);
 
 //==============================================================================
 /**
+ * @brief Function abort configured DMA transfer.
+ *
+ * @param dmad                  DMA descriptor.
+ */
+//==============================================================================
+extern void _DMA_DDI_abort(u32_t dmad);
+
+//==============================================================================
+/**
  * @brief Function return DMA channel according to DMA descriptor.
  *
  * @param dmad                  DMA descriptor.

@@ -171,7 +171,7 @@ typedef enum {
         SYSCALL_GETGID,                 // int errno (gid_t *gid)
         SYSCALL_GETMEMDETAILS,          // int errno (memstat_t *stat)
         SYSCALL_GETMODMEMUSAGE,         // int errno (uint *module, int32_t *usage)
-        SYSCALL_GETUPTIMEMS,            // int errno (uint64_t *uptime_ms)
+        SYSCALL_GETUPTIMEMS,            // int errno (clock_t *uptime_ms)
         SYSCALL_GETAVGCPULOAD,          // int errno (_avg_CPU_load_t *stat)
         SYSCALL_GETPLATFORMNAME,        // int errno (const char **ref)
         SYSCALL_GETOSNAME,              // int errno (const char **ref)
@@ -486,7 +486,7 @@ struct reboot_to_address reboot_address;
  * @brief  Initialize system calls.
  */
 //==============================================================================
-int _syscall_init()
+int _syscall_init(void)
 {
         static const _process_attr_t attr = {
                 .at_init      = NULL,
@@ -574,7 +574,7 @@ int _syscall_kworker_process(int argc, char *argv[])
         _task_get_process_container(_THIS_TASK, &_kworker_proc, NULL);
         _task_set_priority(_THIS_TASK, _PRIORITY_HIGHEST);
 
-        u64_t sync_period_ref = _kernel_get_uptime_ms();
+        clock_t sync_period_ref = _kernel_get_uptime_ms();
 
         for (;;) {
                 _sleep_ms(1000);
@@ -1317,7 +1317,7 @@ static int syscall_malloc(syscallrq_t *rq)
 
         void *mem = NULL;
         int   err = _kmalloc(_MM_PROG, *size, _cpuctl_preferred_APP_RAM,
-                _MM_FLAG__DMA_CAPABLE, _MM_FLAG__DMA_CAPABLE, &mem);
+                _MM_FLAG__DMA, _MM_FLAG__DMA, &mem);
         if (!err) {
                 err = _process_register_resource(GETPROCESS(), mem);
                 if (err) {
@@ -1346,7 +1346,7 @@ static int syscall_zalloc(syscallrq_t *rq)
 
         void *mem = NULL;
         int   err = _kzalloc(_MM_PROG, *size, _cpuctl_preferred_APP_RAM,
-                _MM_FLAG__DMA_CAPABLE, _MM_FLAG__DMA_CAPABLE, &mem);
+                _MM_FLAG__DMA, _MM_FLAG__DMA, &mem);
         if (!err) {
                 err = _process_register_resource(GETPROCESS(), mem);
                 if (err) {
@@ -2941,7 +2941,7 @@ static int syscall_getmodmemusage(syscallrq_t *rq)
 //==============================================================================
 static int syscall_getuptimems(syscallrq_t *rq)
 {
-        GETARG(uint64_t*, uptime_ms);
+        GETARG(clock_t*, uptime_ms);
 
         if (uptime_ms) {
                 *uptime_ms = _kernel_get_uptime_ms();
