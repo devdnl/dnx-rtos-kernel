@@ -832,7 +832,7 @@ static int card_initialize(SDMMC_t *hdl)
 //==============================================================================
 static int card_wait_ready(SDMMC_t *hdl)
 {
-        u64_t timeout = sys_get_uptime_ms() +
+        clock_t timeout = sys_get_uptime_ms() +
                 max(SDMMC[hdl->major].card_timeout / 10, 100);
 
         while (sys_get_uptime_ms() < timeout) {
