@@ -61,33 +61,16 @@ extern "C" {
 /*==============================================================================
   Exported symbolic constants/macros
 ==============================================================================*/
-#ifndef DOXYGEN /* disabled for Doxygen documentation */
-#undef errno
-#undef sys_zalloc
-#undef sys_malloc
-#undef sys_free
-
-#ifdef __cplusplus
-inline void* operator new     (size_t size) {void *mem = NULL; _kmalloc(_MM_FS, size, &mem); return mem;}\
-inline void* operator new[]   (size_t size) {void *mem = NULL; _kmalloc(_MM_FS, size, &mem); return mem;}\
-inline void  operator delete  (void* ptr  ) {_sysfree(&ptr);}\
-inline void  operator delete[](void* ptr  ) {_sysfree(&ptr);}
-#define _FS_EXTERN_C extern "C"
-#else
-#define _FS_EXTERN_C
-#endif
-#endif /* DOXYGEN */
-
 /**
  * File system types.
  * @see struct statfs
  */
 enum SYS_FS_TYPE {
-        SYS_FS_TYPE__RAM,       //!< RAM file system
-        SYS_FS_TYPE__SOLID,     //!< Solid file system storage
-        SYS_FS_TYPE__DEV,       //!< Special file system for device files
-        SYS_FS_TYPE__SYS,       //!< Special file system for system purposes
-        SYS_FS_TYPE__NET,       //!< Network file system
+        SYS_FS_TYPE__RAM,   //!< RAM file system
+        SYS_FS_TYPE__SOLID, //!< Solid file system storage
+        SYS_FS_TYPE__DEV,   //!< Special file system for device files
+        SYS_FS_TYPE__SYS,   //!< Special file system for system purposes
+        SYS_FS_TYPE__NET,   //!< Network file system
 };
 
 #ifdef DOXYGEN
@@ -108,7 +91,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_INIT(fsname, fs_handle, src_path, opts)
 #else
-#define API_FS_INIT(fsname, ...)        _FS_EXTERN_C int _##fsname##_init(__VA_ARGS__)
+#define API_FS_INIT(fsname, ...) int _##fsname##_init(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -127,7 +110,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_RELEASE(fsname, fs_handle)
 #else
-#define API_FS_RELEASE(fsname, ...)     _FS_EXTERN_C int _##fsname##_release(__VA_ARGS__)
+#define API_FS_RELEASE(fsname, ...) int _##fsname##_release(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -151,7 +134,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_OPEN(fsname, fs_handle, fhdl, fpos, path, flags)
 #else
-#define API_FS_OPEN(fsname, ...)        _FS_EXTERN_C int _##fsname##_open(__VA_ARGS__)
+#define API_FS_OPEN(fsname, ...) int _##fsname##_open(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -171,7 +154,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_CLOSE(fsname, fs_handle, fhdl, force)
 #else
-#define API_FS_CLOSE(fsname, ...)       _FS_EXTERN_C int _##fsname##_close(__VA_ARGS__)
+#define API_FS_CLOSE(fsname, ...) int _##fsname##_close(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -197,7 +180,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_WRITE(fsname, fs_handle, fhdl, src, count, fpos, wrcnt, fattr)
 #else
-#define API_FS_WRITE(fsname, ...)       _FS_EXTERN_C int _##fsname##_write(__VA_ARGS__)
+#define API_FS_WRITE(fsname, ...) int _##fsname##_write(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -223,7 +206,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_READ(fsname, fs_handle, fhdl, dst, count, fpos, rdcnt, fattr)
 #else
-#define API_FS_READ(fsname, ...)        _FS_EXTERN_C int _##fsname##_read(__VA_ARGS__)
+#define API_FS_READ(fsname, ...) int _##fsname##_read(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -246,7 +229,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_IOCTL(fsname, fs_handle, fhdl, request, arg)
 #else
-#define API_FS_IOCTL(fsname, ...)       _FS_EXTERN_C int _##fsname##_ioctl(__VA_ARGS__)
+#define API_FS_IOCTL(fsname, ...) int _##fsname##_ioctl(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -268,7 +251,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_FLUSH(fsname, fs_handle, fhdl)
 #else
-#define API_FS_FLUSH(fsname, ...)       _FS_EXTERN_C int _##fsname##_flush(__VA_ARGS__)
+#define API_FS_FLUSH(fsname, ...) int _##fsname##_flush(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -290,7 +273,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_MKDIR(fsname, fs_handle, path, mode)
 #else
-#define API_FS_MKDIR(fsname, ...)       _FS_EXTERN_C int _##fsname##_mkdir(__VA_ARGS__)
+#define API_FS_MKDIR(fsname, ...) int _##fsname##_mkdir(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -312,7 +295,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_MKFIFO(fsname, fs_handle, path, mode)
 #else
-#define API_FS_MKFIFO(fsname, ...)      _FS_EXTERN_C int _##fsname##_mkfifo(__VA_ARGS__)
+#define API_FS_MKFIFO(fsname, ...) int _##fsname##_mkfifo(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -334,7 +317,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_MKNOD(fsname, fs_handle, path, dev)
 #else
-#define API_FS_MKNOD(fsname, ...)       _FS_EXTERN_C int _##fsname##_mknod(__VA_ARGS__)
+#define API_FS_MKNOD(fsname, ...) int _##fsname##_mknod(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -356,7 +339,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_OPENDIR(fsname, fs_handle, path, dir)
 #else
-#define API_FS_OPENDIR(fsname, ...)     _FS_EXTERN_C int _##fsname##_opendir(__VA_ARGS__)
+#define API_FS_OPENDIR(fsname, ...) int _##fsname##_opendir(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -377,7 +360,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_CLOSEDIR(fsname, fs_handle, dir)
 #else
-#define API_FS_CLOSEDIR(fsname, ...)     _FS_EXTERN_C int _##fsname##_closedir(__VA_ARGS__)
+#define API_FS_CLOSEDIR(fsname, ...) int _##fsname##_closedir(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -398,7 +381,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_READDIR(fsname, fs_handle, dir)
 #else
-#define API_FS_READDIR(fsname, ...)     _FS_EXTERN_C int _##fsname##_readdir(__VA_ARGS__)
+#define API_FS_READDIR(fsname, ...) int _##fsname##_readdir(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -417,7 +400,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_REMOVE(fsname, fs_handle, path)
 #else
-#define API_FS_REMOVE(fsname, ...)      _FS_EXTERN_C int _##fsname##_remove(__VA_ARGS__)
+#define API_FS_REMOVE(fsname, ...) int _##fsname##_remove(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -437,7 +420,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_RENAME(fsname, fs_handle, old_name, new_name)
 #else
-#define API_FS_RENAME(fsname, ...)      _FS_EXTERN_C int _##fsname##_rename(__VA_ARGS__)
+#define API_FS_RENAME(fsname, ...) int _##fsname##_rename(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -459,7 +442,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_CHMOD(fsname, fs_handle, path, mode)
 #else
-#define API_FS_CHMOD(fsname, ...)       _FS_EXTERN_C int _##fsname##_chmod(__VA_ARGS__)
+#define API_FS_CHMOD(fsname, ...) int _##fsname##_chmod(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -482,7 +465,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_CHOWN(fsname, fs_handle, path, owner, group)
 #else
-#define API_FS_CHOWN(fsname, ...)       _FS_EXTERN_C int _##fsname##_chown(__VA_ARGS__)
+#define API_FS_CHOWN(fsname, ...) int _##fsname##_chown(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -504,7 +487,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_FSTAT(fsname, fs_handle, fhdl, stat)
 #else
-#define API_FS_FSTAT(fsname, ...)       _FS_EXTERN_C int _##fsname##_fstat(__VA_ARGS__)
+#define API_FS_FSTAT(fsname, ...) int _##fsname##_fstat(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -527,7 +510,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_STAT(fsname, fs_handle, fhdl, path, stat)
 #else
-#define API_FS_STAT(fsname, ...)        _FS_EXTERN_C int _##fsname##_stat(__VA_ARGS__)
+#define API_FS_STAT(fsname, ...) int _##fsname##_stat(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -548,7 +531,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_STATFS(fsname, fs_handle, statfs)
 #else
-#define API_FS_STATFS(fsname, ...)      _FS_EXTERN_C int _##fsname##_statfs(__VA_ARGS__)
+#define API_FS_STATFS(fsname, ...) int _##fsname##_statfs(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -566,7 +549,7 @@ enum SYS_FS_TYPE {
  */
 #define API_FS_SYNC(fsname, fs_handle)
 #else
-#define API_FS_SYNC(fsname, ...)        _FS_EXTERN_C int _##fsname##_sync(__VA_ARGS__)
+#define API_FS_SYNC(fsname, ...) int _##fsname##_sync(__VA_ARGS__)
 #endif
 
 /*==============================================================================
@@ -577,19 +560,19 @@ enum SYS_FS_TYPE {
  * @brief Structure indicate file access mode.
  */
 struct vfs_fattr {
-        bool non_blocking_rd;         /*!< Non-blocking file read access.*/
-        bool non_blocking_wr;         /*!< Non-blocking file write access.*/
+        bool non_blocking_rd; /*!< Non-blocking file read access.*/
+        bool non_blocking_wr; /*!< Non-blocking file write access.*/
 };
 
 /**
  * @brief Structure describe built-in program data.
  * @see   sys_get_programs_table()
  */
- struct _prog_data {
-        const char     *name;           /*!< Program name.*/
-        const size_t   *globals_size;   /*!< Size of program global variables.*/
-        const size_t   *stack_depth;    /*!< Stack depth.*/
-        process_func_t  main;           /*!< Program main function.*/
+struct _prog_data {
+        const char    *name;         /*!< Program name.*/
+        const size_t  *globals_size; /*!< Size of program global variables.*/
+        const size_t  *stack_depth;  /*!< Stack depth.*/
+        process_func_t main;         /*!< Program main function.*/
 };
 #endif
 
@@ -617,7 +600,25 @@ struct vfs_fattr {
 //==============================================================================
 static inline int sys_malloc(size_t size, void **mem)
 {
-        return _kmalloc(_MM_FS, size, NULL, _MM_FLAG__DMA_CAPABLE, _MM_FLAG__DMA_CAPABLE, mem);
+        return _kmalloc(_MM_FS, size, _cpuctl_preferred_FS_RAM, _MM_FLAG__DMA,
+                _MM_FLAG__DMA, mem);
+}
+
+//==============================================================================
+/**
+ * @brief  Allocate memory
+ *
+ * @param size             object size
+ * @param prefreg          preffered region list
+ * @param mem              pointer to memory block pointer
+ *
+ * @return One of @ref errno value.
+ */
+//==============================================================================
+static inline int sys_malloc2(size_t size, const char *prefreg[], void **mem)
+{
+        return _kmalloc(_MM_FS, size, prefreg, _MM_FLAG__DMA,
+                _MM_FLAG__DMA, mem);
 }
 
 //==============================================================================
@@ -632,7 +633,24 @@ static inline int sys_malloc(size_t size, void **mem)
 //==============================================================================
 static inline int sys_zalloc(size_t size, void **mem)
 {
-        return _kzalloc(_MM_FS, size, NULL, _MM_FLAG__DMA_CAPABLE, _MM_FLAG__DMA_CAPABLE, mem);
+        return _kzalloc(_MM_FS, size, _cpuctl_preferred_FS_RAM, _MM_FLAG__DMA,
+                _MM_FLAG__DMA, mem);
+}
+
+//==============================================================================
+/**
+ * @brief  Allocate memory and clear content
+ *
+ * @param size             object size
+ * @param mem              pointer to memory block pointer
+ *
+ * @return One of @ref errno value.
+ */
+//==============================================================================
+static inline int sys_zalloc2(size_t size, const char *prefreg[], void **mem)
+{
+        return _kzalloc(_MM_FS, size, prefreg, _MM_FLAG__DMA,
+                _MM_FLAG__DMA, mem);
 }
 
 //==============================================================================
@@ -657,7 +675,8 @@ static inline int sys_free(void **mem)
  * @return One of @ref errno value.
  */
 //==============================================================================
-static inline int sys_llist_create(llist_cmp_functor_t functor, llist_obj_dtor_t obj_dtor, llist_t **list)
+static inline int sys_llist_create(llist_cmp_functor_t functor, llist_obj_dtor_t obj_dtor,
+        llist_t **list)
 {
         return _llist_create_krn(_MM_FS, functor, obj_dtor, list);
 }
@@ -673,7 +692,8 @@ static inline int sys_llist_create(llist_cmp_functor_t functor, llist_obj_dtor_t
  * @return One of @ref errno value.
  */
 //==============================================================================
-static inline int sys_btree_create(size_t size, btree_cmp_functor_t functor, btree_obj_dtor_t obj_dtor, btree_t **btree)
+static inline int sys_btree_create(size_t size, btree_cmp_functor_t functor,
+        btree_obj_dtor_t obj_dtor, btree_t **btree)
 {
         return _btree_create_krn(_MM_FS, size, functor, obj_dtor, btree);
 }
@@ -743,7 +763,8 @@ static inline int sys_pipe_get_length(pipe_t *pipe, size_t *len)
  * @return One of @ref errno value.
  */
 //==============================================================================
-static inline int sys_pipe_read(pipe_t *pipe, u8_t *buf, size_t count, size_t *rdcnt, bool non_blocking)
+static inline int sys_pipe_read(pipe_t *pipe, u8_t *buf, size_t count, size_t *rdcnt,
+        bool non_blocking)
 {
         return _pipe_read(pipe, buf, count, rdcnt, non_blocking);
 }
@@ -763,7 +784,8 @@ static inline int sys_pipe_read(pipe_t *pipe, u8_t *buf, size_t count, size_t *r
  * @return One of @ref errno value.
  */
 //==============================================================================
-static inline int sys_pipe_write(pipe_t *pipe, const u8_t *buf, size_t count, size_t *wrcnt, bool non_blocking)
+static inline int sys_pipe_write(pipe_t *pipe, const u8_t *buf, size_t count,
+        size_t *wrcnt, bool non_blocking)
 {
         return _pipe_write(pipe, buf, count, wrcnt, non_blocking);
 }
@@ -844,7 +866,7 @@ static inline int sys_strdup(const char *str, char **strdup)
 {
         int err = EINVAL;
         if (str && strdup) {
-                err = sys_malloc(strsize(str), cast(void**, strdup));
+                err = sys_malloc(strsize(str), cast(void **, strdup));
                 if (!err) {
                         strcpy(*strdup, str);
                 }
@@ -867,7 +889,7 @@ static inline int sys_strndup(const char *str, size_t len, char **strdup)
 {
         int err = EINVAL;
         if (str && strdup) {
-                err = sys_malloc(len + 1, cast(void**, strdup));
+                err = sys_malloc(len + 1, cast(void **, strdup));
                 if (!err) {
                         sys_strlcpy(*strdup, str, len + 1);
                 }

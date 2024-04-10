@@ -34,6 +34,8 @@ Driver handles SPI peripheral.
 \section drv-spi-sup-arch Supported architectures
 \li stm32f1
 \li stm32f4
+\li stm32f7
+\li stm32h7
 
 \section drv-spi-ddesc Details
 \subsection drv-spi-ddesc-num Meaning of major and minor numbers
@@ -392,7 +394,6 @@ enum SPI_mode {
  *  SPI configuration type.
  */
 typedef struct {
-        u8_t             flush_byte;            /*!< Flush byte in read transmission.*/
         enum SPI_clk_div clk_divider;           /*!< Peripheral clock divider.*/
         enum SPI_mode    mode;                  /*!< SPI mode.*/
         bool             msb_first;             /*!< MSb first (@b true).*/

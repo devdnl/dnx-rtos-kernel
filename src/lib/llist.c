@@ -60,7 +60,7 @@ typedef struct item {
 } item_t;
 
 // list main object
-struct _llist {
+struct _sys_llist {
         malloc_t             malloc;
         free_t               free;
         void                *allocctx;

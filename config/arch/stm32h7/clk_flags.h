@@ -90,6 +90,16 @@ this:AddExtraWidget("Label", "LABEL_LSE_ON", "")
 #define __CLK_LSE_ON__ ENABLE
 
 /*--
+this:AddWidget("Combobox", "LSE drive capability")
+this:AddItem("Low", "LL_RCC_LSEDRIVE_LOW")
+this:AddItem("Medium Low", "LL_RCC_LSEDRIVE_MEDIUMLOW")
+this:AddItem("Medium High", "LL_RCC_LSEDRIVE_MEDIUMHIGH")
+this:AddItem("High", "LL_RCC_LSEDRIVE_HIGH")
+this:AddExtraWidget("Label", "LABEL_LSE_DRIVE", "")
+--*/
+#define __CLK_LSE_DRIVE_CAPABILITY__ LL_RCC_LSEDRIVE_HIGH
+
+/*--
 this:AddWidget("Combobox", "HSE oscillator")
 this:AddItem("Disable", "DISABLE")
 this:AddItem("Enable", "ENABLE")
@@ -470,6 +480,26 @@ this:AddExtraWidget("Void", "VoidPeriphCLK2")
 ++*/
 
 /*--
+this:AddWidget("Combobox", "RTC HSE Clock divider")
+this:AddItem("No clock", "LL_RCC_RTC_NOCLOCK")
+for i=2,63 do this:AddItem(tostring(i), "LL_RCC_RTC_HSE_DIV_"..tostring(i)) end
+this:SetEvent("clicked", function() this.CalculateFreq() end)
+this:AddExtraWidget("Label", "LABEL_RTC_HSE_DIV", "")
+--*/
+#define __CLK_RTC_HSE_DIV__ LL_RCC_RTC_NOCLOCK
+
+/*--
+this:AddWidget("Combobox", "RTC Clock source")
+this:AddItem("None", "LL_RCC_RTC_CLKSOURCE_NONE")
+this:AddItem("LSE clock", "LL_RCC_RTC_CLKSOURCE_LSE")
+this:AddItem("LSI clock", "LL_RCC_RTC_CLKSOURCE_LSI")
+this:AddItem("HSE clock", "LL_RCC_RTC_CLKSOURCE_HSE")
+this:SetEvent("clicked", function() this.CalculateFreq() end)
+this:AddExtraWidget("Label", "LABEL_RTC_SRC", "")
+--*/
+#define __CLK_SRC_RTC__ LL_RCC_RTC_CLKSOURCE_LSE
+
+/*--
 this:AddWidget("Combobox", "USART1..6 clock source")
 this:AddItem("PCLK2", "LL_RCC_USART16_CLKSOURCE_PCLK2")
 this:AddItem("PLL2Q", "LL_RCC_USART16_CLKSOURCE_PLL2Q")
@@ -839,7 +869,8 @@ this:AddExtraWidget("Label", "LABEL_CLK_SRC_ADC", "")
 #define __CLK_SYSCLK_SRC_STATUS__ LL_RCC_SYS_CLKSOURCE_STATUS_PLL1
 
 // Value is calculated according to SYSCLK source selection
-#define __CLK_HCLK_FREQ__ 240000000
+#define __CLK_HCLK_FREQ__ 200000000
+#define __CLK_SYSCLK_FREQ__ 400000000
 
 //==============================================================================
 // Calculation script
@@ -1017,169 +1048,185 @@ this.CalculateFreq = function(self)
     this:SetFlagValue("LABEL_APB4CLK_DIV", PrintFrequency(freq.apb4clk))
 
     -- PERIPHERAL CLOCK --------------------------------------------------------
+    -- RTC frequency
+    local SEL = this:GetFlagValue("__CLK_SRC_RTC__"):gsub("LL_RCC_RTC_CLKSOURCE_", "")
+    if SEL == "HSE" then
+        local div = this:GetFlagValue("__CLK_RTC_HSE_DIV__"):gsub("LL_RCC_RTC_", "")
+        if div == "NOCLOCK" then
+           freq.RTC = 0
+        else
+           div = div:gsub("HSE_DIV_", "")
+           freq.RTC = freq[SEL] / tonumber(div)
+        end
+    else
+        freq.RTC = freq[SEL]
+    end
+    this:SetFlagValue("LABEL_RTC_SRC", PrintFrequency(freq.RTC))
+
     -- UART1..6 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_UART16__"):gsub("LL_RCC_USART16_CLKSOURCE_", "")
-    freq.uart16 = freq[SEL];
+    freq.uart16 = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_UART16", PrintFrequency(freq.uart16))
 
     -- UART234578 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_UART234578__"):gsub("LL_RCC_USART234578_CLKSOURCE_", "")
-    freq.uart234578 = freq[SEL];
+    freq.uart234578 = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_UART234578", PrintFrequency(freq.uart234578))
 
     -- LPUART1 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_LPUART1__"):gsub("LL_RCC_LPUART1_CLKSOURCE_", "")
-    freq.lpuart1 = freq[SEL];
+    freq.lpuart1 = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_LPUART1", PrintFrequency(freq.lpuart1))
 
     -- I2C123 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_I2C123__"):gsub("LL_RCC_I2C123_CLKSOURCE_", "")
-    freq.i2c123 = freq[SEL];
+    freq.i2c123 = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_I2C123", PrintFrequency(freq.i2c123))
 
     -- I2C4 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_I2C4__"):gsub("LL_RCC_I2C4_CLKSOURCE_", "")
-    freq.i2c4 = freq[SEL];
+    freq.i2c4 = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_I2C4", PrintFrequency(freq.i2c4))
 
     -- LPTIM1 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_LPTIM1__"):gsub("LL_RCC_LPTIM1_CLKSOURCE_", "")
-    freq.LPTIM1 = freq[SEL];
+    freq.LPTIM1 = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_LPTIM1", PrintFrequency(freq.LPTIM1))
 
     -- LPTIM2 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_LPTIM2__"):gsub("LL_RCC_LPTIM2_CLKSOURCE_", "")
-    freq.LPTIM2 = freq[SEL];
+    freq.LPTIM2 = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_LPTIM2", PrintFrequency(freq.LPTIM2))
 
     -- LPTIM345 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_LPTIM345__"):gsub("LL_RCC_LPTIM345_CLKSOURCE_", "")
-    freq.LPTIM345 = freq[SEL];
+    freq.LPTIM345 = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_LPTIM345", PrintFrequency(freq.LPTIM345))
 
     -- CLKP frequency
     local SEL = this:GetFlagValue("__CLK_SRC_CLKP__"):gsub("LL_RCC_CLKP_CLKSOURCE_", "")
-    freq.CLKP = freq[SEL];
+    freq.CLKP = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_CLKP", PrintFrequency(freq.CLKP))
 
     -- SPDIF frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SPDIF__"):gsub("LL_RCC_SPDIF_CLKSOURCE_", "")
-    freq.SPDIF = freq[SEL];
+    freq.SPDIF = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_SPDIF", PrintFrequency(freq.SPDIF))
 
     -- SAI1 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SAI1__"):gsub("LL_RCC_SAI1_CLKSOURCE_", "")
-    freq.SAI1 = freq[SEL];
+    freq.SAI1 = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_SAI1", PrintFrequency(freq.SAI1))
 
     -- SAI23 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SAI23__"):gsub("LL_RCC_SAI23_CLKSOURCE_", "")
-    freq.SAI23 = freq[SEL];
+    freq.SAI23 = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_SAI23", PrintFrequency(freq.SAI23))
 
     -- SAI2A frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SAI2A__"):gsub("LL_RCC_SAI2A_CLKSOURCE_", "")
-    freq.SAI2A = freq[SEL];
+    freq.SAI2A = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_SAI2A", PrintFrequency(freq.SAI2A))
 
     -- SAI2B frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SAI2B__"):gsub("LL_RCC_SAI2B_CLKSOURCE_", "")
-    freq.SAI2B = freq[SEL];
+    freq.SAI2B = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_SAI2B", PrintFrequency(freq.SAI2B))
 
     -- SAI4A frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SAI4A__"):gsub("LL_RCC_SAI4A_CLKSOURCE_", "")
-    freq.SAI4A = freq[SEL];
+    freq.SAI4A = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_SAI4A", PrintFrequency(freq.SAI4A))
 
     -- SAI4B frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SAI4B__"):gsub("LL_RCC_SAI4B_CLKSOURCE_", "")
-    freq.SAI4B = freq[SEL];
+    freq.SAI4B = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_SAI4B", PrintFrequency(freq.SAI4B))
 
     -- SDMMC frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SDMMC__"):gsub("LL_RCC_SDMMC_CLKSOURCE_", "")
-    freq.SDMMC = freq[SEL];
+    freq.SDMMC = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_SDMMC", PrintFrequency(freq.SDMMC))
 
     -- RNG frequency
     local SEL = this:GetFlagValue("__CLK_SRC_RNG__"):gsub("LL_RCC_RNG_CLKSOURCE_", "")
-    freq.RNG = freq[SEL];
+    freq.RNG = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_RNG", PrintFrequency(freq.RNG))
 
     -- USB frequency
     local SEL = this:GetFlagValue("__CLK_SRC_USB__"):gsub("LL_RCC_USB_CLKSOURCE_", "")
-    freq.USB = freq[SEL];
+    freq.USB = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_USB", PrintFrequency(freq.USB))
 
     -- CEC frequency
     local SEL = this:GetFlagValue("__CLK_SRC_CEC__"):gsub("LL_RCC_CEC_CLKSOURCE_", "")
-    freq.CEC = freq[SEL];
+    freq.CEC = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_CEC", PrintFrequency(freq.CEC))
 
     -- DFSDM1 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_DFSDM1__"):gsub("LL_RCC_DFSDM1_CLKSOURCE_", "")
-    freq.DFSDM1 = freq[SEL];
+    freq.DFSDM1 = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_DFSDM1", PrintFrequency(freq.DFSDM1))
 
     -- DFSDM2 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_DFSDM2__"):gsub("LL_RCC_DFSDM2_CLKSOURCE_", "")
-    freq.DFSDM2 = freq[SEL];
+    freq.DFSDM2 = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_DFSDM2", PrintFrequency(freq.DFSDM2))
 
     -- FMC frequency
     local SEL = this:GetFlagValue("__CLK_SRC_FMC__"):gsub("LL_RCC_FMC_CLKSOURCE_", "")
-    freq.FMC = freq[SEL];
+    freq.FMC = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_FMC", PrintFrequency(freq.FMC))
 
     -- QSPI frequency
     local SEL = this:GetFlagValue("__CLK_SRC_QSPI__"):gsub("LL_RCC_QSPI_CLKSOURCE_", "")
-    freq.QSPI = freq[SEL];
+    freq.QSPI = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_QSPI", PrintFrequency(freq.QSPI))
 
     -- OSPI frequency
     local SEL = this:GetFlagValue("__CLK_SRC_OSPI__"):gsub("LL_RCC_OSPI_CLKSOURCE_", "")
-    freq.OSPI = freq[SEL];
+    freq.OSPI = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_OSPI", PrintFrequency(freq.OSPI))
 
     -- DSI frequency
     local SEL = this:GetFlagValue("__CLK_SRC_DSI__"):gsub("LL_RCC_DSI_CLKSOURCE_", "")
-    freq.DSI = freq[SEL];
+    freq.DSI = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_DSI", PrintFrequency(freq.DSI))
 
     -- SPI123 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SPI123__"):gsub("LL_RCC_SPI123_CLKSOURCE_", "")
-    freq.SPI123 = freq[SEL];
+    freq.SPI123 = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_SPI123", PrintFrequency(freq.SPI123))
 
     -- SPI45 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SPI45__"):gsub("LL_RCC_SPI45_CLKSOURCE_", "")
-    freq.SPI45 = freq[SEL];
+    freq.SPI45 = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_SPI45", PrintFrequency(freq.SPI45))
 
     -- SPI6 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SPI6__"):gsub("LL_RCC_SPI6_CLKSOURCE_", "")
-    freq.SPI6 = freq[SEL];
+    freq.SPI6 = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_SPI6", PrintFrequency(freq.SPI6))
 
     -- FDCAN frequency
     local SEL = this:GetFlagValue("__CLK_SRC_FDCAN__"):gsub("LL_RCC_FDCAN_CLKSOURCE_", "")
-    freq.FDCAN = freq[SEL];
+    freq.FDCAN = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_FDCAN", PrintFrequency(freq.FDCAN))
 
     -- SWP frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SWP__"):gsub("LL_RCC_SWP_CLKSOURCE_", "")
-    freq.SWP = freq[SEL];
+    freq.SWP = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_SWP", PrintFrequency(freq.SWP))
 
     -- ADC frequency
     local SEL = this:GetFlagValue("__CLK_SRC_ADC__"):gsub("LL_RCC_ADC_CLKSOURCE_", "")
-    freq.ADC = freq[SEL];
+    freq.ADC = freq[SEL]
     this:SetFlagValue("LABEL_CLK_SRC_ADC", PrintFrequency(freq.ADC))
 
     -- end calculations
     this:SetFlagValue("__CLK_SYSCLK_SRC_STATUS__", "LL_RCC_SYS_CLKSOURCE_STATUS_"..SYSCLKSRC)
     this:SetFlagValue("__CLK_HCLK_FREQ__", tostring(freq.HCLK))
+    this:SetFlagValue("__CLK_SYSCLK_FREQ__", tostring(freq.sys_ck))
 end
 
 -- trigger frequency calculation after loading all flags

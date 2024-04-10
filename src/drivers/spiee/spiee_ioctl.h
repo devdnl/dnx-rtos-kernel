@@ -159,10 +159,11 @@ typedef enum {
  * Type represent driver configuration.
  */
 typedef struct {
-        const char *spi_path;           /*!< SPI device file*/
-        u32_t memory_size;              /*!< Memory size in bytes*/
-        u16_t page_size;                /*!< EEPROM page size in bytes*/
+        const char *spi_path;           /*!< SPI device file */
+        u32_t memory_size;              /*!< Memory size in bytes */
+        u16_t page_size;                /*!< EEPROM page size in bytes */
         SPIEE_addr_t address_size;      /*!< Number of address bytes (1..4) */
+        u32_t timeout_ms;               /*!< Operation timeout */
 } SPIEE_config_t;
 
 /*==============================================================================

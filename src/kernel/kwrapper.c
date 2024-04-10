@@ -400,7 +400,7 @@ char *_task_get_name(task_t *taskhdl)
 //==============================================================================
 int _task_get_priority(task_t *taskhdl)
 {
-        return (int)(uxTaskPriorityGet(taskhdl) - (__OS_TASK_MAX_PRIORITIES__ / 2));
+        return (int)(uxTaskPriorityGet(taskhdl) - (configMAX_PRIORITIES / 2));
 }
 
 //==============================================================================

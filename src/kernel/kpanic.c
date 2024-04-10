@@ -5,7 +5,7 @@
 
 @brief   Kernel panic handling
 
-@note    Copyright (C) 2020 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -68,13 +68,18 @@ typedef struct {
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static void catch_process(enum _kernel_panic_desc_cause suggested_cause);
+static void catch_process(enum _kernel_panic_desc_cause suggested_cause, bool isr);
+static void report_kernel_panic(_process_t *proc, enum _kernel_panic_desc_cause cause,
+        bool isr);
+static void app_crash_handler(void *arg);
 
 /*==============================================================================
   Local objects
 ==============================================================================*/
 static kernel_panic_desc kpanic_desc __attribute__((section(".noinit")));
 static u32_t             kpanic_ctr;
+static _process_t       *kpanic_trap_proc;
+static task_t           *kpanic_app_crash_task;
 
 #if ((__OS_SYSTEM_MSG_ENABLE__ > 0) && (__OS_PRINTF_ENABLE__ > 0))
 static const char *CAUSE[] = {
@@ -93,7 +98,6 @@ static const char *CAUSE[] = {
 /*==============================================================================
   Exported objects
 ==============================================================================*/
-_process_t *_kernel_panic_trap_proc;
 
 /*==============================================================================
   External objects
@@ -105,13 +109,15 @@ _process_t *_kernel_panic_trap_proc;
 
 //==============================================================================
 /**
- * @brief  Initialize kernel panic detector
+ * @brief  Initialize kernel panic handler.
  * @param  None
  * @return One of errno value.
  */
 //==============================================================================
 int _kernel_panic_init(void)
 {
+        _task_create(app_crash_handler, "", _STACK_DEPTH_MINIMAL, NULL,
+                &kpanic_app_crash_task);
         return 0;
 }
 
@@ -138,16 +144,16 @@ bool _kernel_panic_info(struct _kernel_panic_info *info)
 #if ((__OS_SYSTEM_MSG_ENABLE__ > 0) && (__OS_PRINTF_ENABLE__ > 0))
                 const char *panic_type;
 
-                if ((strncmp(kpanic_desc.content.name, "kworker", 128) == 0)
-                        || (kpanic_desc.content.cause
-                                >= _KERNEL_PANIC_DESC_CAUSE_CPUFAULT)) {
+                if ((strncmp(kpanic_desc.content.name, "kworker", 128) == 0) ||
+                        (kpanic_desc.content.cause >=
+                                _KERNEL_PANIC_DESC_CAUSE_CPUFAULT)) {
                         panic_type = "KERNEL PANIC";
                 } else {
                         panic_type = "APP CRASH";
                 }
 
                 printk(VT100_FONT_COLOR_RED
-                        "%s: %s: %d:%d,%s,%s,%u" VT100_RESET_ATTRIBUTES,
+                        "%s: '%s' [%d:%d,%s,%s,%u]" VT100_RESET_ATTRIBUTES,
                         panic_type, kpanic_desc.content.name, kpanic_desc.content.pid,
                         kpanic_desc.content.tid, CAUSE[kpanic_desc.content.cause],
                         kpanic_desc.content.kernelspace ? "KRN" : "USR",
@@ -189,9 +195,8 @@ bool _kernel_panic_info(struct _kernel_panic_info *info)
 void _kernel_panic_report(enum _kernel_panic_desc_cause suggested_cause)
 {
         _ISR_disable();
-        catch_process(suggested_cause);
+        catch_process(suggested_cause, false);
         _ISR_enable();
-        _task_yield();
 }
 
 //==============================================================================
@@ -203,8 +208,11 @@ void _kernel_panic_report(enum _kernel_panic_desc_cause suggested_cause)
 //==============================================================================
 void _kernel_panic_report_from_ISR(enum _kernel_panic_desc_cause suggested_cause)
 {
-        catch_process(suggested_cause);
-        _task_yield_from_ISR(true);
+        catch_process(suggested_cause, true);
+
+        if (suggested_cause != _KERNEL_PANIC_DESC_CAUSE_STACKOVF) {
+                _task_yield_from_ISR(true);
+        }
 }
 
 //==============================================================================
@@ -212,102 +220,121 @@ void _kernel_panic_report_from_ISR(enum _kernel_panic_desc_cause suggested_cause
  * @brief  Function catch current process.
  *
  * @param  suggest_cause        suggested cause
+ * @param  isr                  from ISR
  */
 //==============================================================================
-static void catch_process(enum _kernel_panic_desc_cause suggested_cause)
+static void catch_process(enum _kernel_panic_desc_cause suggested_cause, bool isr)
 {
-        kpanic_ctr++;
+        kpanic_trap_proc = _process_get_active();
 
-        if (!_kernel_panic_trap_proc) {
-                kpanic_desc.content.cause = suggested_cause;
-                _kernel_panic_trap_proc   = _process_get_active();
-        }
+        report_kernel_panic(kpanic_trap_proc, suggested_cause, isr);
 
-        if (_kernel_panic_trap_proc) {
+        if (++kpanic_ctr > 1000) {
+                report_kernel_panic(kpanic_trap_proc, _KERNEL_PANIC_DESC_CAUSE_PANICLOOP,
+                        isr);
+                _cpuctl_restart_system();
 
-                _process_t *proc = _kernel_panic_trap_proc;
+        } else if (not _mm_check_consistency(isr)) {
+                _cpuctl_restart_system();
 
-                _assert_hook_suspend(true);
+        } else if (not _process_is_consistent(isr)) {
+                _cpuctl_restart_system();
 
-                for (size_t i = 0; i < __OS_PROCESS_MAX_THREADS__; i++) {
-                        if (proc->taskdata[i].task) {
-                                _task_set_priority(proc->taskdata[i].task,
-                                        _PRIORITY_LOWEST);
-                        }
+        } else if (kpanic_trap_proc == _kworker_proc) {
+                _cpuctl_restart_system();
+
+        } else {
+                /*
+                 * Switch exception handing to special task with the highest
+                 * priority.
+                 */
+                if (isr) {
+                        _task_resume_from_ISR(kpanic_app_crash_task);
+                } else {
+                        _task_resume(kpanic_app_crash_task);
                 }
-
-                if (proc->taskdata[proc->curr_task].task) {
-                        _task_suspend(proc->taskdata[proc->curr_task].task);
-                }
-
-                proc->taskdata[proc->curr_task].running = false;
-
-                _task_set_priority(_kernel_get_idle_task_handle(), _PRIORITY_HIGHEST);
-
-                _assert_hook_suspend(false);
-        }
-
-        if (kpanic_ctr > 1000000) {
-                _kernel_panic_trap_proc   = NULL;
-                kpanic_desc.content.cause = _KERNEL_PANIC_DESC_CAUSE_PANICLOOP;
-                _kernel_panic_handle(false);
         }
 }
 
 //==============================================================================
 /**
- * @brief  Function handle kernel panic. Function is executed in IDLE task.
+ * @brief  Report kernel panic/application crash.
  *
- * @param  system_consistent    system is consistent
+ * @param  proc         process
+ * @param  cause        kernel panic/application crash cause
+ * @param  isr          called from ISR
  */
 //==============================================================================
-void _kernel_panic_handle(bool system_consistent)
+static void report_kernel_panic(_process_t *proc, enum _kernel_panic_desc_cause cause,
+        bool isr)
 {
-        if (_kernel_panic_trap_proc
-                or (kpanic_desc.content.cause == _KERNEL_PANIC_DESC_CAUSE_PANICLOOP)) {
+        kpanic_desc.content.cause = cause;
+        kpanic_desc.valid1        = _KERNEL_PANIC_DESC_VALID1;
 
-                _process_t *proc = _kernel_panic_trap_proc;
+        if (not proc) {
+                kpanic_desc.content.name        = "<NULL>";
+                kpanic_desc.content.pid         = 0;
+                kpanic_desc.content.tid         = 0;
+                kpanic_desc.content.kernelspace = true;
+                kpanic_desc.content.syscall     = 0xFF;
 
-                if (proc) {
-                        kpanic_desc.content.name = _process_get_name(proc);
-                        kpanic_desc.content.tid  = _process_get_active_thread(proc);
-                        _process_get_pid(proc, &kpanic_desc.content.pid);
-                        kpanic_desc.content.kernelspace
-                                = _process_is_kernelspace(proc, kpanic_desc.content.tid);
-                        kpanic_desc.content.syscall = _process_get_curr_syscall(proc,
-                                kpanic_desc.content.tid);
+        } else {
+                kpanic_desc.content.name = _process_get_name(proc);
 
-                } else {
-                        kpanic_desc.content.name        = "<NULL>";
-                        kpanic_desc.content.pid         = 0;
-                        kpanic_desc.content.tid         = 0;
-                        kpanic_desc.content.kernelspace = true;
-                        kpanic_desc.content.syscall     = 0xFF;
-                        system_consistent               = false;
+                kpanic_desc.content.tid = _process_get_active_thread(proc, isr);
+
+                _process_get_pid(proc, &kpanic_desc.content.pid);
+
+                kpanic_desc.content.kernelspace = _process_is_kernelspace(proc,
+                        kpanic_desc.content.tid, isr);
+
+                kpanic_desc.content.syscall = _process_get_curr_syscall(proc,
+                        kpanic_desc.content.tid, isr);
+        }
+
+        kpanic_desc.CRC32 = calc_crc32(&kpanic_desc.content, sizeof(kpanic_desc.content));
+}
+
+//==============================================================================
+/**
+ * @brief  Application crash handler.
+ *
+ * @param  arg          task's argument
+ */
+//==============================================================================
+static void app_crash_handler(void *arg)
+{
+        UNUSED_ARG1(arg);
+
+        /*
+         * Set the highest possible priority in case to select this task by
+         * scheduler when crash happen.
+         */
+        _task_set_priority(_THIS_TASK, _PRIORITY_REALTIME);
+
+        while (true) {
+                if (not kpanic_trap_proc) {
+                        _task_suspend(kpanic_app_crash_task);
+                        continue;
                 }
 
-                if (system_consistent && (kpanic_desc.content.pid > 1)) {
-
-                        _printk("APP CRASH <%s> %d:%d,%s,%s,%u", kpanic_desc.content.name,
-                                kpanic_desc.content.pid, kpanic_desc.content.tid,
-                                CAUSE[kpanic_desc.content.cause],
-                                kpanic_desc.content.kernelspace ? "KRN" : "USR",
-                                kpanic_desc.content.syscall);
-
-                        _process_kill(kpanic_desc.content.pid);
-
-                } else {
-                        kpanic_desc.valid1 = _KERNEL_PANIC_DESC_VALID1;
-
-                        kpanic_desc.CRC32 = calc_crc32(&kpanic_desc.content,
-                                sizeof(kpanic_desc.content));
-
-                        _cpuctl_clean_dcache();
-                        _cpuctl_restart_system();
+                for (size_t i = 0; i < __OS_PROCESS_MAX_THREADS__; i++) {
+                        if (kpanic_trap_proc->taskdata[i].task) {
+                                _task_suspend(kpanic_trap_proc->taskdata[i].task);
+                        }
                 }
 
-                kpanic_ctr              = 0;
-                _kernel_panic_trap_proc = NULL;
+                _process_kill(kpanic_desc.content.pid);
+
+                _printk("*** APP CRASH: '%s' [%d:%d,%s,%s,%u] ***",
+                        _process_get_name(kpanic_trap_proc), kpanic_desc.content.pid,
+                        kpanic_desc.content.tid, CAUSE[kpanic_desc.content.cause],
+                        kpanic_desc.content.kernelspace ? "KRN" : "USR",
+                        kpanic_desc.content.syscall);
+
+                kpanic_desc.CRC32 = 0;
+                kpanic_trap_proc  = NULL;
+                kpanic_ctr        = 0;
         }
 }
 

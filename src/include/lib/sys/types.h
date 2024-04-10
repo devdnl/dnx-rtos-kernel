@@ -150,7 +150,7 @@ struct tm {
 
 #ifndef DOXYGEN /* Doxygen description in time.h */
 /** @brief Clock representation type. */
-typedef u64_t clock_t;
+typedef i64_t clock_t;
 #endif /* DOXYGEN */
 
 #ifndef DOXYGEN /* Doxygen description in time.h */

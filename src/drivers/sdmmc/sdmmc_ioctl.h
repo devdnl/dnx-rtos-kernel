@@ -32,6 +32,8 @@ Brief   SD/MMC driver
 Driver handles SD/MMC/eMMC cards/chips.
 
 \section drv-sdmmc-sup-arch Supported architectures
+\li stm32f4
+\li stm32f7
 \li stm32h7
 
 \section drv-sdmmc-ddesc Details

@@ -396,7 +396,7 @@ void _SPI_LLD__halt(u8_t major)
 int _SPI_LLD__transceive(struct SPI_slave *hdl, const u8_t *txbuf, u8_t *rxbuf, size_t count)
 {
         int err = EIO;
-        _SPI[hdl->major]->slave = hdl;
+        _SPI[hdl->major]->current_slave = hdl;
 
 #if USE_DMA > 0
         bool dma_capable = true;
@@ -429,7 +429,7 @@ int _SPI_LLD__transceive(struct SPI_slave *hdl, const u8_t *txbuf, u8_t *rxbuf, 
                 if (dmadtx && dmadrx) {
                         CLEAR_BIT(SPI_HW[hdl->major].SPI->CR2, SPI_CR2_RXDMAEN | SPI_CR2_TXDMAEN);
 
-                        _SPI[hdl->major]->flush_byte = hdl->config.flush_byte;
+                        _SPI[hdl->major]->flush_byte = 0;
                         _SPI[hdl->major]->count      = count;
 
                         _DMA_DDI_config_t config_tx = {0};
@@ -521,7 +521,7 @@ int _SPI_LLD__transceive(struct SPI_slave *hdl, const u8_t *txbuf, u8_t *rxbuf, 
         _SPI[hdl->major]->tx_buffer  = txbuf;
         _SPI[hdl->major]->rx_buffer  = rxbuf;
         _SPI[hdl->major]->count      = count;
-        _SPI[hdl->major]->flush_byte = hdl->config.flush_byte;
+        _SPI[hdl->major]->flush_byte = 0;
 
         SET_BIT(SPI_HW[hdl->major].SPI->CR2, SPI_CR2_TXEIE);
 

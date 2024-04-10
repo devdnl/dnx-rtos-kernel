@@ -148,7 +148,7 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
                 }
 
                 if (sys_is_time_expired(tref, TIMEOUT_MS)) {
-                        printk("CLK: LSI timeout");
+                        dev_dbg(hdl, "LSI timeout");
                 }
         }
 
@@ -157,14 +157,21 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         //----------------------------------------------------------------------
         if (__CLK_LSE_ON__) {
 
+                if (sys_stropt_is_flag(config, "bdrst")) {
+                        SET_BIT(RCC->BDCR, RCC_BDCR_BDRST);
+                        sys_sleep_ms(5);
+                        CLEAR_BIT(RCC->BDCR, RCC_BDCR_BDRST);
+                }
+
                 SET_BIT(PWR->CR1, PWR_CR1_DBP);
 
-                if (!(RCC->BDCR & RCC_BDCR_LSERDY)) {
+                if (not (RCC->BDCR & RCC_BDCR_LSEON)) {
 
                         if (__CLK_LSE_ON__ == _CLK_BAYPASS) {
                                 LL_RCC_LSE_EnableBypass();
 
                         } else {
+                                LL_RCC_LSE_SetDriveCapability(__CLK_LSE_DRIVE_CAPABILITY__);
                                 LL_RCC_LSE_Enable();
 
                                 clock_t tref = sys_get_uptime_ms();
@@ -175,9 +182,11 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
                                 }
 
                                 if (sys_is_time_expired(tref, TIMEOUT_MS)) {
-                                        printk("CLK: LSE timeout");
+                                        dev_dbg(hdl, "LSE timeout");
                                 }
                         }
+                } else {
+                        dev_dbg(hdl, "LSE already running");
                 }
         }
 
@@ -201,7 +210,7 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
                         }
 
                         if (sys_is_time_expired(tref, TIMEOUT_MS)) {
-                                printk("CLK: HSE timeout");
+                                dev_dbg(hdl, "HSE timeout");
                         }
                 }
         }
@@ -243,7 +252,7 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
                 clock_t tref = sys_get_uptime_ms();
                 while (not LL_RCC_PLL1_IsReady()) {
                         if (sys_is_time_expired(tref, TIMEOUT_MS)) {
-                                printk("CLK: PLL1 timeout");
+                                dev_dbg(hdl, "PLL1 timeout");
                                 break;
                         }
 
@@ -271,7 +280,7 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
                 clock_t tref = sys_get_uptime_ms();
                 while (not LL_RCC_PLL2_IsReady()) {
                         if (sys_is_time_expired(tref, TIMEOUT_MS)) {
-                                printk("CLK: PLL2 timeout");
+                                dev_dbg(hdl, "PLL2 timeout");
                                 break;
                         }
 
@@ -299,7 +308,7 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
                 clock_t tref = sys_get_uptime_ms();
                 while (not LL_RCC_PLL3_IsReady()) {
                         if (sys_is_time_expired(tref, TIMEOUT_MS)) {
-                                printk("CLK: PLL3 timeout");
+                                dev_dbg(hdl, "PLL3 timeout");
                                 break;
                         }
 
@@ -322,6 +331,9 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         //----------------------------------------------------------------------
         LL_RCC_SetSysClkSource(__CLK_SYSCLK_SRC__);
         while (LL_RCC_GetSysClkSource() != __CLK_SYSCLK_SRC_STATUS__);
+
+        LL_RCC_SetRTCClockSource(__CLK_SRC_RTC__);
+        LL_RCC_SetRTC_HSEPrescaler(__CLK_RTC_HSE_DIV__);
 
         LL_RCC_SetUSARTClockSource(__CLK_SRC_UART16__);
         LL_RCC_SetUSARTClockSource(__CLK_SRC_UART234578__);

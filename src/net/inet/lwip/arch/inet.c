@@ -45,9 +45,8 @@ Brief    Network management.
 ==============================================================================*/
 #define MAXIMUM_SAFE_UDP_PAYLOAD 1024
 
-#define zalloc(_size, _pptr)                                                         \
-        _kzalloc(_MM_NET, _size, NULL, _MM_FLAG__DMA_CAPABLE, _MM_FLAG__DMA_CAPABLE, \
-                _pptr)
+#define zalloc(_size, _pptr) \
+        _kzalloc(_MM_NET, _size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, _pptr)
 #define zfree(_pptr) _kfree(_MM_NET, _pptr)
 
 /*==============================================================================
@@ -301,9 +300,9 @@ static int apply_static_IP_configuration(inet_t *inet, const ip_addr_t *ip_addre
 {
         int status = EINVAL;
 
-        if (inet && ip_address && net_mask && gateway && !netif_is_up(&inet->netif)
-                && is_init_done(inet)
-                && sys_mutex_lock(inet->access, ACCESS_TIMEOUT) == ESUCC) {
+        if (inet && ip_address && net_mask && gateway && !netif_is_up(&inet->netif) &&
+                is_init_done(inet) &&
+                sys_mutex_lock(inet->access, ACCESS_TIMEOUT) == ESUCC) {
 
                 clear_rx_tx_counters(inet);
                 netif_set_down(&inet->netif);
@@ -408,8 +407,9 @@ static int DHCP_inform_server(inet_t *inet)
 {
         int status = ENONET;
 
-        if (inet && netif_is_up(&inet->netif) && (DHCP_get_state(inet) == DHCP_STATE_OFF)
-                && sys_mutex_lock(inet->access, ACCESS_TIMEOUT) == ESUCC) {
+        if (inet && netif_is_up(&inet->netif) &&
+                (DHCP_get_state(inet) == DHCP_STATE_OFF) &&
+                sys_mutex_lock(inet->access, ACCESS_TIMEOUT) == ESUCC) {
 
                 dhcp_inform(&inet->netif);
                 status = ESUCC;
@@ -430,8 +430,9 @@ static int DHCP_renew_connection(inet_t *inet)
 {
         int status = ENONET;
 
-        if (inet && netif_is_up(&inet->netif) && (DHCP_get_state(inet) != DHCP_STATE_OFF)
-                && sys_mutex_lock(inet->access, ACCESS_TIMEOUT) == ESUCC) {
+        if (inet && netif_is_up(&inet->netif) &&
+                (DHCP_get_state(inet) != DHCP_STATE_OFF) &&
+                sys_mutex_lock(inet->access, ACCESS_TIMEOUT) == ESUCC) {
 
                 if (dhcp_renew(&inet->netif) == ERR_OK) {
 
@@ -475,8 +476,8 @@ static err_t netif_configure(struct netif *netif)
         netif->linkoutput = _inetdrv_handle_output;
         netif->mtu        = 1500;
         netif->hwaddr_len = ETHARP_HWADDR_LEN;
-        netif->flags      = NETIF_FLAG_ETHERNET | NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP
-                | NETIF_FLAG_IGMP;
+        netif->flags = NETIF_FLAG_ETHERNET | NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP |
+                NETIF_FLAG_IGMP;
 
         return ERR_OK;
 }
@@ -652,8 +653,8 @@ int INET_ifdown(void *ctx)
 
         int status = ENONET;
 
-        if (inet && netif_is_up(&inet->netif)
-                && sys_mutex_lock(inet->access, ACCESS_TIMEOUT) == ESUCC) {
+        if (inet && netif_is_up(&inet->netif) &&
+                sys_mutex_lock(inet->access, ACCESS_TIMEOUT) == ESUCC) {
 
                 if ((DHCP_get_state(inet) != DHCP_STATE_OFF)) {
                         if (dhcp_release(&inet->netif) == ERR_OK) {
@@ -768,8 +769,8 @@ int INET_socket_create(void *ctx, NETM_protocol_t prot, INET_socket_t *inet_sock
                 [NETM_PROTOCOL__TCP]      = 0,
         };
 
-        inet_sock->netconn
-                = netconn_new_with_proto_and_callback(type[prot], proto[prot], NULL);
+        inet_sock->netconn = netconn_new_with_proto_and_callback(type[prot], proto[prot],
+                NULL);
 
         if (inet_sock->netconn) {
                 err = ESUCC;
@@ -955,8 +956,8 @@ int INET_socket_recv(void *ctx, INET_socket_t *inet_sock, void *buf, size_t len,
                 inet_sock->seek += sz;
                 *recved = sz;
 
-                if ((flags & NETM_FLAGS__FREEBUF)
-                        || (inet_sock->seek >= netbuf_len(inet_sock->netbuf_recv))) {
+                if ((flags & NETM_FLAGS__FREEBUF) ||
+                        (inet_sock->seek >= netbuf_len(inet_sock->netbuf_recv))) {
 
                         netbuf_delete(inet_sock->netbuf_recv);
                         inet_sock->netbuf_recv = NULL;
@@ -1208,8 +1209,8 @@ int INET_socket_sendto(void *ctx, INET_socket_t *inet_sock, const void *buf, siz
 
                                         err = err_to_errno(
                                                 netconn_sendto(inet_sock->netconn,
-                                                        inet_sock->netbuf_send, &lwip_addr,
-                                                        to_sockaddr->port));
+                                                        inet_sock->netbuf_send,
+                                                        &lwip_addr, to_sockaddr->port));
                                 }
 
                                 if (!err) {
@@ -1383,8 +1384,8 @@ u16_t INET_hton_u16(u16_t value)
 u32_t INET_hton_u32(u32_t value)
 {
 #if _CPUCTL_BYTE_ORDER == _BYTE_ORDER_LITTLE_ENDIAN
-        return ((value & 0x000000FFUL) << 24) | ((value & 0x0000FF00UL) << 8)
-                | ((value & 0x00FF0000UL) >> 8) | ((value & 0xFF000000UL) >> 24);
+        return ((value & 0x000000FFUL) << 24) | ((value & 0x0000FF00UL) << 8) |
+                ((value & 0x00FF0000UL) >> 8) | ((value & 0xFF000000UL) >> 24);
 #elif _CPUCTL_BYTE_ORDER == _BYTE_ORDER_BIG_ENDIAN
         return value;
 #else
@@ -1402,14 +1403,14 @@ u32_t INET_hton_u32(u32_t value)
 u64_t INET_hton_u64(u64_t value)
 {
 #if _CPUCTL_BYTE_ORDER == _BYTE_ORDER_LITTLE_ENDIAN
-        return ((value & 0x00000000000000FFULL) << 56)
-                | ((value & 0x000000000000FF00ULL) << 40)
-                | ((value & 0x0000000000FF0000ULL) << 24)
-                | ((value & 0x00000000FF000000ULL) << 8)
-                | ((value & 0x000000FF00000000ULL) >> 8)
-                | ((value & 0x0000FF0000000000ULL) >> 24)
-                | ((value & 0x00FF000000000000ULL) >> 40)
-                | ((value & 0xFF00000000000000ULL) >> 56);
+        return ((value & 0x00000000000000FFULL) << 56) |
+                ((value & 0x000000000000FF00ULL) << 40) |
+                ((value & 0x0000000000FF0000ULL) << 24) |
+                ((value & 0x00000000FF000000ULL) << 8) |
+                ((value & 0x000000FF00000000ULL) >> 8) |
+                ((value & 0x0000FF0000000000ULL) >> 24) |
+                ((value & 0x00FF000000000000ULL) >> 40) |
+                ((value & 0xFF00000000000000ULL) >> 56);
 #elif _CPUCTL_BYTE_ORDER == _BYTE_ORDER_BIG_ENDIAN
         return value;
 #else

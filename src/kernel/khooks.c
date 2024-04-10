@@ -63,9 +63,9 @@ static bool assert_hook_suspend;
 /*==============================================================================
   Exported object definitions
 ==============================================================================*/
-u32_t        _uptime_counter_sec = 0;
-u64_t        _tick_counter       = 0;
-extern u32_t _CPU_total_time;
+u32_t              _uptime_counter_sec = 0;
+u64_t              _tick_counter       = 0;
+extern u32_t       _CPU_total_time;
 extern _process_t *_kernel_panic_trap_proc;
 
 /*==============================================================================
@@ -79,38 +79,26 @@ extern _process_t *_kernel_panic_trap_proc;
 //==============================================================================
 void vApplicationIdleHook(void)
 {
-        /*
-         * Set priority of idle task to lowest possible.
-         * The _kernel_release_resources() function set idle task with the highest
-         * priority to release finished tasks. This function restore original
-         * idle task priority.
-         */
-        if (!_kernel_panic_trap_proc) {
-                vTaskPrioritySet(xTaskGetIdleTaskHandle(), 0);
-        }
-
         u64_t now = _kernel_get_uptime_ms();
-        if ((now - sanity_check_tref >= 1000) || _kernel_panic_trap_proc) {
+        if (now - sanity_check_tref >= 1000) {
+
                 sanity_check_tref = now;
 
-                bool mm_consistent = _mm_check_consistency();
-                if (!mm_consistent) {
+                if (!_mm_check_consistency(false)) {
                         _printk("Inconsistent heap data!");
                 }
 
-                bool proc_consistent = _process_is_consistent();
-
-                if (_kernel_panic_trap_proc) {
-                        _kernel_panic_handle(mm_consistent && proc_consistent);
+                if (!_process_is_consistent(false)) {
+                        _printk("Inconsistent process data!");
                 }
         }
 
-        /*
-         * Sleep CPU for single tick to save energy.
-         */
-        #if (__OS_SLEEP_ON_IDLE__ > 0)
+/*
+ * Sleep CPU for single tick to save energy.
+ */
+#if (__OS_SLEEP_ON_IDLE__ > 0)
         _cpuctl_sleep();
-        #endif
+#endif
 }
 
 //==============================================================================

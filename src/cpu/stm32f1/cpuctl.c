@@ -116,6 +116,8 @@ static volatile reg_dump_t reg_dump __attribute__((section(".noinit")));
 ==============================================================================*/
 const char *_cpuctl_preferred_APP_RAM[] = {"SRAM", NULL};
 
+const char *_cpuctl_preferred_FS_RAM[] = {"SRAM", NULL};
+
 const char *_cpuctl_fast_mem[] = {"SRAM", NULL};
 
 /*==============================================================================
@@ -149,7 +151,7 @@ void _cpuctl_init(void)
         _cpuctl_init_CPU_load_counter();
 #endif
 
-        _mm_register_region(&sram, SRAM_HEAP_START, SRAM_HEAP_SIZE, _MM_FLAG__DMA_CAPABLE,
+        _mm_register_region(&sram, SRAM_HEAP_START, SRAM_HEAP_SIZE, _MM_FLAG__DMA,
                 "SRAM");
 
 #if __CPU_SHOW_AND_CLEAR_RESET_SOURCE__
@@ -293,8 +295,8 @@ int _cpuctl_low_power_mode(int mode)
                         WRITE_REG(EXTI->PR, UINT32_MAX);
                 }
 
-                if ((RCC->APB1ENR & (RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN))
-                        == (RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN)) {
+                if ((RCC->APB1ENR & (RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN)) ==
+                        (RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN)) {
                         CLEAR_BIT(RTC->CRL, RTC_CRL_ALRF);
                 }
 
@@ -313,8 +315,8 @@ int _cpuctl_low_power_mode(int mode)
                         WRITE_REG(EXTI->PR, UINT32_MAX);
                 }
 
-                if ((RCC->APB1ENR & (RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN))
-                        == (RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN)) {
+                if ((RCC->APB1ENR & (RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN)) ==
+                        (RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN)) {
                         CLEAR_BIT(RTC->CRL, RTC_CRL_ALRF);
                 }
 
@@ -332,8 +334,8 @@ int _cpuctl_low_power_mode(int mode)
                         WRITE_REG(EXTI->PR, UINT32_MAX);
                 }
 
-                if ((RCC->APB1ENR & (RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN))
-                        == (RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN)) {
+                if ((RCC->APB1ENR & (RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN)) ==
+                        (RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN)) {
                         CLEAR_BIT(RTC->CRL, RTC_CRL_ALRF);
                 }
 

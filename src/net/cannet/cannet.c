@@ -274,10 +274,10 @@ static const uint16_t crc16_ccitt_table[256] = {
 
 static const uint16_t crc16_ccitt_start = 0xFFFF;
 
-static const u32_t CAN_SEND_TIMEOUT = 2000;
+static const u32_t CAN_SEND_TIMEOUT = 250;
 static const u32_t THREAD_CAN_RECV_TIMEOUT_ms = 1000;
 static const u32_t MUTEX_TIMEOUT_ms = 10000;
-static const u32_t CONNECTION_TIMEOUT_ms = 250;
+static const u32_t CONNECTION_TIMEOUT_ms = 500;
 static const u32_t ACK_TIMEOUT_ms = 500;
 static const u32_t STAT_TIMEOUT_ms = 500;
 
@@ -943,10 +943,10 @@ int CANNET_socket_send(void            *ctx,
 
         int err = 0;
 
-        while (!err and (len > 0)) {
+        while (len > 0) {
                 size_t chunk_len = 0;
 
-                for (int try = 0; try < 3 and !err; try++) {
+                for (int try = 0; try < 3; try++) {
                         err = send_stat_frame(cannet, socket, 0);
                         if (!err) {
                                 answer_t answer;
@@ -966,7 +966,12 @@ int CANNET_socket_send(void            *ctx,
                         }
                 }
 
-                for (int try = 0; try < 3 and !err; try++) {
+                if (err) {
+                        printk("cannet: [%u] stat error %i", cannet->addr, err);
+                        break;
+                }
+
+                for (int try = 0; try < 3; try++) {
                         err = send_payload(cannet, socket, buf, chunk_len);
                         if (!err) {
                                 answer_t answer;
@@ -984,11 +989,13 @@ int CANNET_socket_send(void            *ctx,
                                         } else {
                                                 err = EILSEQ;
                                         }
-                                } else {
-                                        // try again sending whole chunk
-                                        err = 0;
                                 }
                         }
+                }
+
+                if (err) {
+                        printk("cannet: [%u] payload sent error %i", cannet->addr, err);
+                        break;
                 }
         }
 
@@ -1370,7 +1377,7 @@ static int send_payload(cannet_t *cannet, CANNET_socket_t *socket,
                 }
 
                 if (!err) {
-                        send_last_frame(cannet, socket, &payload, &payload_len);
+                        err = send_last_frame(cannet, socket, &payload, &payload_len);
                 }
         }
 

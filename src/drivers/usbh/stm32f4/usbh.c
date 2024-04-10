@@ -1162,7 +1162,7 @@ void USBH_Delay(uint32_t Delay)
 void *USBH_malloc(uint32_t size)
 {
         void *mem = NULL;
-        int err = sys_zalloc2(size, NULL, _MM_FLAG__DMA_CAPABLE, _MM_FLAG__DMA_CAPABLE, &mem);
+        int err = sys_zalloc2(size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, &mem);
         return !err ? mem : NULL;
 }
 

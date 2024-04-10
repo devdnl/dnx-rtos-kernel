@@ -64,9 +64,10 @@ extern "C" {
 
 /** PRIORITIES */
 #define _PRIORITY(prio)   (prio + (configMAX_PRIORITIES / 2))
-#define _PRIORITY_LOWEST  (-(int)(configMAX_PRIORITIES / 2))
+#define _PRIORITY_LOWEST  (-(int)((configMAX_PRIORITIES / 2) - 1))
 #define _PRIORITY_NORMAL  0
-#define _PRIORITY_HIGHEST ((int)(configMAX_PRIORITIES / 2))
+#define _PRIORITY_HIGHEST ((int)((configMAX_PRIORITIES / 2) - 1))
+#define _PRIORITY_REALTIME ((int)(configMAX_PRIORITIES / 2))
 
 /*==============================================================================
   Exported types, enums definitions

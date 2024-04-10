@@ -45,13 +45,13 @@
   Local symbolic constants/macros
 ==============================================================================*/
 #define SRAM1_HEAP_START ((void *)&__heap_start)
-#define SRAM1_HEAP_SIZE  ((size_t) & __heap_size)
+#define SRAM1_HEAP_SIZE  ((size_t)&__heap_size)
 
 #define SRAM2_START      ((void *)&__ram2_start)
-#define SRAM2_SIZE       ((size_t) & __ram2_size)
+#define SRAM2_SIZE       ((size_t)&__ram2_size)
 
 #define DTCM_START       ((void *)&__dtcm_start)
-#define DTCM_SIZE        ((size_t) & __dtcm_size)
+#define DTCM_SIZE        ((size_t)&__dtcm_size)
 
 // Memory Management Fault Status Register
 #define NVIC_MFSR (*(volatile unsigned char *)(0xE000ED28u))
@@ -158,9 +158,9 @@ typedef struct {
         uint32_t R2;
         uint32_t R3;
         uint32_t R12;
-        uint32_t LR; // Link register.
-        uint32_t PC; // Program counter.
-        uint32_t PSR; // Program status register.
+        uint32_t LR;   // Link register.
+        uint32_t PC;   // Program counter.
+        uint32_t PSR;  // Program status register.
         uint32_t MFSR; // Memory Management Fault Status Register.
         uint32_t BFSR; // Bus Fault Status Register.
         uint32_t UFSR; // Usage Fault Status Register.
@@ -172,19 +172,19 @@ typedef struct {
 } reg_dump_t;
 
 typedef struct {
-        uint8_t  enable; /*!< Specifies the status of the region.*/
-        uint8_t  number; /*!< Specifies the number of the region to protect.*/
+        uint8_t  enable;       /*!< Specifies the status of the region.*/
+        uint8_t  number;       /*!< Specifies the number of the region to protect.*/
         uint32_t base_address; /*!< Specifies the base address of the region to protect.*/
-        uint8_t  size; /*!< Specifies the size of the region to protect.*/
+        uint8_t  size;         /*!< Specifies the size of the region to protect.*/
         uint8_t  sub_region_disable; /*!< Specifies the number of the subregion protection
                                         to disable.*/
-        uint8_t type_ext_field; /*!< Specifies the TEX field level.*/
-        uint8_t access_permission; /*!< Specifies the region access permission type.*/
-        uint8_t disable_exec; /*!< Specifies the instruction access status.*/
-        uint8_t is_shareable; /*!< Specifies the shareability status of the protected
-                                 region.*/
-        uint8_t is_cacheable; /*!< Specifies the cacheable status of the region
-                                 protected.*/
+        uint8_t type_ext_field;      /*!< Specifies the TEX field level.*/
+        uint8_t access_permission;   /*!< Specifies the region access permission type.*/
+        uint8_t disable_exec;        /*!< Specifies the instruction access status.*/
+        uint8_t is_shareable;  /*!< Specifies the shareability status of the protected
+                                  region.*/
+        uint8_t is_cacheable;  /*!< Specifies the cacheable status of the region
+                                  protected.*/
         uint8_t is_bufferable; /*!< Specifies the bufferable status of the protected
                                   region.*/
 } MPU_region_t;
@@ -223,7 +223,11 @@ static volatile reg_dump_t reg_dump __attribute__((section(".noinit")));
 /*==============================================================================
   External object definitions
 ==============================================================================*/
-const char *_cpuctl_preferred_APP_RAM[] = {"SRAM1", "SRAM2", NULL};
+const char *_cpuctl_preferred_APP_RAM[] = {"SDRAM", "PSRAM", "SRAM", "SRAM1", "SRAM2",
+        "DTCM", NULL};
+
+const char *_cpuctl_preferred_FS_RAM[] = {"SDRAM", "PSRAM", "SRAM", "SRAM1", "SRAM2",
+        "DTCM", NULL};
 
 const char *_cpuctl_fast_mem[] = {"DTCM", "SRAM1", "SRAM2", NULL};
 
@@ -280,13 +284,13 @@ void _cpuctl_init(void)
 #endif
 
         u32_t ram1_ram2_flags = (__CPU_RAM1_RAM2_CACHE_DISABLE__ ? 0
-                                                                 : _MM_FLAG__CACHEABLE) |
-                _MM_FLAG__DMA_CAPABLE;
+                                                                 : _MM_FLAG__CACHE) |
+                _MM_FLAG__DMA;
 
         _mm_register_region(&sram1, SRAM1_HEAP_START, SRAM1_HEAP_SIZE, ram1_ram2_flags,
                 "SRAM1");
         _mm_register_region(&sram2, SRAM2_START, SRAM2_SIZE, ram1_ram2_flags, "SRAM2");
-        _mm_register_region(&dtcm, DTCM_START, DTCM_SIZE, _MM_FLAG__DMA_CAPABLE, "DTCM");
+        _mm_register_region(&dtcm, DTCM_START, DTCM_SIZE, _MM_FLAG__DMA, "DTCM");
 
         if (__CPU_ICACHE_ENABLE__) {
                 _ISR_disable();
@@ -305,6 +309,7 @@ void _cpuctl_init(void)
                  *       the writes. Soluction 4 according ST's document AN4839.
                  */
                 SCB->CACR |= SCB_CACR_FORCEWT_Msk;
+                printk("CPU: Enabled DCACHE write-through");
 
                 SCB_EnableDCache();
                 _ISR_enable();

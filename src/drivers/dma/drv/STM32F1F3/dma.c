@@ -545,6 +545,26 @@ int _DMA_DDI_transfer(u32_t dmad, _DMA_DDI_config_t *config)
 
 //==============================================================================
 /**
+ * @brief Function abort configured DMA transfer.
+ *
+ * @param dmad                  DMA descriptor.
+ */
+//==============================================================================
+void _DMA_DDI_abort(u32_t dmad)
+{
+        if (dmad && DMA_mem) {
+                DMA_RT_channel_t *RT_channel = &DMA_mem->DMA[GETMAJOR(dmad)].channel[GETCHANNEL(dmad)];
+
+                if (RT_channel->dmad == dmad) {
+                        DMA_Channel_TypeDef *DMA_channel = DMA_HW[GETMAJOR(dmad)].channel[GETCHANNEL(dmad)];
+                        DMA_channel->CR = 0;
+                        clear_DMA_IRQ_flags(GETMAJOR(dmad), GETCHANNEL(dmad));
+                }
+        }
+}
+
+//==============================================================================
+/**
  * @brief Function start memory-to-memory transfer by using free channel.
  *
  * @param dst                   destination address.

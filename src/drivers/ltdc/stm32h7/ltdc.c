@@ -374,7 +374,7 @@ static int configure(LTDC_t *hdl, const LTDC_config_t *config)
                 const char *region[] = {config->mem_region_name, NULL};
 
                 err = sys_zalloc2(hdl->framebuffer_size, region,
-                                  _MM_FLAG__DMA_CAPABLE, _MM_FLAG__DMA_CAPABLE,
+                                  _MM_FLAG__DMA, _MM_FLAG__DMA,
                                   &hdl->framebuffer);
                 if (err) {
                         return err;

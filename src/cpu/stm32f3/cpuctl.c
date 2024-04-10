@@ -45,10 +45,10 @@
   Local symbolic constants/macros
 ==============================================================================*/
 #define SRAM_HEAP_START ((void *)&__heap_start)
-#define SRAM_HEAP_SIZE  ((size_t) & __heap_size)
+#define SRAM_HEAP_SIZE  ((size_t)&__heap_size)
 
 #define CCM_START       ((void *)&__ccm_start)
-#define CCM_SIZE        ((size_t) & __ccm_size)
+#define CCM_SIZE        ((size_t)&__ccm_size)
 
 // Memory Management Fault Status Register
 #define NVIC_MFSR (*(volatile unsigned char *)(0xE000ED28u))
@@ -83,9 +83,9 @@ typedef struct {
         uint32_t R2;
         uint32_t R3;
         uint32_t R12;
-        uint32_t LR; // Link register.
-        uint32_t PC; // Program counter.
-        uint32_t PSR; // Program status register.
+        uint32_t LR;   // Link register.
+        uint32_t PC;   // Program counter.
+        uint32_t PSR;  // Program status register.
         uint32_t MFSR; // Memory Management Fault Status Register.
         uint32_t BFSR; // Bus Fault Status Register.
         uint32_t UFSR; // Usage Fault Status Register.
@@ -117,7 +117,9 @@ static volatile reg_dump_t reg_dump __attribute__((section(".noinit")));
 /*==============================================================================
   External object definitions
 ==============================================================================*/
-const char *_cpuctl_preferred_APP_RAM[] = {"SRAM", NULL};
+const char *_cpuctl_preferred_APP_RAM[] = {"SDRAM", "PSRAM", "SRAM", "CCM", NULL};
+
+const char *_cpuctl_preferred_FS_RAM[] = {"SDRAM", "PSRAM", "SRAM", "CCM", NULL};
 
 const char *_cpuctl_fast_mem[] = {"CCM", "SRAM", NULL};
 
@@ -155,7 +157,7 @@ void _cpuctl_init(void)
         _cpuctl_init_CPU_load_counter();
 #endif
 
-        _mm_register_region(&sram, SRAM_HEAP_START, SRAM_HEAP_SIZE, _MM_FLAG__DMA_CAPABLE,
+        _mm_register_region(&sram, SRAM_HEAP_START, SRAM_HEAP_SIZE, _MM_FLAG__DMA,
                 "SRAM");
 
         if (CCM_SIZE > 0) {

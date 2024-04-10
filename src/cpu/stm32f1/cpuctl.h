@@ -53,7 +53,7 @@ extern "C" {
 #define vPortSVCHandler     SVC_Handler
 
 /* names of memory regions used by kernel */
-#define _CPUCTL_STACK_REGION_FLAGS _MM_FLAG__DMA_CAPABLE
+#define _CPUCTL_STACK_REGION_FLAGS _MM_FLAG__DMA
 
 /* cache mangement functions */
 #define _cpuctl_clean_dcache()
@@ -71,16 +71,17 @@ extern "C" {
   Exported types, enums definitions
 ==============================================================================*/
 enum {
-        low_power_mode__sleep   = 0,
+        low_power_mode__sleep        = 0,
         low_power_mode__stop_reg_on  = 1,
-        low_power_mode__stop_reg_off  = 2,
-        low_power_mode__standby = 3,
+        low_power_mode__stop_reg_off = 2,
+        low_power_mode__standby      = 3,
 };
 
 /*==============================================================================
   Exported objects
 ==============================================================================*/
 extern const char *_cpuctl_preferred_APP_RAM[];
+extern const char *_cpuctl_preferred_FS_RAM[];
 extern const char *_cpuctl_fast_mem[];
 
 /*==============================================================================

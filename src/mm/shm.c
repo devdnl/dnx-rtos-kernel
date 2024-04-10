@@ -128,8 +128,8 @@ int _shm_create(const char *key, size_t size)
                         if (!err) {
                                 shm_region_t *region = NULL;
                                 err = _kzalloc(_MM_SHM, sizeof(shm_region_t) + size,
-                                               NULL, _MM_FLAG__DMA_CAPABLE,
-                                               _MM_FLAG__DMA_CAPABLE, cast(void *, &region));
+                                               NULL, _MM_FLAG__DMA,
+                                               _MM_FLAG__DMA, cast(void *, &region));
 
                                 if (!err) {
                                         region->size = size;

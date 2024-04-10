@@ -43,10 +43,10 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
-#define _mm_align(_size)        (((_size) + _HEAP_ALIGN_ - 1) & ~(_HEAP_ALIGN_-1))
+#define _mm_align(_size) (((_size) + _HEAP_ALIGN_ - 1) & ~(_HEAP_ALIGN_ - 1))
 
-#define _MM_FLAG__DMA_CAPABLE   (1 << 0)
-#define _MM_FLAG__CACHEABLE     (1 << 1)
+#define _MM_FLAG__DMA    (1 << 0)
+#define _MM_FLAG__CACHE  (1 << 1)
 
 /*==============================================================================
   Exported object types
@@ -66,13 +66,13 @@ typedef struct {
 } _mm_mem_usage_t;
 
 enum _mm_mem {
-        _MM_KRN,        //!< allocate memory for kernel purposes
-        _MM_FS,         //!< allocate memory for file system purposes
-        _MM_NET,        //!< allocate memory for network purposes
-        _MM_PROG,       //!< allocate memory for program purposes
-        _MM_SHM,        //!< allocate memory for share purposes
-        _MM_CACHE,      //!< allocate memory for cache purposes
-        _MM_MOD,        //!< allocate memory for modules purposes
+        _MM_KRN,   //!< allocate memory for kernel purposes
+        _MM_FS,    //!< allocate memory for file system purposes
+        _MM_NET,   //!< allocate memory for network purposes
+        _MM_PROG,  //!< allocate memory for program purposes
+        _MM_SHM,   //!< allocate memory for share purposes
+        _MM_CACHE, //!< allocate memory for cache purposes
+        _MM_MOD,   //!< allocate memory for modules purposes
         _MM_COUNT
 };
 
@@ -91,23 +91,23 @@ typedef struct _mm_region {
   Exported functions
 ==============================================================================*/
 extern int    _mm_init(void);
-extern int    _mm_register_region(_mm_region_t*, void*, size_t, u32_t, const char*);
-extern int    _mm_get_mem_usage_details(_mm_mem_usage_t*);
+extern int    _mm_register_region(_mm_region_t *, void *, size_t, u32_t, const char *);
+extern int    _mm_get_mem_usage_details(_mm_mem_usage_t *);
 extern int    _mm_get_module_mem_usage(uint module, i32_t *usage);
-extern size_t _mm_get_block_size(void*);
+extern size_t _mm_get_block_size(void *);
 extern size_t _mm_get_mem_free(void);
 extern size_t _mm_get_mem_usage(void);
 extern size_t _mm_get_mem_size(void);
 extern bool   _mm_is_object_in_heap(const void *ptr);
 extern bool   _mm_is_rom_address(const void *ptr);
-extern bool   _mm_check_consistency(void);
+extern bool   _mm_check_consistency(bool isr);
 extern bool   _mm_is_dma_capable(const void *ptr);
-extern bool   _mm_is_mem_region(const  void *ptr, const char *regions[]);
+extern bool   _mm_is_mem_region(const void *ptr, const char *regions[]);
 extern bool   _mm_is_cacheable(const void *ptr);
 extern const char *_mm_get_region_name(const void *ptr);
-extern int    _kzalloc(enum _mm_mem, size_t, const char**, u32_t, u32_t, void**, ...);
-extern int    _kmalloc(enum _mm_mem, size_t, const char**, u32_t, u32_t, void**, ...);
-extern int    _kfree(enum _mm_mem, void**, ...);
+extern int _kzalloc(enum _mm_mem, size_t, const char **, u32_t, u32_t, void **, ...);
+extern int _kmalloc(enum _mm_mem, size_t, const char **, u32_t, u32_t, void **, ...);
+extern int _kfree(enum _mm_mem, void **, ...);
 
 /*==============================================================================
   Exported inline functions

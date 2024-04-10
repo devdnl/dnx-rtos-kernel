@@ -54,10 +54,12 @@ extern "C" {
   Exported functions
 ==============================================================================*/
 #if ((__OS_SYSTEM_MSG_ENABLE__ > 0) && (__OS_PRINTF_ENABLE__ > 0))
-size_t _printk_read(char*, size_t, const struct timeval*, struct timeval*);
+int    _printk_init(void);
+size_t _printk_read(char *, size_t, const struct timeval *, struct timeval *);
 void   _printk_clear(void);
-void   _printk(const char*, ...);
+void   _printk(const char *, ...);
 #else
+#define _printk_init()
 #define _printk(...)
 #define _printk_read(str, len, timestamp_ms)
 #define _printk_clear()

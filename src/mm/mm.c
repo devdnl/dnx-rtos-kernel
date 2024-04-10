@@ -84,8 +84,8 @@ static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefre
   Local objects
 ==============================================================================*/
 #if ((__OS_SYSTEM_MSG_ENABLE__ > 0) && (__OS_PRINTF_ENABLE__ > 0))
-static const char  *REGISTERED_REGION_STR  = "Registered %s region @ 0x%X of size %d bytes";
-static const char  *REGISTRATION_ERROR_STR = "Memory %s registration error (%d) @ 0x%X of size %d bytes";
+static const char  *REGISTERED_REGION_STR  = "Registered %s region [%Xh-%Xh]";
+static const char  *REGISTRATION_ERROR_STR = "Memory %s registration error (%d) [%Xh-%Xh]";
 #endif
 static _mm_region_t *regions;
 static i32_t         memory_usage[_MM_COUNT - 1];
@@ -175,9 +175,9 @@ int _mm_register_region(_mm_region_t *region, void *start, size_t size, u32_t fl
 
                 finish:
                 if (!err) {
-                        printk(REGISTERED_REGION_STR, name, start, size);
+                        printk(REGISTERED_REGION_STR, name, start, start + size - 1);
                 } else {
-                        printk(REGISTRATION_ERROR_STR, name, err, start, size);
+                        printk(REGISTRATION_ERROR_STR, name, err, start, start + size - 1);
                 }
         }
 
@@ -492,17 +492,25 @@ bool _mm_is_rom_address(const void *ptr)
 /**
  * @brief  Function check consistency of all memory regions.
  *
+ * @param  isr          called from ISR
+ *
  * @return On success true is returned otherwise false.
  */
 //==============================================================================
-bool _mm_check_consistency(void)
+bool _mm_check_consistency(bool isr)
 {
         bool ok = true;
 
         for (_mm_region_t *r = regions; r && ok; r = r->next) {
-                _kernel_scheduler_lock();
+                if (not isr) {
+                        _kernel_scheduler_lock();
+                }
+
                 ok = _heap_check_consistency(&r->heap);
-                _kernel_scheduler_unlock();
+
+                if (not isr) {
+                        _kernel_scheduler_unlock();
+                }
         }
 
         return ok;
@@ -527,7 +535,7 @@ bool _mm_is_dma_capable(const void *ptr)
                 if (  (cast(uintptr_t, ptr) >= cast(uintptr_t, r->heap.ram))
                    && (cast(uintptr_t, ptr) <= cast(uintptr_t, r->heap.ram_end)) ) {
 
-                        return r->flags & _MM_FLAG__DMA_CAPABLE;
+                        return r->flags & _MM_FLAG__DMA;
                 }
         }
 
@@ -594,7 +602,7 @@ bool _mm_is_cacheable(const void *ptr)
                 if (  (cast(uintptr_t, ptr) >= cast(uintptr_t, r->heap.ram))
                    && (cast(uintptr_t, ptr) <= cast(uintptr_t, r->heap.ram_end)) ) {
 
-                        return r->flags & _MM_FLAG__CACHEABLE;
+                        return r->flags & _MM_FLAG__CACHE;
                 }
         }
 

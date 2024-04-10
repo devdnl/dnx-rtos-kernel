@@ -45,26 +45,26 @@
   Local symbolic constants/macros
 ==============================================================================*/
 /* Cortex System Control register address */
-#define SCB_SysCtrl       (*((__IO uint32_t *)0xE000ED10))
-#define SysCtrl_SLEEPDEEP ((uint32_t)0x00000004)
+#define SCB_SysCtrl        (*((__IO uint32_t *)0xE000ED10))
+#define SysCtrl_SLEEPDEEP  ((uint32_t)0x00000004)
 
 #define AXISRAM_HEAP_START ((void *)&__heap_start)
-#define AXISRAM_HEAP_SIZE  ((size_t) & __heap_size)
+#define AXISRAM_HEAP_SIZE  ((size_t)&__heap_size)
 
-#define SRAM1_START ((void *)&__ram1_start)
-#define SRAM1_SIZE  ((size_t) & __ram1_size)
+#define SRAM1_START        ((void *)&__ram1_start)
+#define SRAM1_SIZE         ((size_t)&__ram1_size)
 
-#define SRAM2_START ((void *)&__ram2_start)
-#define SRAM2_SIZE  ((size_t) & __ram2_size)
+#define SRAM2_START        ((void *)&__ram2_start)
+#define SRAM2_SIZE         ((size_t)&__ram2_size)
 
-#define SRAM3_START ((void *)&__ram3_start)
-#define SRAM3_SIZE  ((size_t) & __ram3_size)
+#define SRAM3_START        ((void *)&__ram3_start)
+#define SRAM3_SIZE         ((size_t)&__ram3_size)
 
-#define SRAM4_START ((void *)&__ram4_start)
-#define SRAM4_SIZE  ((size_t) & __ram4_size)
+#define SRAM4_START        ((void *)&__ram4_start)
+#define SRAM4_SIZE         ((size_t)&__ram4_size)
 
-#define DTCM_START ((void *)&__dtcm_start)
-#define DTCM_SIZE  ((size_t) & __dtcm_size)
+#define DTCM_START         ((void *)&__dtcm_start)
+#define DTCM_SIZE          ((size_t)&__dtcm_size)
 
 // Memory Management Fault Status Register
 #define NVIC_MFSR (*(volatile unsigned char *)(0xE000ED28u))
@@ -93,74 +93,74 @@
 /*
  * MPU Definitions
  */
-#define MPU_HFNMI_PRIVDEF_NONE ((uint32_t)0x00000000U)
-#define MPU_HARDFAULT_NMI      ((uint32_t)0x00000002U)
-#define MPU_PRIVILEGED_DEFAULT ((uint32_t)0x00000004U)
-#define MPU_HFNMI_PRIVDEF      ((uint32_t)0x00000006U)
+#define MPU_HFNMI_PRIVDEF_NONE         ((uint32_t)0x00000000U)
+#define MPU_HARDFAULT_NMI              ((uint32_t)0x00000002U)
+#define MPU_PRIVILEGED_DEFAULT         ((uint32_t)0x00000004U)
+#define MPU_HFNMI_PRIVDEF              ((uint32_t)0x00000006U)
 
-#define MPU_REGION_ENABLE  ((uint8_t)0x01U)
-#define MPU_REGION_DISABLE ((uint8_t)0x00U)
+#define MPU_REGION_ENABLE              ((uint8_t)0x01U)
+#define MPU_REGION_DISABLE             ((uint8_t)0x00U)
 
 #define MPU_INSTRUCTION_ACCESS_ENABLE  ((uint8_t)0x00U)
 #define MPU_INSTRUCTION_ACCESS_DISABLE ((uint8_t)0x01U)
 
-#define MPU_ACCESS_SHAREABLE     ((uint8_t)0x01U)
-#define MPU_ACCESS_NOT_SHAREABLE ((uint8_t)0x00U)
+#define MPU_ACCESS_SHAREABLE           ((uint8_t)0x01U)
+#define MPU_ACCESS_NOT_SHAREABLE       ((uint8_t)0x00U)
 
-#define MPU_ACCESS_CACHEABLE     ((uint8_t)0x01U)
-#define MPU_ACCESS_NOT_CACHEABLE ((uint8_t)0x00U)
+#define MPU_ACCESS_CACHEABLE           ((uint8_t)0x01U)
+#define MPU_ACCESS_NOT_CACHEABLE       ((uint8_t)0x00U)
 
-#define MPU_ACCESS_BUFFERABLE     ((uint8_t)0x01U)
-#define MPU_ACCESS_NOT_BUFFERABLE ((uint8_t)0x00U)
+#define MPU_ACCESS_BUFFERABLE          ((uint8_t)0x01U)
+#define MPU_ACCESS_NOT_BUFFERABLE      ((uint8_t)0x00U)
 
-#define MPU_TEX_LEVEL0 ((uint8_t)0x00U)
-#define MPU_TEX_LEVEL1 ((uint8_t)0x01U)
-#define MPU_TEX_LEVEL2 ((uint8_t)0x02U)
+#define MPU_TEX_LEVEL0                 ((uint8_t)0x00U)
+#define MPU_TEX_LEVEL1                 ((uint8_t)0x01U)
+#define MPU_TEX_LEVEL2                 ((uint8_t)0x02U)
 
-#define MPU_REGION_SIZE_32B    ((uint8_t)0x04U)
-#define MPU_REGION_SIZE_64B    ((uint8_t)0x05U)
-#define MPU_REGION_SIZE_128B   ((uint8_t)0x06U)
-#define MPU_REGION_SIZE_256B   ((uint8_t)0x07U)
-#define MPU_REGION_SIZE_512B   ((uint8_t)0x08U)
-#define MPU_REGION_SIZE_1KiB   ((uint8_t)0x09U)
-#define MPU_REGION_SIZE_2KiB   ((uint8_t)0x0AU)
-#define MPU_REGION_SIZE_4KiB   ((uint8_t)0x0BU)
-#define MPU_REGION_SIZE_8KiB   ((uint8_t)0x0CU)
-#define MPU_REGION_SIZE_16KiB  ((uint8_t)0x0DU)
-#define MPU_REGION_SIZE_32KiB  ((uint8_t)0x0EU)
-#define MPU_REGION_SIZE_64KiB  ((uint8_t)0x0FU)
-#define MPU_REGION_SIZE_128KiB ((uint8_t)0x10U)
-#define MPU_REGION_SIZE_256KiB ((uint8_t)0x11U)
-#define MPU_REGION_SIZE_512KiB ((uint8_t)0x12U)
-#define MPU_REGION_SIZE_1MiB   ((uint8_t)0x13U)
-#define MPU_REGION_SIZE_2MiB   ((uint8_t)0x14U)
-#define MPU_REGION_SIZE_4MiB   ((uint8_t)0x15U)
-#define MPU_REGION_SIZE_8MiB   ((uint8_t)0x16U)
-#define MPU_REGION_SIZE_16MiB  ((uint8_t)0x17U)
-#define MPU_REGION_SIZE_32MiB  ((uint8_t)0x18U)
-#define MPU_REGION_SIZE_64MiB  ((uint8_t)0x19U)
-#define MPU_REGION_SIZE_128MiB ((uint8_t)0x1AU)
-#define MPU_REGION_SIZE_256MiB ((uint8_t)0x1BU)
-#define MPU_REGION_SIZE_512MiB ((uint8_t)0x1CU)
-#define MPU_REGION_SIZE_1GiB   ((uint8_t)0x1DU)
-#define MPU_REGION_SIZE_2GiB   ((uint8_t)0x1EU)
-#define MPU_REGION_SIZE_4GiB   ((uint8_t)0x1FU)
+#define MPU_REGION_SIZE_32B            ((uint8_t)0x04U)
+#define MPU_REGION_SIZE_64B            ((uint8_t)0x05U)
+#define MPU_REGION_SIZE_128B           ((uint8_t)0x06U)
+#define MPU_REGION_SIZE_256B           ((uint8_t)0x07U)
+#define MPU_REGION_SIZE_512B           ((uint8_t)0x08U)
+#define MPU_REGION_SIZE_1KiB           ((uint8_t)0x09U)
+#define MPU_REGION_SIZE_2KiB           ((uint8_t)0x0AU)
+#define MPU_REGION_SIZE_4KiB           ((uint8_t)0x0BU)
+#define MPU_REGION_SIZE_8KiB           ((uint8_t)0x0CU)
+#define MPU_REGION_SIZE_16KiB          ((uint8_t)0x0DU)
+#define MPU_REGION_SIZE_32KiB          ((uint8_t)0x0EU)
+#define MPU_REGION_SIZE_64KiB          ((uint8_t)0x0FU)
+#define MPU_REGION_SIZE_128KiB         ((uint8_t)0x10U)
+#define MPU_REGION_SIZE_256KiB         ((uint8_t)0x11U)
+#define MPU_REGION_SIZE_512KiB         ((uint8_t)0x12U)
+#define MPU_REGION_SIZE_1MiB           ((uint8_t)0x13U)
+#define MPU_REGION_SIZE_2MiB           ((uint8_t)0x14U)
+#define MPU_REGION_SIZE_4MiB           ((uint8_t)0x15U)
+#define MPU_REGION_SIZE_8MiB           ((uint8_t)0x16U)
+#define MPU_REGION_SIZE_16MiB          ((uint8_t)0x17U)
+#define MPU_REGION_SIZE_32MiB          ((uint8_t)0x18U)
+#define MPU_REGION_SIZE_64MiB          ((uint8_t)0x19U)
+#define MPU_REGION_SIZE_128MiB         ((uint8_t)0x1AU)
+#define MPU_REGION_SIZE_256MiB         ((uint8_t)0x1BU)
+#define MPU_REGION_SIZE_512MiB         ((uint8_t)0x1CU)
+#define MPU_REGION_SIZE_1GiB           ((uint8_t)0x1DU)
+#define MPU_REGION_SIZE_2GiB           ((uint8_t)0x1EU)
+#define MPU_REGION_SIZE_4GiB           ((uint8_t)0x1FU)
 
-#define MPU_REGION_NO_ACCESS   ((uint8_t)0x00U)
-#define MPU_REGION_PRIV_RW     ((uint8_t)0x01U)
-#define MPU_REGION_PRIV_RW_URO ((uint8_t)0x02U)
-#define MPU_REGION_FULL_ACCESS ((uint8_t)0x03U)
-#define MPU_REGION_PRIV_RO     ((uint8_t)0x05U)
-#define MPU_REGION_PRIV_RO_URO ((uint8_t)0x06U)
+#define MPU_REGION_NO_ACCESS           ((uint8_t)0x00U)
+#define MPU_REGION_PRIV_RW             ((uint8_t)0x01U)
+#define MPU_REGION_PRIV_RW_URO         ((uint8_t)0x02U)
+#define MPU_REGION_FULL_ACCESS         ((uint8_t)0x03U)
+#define MPU_REGION_PRIV_RO             ((uint8_t)0x05U)
+#define MPU_REGION_PRIV_RO_URO         ((uint8_t)0x06U)
 
-#define MPU_REGION_NUMBER0 ((uint8_t)0x00U)
-#define MPU_REGION_NUMBER1 ((uint8_t)0x01U)
-#define MPU_REGION_NUMBER2 ((uint8_t)0x02U)
-#define MPU_REGION_NUMBER3 ((uint8_t)0x03U)
-#define MPU_REGION_NUMBER4 ((uint8_t)0x04U)
-#define MPU_REGION_NUMBER5 ((uint8_t)0x05U)
-#define MPU_REGION_NUMBER6 ((uint8_t)0x06U)
-#define MPU_REGION_NUMBER7 ((uint8_t)0x07U)
+#define MPU_REGION_NUMBER0             ((uint8_t)0x00U)
+#define MPU_REGION_NUMBER1             ((uint8_t)0x01U)
+#define MPU_REGION_NUMBER2             ((uint8_t)0x02U)
+#define MPU_REGION_NUMBER3             ((uint8_t)0x03U)
+#define MPU_REGION_NUMBER4             ((uint8_t)0x04U)
+#define MPU_REGION_NUMBER5             ((uint8_t)0x05U)
+#define MPU_REGION_NUMBER6             ((uint8_t)0x06U)
+#define MPU_REGION_NUMBER7             ((uint8_t)0x07U)
 
 /*==============================================================================
   Local types, enums definitions
@@ -245,8 +245,11 @@ static volatile reg_dump_t reg_dump __attribute__((section(".noinit")));
 /*==============================================================================
   External object definitions
 ==============================================================================*/
-const char *_cpuctl_preferred_APP_RAM[]
-        = {"AXISRAM", "SDRAM", "PSRAM", "SRAM", "DTCM", "SRAM1", "SRAM2", "SRAM3", "SRAM4", NULL};
+const char *_cpuctl_preferred_APP_RAM[] = {"SDRAM", "PSRAM", "SRAM", "AXISRAM", "SRAM1",
+        "SRAM2", "SRAM3", "SRAM4", "DTCM", NULL};
+
+const char *_cpuctl_preferred_FS_RAM[] = {"SDRAM", "PSRAM", "SRAM", "AXISRAM", "SRAM1",
+        "SRAM2", "SRAM3", "SRAM4", "DTCM", NULL};
 
 const char *_cpuctl_fast_mem[] = {"DTCM", "AXISRAM", "SRAM1", "SRAM2", "SRAM3", "SRAM4",
         "SDRAM", "PSRAM", "SRAM", NULL};
@@ -302,7 +305,7 @@ void _cpuctl_init(void)
         mpu.sub_region_disable = 0;
         uint8_t mpu_region     = 0;
 
-        u32_t dma_cache = _MM_FLAG__DMA_CAPABLE | _MM_FLAG__CACHEABLE;
+        u32_t dma_cache = _MM_FLAG__DMA | _MM_FLAG__CACHE;
 
         _mm_register_region(&axisram, AXISRAM_HEAP_START, AXISRAM_HEAP_SIZE, dma_cache,
                 "AXISRAM");
@@ -375,6 +378,7 @@ void _cpuctl_init(void)
                  *       the writes. Soluction 4 according ST's document AN4839.
                  */
                 SCB->CACR |= SCB_CACR_FORCEWT_Msk;
+                printk("CPU: Enabled DCACHE write-through");
 
                 SCB_EnableDCache();
 
@@ -569,8 +573,8 @@ void _cpuctl_update_system_clocks(void)
 //==============================================================================
 void _cpuctl_delay_us(u16_t microseconds)
 {
-        u32_t ticks = ((u64_t)microseconds * SysTick->LOAD * __OS_TASK_SCHED_FREQ__)
-                / 1000000;
+        u32_t ticks = ((u64_t)microseconds * SysTick->LOAD * __OS_TASK_SCHED_FREQ__) /
+                1000000;
 
         while (ticks > 0) {
                 i32_t now = SysTick->VAL;
@@ -846,20 +850,20 @@ static void MPU_conf_region(MPU_region_t *mpu_region)
 
         if (mpu_region->enable) {
                 MPU->RBAR = mpu_region->base_address;
-                MPU->RASR = ((uint32_t)mpu_region->disable_exec << MPU_RASR_XN_Pos)
-                        | ((uint32_t)mpu_region->access_permission << MPU_RASR_AP_Pos)
-                        | ((uint32_t)mpu_region->type_ext_field << MPU_RASR_TEX_Pos)
-                        | ((uint32_t)mpu_region->is_shareable << MPU_RASR_S_Pos)
-                        | ((uint32_t)mpu_region->is_cacheable << MPU_RASR_C_Pos)
-                        | ((uint32_t)mpu_region->is_bufferable << MPU_RASR_B_Pos)
-                        | ((uint32_t)mpu_region->sub_region_disable << MPU_RASR_SRD_Pos)
-                        | ((uint32_t)mpu_region->size << MPU_RASR_SIZE_Pos)
-                        | ((uint32_t)mpu_region->enable << MPU_RASR_ENABLE_Pos);
+                MPU->RASR = ((uint32_t)mpu_region->disable_exec << MPU_RASR_XN_Pos) |
+                        ((uint32_t)mpu_region->access_permission << MPU_RASR_AP_Pos) |
+                        ((uint32_t)mpu_region->type_ext_field << MPU_RASR_TEX_Pos) |
+                        ((uint32_t)mpu_region->is_shareable << MPU_RASR_S_Pos) |
+                        ((uint32_t)mpu_region->is_cacheable << MPU_RASR_C_Pos) |
+                        ((uint32_t)mpu_region->is_bufferable << MPU_RASR_B_Pos) |
+                        ((uint32_t)mpu_region->sub_region_disable << MPU_RASR_SRD_Pos) |
+                        ((uint32_t)mpu_region->size << MPU_RASR_SIZE_Pos) |
+                        ((uint32_t)mpu_region->enable << MPU_RASR_ENABLE_Pos);
 
                 printk("CPU: DCACHE disabled for MPU region %u [%lXh-%lXh]",
                         mpu_region->number, mpu_region->base_address,
-                        mpu_region->base_address
-                                + MPU_region_size_to_blk(mpu_region->size) - 1);
+                        mpu_region->base_address +
+                                MPU_region_size_to_blk(mpu_region->size) - 1);
         } else {
                 MPU->RBAR = 0x00;
                 MPU->RASR = 0x00;
