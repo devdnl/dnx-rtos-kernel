@@ -96,7 +96,7 @@ struct eth {
         uint8_t            *tx_buff;
         ETH_HandleTypeDef   eth;
         uint8_t             MAC_addr[6];
-        ETH_config_t        config;
+        ETHIF_config_t      config;
         bool                irq_yield;
         bool                configured;
         bool                run;
@@ -117,10 +117,10 @@ struct eth {
 ==============================================================================*/
 static int eth_start(struct eth *hdl);
 static int eth_stop(struct eth *hdl);
-static int eth_get_info(struct eth *hdl, ETH_status_t *status);
+static int eth_get_info(struct eth *hdl, ETHIF_status_t *status);
 static int eth_flush(struct eth *hdl);
-static int packet_receive(struct eth *hdl, ETH_packet_t *pkt);
-static int packet_send(struct eth *hdl, const ETH_packet_t *pkt);
+static int packet_receive(struct eth *hdl, ETHIF_packet_t *pkt);
+static int packet_send(struct eth *hdl, const ETHIF_packet_t *pkt);
 static void update_dropped_rx_frames(struct eth *hdl);
 
 /*==============================================================================
@@ -198,7 +198,7 @@ API_MOD_INIT(ETH, void **device_handle, u8_t major, u8_t minor, const void *conf
                                 #endif
 
                                 if (config) {
-                                        hdl->config = *cast(ETH_config_t*,config);
+                                        hdl->config = *cast(ETHIF_config_t*,config);
                                         eth->configured = true;
                                 }
                         }
@@ -330,7 +330,7 @@ API_MOD_WRITE(ETH,
         while (count > 0) {
                 size_t len = min(count, ETH_MAX_PACKET_SIZE);
 
-                ETH_packet_t pkt;
+                ETHIF_packet_t pkt;
                 pkt.payload = const_cast(src);
                 pkt.length  = len;
                 err = packet_send(hdl, &pkt);
@@ -374,7 +374,7 @@ API_MOD_READ(ETH,
 
         struct eth *hdl = device_handle;
 
-        ETH_packet_t pkt;
+        ETHIF_packet_t pkt;
         pkt.payload = dst;
         pkt.length  = min(count, ETH_MAX_PACKET_SIZE);
         int err = packet_receive(hdl, &pkt);
@@ -403,47 +403,47 @@ API_MOD_IOCTL(ETH, void *device_handle, int request, void *arg)
         int err = EINVAL;
 
         switch (request) {
-        case IOCTL_ETH__CONFIGURE:
+        case IOCTL_ETHIF__CONFIGURE:
                 if (arg) {
-                        hdl->config = *cast(ETH_config_t*, arg);
+                        hdl->config = *cast(ETHIF_config_t*, arg);
                         eth->configured = true;
                         err = 0;
                 }
                 break;
 
-        case IOCTL_ETH__SEND_PACKET:
+        case IOCTL_ETHIF__SEND_PACKET:
                 if (arg) {
                         err = packet_send(hdl, arg);
                 }
                 break;
 
-        case IOCTL_ETH__RECEIVE_PACKET:
+        case IOCTL_ETHIF__RECEIVE_PACKET:
                 if (arg) {
                         err = packet_receive(hdl, arg);
                 }
                 break;
 
-        case IOCTL_ETH__SET_RX_TIMEOUT:
+        case IOCTL_ETHIF__SET_RX_TIMEOUT:
                 if (arg) {
                         hdl->rx_timeout_ms = *cast(u32_t*, arg);
                 }
                 break;
 
-        case IOCTL_ETH__SET_TX_TIMEOUT:
+        case IOCTL_ETHIF__SET_TX_TIMEOUT:
                 if (arg) {
                         hdl->tx_timeout_ms = *cast(u32_t*, arg);
                 }
                 break;
 
-        case IOCTL_ETH__START:
+        case IOCTL_ETHIF__START:
                 err = eth_start(hdl);
                 break;
 
-        case IOCTL_ETH__STOP:
+        case IOCTL_ETHIF__STOP:
                 err = eth_stop(hdl);
                 break;
 
-        case IOCTL_ETH__GET_STATUS:
+        case IOCTL_ETHIF__GET_STATUS:
                 if (arg) {
                         err = eth_get_info(hdl, arg);
                 }
@@ -508,7 +508,7 @@ static int eth_start(struct eth *hdl)
         if (!err) {
                 if (not hdl->run and hdl->configured) {
 
-                        const ETH_config_t *conf = &hdl->config;
+                        const ETHIF_config_t *conf = &hdl->config;
 
                         HAL_ETH_DeInit(&hdl->eth);
 
@@ -517,8 +517,8 @@ static int eth_start(struct eth *hdl)
                         hdl->eth.Instance = ETH;
                         hdl->eth.Init.MACAddr = hdl->MAC_addr;
                         hdl->eth.Init.AutoNegotiation = conf->auto_negotiation ? ETH_AUTONEGOTIATION_ENABLE : ETH_AUTONEGOTIATION_DISABLE;
-                        hdl->eth.Init.Speed = (conf->speed == ETH_SPEED__100Mbps) ? ETH_SPEED_100M : ETH_SPEED_10M;
-                        hdl->eth.Init.DuplexMode = (conf->duplex == ETH_DUPLEX__FULL) ? ETH_MODE_FULLDUPLEX : ETH_MODE_HALFDUPLEX;
+                        hdl->eth.Init.Speed = (conf->speed == ETHIF_SPEED__100Mbps) ? ETHIF_SPEED_100M : ETHIF_SPEED_10M;
+                        hdl->eth.Init.DuplexMode = (conf->duplex == ETHIF_DUPLEX__FULL) ? ETH_MODE_FULLDUPLEX : ETH_MODE_HALFDUPLEX;
                         hdl->eth.Init.RxMode = ETH_RXINTERRUPT_MODE;
                         hdl->eth.Init.ChecksumMode = ETH_CHECKSUM_BY_HARDWARE;
                         hdl->eth.Init.PhyAddress = __ETH_PHY_ADDRESS__;
@@ -598,7 +598,7 @@ static int eth_stop(struct eth *hdl)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-static int eth_get_info(struct eth *hdl, ETH_status_t *status)
+static int eth_get_info(struct eth *hdl, ETHIF_status_t *status)
 {
         int err = sys_mutex_lock(hdl->mutex, MUTEX_TIMEOUT);
         if (!err) {
@@ -609,32 +609,32 @@ static int eth_get_info(struct eth *hdl, ETH_status_t *status)
                         if (HAL_ETH_ReadPHYRegister(&hdl->eth, PHY_BSR, &reg) == HAL_OK) {
 
                                 if (reg & PHY_BSR_LINK_STATUS) {
-                                        status->link_status = ETH_LINK_STATUS__CONNECTED;
+                                        status->link_status = ETHIF_LINK_STATUS__CONNECTED;
                                 } else {
-                                        status->link_status = ETH_LINK_STATUS__DISCONNECTED;
+                                        status->link_status = ETHIF_LINK_STATUS__DISCONNECTED;
                                 }
                         } else {
-                                status->link_status = ETH_LINK_STATUS__PHY_ERROR;
+                                status->link_status = ETHIF_LINK_STATUS__PHY_ERROR;
                         }
 
                         if (HAL_ETH_ReadPHYRegister(&hdl->eth, __ETH_PHY_SR__, &reg) == HAL_OK) {
 
                                 if (reg & __ETH_PHY_SPEED_STATUS_BM__) {
-                                        status->speed = ETH_SPEED__10Mbps;
+                                        status->speed = ETHIF_SPEED__10Mbps;
                                 } else {
-                                        status->speed = ETH_SPEED__100Mbps;
+                                        status->speed = ETHIF_SPEED__100Mbps;
                                 }
 
                                 if (reg & __ETH_PHY_DUPLEX_STATUS_BM__) {
-                                        status->duplex = ETH_DUPLEX__FULL;
+                                        status->duplex = ETHIF_DUPLEX__FULL;
                                 } else {
-                                        status->duplex = ETH_DUPLEX__HALF;
+                                        status->duplex = ETHIF_DUPLEX__HALF;
                                 }
                         } else {
-                                status->link_status = ETH_LINK_STATUS__PHY_ERROR;
+                                status->link_status = ETHIF_LINK_STATUS__PHY_ERROR;
                         }
                 } else {
-                        status->link_status = ETH_LINK_STATUS__PHY_ERROR;
+                        status->link_status = ETHIF_LINK_STATUS__PHY_ERROR;
                 }
 
                 memcpy(status->MAC, hdl->MAC_addr, sizeof(status->MAC));
@@ -646,21 +646,21 @@ static int eth_get_info(struct eth *hdl, ETH_status_t *status)
                 status->tx_packets = hdl->stats.tx_packets;
 
                 switch (HAL_ETH_GetState(&hdl->eth)) {
-                case HAL_ETH_STATE_RESET:
-                        status->state = ETH_STATE__RESET;
+                case HAL_ETHIF_STATE_RESET:
+                        status->state = ETHIF_STATE__RESET;
                         break;
-                case HAL_ETH_STATE_READY:
-                case HAL_ETH_STATE_BUSY:
-                case HAL_ETH_STATE_BUSY_TX:
-                case HAL_ETH_STATE_BUSY_RX:
-                case HAL_ETH_STATE_BUSY_TX_RX:
-                case HAL_ETH_STATE_BUSY_WR:
-                case HAL_ETH_STATE_BUSY_RD:
-                        status->state = ETH_STATE__READY;
+                case HAL_ETHIF_STATE_READY:
+                case HAL_ETHIF_STATE_BUSY:
+                case HAL_ETHIF_STATE_BUSY_TX:
+                case HAL_ETHIF_STATE_BUSY_RX:
+                case HAL_ETHIF_STATE_BUSY_TX_RX:
+                case HAL_ETHIF_STATE_BUSY_WR:
+                case HAL_ETHIF_STATE_BUSY_RD:
+                        status->state = ETHIF_STATE__READY;
                         break;
-                case HAL_ETH_STATE_TIMEOUT:
-                case HAL_ETH_STATE_ERROR:
-                        status->state = ETH_STATE__ERROR;
+                case HAL_ETHIF_STATE_TIMEOUT:
+                case HAL_ETHIF_STATE_ERROR:
+                        status->state = ETHIF_STATE__ERROR;
                         break;
                 }
 
@@ -716,7 +716,7 @@ static int eth_flush(struct eth *hdl)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-static int packet_send(struct eth *hdl, const ETH_packet_t *pkt)
+static int packet_send(struct eth *hdl, const ETHIF_packet_t *pkt)
 {
         int err = hdl->run ? ESUCC : EPERM;
 
@@ -784,7 +784,7 @@ static int packet_send(struct eth *hdl, const ETH_packet_t *pkt)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-static int packet_receive(struct eth *hdl, ETH_packet_t *pkt)
+static int packet_receive(struct eth *hdl, ETHIF_packet_t *pkt)
 {
         int err = hdl->run ? ESUCC : EPERM;
 

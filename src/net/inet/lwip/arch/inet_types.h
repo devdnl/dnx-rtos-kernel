@@ -69,7 +69,7 @@ typedef struct {
         bool         disconnected:1;
         bool         configured:1;
         bool         thread_run:1;
-        u8_t         frame[IOCTL_ETH_MAX_PACKET_SIZE];
+        u8_t         frame[1524];
         kqueue_t    *loq;
 } inet_t;
 

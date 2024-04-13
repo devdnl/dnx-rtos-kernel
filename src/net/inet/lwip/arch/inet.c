@@ -171,14 +171,14 @@ static void restore_configuration(inet_t *inet)
                         }
                 }
 
-                err = sys_ioctl(inet->if_file, IOCTL_ETH__STOP);
+                err = sys_ioctl(inet->if_file, IOCTL_ETHIF__STOP);
                 if (err) {
                         printk("INET: ETH stop fail (%d)", err);
                 }
 
                 _inetdrv_get_MAC(inet, inet->netif.hwaddr);
 
-                err = sys_ioctl(inet->if_file, IOCTL_ETH__START);
+                err = sys_ioctl(inet->if_file, IOCTL_ETHIF__START);
                 if (err) {
                         printk("INET: ETH start fail (%d)", err);
                 }

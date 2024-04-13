@@ -88,18 +88,18 @@
 void _inetdrv_handle_input(inet_t *inet, u32_t timeout)
 {
         u32_t trx = 10;
-        sys_ioctl(inet->if_file, IOCTL_ETH__SET_RX_TIMEOUT, &trx);
+        sys_ioctl(inet->if_file, IOCTL_ETHIF__SET_RX_TIMEOUT, &trx);
 
         clock_t tref = sys_get_uptime_ms();
 
         while (inet->thread_run) {
-                ETH_packet_t pkt;
+                ETHIF_packet_t pkt;
                 pkt.payload = inet->frame;
                 pkt.length  = sizeof(inet->frame);
 
                 struct pbuf *p;
 
-                int err = sys_ioctl(inet->if_file, IOCTL_ETH__RECEIVE_PACKET, &pkt);
+                int err = sys_ioctl(inet->if_file, IOCTL_ETHIF__RECEIVE_PACKET, &pkt);
                 if (!err) {
                         LWIP_DEBUGF(INET_DEBUG, ("_inetdrv_handle_input: received = %d\n", pkt.length));
 
@@ -187,11 +187,11 @@ err_t _inetdrv_handle_output(struct netif *netif, struct pbuf *p)
 
       } else {
 
-              ETH_packet_t pkt;
+              ETHIF_packet_t pkt;
               pkt.payload = p->payload;
               pkt.length  = p->len;
 
-              if (sys_ioctl(inet->if_file, IOCTL_ETH__SEND_PACKET, &pkt) == 0) {
+              if (sys_ioctl(inet->if_file, IOCTL_ETHIF__SEND_PACKET, &pkt) == 0) {
                       inet->tx_packets++;
                       inet->tx_bytes += pkt.length;
                       return ERR_OK;
@@ -217,10 +217,10 @@ err_t _inetdrv_handle_output(struct netif *netif, struct pbuf *p)
 //==============================================================================
 bool _inetdrv_is_link_connected(inet_t *inet)
 {
-        ETH_status_t status;
-        int err = sys_ioctl(inet->if_file, IOCTL_ETH__GET_STATUS, &status);
+        ETHIF_status_t status;
+        int err = sys_ioctl(inet->if_file, IOCTL_ETHIF__GET_STATUS, &status);
         if (!err) {
-                return status.link_status == ETH_LINK_STATUS__CONNECTED;
+                return status.link_status == ETHIF_LINK_STATUS__CONNECTED;
         } else {
                 return false;
         }
@@ -238,8 +238,8 @@ bool _inetdrv_is_link_connected(inet_t *inet)
 //==============================================================================
 int _inetdrv_get_MAC(inet_t *inet, u8_t MAC[6])
 {
-        ETH_status_t status;
-        int err = sys_ioctl(inet->if_file, IOCTL_ETH__GET_STATUS, &status);
+        ETHIF_status_t status;
+        int err = sys_ioctl(inet->if_file, IOCTL_ETHIF__GET_STATUS, &status);
         if (!err) {
                 memcpy(MAC, status.MAC, sizeof(status.MAC));
                 return 0;
