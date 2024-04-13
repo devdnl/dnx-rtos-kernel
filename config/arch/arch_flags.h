@@ -825,6 +825,15 @@ __ENABLE_DMA__=_NO_
 #*/
 
 #/*--
+# this:PutWidgets("ENC28J60")
+# this:SetToolTip("ENC28J60 chip driver")
+#--*/
+#define __ENABLE_ENC28J60__ _NO_
+#/*
+__ENABLE_ENC28J60__=_NO_
+#*/
+
+#/*--
 # if uC.PERIPH[uC.NAME].EMI ~= nil then
 #     this:PutWidgets("EMI", "arch/"..uC.ARCH.."/emi_flags.h")
 #     this:SetToolTip("External Memory Interface")
@@ -1141,15 +1150,6 @@ __ENABLE_WDG__=_NO_
 #define __ENABLE_ZERO__ _NO_
 #/*
 __ENABLE_ZERO__=_NO_
-#*/
-
-#/*--
-# this:PutWidgets("ENC28J60", "arch/noarch/enc28j60_flags.h")
-# this:SetToolTip("ENC28J60 chip driver")
-#--*/
-#define __ENABLE_ENC28J60__ _NO_
-#/*
-__ENABLE_ENC28J60__=_NO_
 #*/
 
 #// MODULE LIST END
