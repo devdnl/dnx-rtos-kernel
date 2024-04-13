@@ -517,7 +517,7 @@ static int eth_start(struct eth *hdl)
                         hdl->eth.Instance = ETH;
                         hdl->eth.Init.MACAddr = hdl->MAC_addr;
                         hdl->eth.Init.AutoNegotiation = conf->auto_negotiation ? ETH_AUTONEGOTIATION_ENABLE : ETH_AUTONEGOTIATION_DISABLE;
-                        hdl->eth.Init.Speed = (conf->speed == ETHIF_SPEED__100Mbps) ? ETHIF_SPEED_100M : ETHIF_SPEED_10M;
+                        hdl->eth.Init.Speed = (conf->speed == ETHIF_SPEED__100Mbps) ? ETH_SPEED_100M : ETH_SPEED_10M;
                         hdl->eth.Init.DuplexMode = (conf->duplex == ETHIF_DUPLEX__FULL) ? ETH_MODE_FULLDUPLEX : ETH_MODE_HALFDUPLEX;
                         hdl->eth.Init.RxMode = ETH_RXINTERRUPT_MODE;
                         hdl->eth.Init.ChecksumMode = ETH_CHECKSUM_BY_HARDWARE;
@@ -646,20 +646,20 @@ static int eth_get_info(struct eth *hdl, ETHIF_status_t *status)
                 status->tx_packets = hdl->stats.tx_packets;
 
                 switch (HAL_ETH_GetState(&hdl->eth)) {
-                case HAL_ETHIF_STATE_RESET:
+                case HAL_ETH_STATE_RESET:
                         status->state = ETHIF_STATE__RESET;
                         break;
-                case HAL_ETHIF_STATE_READY:
-                case HAL_ETHIF_STATE_BUSY:
-                case HAL_ETHIF_STATE_BUSY_TX:
-                case HAL_ETHIF_STATE_BUSY_RX:
-                case HAL_ETHIF_STATE_BUSY_TX_RX:
-                case HAL_ETHIF_STATE_BUSY_WR:
-                case HAL_ETHIF_STATE_BUSY_RD:
+                case HAL_ETH_STATE_READY:
+                case HAL_ETH_STATE_BUSY:
+                case HAL_ETH_STATE_BUSY_TX:
+                case HAL_ETH_STATE_BUSY_RX:
+                case HAL_ETH_STATE_BUSY_TX_RX:
+                case HAL_ETH_STATE_BUSY_WR:
+                case HAL_ETH_STATE_BUSY_RD:
                         status->state = ETHIF_STATE__READY;
                         break;
-                case HAL_ETHIF_STATE_TIMEOUT:
-                case HAL_ETHIF_STATE_ERROR:
+                case HAL_ETH_STATE_TIMEOUT:
+                case HAL_ETH_STATE_ERROR:
                         status->state = ETHIF_STATE__ERROR;
                         break;
                 }

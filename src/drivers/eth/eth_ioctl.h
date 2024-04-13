@@ -150,6 +150,7 @@ while (true) {
   Include files
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
+#include "drivers/class/ethif.h"
 
 #ifdef __cplusplus
 extern "C" {

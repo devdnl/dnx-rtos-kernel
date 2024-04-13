@@ -113,38 +113,54 @@ typedef struct {
 } ETHIF_packet_t;
 
 /**
+ * Type represent .
+ */
+enum ETHIF_state {
+        ETHIF_STATE__RESET,
+        ETHIF_STATE__READY,
+        ETHIF_STATE__ERROR,
+};
+
+/**
+ * Type represent link status.
+ */
+enum ETHIF_link_status {
+        ETHIF_LINK_STATUS__DISCONNECTED,
+        ETHIF_LINK_STATUS__CONNECTED,
+        ETHIF_LINK_STATUS__PHY_ERROR,
+};
+
+/**
+ * Type represent interface speed.
+ */
+enum ETHIF_speed {
+        ETHIF_SPEED__10Mbps,
+        ETHIF_SPEED__100Mbps,
+};
+
+/**
+ * Type represent interface duplex.
+ */
+enum ETHIF_duplex {
+        ETHIF_DUPLEX__HALF,
+        ETHIF_DUPLEX__FULL,
+};
+
+/**
  * Type represent ethernet status.
  */
 typedef struct {
-        enum ETHIF_state {
-                ETHIF_STATE__RESET,
-                ETHIF_STATE__READY,
-                ETHIF_STATE__ERROR,
-        } state;
-
-        enum ETHIF_link_status {
-                ETHIF_LINK_STATUS__DISCONNECTED,
-                ETHIF_LINK_STATUS__CONNECTED,
-                ETHIF_LINK_STATUS__PHY_ERROR,
-        } link_status;
-
-        enum ETHIF_speed {
-                ETHIF_SPEED__10Mbps,
-                ETHIF_SPEED__100Mbps,
-        } speed;
-
-        enum ETHIF_duplex {
-                ETHIF_DUPLEX__HALF,
-                ETHIF_DUPLEX__FULL,
-        } duplex;
-
-        bool  configured;
-        u8_t  MAC[6];
-        u64_t rx_packets;
-        u64_t tx_packets;
-        u64_t rx_bytes;
-        u64_t tx_bytes;
-        u32_t rx_dropped_frames;
+        enum ETHIF_state       state;
+        enum ETHIF_link_status link_status;
+        enum ETHIF_speed       speed;
+        enum ETHIF_duplex      duplex;
+        bool                   configured;
+        u8_t                   MAC[6];
+        u64_t                  rx_packets;
+        u64_t                  tx_packets;
+        u64_t                  rx_bytes;
+        u64_t                  tx_bytes;
+        u32_t                  rx_dropped_frames;
 } ETHIF_status_t;
 
 /**

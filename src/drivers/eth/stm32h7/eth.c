@@ -609,14 +609,14 @@ static int eth_get_info(struct eth *hdl, ETHIF_status_t *status)
                 status->tx_packets = hdl->stats.tx_packets;
 
                 switch (HAL_ETH_GetState(&hdl->eth)) {
-                case HAL_ETHIF_STATE_RESET:
+                case HAL_ETH_STATE_RESET:
                         status->state = ETHIF_STATE__RESET;
                         break;
-                case HAL_ETHIF_STATE_READY:
-                case HAL_ETHIF_STATE_BUSY:
+                case HAL_ETH_STATE_READY:
+                case HAL_ETH_STATE_BUSY:
                         status->state = ETHIF_STATE__READY;
                         break;
-                case HAL_ETHIF_STATE_ERROR:
+                case HAL_ETH_STATE_ERROR:
                         status->state = ETHIF_STATE__ERROR;
                         break;
                 }
@@ -780,8 +780,8 @@ static int packet_receive(struct eth *hdl, ETHIF_packet_t *pkt)
 //==============================================================================
 static int configure_PHY(struct eth *hdl)
 {
-        enum ETHIF_SPEED  speed  = hdl->config.speed;
-        enum ETHIF_DUPLEX duplex = hdl->config.duplex;
+        enum ETHIF_speed  speed  = hdl->config.speed;
+        enum ETHIF_duplex duplex = hdl->config.duplex;
         uint32_t phyreg;
 
         int err = HAL_ETH_WritePHYRegister(&hdl->eth, __ETH_PHY_ADDRESS__, PHY_BCR, PHY_RESET);
@@ -859,7 +859,7 @@ static int configure_PHY(struct eth *hdl)
                 ETH_MACConfigTypeDef MACConf;
                 HAL_ETH_GetMACConfig(&hdl->eth, &MACConf);
 
-                MACConf.Speed = (speed == ETHIF_SPEED__100Mbps) ? ETHIF_SPEED_100M : ETHIF_SPEED_10M;
+                MACConf.Speed = (speed == ETHIF_SPEED__100Mbps) ? ETH_SPEED_100M : ETH_SPEED_10M;
                 MACConf.DuplexMode = (duplex == ETHIF_DUPLEX__FULL) ? ETH_FULLDUPLEX_MODE : ETH_HALFDUPLEX_MODE;
 
                 HAL_ETH_SetMACConfig(&hdl->eth, &MACConf);
