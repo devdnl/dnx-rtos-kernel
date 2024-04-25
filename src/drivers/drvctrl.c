@@ -48,7 +48,7 @@
 ==============================================================================*/
 #undef errno
 
-#define DRIVER_NAME             "Driver %s%d-%d"
+#define DRIVER_NAME             "Driver %s:%d-%d"
 #define DRIVER_NAME_ARGS        module, major, minor
 
 /*==============================================================================

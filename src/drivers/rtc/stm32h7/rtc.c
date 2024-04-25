@@ -65,6 +65,13 @@ static uint8_t byte_to_BCD(uint8_t value);
 ==============================================================================*/
 MODULE_NAME(RTC);
 
+static const struct rtc_hdl {
+        u8_t major;
+        u8_t minor;
+} HDL;
+
+static const struct rtc_hdl *hdl = &HDL;
+
 static const pre_t PRE[] = {
         {.apre = 127, .spre = 255}, // no clock
         {.apre = 127, .spre = 255}, // 32768 LSE
@@ -145,7 +152,7 @@ API_MOD_INIT(RTC, void **device_handle, u8_t major, u8_t minor, const void *conf
                 }
                 sys_critical_section_end();
         } else {
-                printk("RTC: already initialized");
+                dev_dbg(hdl, "already initialized.");
         }
 
         return err;

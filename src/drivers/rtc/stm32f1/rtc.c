@@ -46,6 +46,13 @@
 /*==============================================================================
   Local object types
 ==============================================================================*/
+static const struct rtc_hdl {
+        u8_t major;
+        u8_t minor;
+} HDL;
+
+static const struct rtc_hdl *hdl = &HDL;
+
 static const u32_t PRE[] = {1, 32767, 39999, (__CPU_OSC_FREQ__ / 128) - 1};
 
 /*==============================================================================
@@ -119,6 +126,8 @@ API_MOD_INIT(RTC, void **device_handle, u8_t major, u8_t minor, const void *conf
                 SET_BIT(RCC->BDCR, RCC_BDCR_RTCEN);
 
                 sys_critical_section_end();
+        } else {
+                dev_dbg(hdl, "already initialized.");
         }
 
         return ESUCC;

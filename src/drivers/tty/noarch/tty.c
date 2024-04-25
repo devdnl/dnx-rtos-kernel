@@ -133,7 +133,7 @@ API_MOD_INIT(TTY, void **device_handle, u8_t major, u8_t minor, const void *conf
                                 sys_free(cast(void**, &io));
                         }
                 } else {
-                        printk("TTY: thread ID: %u", io->service_in);
+                        dev_dbg2(major, minor, "thread ID: %u", io->service_in);
                 }
 
         } else {
