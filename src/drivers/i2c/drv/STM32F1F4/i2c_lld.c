@@ -388,10 +388,12 @@ static void clear_address_event(I2C_dev_t *hdl)
  * @return Timeout in milliseconds.
  */
 //==============================================================================
+#if USE_DMA > 0
 static u32_t calc_timeout(I2C_dev_t *hdl, size_t count)
 {
         return (6*((I2C_HW[hdl->major].freq / 10) * count) / 5) / 1000;
 }
+#endif
 
 //==============================================================================
 /**
