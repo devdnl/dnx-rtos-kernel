@@ -35,6 +35,7 @@ Brief    Network management.
 #include "net/cannet/cannet.h"
 #include "net/inet/inet.h"
 #include "net/sipc/sipc.h"
+#include "net/uds/uds.h"
 
 /*==============================================================================
   Local macros
@@ -142,6 +143,9 @@ static int socket_alloc(ksocket_t **socket, NETM_family_t family, const char *ne
 #if __ENABLE_CANNET_STACK__ > 0
                 [NETM_FAMILY__CANNET] = _mm_align(sizeof(CANNET_socket_t)),
 #endif
+#if __ENABLE_UDS_STACK__ > 0
+                [NETM_FAMILY__UDS] = _mm_align(sizeof(UDS_socket_t)),
+#endif
         };
 
         int err = _kzalloc(_MM_NET,
@@ -194,12 +198,13 @@ static void socket_free(ksocket_t **socket)
 //==============================================================================
 static bool is_socket_valid(ksocket_t *socket)
 {
-        return _mm_is_object_in_heap(socket) && (socket->header.type == RES_TYPE_SOCKET)
-                && (socket->header.self == socket)
-                && (socket->family < _NETM_FAMILY__COUNT) && (socket->netname != NULL)
-                && (socket->mutex)
-                && (socket->ctx
-                        == cast(void *,
+        return _mm_is_object_in_heap(socket) &&
+                (socket->header.type == RES_TYPE_SOCKET) &&
+                (socket->header.self == socket) &&
+                (socket->family < _NETM_FAMILY__COUNT) && (socket->netname != NULL) &&
+                (socket->mutex) &&
+                (socket->ctx ==
+                        cast(void *,
                                 cast(size_t, socket) + _mm_align(sizeof(ksocket_t))));
 }
 
@@ -219,8 +224,8 @@ static void *get_stack_context(const char *netname, size_t *idx)
 
                 for (size_t n = 0; n < ARRAY_SIZE(net_list); n++) {
 
-                        if ((net_list[n].netname == netname)
-                                || isstreq(net_list[n].netname, netname)) {
+                        if ((net_list[n].netname == netname) ||
+                                isstreq(net_list[n].netname, netname)) {
 
                                 ctx = net_list[n].stack_ctx;
                                 if (idx) {
@@ -253,8 +258,8 @@ static NETM_family_t get_net_family_by_name(const char *netname)
 
                 for (size_t n = 0; n < ARRAY_SIZE(net_list); n++) {
 
-                        if ((net_list[n].netname == netname)
-                                || isstreq(net_list[n].netname, netname)) {
+                        if ((net_list[n].netname == netname) ||
+                                isstreq(net_list[n].netname, netname)) {
 
                                 family = net_list[n].family;
                                 break;
@@ -284,7 +289,7 @@ int _net_init(void)
  * @brief Function add stack .
  * @param netname       network name
  * @param family        network family
- * @param if_path       interface path
+ * @param if_path       interface path (can be NULL)
  * @return Stack context.
  */
 //==============================================================================
@@ -300,11 +305,14 @@ int _net_ifadd(const char *netname, NETM_family_t family, const char *if_path)
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_ifinit(CANNET),
 #endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_ifinit(UDS),
+#endif
         };
 
         int err = EINVAL;
 
-        if (netname && (family < _NETM_FAMILY__COUNT) && if_path) {
+        if (netname && (family < _NETM_FAMILY__COUNT)) {
                 if (not netm_mutex) {
                         err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &netm_mutex);
                 }
@@ -362,6 +370,9 @@ int _net_ifrm(const char *netname)
 #endif
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_ifdeinit(CANNET),
+#endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_ifdeinit(UDS),
 #endif
         };
 
@@ -453,6 +464,9 @@ int _net_ifup(const char *netname, const NETM_generic_config_t *config,
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_ifup(CANNET),
 #endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_ifup(UDS),
+#endif
         };
 
         int err = EINVAL;
@@ -484,6 +498,9 @@ int _net_ifdown(const char *netname)
 #endif
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_ifdown(CANNET),
+#endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_ifdown(UDS),
 #endif
         };
 
@@ -521,6 +538,9 @@ int _net_ifstatus(const char *netname, NETM_family_t *family,
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_ifstatus(CANNET),
 #endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_ifstatus(UDS),
+#endif
         };
 
         int err = EINVAL;
@@ -555,6 +575,9 @@ int _net_socket_create(const char *netname, NETM_protocol_t protocol, ksocket_t 
 #endif
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_create(CANNET),
+#endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_socket_create(UDS),
 #endif
         };
 
@@ -603,6 +626,9 @@ int _net_socket_destroy(ksocket_t *socket)
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_destroy(CANNET),
 #endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_socket_destroy(UDS),
+#endif
         };
 
         int err = EINVAL;
@@ -640,6 +666,9 @@ int _net_socket_bind(ksocket_t *socket, const NETM_generic_sockaddr_t *addr,
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_bind(CANNET),
 #endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_socket_bind(UDS),
+#endif
         };
 
         int err = EINVAL;
@@ -675,6 +704,9 @@ int _net_socket_listen(ksocket_t *socket)
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_listen(CANNET),
 #endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_socket_listen(UDS),
+#endif
         };
 
         int err = EINVAL;
@@ -709,6 +741,9 @@ int _net_socket_accept(ksocket_t *socket, ksocket_t **new_socket)
 #endif
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_accept(CANNET),
+#endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_socket_accept(UDS),
 #endif
         };
 
@@ -756,6 +791,9 @@ int _net_socket_recv(ksocket_t *socket, void *buf, size_t len, NETM_flags_t flag
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_recv(CANNET),
 #endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_socket_recv(UDS),
+#endif
         };
 
         int err = EINVAL;
@@ -798,12 +836,15 @@ int _net_socket_recvfrom(ksocket_t *socket, void *buf, size_t len, NETM_flags_t 
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_recvfrom(CANNET),
 #endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_socket_recvfrom(UDS),
+#endif
         };
 
         int err = EINVAL;
 
-        if (is_socket_valid(socket) && buf && len && sockaddr && sockaddr_size
-                && recved) {
+        if (is_socket_valid(socket) && buf && len && sockaddr && sockaddr_size &&
+                recved) {
                 if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
                         void *ctx = get_stack_context(socket->netname, NULL);
                         err = call_proxy_function(socket->family, ctx, socket->ctx, buf,
@@ -838,6 +879,9 @@ int _net_socket_send(ksocket_t *socket, const void *buf, size_t len, NETM_flags_
 #endif
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_send(CANNET),
+#endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_socket_send(UDS),
 #endif
         };
 
@@ -880,6 +924,9 @@ int _net_socket_sendto(ksocket_t *socket, const void *buf, size_t len, NETM_flag
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_sendto(CANNET),
 #endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_socket_sendto(UDS),
+#endif
         };
 
         int err = EINVAL;
@@ -915,6 +962,9 @@ int _net_socket_set_recv_timeout(ksocket_t *socket, uint32_t timeout)
 #endif
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_set_recv_timeout(CANNET),
+#endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_socket_set_recv_timeout(UDS),
 #endif
         };
 
@@ -952,6 +1002,9 @@ int _net_socket_set_send_timeout(ksocket_t *socket, uint32_t timeout)
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_set_send_timeout(CANNET),
 #endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_socket_set_send_timeout(UDS),
+#endif
         };
 
         int err = EINVAL;
@@ -988,6 +1041,9 @@ int _net_socket_get_recv_timeout(ksocket_t *socket, uint32_t *timeout)
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_get_recv_timeout(CANNET),
 #endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_socket_get_recv_timeout(UDS),
+#endif
         };
 
         int err = EINVAL;
@@ -1023,6 +1079,9 @@ int _net_socket_get_send_timeout(ksocket_t *socket, uint32_t *timeout)
 #endif
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_get_send_timeout(CANNET),
+#endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_socket_get_send_timeout(UDS),
 #endif
         };
 
@@ -1062,6 +1121,9 @@ int _net_socket_connect(ksocket_t *socket, const NETM_generic_sockaddr_t *addr,
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_connect(CANNET),
 #endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_socket_connect(UDS),
+#endif
         };
 
         int err = EINVAL;
@@ -1097,6 +1159,9 @@ int _net_socket_disconnect(ksocket_t *socket)
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_disconnect(CANNET),
 #endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_socket_disconnect(UDS),
+#endif
         };
 
         int err = EINVAL;
@@ -1131,6 +1196,9 @@ int _net_socket_shutdown(ksocket_t *socket, NETM_shut_t how)
 #endif
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_shutdown(CANNET),
+#endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_socket_shutdown(UDS),
 #endif
         };
 
@@ -1168,6 +1236,9 @@ int _net_socket_getaddress(ksocket_t *socket, NETM_generic_sockaddr_t *sockaddr,
 #endif
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_socket_getaddress(CANNET),
+#endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_socket_getaddress(UDS),
 #endif
         };
 
@@ -1208,6 +1279,9 @@ int _net_gethostbyname(const char *netname, const char *name,
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_gethostbyname(CANNET),
 #endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_gethostbyname(UDS),
+#endif
         };
 
         int err = EINVAL;
@@ -1244,6 +1318,9 @@ u16_t _net_hton_u16(NETM_family_t family, u16_t value)
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_hton_u16(CANNET),
 #endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_hton_u16(UDS),
+#endif
         };
 
         if (family < _NETM_FAMILY__COUNT) {
@@ -1273,6 +1350,9 @@ u32_t _net_hton_u32(NETM_family_t family, u32_t value)
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_hton_u32(CANNET),
 #endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_hton_u32(UDS),
+#endif
         };
 
         if (family < _NETM_FAMILY__COUNT) {
@@ -1301,6 +1381,9 @@ u64_t _net_hton_u64(NETM_family_t family, u64_t value)
 #endif
 #if __ENABLE_CANNET_STACK__ > 0
                 PROXY_hton_u64(CANNET),
+#endif
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_hton_u64(UDS),
 #endif
         };
 

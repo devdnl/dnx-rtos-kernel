@@ -2,6 +2,11 @@
 ifeq ($(_ENABLE_NETWORK_), _YES_)
    CSRC_CORE += net/netm.c
    
+   ifeq ($(__ENABLE_UDS_STACK__), _YES_)
+      CSRC_CORE   += net/uds/uds.c
+      HDRLOC_CORE += net/uds
+   endif
+   
    ifeq ($(__ENABLE_TCPIP_STACK__), _YES_)
       CSRC_CORE   += net/inet/lwip/core/init.c
       CSRC_CORE   += net/inet/lwip/core/def.c
@@ -52,14 +57,14 @@ ifeq ($(_ENABLE_NETWORK_), _YES_)
    endif
    
    ifeq ($(__ENABLE_SIPC_STACK__), _YES_)
-   	CSRC_CORE   += net/sipc/sipc.c
-   	CSRC_CORE   += net/sipc/sipcbuf.c
-   	HDRLOC_CORE += net/sipc
+      CSRC_CORE   += net/sipc/sipc.c
+      CSRC_CORE   += net/sipc/sipcbuf.c
+      HDRLOC_CORE += net/sipc
    endif
    
    ifeq ($(__ENABLE_CANNET_STACK__), _YES_)
-   	CSRC_CORE   += net/cannet/cannet.c
-   	CSRC_CORE   += net/cannet/cannetbuf.c
-   	HDRLOC_CORE += net/cannet
+      CSRC_CORE   += net/cannet/cannet.c
+      CSRC_CORE   += net/cannet/cannetbuf.c
+      HDRLOC_CORE += net/cannet
    endif
 endif

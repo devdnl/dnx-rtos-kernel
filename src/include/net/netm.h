@@ -96,9 +96,11 @@ extern "C" {
 ------------------------------------------------------------------------------*/
 /** Network family. */
 typedef enum {
-        NETM_FAMILY__INET,   //!< Internet network.
-        NETM_FAMILY__SIPC,   //!< Serial Inter-Processor Communication
-        NETM_FAMILY__CANNET, //!< CAN network Communication
+        NETM_FAMILY__INET,                    //!< Internet network.
+        NETM_FAMILY__SIPC,                    //!< Serial Inter-Processor Communication
+        NETM_FAMILY__CANNET,                  //!< CAN network Communication
+        NETM_FAMILY__UNIX,                    //!< Unix Domain Socket Communication
+        NETM_FAMILY__UDS = NETM_FAMILY__UNIX, //!< Unix Domain Socket Communication
         _NETM_FAMILY__COUNT
 } NETM_family_t;
 
@@ -252,6 +254,34 @@ typedef struct {
         u16_t addr; /*!< Address.*/
         u8_t  port; /*!< Port.*/
 } NETM_CANNET_sockaddr_t;
+
+/*------------------------------------------------------------------------------
+  UDS NETWORK FAMILY
+------------------------------------------------------------------------------*/
+/** UDS network state. */
+typedef enum {
+        NETM_UDS_STATE__DOWN, //!< Network not configured.
+        NETM_UDS_STATE__UP,   //!< Network configured.
+} NETM_UDS_state_t;
+
+/** UDS configuration. */
+typedef struct {
+        u32_t stub;
+} NETM_UDS_config_t;
+
+/** UDS status. */
+typedef struct {
+        NETM_UDS_state_t state;      /*!< Connection state.*/
+        u64_t            tx_bytes;   /*!< Number of transmitted bytes.*/
+        u64_t            rx_bytes;   /*!< Number of received bytes.*/
+        u64_t            tx_packets; /*!< Number of transmitted packets.*/
+        u64_t            rx_packets; /*!< Number of received packets.*/
+} NETM_UDS_status_t;
+
+/** UDS socket address. */
+typedef struct {
+        char path[64];
+} NETM_UDS_sockaddr_t;
 
 /*==============================================================================
   Exported objects
