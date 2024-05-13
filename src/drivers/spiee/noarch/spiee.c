@@ -228,7 +228,7 @@ API_MOD_WRITE(SPIEE, void *device_handle, const u8_t *src, size_t count, fpos_t 
                         taddr.next      = &tdata;
 
                         u32_t addr = *fpos;
-                        count      = min(count, *fpos - hdl->memory_size);
+                        count      = min(count, hdl->memory_size - *fpos);
 
                         while (!err && count) {
                                 get_address(hdl, addr, addr_buf);
@@ -315,7 +315,7 @@ API_MOD_READ(SPIEE, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
 
                         tdata.tx_buffer = NULL;
                         tdata.rx_buffer = dst;
-                        tdata.count     = min(count, *fpos - hdl->memory_size);
+                        tdata.count     = min(count, hdl->memory_size - *fpos);
                         tdata.separated = false;
                         tdata.next      = NULL;
 
