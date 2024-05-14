@@ -847,9 +847,9 @@ static inline int sys_pipe_clear(pipe_t *pipe)
  * @return Return pointer to programs table
  */
 //==============================================================================
-static inline const _program_table_desc_t *sys_get_programs_table(void)
+static inline const appset_table_t *sys_get_program_table(void)
 {
-        return _get_programs_table();
+        return _process_get_appset_table();
 }
 
 //==============================================================================

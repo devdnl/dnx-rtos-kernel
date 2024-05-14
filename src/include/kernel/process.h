@@ -116,6 +116,11 @@ struct _process {
         task_data_t taskdata[__OS_PROCESS_MAX_THREADS__]; //!< array of tasks data
 };
 
+typedef struct appset_table {
+        const _program_table_desc_t *table;
+        struct appset_table         *next;
+} appset_table_t;
+
 /*==============================================================================
   Exported object declarations
 ==============================================================================*/
@@ -126,6 +131,7 @@ extern void *_app_ctx;
 /*==============================================================================
   Exported function prototypes
 ==============================================================================*/
+extern void        _process_init(void);
 extern void        _process_clean_up_killed_processes(void);
 extern int         _process_create(const char *, const _process_attr_t *, pid_t *);
 extern int         _process_kill(pid_t);
@@ -171,8 +177,8 @@ extern void        _task_get_process_container(task_t *, _process_t **, tid_t *)
 extern void        _task_get_process_container_unprotected(task_t *, _process_t **);
 extern int _process_thread_create(_process_t *, thread_func_t, const _thread_attr_t *,
         void *, tid_t *);
-
-extern const _program_table_desc_t *_get_programs_table(void);
+extern const appset_table_t *_process_get_appset_table(void);
+extern int                   _process_register_appset(const void **, size_t);
 
 /*==============================================================================
   Exported inline functions

@@ -96,7 +96,7 @@ void dnxinit(void *arg)
 #if _ENABLE_NETWORK_
         _net_init();
 #endif
-
+        _process_init();
         _syscall_init();
 
         /*

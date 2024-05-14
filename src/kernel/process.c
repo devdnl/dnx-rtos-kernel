@@ -137,6 +137,7 @@ static kmtx_t         *process_mtx;
 static bool            process_mtx_locked;
 static kmtx_t         *kworker_mtx;
 static dchain_t        shared_desctab;
+static appset_table_t  appset_base;
 
 /*==============================================================================
   Exported object definitions
@@ -161,6 +162,25 @@ extern u32_t _uptime_counter_sec;
 /*==============================================================================
   Function definitions
 ==============================================================================*/
+
+//==============================================================================
+/**
+ * @brief  Initialize process module.
+ */
+//==============================================================================
+void _process_init(void)
+{
+        /*
+         * Register main program table
+         */
+        if (__PROJ_APPSET_TABLE_ADDRESS__ == UINT32_MAX) {
+                extern void *__text_end;
+                appset_base.table = cast(const _program_table_desc_t *const, &__text_end);
+        } else {
+                appset_base.table = cast(const _program_table_desc_t *const,
+                        __PROJ_APPSET_TABLE_ADDRESS__);
+        }
+}
 
 //==============================================================================
 /**
@@ -1706,10 +1726,14 @@ bool _process_is_consistent(bool isr)
                 }
 
                 bool found = (p->pdata->main == _syscall_kworker_process);
-                const _program_table_desc_t *const program_table = _get_programs_table();
-                for (size_t i = 0; (i < program_table->number_of_programs) && !found;
-                        i++) {
-                        found = (p->pdata == &program_table->program_entry[i]);
+
+                for (appset_table_t *appset = &appset_base; appset;
+                        appset              = appset->next) {
+
+                        for (size_t i = 0;
+                                (i < appset->table->number_of_programs) && !found; i++) {
+                                found = (p->pdata == &appset->table->program_entry[i]);
+                        }
                 }
                 if (not found) {
                         if (not isr) {
@@ -3033,21 +3057,54 @@ static void argtab_destroy(char **argv)
  * @return Program table address.
  */
 //==============================================================================
-const _program_table_desc_t *_get_programs_table(void)
+const appset_table_t *_process_get_appset_table(void)
 {
-        const _program_table_desc_t *prog_table = NULL;
+        return &appset_base;
+}
 
-        if (__PROJ_APPSET_TABLE_ADDRESS__ == UINT32_MAX) {
-                // appset table address after text section
-                extern void *__text_end;
-                prog_table = cast(const _program_table_desc_t *const, &__text_end);
-        } else {
-                // appset table address at specified address
-                prog_table = cast(const _program_table_desc_t *const,
-                        __PROJ_APPSET_TABLE_ADDRESS__);
+//==============================================================================
+/**
+ * @brief  Register new appset(s).
+ *
+ * @param  appset       appset vectors array
+ * @param  appset_count number of vectors
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+int _process_register_appset(const void **appset_array, size_t appset_count)
+{
+        int err = EINVAL;
+
+        if (not appset_array or not appset_count) {
+                return err;
         }
 
-        return prog_table;
+        appset_table_t *appset = &appset_base;
+
+        for (; appset; appset = appset->next) {
+                if (not appset->next) {
+                        break;
+                }
+        }
+
+        for (size_t i = 0; i < appset_count; i++) {
+
+                appset_table_t *at = NULL;
+                err = _kmalloc(_MM_KRN, sizeof(*at), _cpuctl_fast_mem, 0, 0,
+                        cast(void **, &at));
+                if (err) {
+                        break;
+                }
+
+                at->table = appset_array[i];
+                at->next  = NULL;
+
+                appset->next = at;
+                appset       = appset->next;
+        }
+
+        return err;
 }
 
 //==============================================================================
@@ -3072,30 +3129,28 @@ static int find_program(const char *name, const _program_entry_t **prog)
                 .stack_depth  = &kworker_stack_depth,
         };
 
-        int err = ENOENT;
-
         if (strncmp(name, "kworker", 32) == 0) {
                 *prog = &kworker;
-                err   = ESUCC;
+                return ESUCC;
+        }
 
-        } else {
-                const _program_table_desc_t *const prog_table = _get_programs_table();
+        for (appset_table_t *appset = &appset_base; appset; appset = appset->next) {
 
-                if ((prog_table->magic == 0) and (prog_table->number_of_programs > 0) and
-                        (prog_table->number_of_programs != UINT32_MAX)) {
+                if ((appset->table->magic == 0) and
+                        (appset->table->number_of_programs > 0) and
+                        (appset->table->number_of_programs != UINT32_MAX)) {
 
-                        for (size_t i = 0; i < prog_table->number_of_programs; i++) {
-                                if (strncmp(prog_table->program_entry[i].name, name,
+                        for (size_t i = 0; i < appset->table->number_of_programs; i++) {
+                                if (strncmp(appset->table->program_entry[i].name, name,
                                             128) == 0) {
-                                        *prog = &prog_table->program_entry[i];
-                                        err   = ESUCC;
-                                        break;
+                                        *prog = &appset->table->program_entry[i];
+                                        return ESUCC;
                                 }
                         }
                 }
         }
 
-        return err;
+        return ENOENT;
 }
 
 //==============================================================================
