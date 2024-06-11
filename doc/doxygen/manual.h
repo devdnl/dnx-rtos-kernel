@@ -84,6 +84,7 @@ drivers configuration, and starting needed applications/daemons.
 \li \subpage page-drivers
 
 \section sec-drivers Drivers
+\li \subpage drv-qspi
 \li \subpage drv-enc28j60
 \li \subpage drv-memblock
 \li \subpage drv-adc
