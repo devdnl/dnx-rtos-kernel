@@ -48,6 +48,8 @@ typedef struct {
         u16_t        page_size;
         SPIEE_addr_t addr_size;
         u32_t        timeout_ms;
+        u8_t         major;
+        u8_t         minor;
 } SPIEE_t;
 
 /*==============================================================================
@@ -98,6 +100,9 @@ API_MOD_INIT(SPIEE, void **device_handle, u8_t major, u8_t minor, const void *co
         int err = sys_zalloc(sizeof(SPIEE_t), device_handle);
         if (!err) {
                 SPIEE_t *hdl = *device_handle;
+
+                hdl->major = major;
+                hdl->minor = minor;
 
                 err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &hdl->mtx);
 
@@ -257,7 +262,7 @@ API_MOD_WRITE(SPIEE, void *device_handle, const u8_t *src, size_t count, fpos_t 
                                 }
                         }
                 } else {
-                        printk("SPIEE: write out of range %02Xh", (u32_t)*fpos);
+                        dev_dbg(hdl, "write out of range %02Xh", (u32_t)*fpos);
                         *wrcnt = 0;
                         err    = ESPIPE;
                 }
@@ -325,7 +330,7 @@ API_MOD_READ(SPIEE, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
                         }
 
                 } else {
-                        printk("SPIEE: read out of range %02Xh", (u32_t)*fpos);
+                        dev_dbg(hdl, "read out of range %02Xh", (u32_t)*fpos);
                         *rdcnt = 0;
                         err    = ESPIPE;
                 }
@@ -443,7 +448,7 @@ static int configure(SPIEE_t *hdl, const SPIEE_config_t *cfg)
                 if ((cfg->address_size < SPIEE_ADDR__1_BYTE) ||
                         (cfg->address_size > SPIEE_ADDR__4_BYTES)) {
 
-                        printk("SPIEE: incorrect address size!");
+                        dev_dbg(hdl, "incorrect address size!");
                         err = EINVAL;
                 }
 
@@ -539,12 +544,12 @@ static int wait_for_write_finish(SPIEE_t *hdl)
                         }
 
                 } else {
-                        printk("SPIEE: RDSR error %d", err);
+                        dev_dbg(hdl, "RDSR error %d", err);
                         return err;
                 }
         }
 
-        printk("SPIEE: write operation timeout");
+        dev_dbg(hdl, "write operation timeout");
 
         return ETIME;
 }
