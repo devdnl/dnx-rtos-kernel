@@ -8,11 +8,16 @@ can write own drivers,  virtual devices, programs and so on. The program layer
 is mostly compatible with the C standard. You can say that the dnx RTOS is a
 FreeRTOS kernel distribution.
 
+This repository contains only operating system. To run applications user should
+download so called "application set" (appset) repository that contains all applications
+that can be used by user, it can be found in dnx-rtos-workspace repository.
+
 ## The minimal hardware requirements
 There are minimal hardware requirements that allows to start system but with
 very minimalistic software base:
+
 - 64 KiB Flash memory,
-- 16 KiB RAM memory (recommended 20 KiB).
+- 20 KiB RAM memory.
 
 The hardware requirements depends on the user's configuration.
 
@@ -43,17 +48,11 @@ make
 ```
 
 ## Folder structure
-- BSP    - board support packages (configurations)
+- BSP    - Board Support Packages (configurations)
 - build  - the project's binaries (created after compilation)
-- config - the project's configuration
+- config - the project's default configuration
 - doc    - documentation
-- res    - resources included at project build
 - src    - the project's sources
-- tools  - the project's tools (scripts, wizard, etc)
+- tools  - the project's tools (scripts, etc)
 
-## Website
-The whole documenation and exmaples you can found at
-[dnx RTOS official website](http://www.dnx-rtos.org).
 
-There is also additional software repository with
-[applications](https://github.com/devdnl/dnx-rtos-apps).
