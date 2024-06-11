@@ -136,7 +136,7 @@ ttycmd_resp_t ttycmd_analyze(ttycmd_t *this, const char c)
                         return TTYCMD_KEY_ENTER;
                 }
 
-                if (c == '\b') {
+                if ((c == '\b') or (c == 127)) {
                         return TTYCMD_KEY_BACKSPACE;
                 }
 
