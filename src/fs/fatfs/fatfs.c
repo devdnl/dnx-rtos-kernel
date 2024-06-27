@@ -225,6 +225,8 @@ API_FS_OPEN(fatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
                         fat_mode = FA_WRITE | FA_READ | FA_CREATE_ALWAYS;
                 } else if (flags == (O_WRONLY | O_APPEND | O_CREAT)) {
                         fat_mode = FA_WRITE | FA_OPEN_ALWAYS;
+                } else if (flags == (O_WRONLY | O_APPEND)) {
+                        fat_mode = FA_WRITE | FA_OPEN_EXISTING | FA_OPEN_APPEND;
                 } else if (flags == (O_RDWR | O_APPEND | O_CREAT)) {
                         fat_mode = FA_WRITE | FA_READ | FA_OPEN_ALWAYS;
                 } else {

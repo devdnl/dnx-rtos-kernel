@@ -1067,6 +1067,7 @@ static int qspi_enter_memory_mapped_mode(QSPI_block_t *hdl, const QSPI_command_t
         if (err) {
                 dev_dbg(hdl, "unable to enter memory mapped mode");
         } else {
+                QSPI.memory_mapped_mode = true;
                 dev_dbg(hdl, "entered to memory mapped mode");
         }
 
@@ -1088,6 +1089,7 @@ static int qspi_exit_memory_mapped_mode(QSPI_block_t *hdl)
         if (err) {
                 dev_dbg(hdl, "unable to exit memory mapped mode");
         } else {
+                QSPI.memory_mapped_mode = false;
                 dev_dbg(hdl, "exit from memory mapped mode");
         }
 

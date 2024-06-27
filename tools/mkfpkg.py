@@ -20,6 +20,7 @@ CRC32_INIT             = 0xFFFFFFFF
 FILE_DESCRIPTOR_MAGIC  = 0x43534446
 FILE_ENTRY_MAGIC       = 0x544E4546
 CONTAINER_HEADER_MAGIC = 0x474B5046
+HEADER_SIZE            = 64
 
 
 def rand(seed):
@@ -136,8 +137,11 @@ if __name__ == "__main__":
         # foma header
         fout.write(b"FPKG\n")
 
-        # skip header (max header size 64 bytes)
-        fout.seek(64)
+        # skip header
+        fout.seek(HEADER_SIZE)
+
+        # skip file size 4 bytes
+        fout.seek(4, os.SEEK_CUR)
 
         n_entry = 0
 
@@ -145,7 +149,7 @@ if __name__ == "__main__":
 
             with open(file_name, "rb") as fin:
 
-                data           = fin.read()
+                data      = fin.read()
                 file_crc  = binascii.crc32(data)
                 file_size = fin.tell()
                 prng_seed = random.randint(0, (1<<32))
@@ -173,6 +177,13 @@ if __name__ == "__main__":
 
         hdr = make_container_header(len(file_list))
         fout.write(hdr)
+
+    # get total file size
+    with open(output, "r+b") as fout:
+        fout.seek(0, os.SEEK_END)
+        file_size = fout.tell() + 4 # + CRC32 size
+        fout.seek(HEADER_SIZE)
+        fout.write(pack('<I', file_size))
 
     # calculate CRC32 from entire file and put at the end of file
     with open(output, "r+b") as fout:
