@@ -155,8 +155,6 @@ API_MOD_RELEASE(NVM, void *device_handle)
 
                 sys_free(&device_handle);
 
-                sys_sleep_ms(TIMEOUT_MS + 100);
-
                 sys_mutex_unlock(mtx);
                 sys_mutex_destroy(mtx);
         }
