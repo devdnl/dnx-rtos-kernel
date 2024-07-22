@@ -1016,10 +1016,10 @@ static int send_msg(CAN_t *hdl, const CAN_msg_t *msg, u32_t timeout_ms)
 
                                         } else {
                                                 dev_dbg(hdl, "aborting message in buffer %lu", i);
-                                                HAL_FDCAN_AbortTxRequest(&hdl->hfdcan, buffer_index);
-                                                sys_queue_receive(hdl->txrdy_q[i], &erri, _MAX_DELAY_MS);
+                                                if (HAL_FDCAN_AbortTxRequest(&hdl->hfdcan, buffer_index) == HAL_OK) {
+                                                        sys_queue_receive(hdl->txrdy_q[i], &erri, _MAX_DELAY_MS);
+                                                }
                                         }
-
                                 }
 
                                 loop = false;
@@ -1175,55 +1175,51 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 
                 CAN_msg_t msg;
                 FDCAN_RxHeaderTypeDef rx_header;
-                size_t items_in_queue = 0;
 
-                while (    (sys_queue_get_number_of_items_from_ISR(hdl->rxqueue_q, &items_in_queue) == 0)
-                       and (RX_FIFO_DEPTH - items_in_queue > 0) ) {
+                while (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_header, msg.data) == 0) {
 
-                        if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_header, msg.data) == 0) {
+                        if (rx_header.FDFormat == FDCAN_CLASSIC_CAN) {
+                                msg.frame_mode = CAN_FRAME_MODE__CLASSIC;
+                        } else if (rx_header.BitRateSwitch == FDCAN_BRS_ON) {
+                                msg.frame_mode = CAN_FRAME_MODE__FD_WITH_BIT_RATE_SWITCH;
+                        } else {
+                                msg.frame_mode = CAN_FRAME_MODE__FD_WITHOUT_BIT_RATE_SWITCH;
+                        }
 
-                                if (rx_header.FDFormat == FDCAN_CLASSIC_CAN) {
-                                        msg.frame_mode = CAN_FRAME_MODE__CLASSIC;
-                                } else if (rx_header.BitRateSwitch == FDCAN_BRS_ON) {
-                                        msg.frame_mode = CAN_FRAME_MODE__FD_WITH_BIT_RATE_SWITCH;
-                                } else {
-                                        msg.frame_mode = CAN_FRAME_MODE__FD_WITHOUT_BIT_RATE_SWITCH;
-                                }
+                        msg.ID = rx_header.Identifier;
+                        msg.extended_ID = rx_header.IdType == FDCAN_EXTENDED_ID;
+                        msg.remote_transmission = rx_header.RxFrameType == FDCAN_REMOTE_FRAME;
 
-                                msg.ID = rx_header.Identifier;
-                                msg.extended_ID = rx_header.IdType == FDCAN_EXTENDED_ID;
-                                msg.remote_transmission = rx_header.RxFrameType == FDCAN_REMOTE_FRAME;
+                        switch (rx_header.DataLength) {
+                        default: // fall throught
+                        case FDCAN_DLC_BYTES_0:  msg.data_length = 0;  break;
+                        case FDCAN_DLC_BYTES_1:  msg.data_length = 1;  break;
+                        case FDCAN_DLC_BYTES_2:  msg.data_length = 2;  break;
+                        case FDCAN_DLC_BYTES_3:  msg.data_length = 3;  break;
+                        case FDCAN_DLC_BYTES_4:  msg.data_length = 4;  break;
+                        case FDCAN_DLC_BYTES_5:  msg.data_length = 5;  break;
+                        case FDCAN_DLC_BYTES_6:  msg.data_length = 6;  break;
+                        case FDCAN_DLC_BYTES_7:  msg.data_length = 7;  break;
+                        case FDCAN_DLC_BYTES_8:  msg.data_length = 8;  break;
+                        case FDCAN_DLC_BYTES_12: msg.data_length = 12; break;
+                        case FDCAN_DLC_BYTES_16: msg.data_length = 16; break;
+                        case FDCAN_DLC_BYTES_20: msg.data_length = 20; break;
+                        case FDCAN_DLC_BYTES_24: msg.data_length = 24; break;
+                        case FDCAN_DLC_BYTES_32: msg.data_length = 32; break;
+                        case FDCAN_DLC_BYTES_48: msg.data_length = 48; break;
+                        case FDCAN_DLC_BYTES_64: msg.data_length = 64; break;
+                        }
 
-                                switch (rx_header.DataLength) {
-                                default: // fall throught
-                                case FDCAN_DLC_BYTES_0:  msg.data_length = 0;  break;
-                                case FDCAN_DLC_BYTES_1:  msg.data_length = 1;  break;
-                                case FDCAN_DLC_BYTES_2:  msg.data_length = 2;  break;
-                                case FDCAN_DLC_BYTES_3:  msg.data_length = 3;  break;
-                                case FDCAN_DLC_BYTES_4:  msg.data_length = 4;  break;
-                                case FDCAN_DLC_BYTES_5:  msg.data_length = 5;  break;
-                                case FDCAN_DLC_BYTES_6:  msg.data_length = 6;  break;
-                                case FDCAN_DLC_BYTES_7:  msg.data_length = 7;  break;
-                                case FDCAN_DLC_BYTES_8:  msg.data_length = 8;  break;
-                                case FDCAN_DLC_BYTES_12: msg.data_length = 12; break;
-                                case FDCAN_DLC_BYTES_16: msg.data_length = 16; break;
-                                case FDCAN_DLC_BYTES_20: msg.data_length = 20; break;
-                                case FDCAN_DLC_BYTES_24: msg.data_length = 24; break;
-                                case FDCAN_DLC_BYTES_32: msg.data_length = 32; break;
-                                case FDCAN_DLC_BYTES_48: msg.data_length = 48; break;
-                                case FDCAN_DLC_BYTES_64: msg.data_length = 64; break;
-                                }
+                        bool irq_yield = false;
 
-                                bool irq_yield = false;
-                                sys_queue_send_from_ISR(hdl->rxqueue_q, &msg, &irq_yield);
-                                hdl->irq_yield |= irq_yield;
-
+                        if (sys_queue_send_from_ISR(hdl->rxqueue_q, &msg, &irq_yield) == 0) {
                                 hdl->rx_frames++;
                                 hdl->rx_bytes += msg.data_length;
                         } else {
-                                // FDCAN fifo empty
-                                break;
+                                hdl->rx_overrun++;
                         }
+
+                        hdl->irq_yield |= irq_yield;
                 }
 
         } else if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_MESSAGE_LOST) {
