@@ -65,6 +65,15 @@ typedef struct {
         i32_t cached_memory_usage;
 } _mm_mem_usage_t;
 
+typedef struct {
+        const char *name_ref;
+        u32_t       flags;
+        u32_t       address;
+        u32_t       size;
+        u32_t       heap_size;
+        u32_t       heap_usage;
+} _mm_region_info_t;
+
 enum _mm_mem {
         _MM_KRN,   //!< allocate memory for kernel purposes
         _MM_FS,    //!< allocate memory for file system purposes
@@ -80,6 +89,7 @@ typedef struct _mm_region {
         _heap_t            heap;
         struct _mm_region *next;
         const char        *name_ref;
+        u32_t              size;
         u32_t              flags;
 } _mm_region_t;
 
@@ -104,6 +114,7 @@ extern bool   _mm_check_consistency(bool isr);
 extern bool   _mm_is_dma_capable(const void *ptr);
 extern bool   _mm_is_mem_region(const void *ptr, const char *regions[]);
 extern bool   _mm_is_cacheable(const void *ptr);
+extern int    _mm_get_region_info(size_t idx, _mm_region_info_t *info);
 extern const char *_mm_get_region_name(const void *ptr);
 extern int _kzalloc(enum _mm_mem, size_t, const char **, u32_t, u32_t, void **, ...);
 extern int _kmalloc(enum _mm_mem, size_t, const char **, u32_t, u32_t, void **, ...);

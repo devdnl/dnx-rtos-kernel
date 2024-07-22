@@ -1,11 +1,11 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    mm.c
 
 @author  Daniel Zorychta
 
 @brief   Memory management (memory distribution)
 
-@note    Copyright (C) 2015 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 /*==============================================================================
   Include files
@@ -48,27 +48,27 @@
 /**
  * Stack start declared by linker script
  */
-#define STACK_START                     ((void *)&__stack_start)
+#define STACK_START ((void *)&__stack_start)
 
 /**
  * RAM start declared by linker script
  */
-#define RAM_START                       ((void *)&__ram_start)
+#define RAM_START ((void *)&__ram_start)
 
 /**
  * Calculate memory size for an aligned buffer - returns the next highest
  * multiple of MEM_ALIGNMENT (e.g. MEM_ALIGN_SIZE(3) and
  * MEM_ALIGN_SIZE(4) will both yield 4 for MEM_ALIGNMENT == 4).
  */
-#define MEM_ALIGN_SIZE(size)            (((size) + _HEAP_ALIGN_ - 1) & ~(_HEAP_ALIGN_-1))
+#define MEM_ALIGN_SIZE(size) (((size) + _HEAP_ALIGN_ - 1) & ~(_HEAP_ALIGN_ - 1))
 
 /**
  * Macro check if selected address (mem) is in selected heap (heap).
  */
-#define IS_IN_HEAP(heap, mem)           ((mem) >= cast(void*, (heap).ram) && (mem) < (cast(void*, (heap).ram_end)))
+#define IS_IN_HEAP(heap, mem) ((mem) >= cast(void *, (heap).ram) && (mem) < (cast(void *, (heap).ram_end)))
 
-#define TEXT_START                      ((void *)&__text_start)
-#define TEXT_END                        ((void *)&__text_end)
+#define TEXT_START            ((void *)&__text_start)
+#define TEXT_END              ((void *)&__text_end)
 
 /*==============================================================================
   Local object types
@@ -77,15 +77,15 @@
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefreg[],
-                  u32_t required, u32_t required_mask, void **mem, void *arg);
+static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefreg[], u32_t required,
+        u32_t required_mask, void **mem, void *arg);
 
 /*==============================================================================
   Local objects
 ==============================================================================*/
 #if ((__OS_SYSTEM_MSG_ENABLE__ > 0) && (__OS_PRINTF_ENABLE__ > 0))
-static const char  *REGISTERED_REGION_STR  = "Registered %s region [%Xh-%Xh]";
-static const char  *REGISTRATION_ERROR_STR = "Memory %s registration error (%d) [%Xh-%Xh]";
+static const char *REGISTERED_REGION_STR  = "Registered %s region [%Xh-%Xh]";
+static const char *REGISTRATION_ERROR_STR = "Memory %s registration error (%d) [%Xh-%Xh]";
 #endif
 static _mm_region_t *regions;
 static i32_t         memory_usage[_MM_COUNT - 1];
@@ -143,11 +143,12 @@ int _mm_register_region(_mm_region_t *region, void *start, size_t size, u32_t fl
         if (region && start && size && name) {
                 if (regions == NULL) {
                         regions = region;
-                        err = _heap_init(&region->heap, start, size);
+                        err     = _heap_init(&region->heap, start, size);
                         if (!err) {
-                                region->flags = flags;
+                                region->flags    = flags;
                                 region->name_ref = name;
-                                region->next = NULL;
+                                region->next     = NULL;
+                                region->size     = size;
                         }
                 } else {
                         // check if memory region is already used
@@ -162,18 +163,19 @@ int _mm_register_region(_mm_region_t *region, void *start, size_t size, u32_t fl
                         for (_mm_region_t *r = regions; r; r = r->next) {
                                 if (r->next == NULL) {
                                         region->next = NULL;
-                                        err = _heap_init(&region->heap, start, size);
+                                        err          = _heap_init(&region->heap, start, size);
                                         if (!err) {
-                                                region->flags = flags;
+                                                region->flags    = flags;
                                                 region->name_ref = name;
-                                                r->next = region;
+                                                r->next          = region;
+                                                region->size     = size;
                                         }
                                         break;
                                 }
                         }
                 }
 
-                finish:
+        finish:
                 if (!err) {
                         printk(REGISTERED_REGION_STR, name, start, start + size - 1);
                 } else {
@@ -199,12 +201,12 @@ int _mm_register_region(_mm_region_t *region, void *start, size_t size, u32_t fl
  * @return One of errno values.
  */
 //==============================================================================
-int _kzalloc(enum _mm_mem mpur, size_t size, const char *prefreg[],
-             u32_t required, u32_t required_mask, void **mem, ...)
+int _kzalloc(enum _mm_mem mpur, size_t size, const char *prefreg[], u32_t required, u32_t required_mask,
+        void **mem, ...)
 {
         va_list vaarg;
         va_start(vaarg, mem);
-        void *arg = va_arg(vaarg, void*);
+        void *arg = va_arg(vaarg, void *);
         va_end(vaarg);
 
         return kalloc(mpur, size, true, prefreg, required, required_mask, mem, arg);
@@ -225,12 +227,12 @@ int _kzalloc(enum _mm_mem mpur, size_t size, const char *prefreg[],
  * @return One of errno values.
  */
 //==============================================================================
-int _kmalloc(enum _mm_mem mpur, size_t size, const char *prefreg[],
-             u32_t required, u32_t required_mask, void **mem, ...)
+int _kmalloc(enum _mm_mem mpur, size_t size, const char *prefreg[], u32_t required, u32_t required_mask,
+        void **mem, ...)
 {
         va_list vaarg;
         va_start(vaarg, mem);
-        void *arg = va_arg(vaarg, void*);
+        void *arg = va_arg(vaarg, void *);
         va_end(vaarg);
 
         return kalloc(mpur, size, false, prefreg, required, required_mask, mem, arg);
@@ -254,7 +256,7 @@ int _kfree(enum _mm_mem mpur, void **mem, ...)
         if (mpur < _MM_COUNT && mem && *mem) {
                 va_list vaarg;
                 va_start(vaarg, mem);
-                void *arg = va_arg(vaarg, void*);
+                void *arg = va_arg(vaarg, void *);
                 va_end(vaarg);
 
                 i32_t *usage = NULL;
@@ -270,12 +272,12 @@ int _kfree(enum _mm_mem mpur, void **mem, ...)
                 }
 
                 case _MM_PROG: {
-                        if ((*cast(res_header_t**, mem))->type == RES_TYPE_MEMORY) {
-                                usage = &memory_usage[mpur];
-                                err   = ESUCC;
-                                (*cast(res_header_t**, mem))->next = NULL;
-                                (*cast(res_header_t**, mem))->self = NULL;
-                                (*cast(res_header_t**, mem))->type = RES_TYPE_UNKNOWN;
+                        if ((*cast(res_header_t **, mem))->type == RES_TYPE_MEMORY) {
+                                usage                               = &memory_usage[mpur];
+                                err                                 = ESUCC;
+                                (*cast(res_header_t **, mem))->next = NULL;
+                                (*cast(res_header_t **, mem))->self = NULL;
+                                (*cast(res_header_t **, mem))->type = RES_TYPE_UNKNOWN;
                         } else {
                                 err = EFAULT;
                         }
@@ -464,8 +466,8 @@ bool _mm_is_object_in_heap(const void *ptr)
         }
 
         for (_mm_region_t *r = regions; r; r = r->next) {
-                if (  (cast(uintptr_t, ptr) >= cast(uintptr_t, r->heap.ram))
-                   && (cast(uintptr_t, ptr) <= cast(uintptr_t, r->heap.ram_end)) ) {
+                if ((cast(uintptr_t, ptr) >= cast(uintptr_t, r->heap.ram)) &&
+                        (cast(uintptr_t, ptr) <= cast(uintptr_t, r->heap.ram_end))) {
 
                         return true;
                 }
@@ -532,8 +534,8 @@ bool _mm_is_dma_capable(const void *ptr)
         }
 
         for (_mm_region_t *r = regions; r; r = r->next) {
-                if (  (cast(uintptr_t, ptr) >= cast(uintptr_t, r->heap.ram))
-                   && (cast(uintptr_t, ptr) <= cast(uintptr_t, r->heap.ram_end)) ) {
+                if ((cast(uintptr_t, ptr) >= cast(uintptr_t, r->heap.ram)) &&
+                        (cast(uintptr_t, ptr) <= cast(uintptr_t, r->heap.ram_end))) {
 
                         return r->flags & _MM_FLAG__DMA;
                 }
@@ -552,7 +554,7 @@ bool _mm_is_dma_capable(const void *ptr)
  * @return If ptr is in specified region then true is returned, otherwise false.
  */
 //==============================================================================
-bool _mm_is_mem_region(const  void *ptr, const char *in_regions[])
+bool _mm_is_mem_region(const void *ptr, const char *in_regions[])
 {
         if (ptr == NULL) {
                 return false;
@@ -569,8 +571,8 @@ bool _mm_is_mem_region(const  void *ptr, const char *in_regions[])
                 while (*reg) {
                         if (isstreq(*reg, r->name_ref)) {
 
-                                if (  (cast(uintptr_t, ptr) >= cast(uintptr_t, r->heap.ram))
-                                   && (cast(uintptr_t, ptr) < cast(uintptr_t, r->heap.ram_end)) ) {
+                                if ((cast(uintptr_t, ptr) >= cast(uintptr_t, r->heap.ram)) &&
+                                        (cast(uintptr_t, ptr) < cast(uintptr_t, r->heap.ram_end))) {
 
                                         return true;
                                 }
@@ -599,8 +601,8 @@ bool _mm_is_cacheable(const void *ptr)
         }
 
         for (_mm_region_t *r = regions; r; r = r->next) {
-                if (  (cast(uintptr_t, ptr) >= cast(uintptr_t, r->heap.ram))
-                   && (cast(uintptr_t, ptr) <= cast(uintptr_t, r->heap.ram_end)) ) {
+                if ((cast(uintptr_t, ptr) >= cast(uintptr_t, r->heap.ram)) &&
+                        (cast(uintptr_t, ptr) <= cast(uintptr_t, r->heap.ram_end))) {
 
                         return r->flags & _MM_FLAG__CACHE;
                 }
@@ -625,14 +627,50 @@ const char *_mm_get_region_name(const void *ptr)
         }
 
         for (_mm_region_t *r = regions; r; r = r->next) {
-                if (  (cast(uintptr_t, ptr) >= cast(uintptr_t, r->heap.ram))
-                   && (cast(uintptr_t, ptr) <= cast(uintptr_t, r->heap.ram_end)) ) {
+                if ((cast(uintptr_t, ptr) >= cast(uintptr_t, r->heap.ram)) &&
+                        (cast(uintptr_t, ptr) <= cast(uintptr_t, r->heap.ram_end))) {
 
                         return r->name_ref;
                 }
         }
 
         return NULL;
+}
+
+//==============================================================================
+/**
+ * @brief  Function return region information.
+ *
+ * @param  ptr          address to examine
+ *
+ * @return Pointer to name reference.
+ */
+//==============================================================================
+int _mm_get_region_info(size_t idx, _mm_region_info_t *info)
+{
+        int err = ENOENT;
+
+        size_t n = 0;
+
+        for (_mm_region_t *r = regions; r; r = r->next) {
+
+                if (n == idx) {
+                        info->name_ref   = r->name_ref;
+                        info->flags      = r->flags;
+                        info->address    = cast(u32_t, r->heap.ram);
+                        info->size       = r->size;
+                        info->heap_size  = r->heap.size;
+                        info->heap_usage = r->heap.used;
+
+                        err = 0;
+                        break;
+
+                } else {
+                        n++;
+                }
+        }
+
+        return err;
 }
 
 //==============================================================================
@@ -654,7 +692,8 @@ const char *_mm_get_region_name(const void *ptr)
  * @param[in]      mpur             memory purpose
  * @param[in]      size             object size
  * @param[in]      clear            clear allocated block
- * @param[in]      prefreg          preferred memory region, if NULL any memory can be used
+ * @param[in]      prefreg          preferred memory region, if NULL any memory can be
+ * used
  * @param[in]      required         required region features (DMA, cacheable)
  * @param[in]      required_mask    required region features mask (DMA, cacheable)
  * @param[out]     mem              pointer to memory block pointer
@@ -663,8 +702,8 @@ const char *_mm_get_region_name(const void *ptr)
  * @return One of errno values.
  */
 //==============================================================================
-static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefreg[],
-                  u32_t required, u32_t required_mask, void **mem, void *arg)
+static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefreg[], u32_t required,
+        u32_t required_mask, void **mem, void *arg)
 {
         int err = EINVAL;
 
@@ -718,7 +757,7 @@ static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefre
 
                 size_t allocated = 0;
                 void  *blk       = NULL;
-                       err       = ENOMEM;
+                err              = ENOMEM;
 
                 if (not prefreg) {
                         for (_mm_region_t *r = regions; r && !blk; r = r->next) {
@@ -757,9 +796,9 @@ static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefre
                         }
 
                         if (mpur == _MM_PROG) {
-                                 cast(res_header_t*, blk)->next = NULL;
-                                 cast(res_header_t*, blk)->self = blk;
-                                 cast(res_header_t*, blk)->type = RES_TYPE_MEMORY;
+                                cast(res_header_t *, blk)->next = NULL;
+                                cast(res_header_t *, blk)->self = blk;
+                                cast(res_header_t *, blk)->type = RES_TYPE_MEMORY;
                         }
 
                         *mem = blk;
@@ -768,7 +807,7 @@ static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefre
                 }
         }
 
-        finish:
+finish:
         return err;
 }
 

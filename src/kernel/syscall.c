@@ -54,18 +54,17 @@
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define FS_CACHE_SYNC_PERIOD_MS (1000 * __OS_SYSTEM_CACHE_SYNC_PERIOD__)
+#define FS_CACHE_SYNC_PERIOD_MS    (1000 * __OS_SYSTEM_CACHE_SYNC_PERIOD__)
 
-#define GETARG(type, var)       type var = va_arg(rq->args, type)
-#define LOADARG(type)           va_arg(rq->args, type)
-#define GETRETURN(type, var)    type var = rq->retptr
-#define GETTASKHDL()            rq->task
-#define GETPROCESS()            (rq->client_proc)
-#define GETTHREAD(_tid)         _process_thread_get_container(GETPROCESS(), _tid)
-#define UNUSED_RQ()             UNUSED_ARG1(rq)
+#define GETARG(type, var)          type var = va_arg(rq->args, type)
+#define LOADARG(type)              va_arg(rq->args, type)
+#define GETRETURN(type, var)       type var = rq->retptr
+#define GETTASKHDL()               rq->task
+#define GETPROCESS()               (rq->client_proc)
+#define GETTHREAD(_tid)            _process_thread_get_container(GETPROCESS(), _tid)
+#define UNUSED_RQ()                UNUSED_ARG1(rq)
 
-#define is_proc_valid(proc) \
-        (_mm_is_object_in_heap(proc) && ((res_header_t *)proc)->type == RES_TYPE_PROCESS)
+#define is_proc_valid(proc)        (_mm_is_object_in_heap(proc) && ((res_header_t *)proc)->type == RES_TYPE_PROCESS)
 #define is_tid_in_range(proc, tid) (tid < _process_get_max_threads(proc))
 
 #define STDIN_FD                   0
@@ -200,6 +199,7 @@ typedef enum {
         SYSCALL_REBOOTTOADDR,           // int errno (const void *addr)
         SYSCALL_LOWPOWERMODE,           // int errno (const int *mode)
         SYSCALL_REGISTERAPPSET,         // int errno (const void **appset_array, const size_t *array_size)
+        SYSCALL_MEMREGIONINFO,          // int errno (size_t idx, _mm_region_info_t *region_info)
         _SYSCALL_COUNT,
 } syscall_t;
 // clang-format on
@@ -339,6 +339,7 @@ static int syscall_cacheflush(syscallrq_t *rq);
 static int syscall_reboottoaddr(syscallrq_t *rq);
 static int syscall_lowpowermode(syscallrq_t *rq);
 static int syscall_registerappset(syscallrq_t *rq);
+static int syscall_memregioninfo(syscallrq_t *rq);
 
 /*==============================================================================
   Local objects
@@ -467,6 +468,7 @@ static const syscallfunc_t syscalltab[] = {
         [SYSCALL_REBOOTTOADDR]       = syscall_reboottoaddr,
         [SYSCALL_LOWPOWERMODE]       = syscall_lowpowermode,
         [SYSCALL_REGISTERAPPSET]     = syscall_registerappset,
+        [SYSCALL_MEMREGIONINFO]      = syscall_memregioninfo,
 };
 
 /*==============================================================================
@@ -553,8 +555,7 @@ __attribute__((section(".syscall"))) int syscall(syscall_t syscall, va_list args
                         .args       = args,
                 };
 
-                _task_get_process_container(_THIS_TASK, &syscallrq.client_proc,
-                        &syscallrq.client_thread);
+                _task_get_process_container(_THIS_TASK, &syscallrq.client_proc, &syscallrq.client_thread);
                 _assert(syscallrq.client_proc);
                 _assert(is_tid_in_range(syscallrq.client_proc, syscallrq.client_thread));
 
@@ -589,8 +590,7 @@ int _syscall_kworker_process(int argc, char *argv[])
         for (;;) {
                 _sleep_ms(1000);
 
-                if ((_kernel_get_uptime_ms() - sync_period_ref) >=
-                        FS_CACHE_SYNC_PERIOD_MS) {
+                if ((_kernel_get_uptime_ms() - sync_period_ref) >= FS_CACHE_SYNC_PERIOD_MS) {
                         _vfs_sync();
                         sync_period_ref = _kernel_get_uptime_ms();
                 }
@@ -706,8 +706,7 @@ static int syscall_mknod(syscallrq_t *rq)
         GETARG(int *, major);
         GETARG(int *, minor);
 
-        return _vfs_mknod(&pathname,
-                _dev_t__create(_module_get_ID(mod_name), *major, *minor));
+        return _vfs_mknod(&pathname, _dev_t__create(_module_get_ID(mod_name), *major, *minor));
 #else
         UNUSED_ARG1(rq);
         return ENOSYS;
@@ -978,8 +977,7 @@ static int syscall_open(syscallrq_t *rq)
                         kdir_t *dir;
                         err = _vfs_opendir(&path, &dir);
                         if (!err) {
-                                err = _process_descriptor_allocate(GETPROCESS(), &desc,
-                                        &dir->header, *flags);
+                                err = _process_descriptor_allocate(GETPROCESS(), &desc, &dir->header, *flags);
                                 if (err) {
                                         _vfs_closedir(dir);
                                 } else {
@@ -992,8 +990,8 @@ static int syscall_open(syscallrq_t *rq)
                 kfile_t *file;
                 err = _vfs_fopen(&path, *flags, *mode, &file);
                 if (!err) {
-                        err = _process_descriptor_allocate(GETPROCESS(), &desc,
-                                &file->header, *flags & O_SHARED);
+                        err = _process_descriptor_allocate(GETPROCESS(), &desc, &file->header,
+                                *flags & O_SHARED);
                         if (err) {
                                 _vfs_fclose(file, true);
                         } else {
@@ -1021,8 +1019,7 @@ static int syscall_close(syscallrq_t *rq)
         int err = _process_descriptor_free(GETPROCESS(), *desc, RES_TYPE_UNKNOWN);
         if (err) {
                 res_header_t *res;
-                if (_process_descriptor_get_resource(GETPROCESS(), STDERR_FD, &res) ==
-                        0) {
+                if (_process_descriptor_get_resource(GETPROCESS(), STDERR_FD, &res) == 0) {
                         const char *msg = "*** Error: descriptor is not valid! ***\n";
                         size_t      wrcnt;
                         _vfs_fwrite(msg, strlen(msg), &wrcnt, cast(kfile_t *, res));
@@ -1060,8 +1057,7 @@ static int syscall_write(syscallrq_t *rq)
 
                 } else if (res->type == RES_TYPE_SOCKET) {
 #if _ENABLE_NETWORK_ == _YES_
-                        err = _net_socket_send(res->self, buf, *count, NETM_FLAGS__COPY,
-                                wrctr);
+                        err = _net_socket_send(res->self, buf, *count, NETM_FLAGS__COPY, wrctr);
 #else
                         err = ENOTSUP;
 #endif
@@ -1331,8 +1327,7 @@ static int syscall_malloc(syscallrq_t *rq)
         GETARG(void **, blk);
 
         void *mem = NULL;
-        int   err = _kmalloc(_MM_PROG, *size, _cpuctl_preferred_APP_RAM, _MM_FLAG__DMA,
-                  _MM_FLAG__DMA, &mem);
+        int   err = _kmalloc(_MM_PROG, *size, _cpuctl_preferred_APP_RAM, _MM_FLAG__DMA, _MM_FLAG__DMA, &mem);
         if (!err) {
                 err = _process_register_resource(GETPROCESS(), mem);
                 if (err) {
@@ -1360,8 +1355,7 @@ static int syscall_zalloc(syscallrq_t *rq)
         GETARG(void **, blk);
 
         void *mem = NULL;
-        int   err = _kzalloc(_MM_PROG, *size, _cpuctl_preferred_APP_RAM, _MM_FLAG__DMA,
-                  _MM_FLAG__DMA, &mem);
+        int   err = _kzalloc(_MM_PROG, *size, _cpuctl_preferred_APP_RAM, _MM_FLAG__DMA, _MM_FLAG__DMA, &mem);
         if (!err) {
                 err = _process_register_resource(GETPROCESS(), mem);
                 if (err) {
@@ -1387,12 +1381,10 @@ static int syscall_free(syscallrq_t *rq)
 {
         GETARG(void *, mem);
 
-        int err = _process_release_resource(GETPROCESS(), cast(res_header_t *, mem) - 1,
-                RES_TYPE_MEMORY);
+        int err = _process_release_resource(GETPROCESS(), cast(res_header_t *, mem) - 1, RES_TYPE_MEMORY);
         if (err) {
                 res_header_t *res;
-                if (_process_descriptor_get_resource(GETPROCESS(), STDERR_FD, &res) ==
-                        0) {
+                if (_process_descriptor_get_resource(GETPROCESS(), STDERR_FD, &res) == 0) {
                         const char *msg = "*** Error: double free or corruption ***\n";
                         size_t      wrcnt;
                         _vfs_fwrite(msg, strlen(msg), &wrcnt, cast(kfile_t *, res));
@@ -1755,8 +1747,7 @@ static int syscall_semaphoreopen(syscallrq_t *rq)
         ksem_t *sem  = NULL;
         int     err  = _semaphore_create(*cnt_max, *cnt_init, &sem);
         if (not err) {
-                err = _process_descriptor_allocate(GETPROCESS(), &desc, &sem->header,
-                        *flags & O_SHARED);
+                err = _process_descriptor_allocate(GETPROCESS(), &desc, &sem->header, *flags & O_SHARED);
                 if (err) {
                         _semaphore_destroy(sem);
                 } else {
@@ -1854,8 +1845,7 @@ static int syscall_mutexopen(syscallrq_t *rq)
         kmtx_t *mtx  = NULL;
         int     err  = _mutex_create(*type, &mtx);
         if (not err) {
-                err = _process_descriptor_allocate(GETPROCESS(), &desc, &mtx->header,
-                        *flags & O_SHARED);
+                err = _process_descriptor_allocate(GETPROCESS(), &desc, &mtx->header, *flags & O_SHARED);
                 if (err) {
                         _mutex_destroy(mtx);
                 } else {
@@ -1931,8 +1921,7 @@ static int syscall_queueopen(syscallrq_t *rq)
         kqueue_t *queue = NULL;
         int       err   = _queue_create(*length, *item_size, &queue);
         if (not err) {
-                err = _process_descriptor_allocate(GETPROCESS(), &desc, &queue->header,
-                        *flags & O_SHARED);
+                err = _process_descriptor_allocate(GETPROCESS(), &desc, &queue->header, *flags & O_SHARED);
                 if (err) {
                         _queue_destroy(queue);
                 } else {
@@ -2237,8 +2226,7 @@ static int syscall_netsocketcreate(syscallrq_t *rq)
         ksocket_t *socket;
         int        err = _net_socket_create(netname, *protocol, &socket);
         if (!err) {
-                err = _process_descriptor_allocate(GETPROCESS(), fd,
-                        cast(res_header_t *, socket), false);
+                err = _process_descriptor_allocate(GETPROCESS(), fd, cast(res_header_t *, socket), false);
                 if (err) {
                         _net_socket_destroy(socket);
                 }
@@ -2397,8 +2385,7 @@ static int syscall_netrecvfrom(syscallrq_t *rq)
         res_header_t *res;
         int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
-                err = _net_socket_recvfrom(res->self, buf, *len, *flags, sockaddr,
-                        *sockaddr_size, recved);
+                err = _net_socket_recvfrom(res->self, buf, *len, *flags, sockaddr, *sockaddr_size, recved);
         }
 
         return err;
@@ -2462,8 +2449,7 @@ static int syscall_netsendto(syscallrq_t *rq)
         res_header_t *res;
         int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
-                err = _net_socket_sendto(res->self, buf, *len, *flags, to_addr,
-                        *to_addr_size, sent);
+                err = _net_socket_sendto(res->self, buf, *len, *flags, to_addr, *to_addr_size, sent);
         }
 
         return err;
@@ -3460,8 +3446,7 @@ static int syscall_threadjoin(syscallrq_t *rq)
                         err              = _flag_wait(flag, mask, *timeout);
                         if (not err) {
                                 if (status) {
-                                        err = _process_thread_get_status(GETPROCESS(),
-                                                *tid, status);
+                                        err = _process_thread_get_status(GETPROCESS(), *tid, status);
                                 }
                         }
                 }
@@ -3562,6 +3547,22 @@ static int syscall_registerappset(syscallrq_t *rq)
         GETARG(const void **, appset_array);
         GETARG(const size_t *, array_size);
         return _process_register_appset(appset_array, *array_size);
+}
+
+//==============================================================================
+/**
+ * @brief  Function get memory region information.
+ *
+ * @param  rq                   syscall request
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int syscall_memregioninfo(syscallrq_t *rq)
+{
+        GETARG(size_t, idx);
+        GETARG(_mm_region_info_t *, region_info);
+        return _mm_get_region_info(idx, region_info);
 }
 
 /*==============================================================================
