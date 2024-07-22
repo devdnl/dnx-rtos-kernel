@@ -45,16 +45,16 @@
   Local symbolic constants/macros
 ==============================================================================*/
 #define SRAM1_HEAP_START ((void *)&__heap_start)
-#define SRAM1_HEAP_SIZE  ((size_t)&__heap_size)
+#define SRAM1_HEAP_SIZE  ((size_t) & __heap_size)
 
 #define SRAM2_START      ((void *)&__ram2_start)
-#define SRAM2_SIZE       ((size_t)&__ram2_size)
+#define SRAM2_SIZE       ((size_t) & __ram2_size)
 
 #define SRAM3_START      ((void *)&__ram3_start)
-#define SRAM3_SIZE       ((size_t)&__ram3_size)
+#define SRAM3_SIZE       ((size_t) & __ram3_size)
 
 #define CCM_START        ((void *)&__ccm_start)
-#define CCM_SIZE         ((size_t)&__ccm_size)
+#define CCM_SIZE         ((size_t) & __ccm_size)
 
 // Memory Management Fault Status Register
 #define NVIC_MFSR (*(volatile unsigned char *)(0xE000ED28u))
@@ -129,13 +129,9 @@ static volatile reg_dump_t reg_dump __attribute__((section(".noinit")));
 /*==============================================================================
   External object definitions
 ==============================================================================*/
-const char *_cpuctl_preferred_APP_RAM[] = {"SDRAM", "PSRAM", "SRAM", "SRAM1", "SRAM2",
-        "SRAM3", "CCM", NULL};
-
-const char *_cpuctl_preferred_FS_RAM[] = {"SDRAM", "PSRAM", "SRAM", "SRAM1", "SRAM2",
-        "SRAM3", "CCM", NULL};
-
-const char *_cpuctl_fast_mem[] = {"CCM", "SRAM1", "SRAM2", "SRAM3", NULL};
+const char *_cpuctl_preferred_APP_RAM[] = {__CPU_PREFFERED_APP_RAM__, NULL};
+const char *_cpuctl_preferred_FS_RAM[]  = {__CPU_PREFFERED_FS_RAM__, NULL};
+const char *_cpuctl_fast_mem[]          = {__CPU_PREFFERED_FAST_RAM__, NULL};
 
 /*==============================================================================
   Function definitions
@@ -171,12 +167,10 @@ void _cpuctl_init(void)
         _cpuctl_init_CPU_load_counter();
 #endif
 
-        _mm_register_region(&sram1, SRAM1_HEAP_START, SRAM1_HEAP_SIZE,
-                _MM_FLAG__DMA, "SRAM1");
-        _mm_register_region(&sram2, SRAM2_START, SRAM2_SIZE, _MM_FLAG__DMA,
-                "SRAM2");
-        _mm_register_region(&sram3, SRAM3_START, SRAM3_SIZE, _MM_FLAG__DMA,
-                "SRAM3");
+        _mm_register_region(&sram1, SRAM1_HEAP_START, SRAM1_HEAP_SIZE, _MM_FLAG__DMA,
+                "SRAM1");
+        _mm_register_region(&sram2, SRAM2_START, SRAM2_SIZE, _MM_FLAG__DMA, "SRAM2");
+        _mm_register_region(&sram3, SRAM3_START, SRAM3_SIZE, _MM_FLAG__DMA, "SRAM3");
 
         if (CCM_SIZE > 0) {
                 _mm_register_region(&ccm, CCM_START, CCM_SIZE, 0, "CCM");

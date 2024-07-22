@@ -45,13 +45,13 @@
   Local symbolic constants/macros
 ==============================================================================*/
 #define SRAM1_HEAP_START ((void *)&__heap_start)
-#define SRAM1_HEAP_SIZE  ((size_t)&__heap_size)
+#define SRAM1_HEAP_SIZE  ((size_t) & __heap_size)
 
 #define SRAM2_START      ((void *)&__ram2_start)
-#define SRAM2_SIZE       ((size_t)&__ram2_size)
+#define SRAM2_SIZE       ((size_t) & __ram2_size)
 
 #define DTCM_START       ((void *)&__dtcm_start)
-#define DTCM_SIZE        ((size_t)&__dtcm_size)
+#define DTCM_SIZE        ((size_t) & __dtcm_size)
 
 // Memory Management Fault Status Register
 #define NVIC_MFSR (*(volatile unsigned char *)(0xE000ED28u))
@@ -223,13 +223,9 @@ static volatile reg_dump_t reg_dump __attribute__((section(".noinit")));
 /*==============================================================================
   External object definitions
 ==============================================================================*/
-const char *_cpuctl_preferred_APP_RAM[] = {"SDRAM", "PSRAM", "SRAM", "SRAM1", "SRAM2",
-        "DTCM", NULL};
-
-const char *_cpuctl_preferred_FS_RAM[] = {"SDRAM", "PSRAM", "SRAM", "SRAM1", "SRAM2",
-        "DTCM", NULL};
-
-const char *_cpuctl_fast_mem[] = {"DTCM", "SRAM1", "SRAM2", NULL};
+const char *_cpuctl_preferred_APP_RAM[] = {__CPU_PREFFERED_APP_RAM__, NULL};
+const char *_cpuctl_preferred_FS_RAM[]  = {__CPU_PREFFERED_FS_RAM__, NULL};
+const char *_cpuctl_fast_mem[]          = {__CPU_PREFFERED_FAST_RAM__, NULL};
 
 /*==============================================================================
   Function definitions
@@ -283,8 +279,7 @@ void _cpuctl_init(void)
         MPU_enable(MPU_PRIVILEGED_DEFAULT);
 #endif
 
-        u32_t ram1_ram2_flags = (__CPU_RAM1_RAM2_CACHE_DISABLE__ ? 0
-                                                                 : _MM_FLAG__CACHE) |
+        u32_t ram1_ram2_flags = (__CPU_RAM1_RAM2_CACHE_DISABLE__ ? 0 : _MM_FLAG__CACHE) |
                 _MM_FLAG__DMA;
 
         _mm_register_region(&sram1, SRAM1_HEAP_START, SRAM1_HEAP_SIZE, ram1_ram2_flags,

@@ -45,7 +45,7 @@
   Local symbolic constants/macros
 ==============================================================================*/
 #define SRAM_HEAP_START ((void *)&__heap_start)
-#define SRAM_HEAP_SIZE  ((size_t)&__heap_size)
+#define SRAM_HEAP_SIZE  ((size_t) & __heap_size)
 
 // Memory Management Fault Status Register
 #define NVIC_MFSR (*(volatile unsigned char *)(0xE000ED28u))
@@ -114,11 +114,9 @@ static volatile reg_dump_t reg_dump __attribute__((section(".noinit")));
 /*==============================================================================
   External object definitions
 ==============================================================================*/
-const char *_cpuctl_preferred_APP_RAM[] = {"SRAM", NULL};
-
-const char *_cpuctl_preferred_FS_RAM[] = {"SRAM", NULL};
-
-const char *_cpuctl_fast_mem[] = {"SRAM", NULL};
+const char *_cpuctl_preferred_APP_RAM[] = {__CPU_PREFFERED_APP_RAM__, NULL};
+const char *_cpuctl_preferred_FS_RAM[]  = {__CPU_PREFFERED_FS_RAM__, NULL};
+const char *_cpuctl_fast_mem[]          = {__CPU_PREFFERED_FAST_RAM__, NULL};
 
 /*==============================================================================
   Function definitions
