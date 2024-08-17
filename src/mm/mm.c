@@ -163,7 +163,16 @@ int _mm_register_region(_mm_region_t *region, void *start, size_t size, u32_t fl
                         for (_mm_region_t *r = regions; r; r = r->next) {
                                 if (r->next == NULL) {
                                         region->next = NULL;
-                                        err          = _heap_init(&region->heap, start, size);
+
+                                        if (flags & _MM_FLAG__NOHEAP) {
+                                                memset(&region->heap, 0, sizeof(region->heap));
+                                                region->heap.ram = start;
+                                                region->heap.ram_end = start + size - 1;
+                                                err = 0;
+                                        } else {
+                                                err = _heap_init(&region->heap, start, size);
+                                        }
+
                                         if (!err) {
                                                 region->flags    = flags;
                                                 region->name_ref = name;
@@ -466,9 +475,7 @@ bool _mm_is_object_in_heap(const void *ptr)
         }
 
         for (_mm_region_t *r = regions; r; r = r->next) {
-                if ((cast(uintptr_t, ptr) >= cast(uintptr_t, r->heap.ram)) &&
-                        (cast(uintptr_t, ptr) <= cast(uintptr_t, r->heap.ram_end))) {
-
+                if (IS_IN_HEAP(r->heap, ptr)) {
                         return true;
                 }
         }
@@ -504,6 +511,10 @@ bool _mm_check_consistency(bool isr)
         bool ok = true;
 
         for (_mm_region_t *r = regions; r && ok; r = r->next) {
+                if (r->flags & _MM_FLAG__NOHEAP) {
+                        continue;
+                }
+
                 if (not isr) {
                         _kernel_scheduler_lock();
                 }
@@ -534,9 +545,7 @@ bool _mm_is_dma_capable(const void *ptr)
         }
 
         for (_mm_region_t *r = regions; r; r = r->next) {
-                if ((cast(uintptr_t, ptr) >= cast(uintptr_t, r->heap.ram)) &&
-                        (cast(uintptr_t, ptr) <= cast(uintptr_t, r->heap.ram_end))) {
-
+                if (IS_IN_HEAP(r->heap, ptr)) {
                         return r->flags & _MM_FLAG__DMA;
                 }
         }
@@ -571,8 +580,7 @@ bool _mm_is_mem_region(const void *ptr, const char *in_regions[])
                 while (*reg) {
                         if (isstreq(*reg, r->name_ref)) {
 
-                                if ((cast(uintptr_t, ptr) >= cast(uintptr_t, r->heap.ram)) &&
-                                        (cast(uintptr_t, ptr) < cast(uintptr_t, r->heap.ram_end))) {
+                                if (IS_IN_HEAP(r->heap, ptr)) {
 
                                         return true;
                                 }
@@ -601,9 +609,7 @@ bool _mm_is_cacheable(const void *ptr)
         }
 
         for (_mm_region_t *r = regions; r; r = r->next) {
-                if ((cast(uintptr_t, ptr) >= cast(uintptr_t, r->heap.ram)) &&
-                        (cast(uintptr_t, ptr) <= cast(uintptr_t, r->heap.ram_end))) {
-
+                if (IS_IN_HEAP(r->heap, ptr)) {
                         return r->flags & _MM_FLAG__CACHE;
                 }
         }
@@ -627,9 +633,7 @@ const char *_mm_get_region_name(const void *ptr)
         }
 
         for (_mm_region_t *r = regions; r; r = r->next) {
-                if ((cast(uintptr_t, ptr) >= cast(uintptr_t, r->heap.ram)) &&
-                        (cast(uintptr_t, ptr) <= cast(uintptr_t, r->heap.ram_end))) {
-
+                if (IS_IN_HEAP(r->heap, ptr)) {
                         return r->name_ref;
                 }
         }

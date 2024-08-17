@@ -319,7 +319,7 @@ int _dtoa(double value, char *str, int prec, int n)
  * @return pointer in string when operation was finished
  */
 //==============================================================================
-char *_strtoi(const char *string, int base, i32_t *value)
+char *sys_strtoi32(const char *string, int base, i32_t *value)
 {
         *value = 0;
 
@@ -361,11 +361,11 @@ char *_strtoi(const char *string, int base, i32_t *value)
                 }
 
                 /* check character range */
-                if (character >= 'a') {
+                if ((character >= 'a') && (character <= 'f')) {
                         character -= 'a' - 10;
-                } else if (character >= 'A') {
+                } else if ((character >= 'A') && (character <= 'F')) {
                         character -= 'A' - 10;
-                } else if (character >= '0') {
+                } else if ((character >= '0') && (character <= '9')) {
                         character -= '0';
                 } else {
                         break;
@@ -390,6 +390,31 @@ char *_strtoi(const char *string, int base, i32_t *value)
 
 //==============================================================================
 /**
+ * @brief Function convert ASCII to the number
+ * When function find any other character than number (depended of actual base)
+ * immediately finished operation and return pointer when bad character was
+ * found. If base is 0 then function recognize type of number used in string.
+ * For hex values "0x" is recognized, for octal values "0" at the beginning of
+ * string is recognized, for binary "0b" is recognized, and for decimals values
+ * none above.
+ *
+ * @param[in]  string       string to decode
+ * @param[in]  base         decode base
+ * @param[out] value        pointer to result
+ *
+ * @return pointer in string when operation was finished
+ */
+//==============================================================================
+char *sys_strtou32(const char *string, int base, u32_t *value)
+{
+        i32_t v;
+        char *s = sys_strtoi32(string, base, &v);
+        *value = cast(u32_t, v);
+        return s;
+}
+
+//==============================================================================
+/**
  * @brief Function convert string to integer
  *
  * @param[in] str       string
@@ -400,7 +425,7 @@ char *_strtoi(const char *string, int base, i32_t *value)
 i32_t _atoi(const char *str)
 {
         i32_t result;
-        _strtoi(str, 10, &result);
+        sys_strtoi32(str, 10, &result);
         return result;
 }
 

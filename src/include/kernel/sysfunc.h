@@ -355,41 +355,6 @@ static inline i32_t sys_atoi(const char *str)
 
 //==============================================================================
 /**
- * @brief Function convert ASCII to the number.
- *
- * When function find any other character than number (depended of actual base)
- * immediately finished operation and return pointer when bad character was
- * found. If base is 0 then function recognize type of number used in string.
- * For hex values "0x" is recognized, for octal values "0" at the beginning of
- * string is recognized, for binary "0b" is recognized, and for decimals values
- * none above.
- *
- * @note Function can be used only by file system or driver code.
- *
- * @param[in]  string       string to decode
- * @param[in]  base         decode base
- * @param[out] value        pointer to result
- *
- * @return Pointer in string when operation was finished.
- *
- * @b Example
- * @code
-        // ...
-        i32_t val = 0;
-        char *ptr = sys_strtoi("0xDEADBEEF", 0, &val);
-        // ...
-   @endcode
- *
- * @see sys_atoi(), sys_strtod(), sys_atof()
- */
-//==============================================================================
-static inline char *sys_strtoi(const char *string, int base, i32_t *value)
-{
-        return _strtoi(string, base, value);
-}
-
-//==============================================================================
-/**
  * @brief Function converts string to double.
  *
  * The function converts the initial portion of the string pointed

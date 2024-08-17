@@ -47,6 +47,7 @@ extern "C" {
 
 #define _MM_FLAG__DMA    (1 << 0)
 #define _MM_FLAG__CACHE  (1 << 1)
+#define _MM_FLAG__NOHEAP (1 << 2)
 
 /*==============================================================================
   Exported object types
@@ -91,6 +92,7 @@ typedef struct _mm_region {
         const char        *name_ref;
         u32_t              size;
         u32_t              flags;
+        u8_t               extra[];
 } _mm_region_t;
 
 /*==============================================================================

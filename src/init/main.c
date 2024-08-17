@@ -105,7 +105,7 @@ void dnxinit(void *arg)
          * If cause problems (strange system behavior, kernel panics) disable
          * this option.
          */
-        _mm_register_region(&main_stack, STACK_START, STACK_SIZE, _CPUCTL_STACK_REGION_FLAGS, "STARTSTACK");
+        _mm_register_region(&main_stack, STACK_START, STACK_SIZE, _CPUCTL_STACK_REGION_FLAGS, "SRAM");
 
         _task_exit();
 }
