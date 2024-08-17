@@ -36,6 +36,7 @@ Brief    String options analyze library.
 #include "lib/strlcat.h"
 #include "lib/strlcpy.h"
 #include "lib/conv.h"
+#include "lib/ctype.h"
 
 /*==============================================================================
   Local macros
@@ -83,16 +84,22 @@ static const char *find_var(const char *opts, const char *var, size_t *len)
         _strlcat(token, "=", sizeof(token));
 
         const char *val = NULL;
+        const char *o   = opts;
 
-        opts = strstr(opts, token);
-        if (opts) {
-                val = opts + strlen(token);
-                char *end = strchr(val, ',');
+        while ((o = strstr(o, token))) {
+                if ((o == opts) || isspace(*(o - 1)) || (*(o - 1) == ',')) {
+                        val       = o + strlen(token);
+                        char *end = strchr(val, ',');
 
-                if (end) {
-                        *len = end - val;
+                        if (end) {
+                                *len = end - val;
+                        } else {
+                                *len = strlen(val);
+                        }
+
+                        break;
                 } else {
-                        *len = strlen(val);
+                        o = strchr(o, ',');
                 }
         }
 
@@ -114,17 +121,17 @@ static bool find_flag(const char *opts, const char *flag)
         const char *b = NULL;
 
         do {
-                 b = strstr(opts, flag);
+                b = strstr(opts, flag);
 
-                 if (b) {
-                         const char *e = b + strlen(flag);
+                if (b) {
+                        const char *e = b + strlen(flag);
 
-                         if (*e == ',' || *e == '\0') {
-                                 return true;
-                         }
+                        if (*e == ',' || *e == '\0') {
+                                return true;
+                        }
 
-                         opts = e;
-                 }
+                        opts = e;
+                }
 
         } while (b);
 
@@ -150,12 +157,12 @@ int _stropt_get_int(const char *opts, const char *var, int defval)
 
         if (opts && var) {
 
-                size_t len = 0;
+                size_t      len = 0;
                 const char *val = find_var(opts, var, &len);
 
                 if (val && len) {
                         int32_t value = defval;
-                        _strtoi(val, 0, &value);
+                        sys_strtoi32(val, 0, &value);
                         retval = value;
                 }
         }
@@ -206,7 +213,7 @@ size_t _stropt_get_string_copy(const char *opts, const char *var, char *buf, siz
         size_t copied = 0;
 
         if (opts && var && buf && buflen) {
-                size_t len = 0;
+                size_t      len = 0;
                 const char *str = find_var(opts, var, &len);
 
                 if (str && len) {
@@ -237,25 +244,19 @@ int _stropt_get_bool(const char *opts, const char *var, int defval)
 
         if (opts && var) {
 
-                size_t len = 0;
+                size_t      len = 0;
                 const char *val = find_var(opts, var, &len);
 
                 if (val && len) {
-                        if (  (strncmp(val, "false", 5) == 0)
-                           || (strncmp(val, "off", 3) == 0)
-                           || (strncmp(val, "0", 1) == 0)
-                           || (strncmp(val, "disable", 7) == 0)
-                           || (strncmp(val, "reset", 5) == 0)
-                           || (strncmp(val, "no", 2) == 0)) {
+                        if ((strncmp(val, "false", 5) == 0) || (strncmp(val, "off", 3) == 0) ||
+                                (strncmp(val, "0", 1) == 0) || (strncmp(val, "disable", 7) == 0) ||
+                                (strncmp(val, "reset", 5) == 0) || (strncmp(val, "no", 2) == 0)) {
 
                                 retval = 0;
 
-                        } else if (  (strncmp(val, "true", 4) == 0)
-                                  || (strncmp(val, "on", 2) == 0)
-                                  || (strncmp(val, "1", 1) == 0)
-                                  || (strncmp(val, "enable", 6) == 0)
-                                  || (strncmp(val, "set", 3) == 0)
-                                  || (strncmp(val, "yes", 3) == 0)) {
+                        } else if ((strncmp(val, "true", 4) == 0) || (strncmp(val, "on", 2) == 0) ||
+                                (strncmp(val, "1", 1) == 0) || (strncmp(val, "enable", 6) == 0) ||
+                                (strncmp(val, "set", 3) == 0) || (strncmp(val, "yes", 3) == 0)) {
 
                                 retval = 1;
                         }

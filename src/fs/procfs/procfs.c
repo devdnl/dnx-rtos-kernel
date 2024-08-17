@@ -257,7 +257,7 @@ API_FS_OPEN(procfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
                 mpath += strlen(PATH_ROOT_PID) + 1;
 
                 i32_t pid = 0;
-                sys_strtoi(mpath, 10, &pid);
+                sys_strtoi32(mpath, 10, &pid);
 
                 _process_stat_t stat;
                 if (sys_process_get_stat_pid(pid, &stat) == ESUCC) {

@@ -472,7 +472,7 @@ int _heap_init(_heap_t *heap, void *start, size_t size)
 //==============================================================================
 void _heap_free(_heap_t *heap, void *rmem, size_t *freed)
 {
-        if (!heap || !rmem) {
+        if (!heap || !rmem || !heap->size) {
                 return;
         }
 
@@ -549,7 +549,7 @@ void *_heap_alloc(_heap_t *heap, size_t size_in, size_t *allocated)
         struct mem *mem, *mem2;
         size_t used;
 
-        if (!heap || size_in == 0) {
+        if (!heap || size_in == 0 || !heap->size) {
                 return NULL;
         }
 
@@ -705,7 +705,11 @@ size_t _heap_get_used(_heap_t *heap)
 //==============================================================================
 size_t _heap_get_size(_heap_t *heap)
 {
-        return heap->size + SIZEOF_STRUCT_MEM;
+        if (heap->size) {
+                return heap->size + SIZEOF_STRUCT_MEM;
+        } else {
+                return 0;
+        }
 }
 
 //==============================================================================
@@ -720,7 +724,7 @@ size_t _heap_get_size(_heap_t *heap)
 //==============================================================================
 size_t _heap_get_block_size(_heap_t *heap, void *rmem)
 {
-        if (!heap || !rmem) {
+        if (!heap || !rmem || !heap->size) {
                 return 0;
         }
 
@@ -773,7 +777,11 @@ size_t _heap_get_block_size(_heap_t *heap, void *rmem)
 //==============================================================================
 bool _heap_check_consistency(_heap_t *heap)
 {
-        return sanity(heap);
+        if (heap->size) {
+                return sanity(heap);
+        } else {
+                return true;
+        }
 }
 
 /*==============================================================================
