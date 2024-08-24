@@ -68,7 +68,10 @@ extern "C" {
 #define assert_param(...)
 #define HAL_GetTick()                   sys_get_uptime_ms()
 #define HAL_Delay(_ms)                  sys_sleep_ms(_ms)
+#define HAL_MAX_DELAY                   _MAX_DELAY_MS
 #define __weak                          __attribute__ ((weak))
+#define __HAL_UNLOCK(heth)              (heth->Lock = HAL_UNLOCKED)
+#define __HAL_LOCK(heth)                (heth->Lock = HAL_LOCKED)
 
 #ifndef UNUSED
 #define UNUSED(_x)                      UNUSED_ARG1(_x)

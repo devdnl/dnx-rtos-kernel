@@ -1,11 +1,11 @@
 /*==============================================================================
-File    stm32f4xx_hal_sdmmc.h
+File    stm32f4xx_hal_qspi.h
 
 Author  Daniel Zorychta
 
-Brief   SDMMC HAL definitions.
+Brief   QSPI HAL definitions.
 
-        Copyright (C) 2023 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ Brief   SDMMC HAL definitions.
 ==============================================================================*/
 
 /**
-@defgroup SRC_SYSTEM_DRIVERS_SDIO_STM32F7_STM32F7XX_HAL_DEF_H_ SRC_SYSTEM_DRIVERS_SDIO_STM32F7_STM32F7XX_HAL_DEF_H_
+@defgroup SRC_SYSTEM_DRIVERS_QSPI_STM32F4_STM32F4XX_HAL_QSPI_DEF_H_ SRC_SYSTEM_DRIVERS_QSPI_STM32F4_STM32F4XX_HAL_QSPI_DEF_H_
 
 Detailed Doxygen description.
 */
