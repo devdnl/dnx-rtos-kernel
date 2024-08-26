@@ -128,7 +128,30 @@ extern "C" {
     //...
     @endcode
  */
-#define IOCTL_PART__CONFIGURE           _IOW(PART, 0x00, const PART_config_t*)
+#define IOCTL_PART__CONFIGURE _IOW(PART, 0x00, const PART_config_t *)
+
+/**
+ *  @brief  Get driver configuration.
+ *  @param  [RD] PART_config_t*
+ *  @return On success 0 is returned, otherwise -1.
+ *
+ *  @b Example
+ *  @code
+    #include <sys/ioctl.h>
+
+    //...
+
+    f = fopen("/dev/ee0p1", "r+");
+    if (f) {
+            PART_config_t cfg;
+            ioctl(fileno(f), IOCTL_PART__GET_CONFIGRATION, &cfg);
+            fclose(f);
+    }
+
+    //...
+    @endcode
+ */
+#define IOCTL_PART__GET_CONFIGRATION _IOR(PART, 0x01, PART_config_t *)
 
 /**
  *  @brief  Automatically detects partitions geometry by reading MBR.
@@ -157,16 +180,16 @@ extern "C" {
     //...
     @endcode
  */
-#define IOCTL_PART__READ_MBR            IOCTL_STORAGE__READ_MBR
+#define IOCTL_PART__READ_MBR IOCTL_STORAGE__READ_MBR
 
 /*==============================================================================
   Exported object types
 ==============================================================================*/
 typedef struct {
-        const char *path;               /*!< Device path. */
-        u32_t block_size;               /*!< Block size in bytes. */
-        u32_t offset_blocks;            /*!< Offset in number of blocks. */
-        u32_t total_blocks;             /*!< Total size in number of blocks. */
+        const char *path;          /*!< Device path. */
+        u32_t       block_size;    /*!< Block size in bytes. */
+        u32_t       offset_blocks; /*!< Offset in number of blocks. */
+        u32_t       total_blocks;  /*!< Total size in number of blocks. */
 } PART_config_t;
 
 /*==============================================================================
