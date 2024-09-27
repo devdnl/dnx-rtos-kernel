@@ -1326,8 +1326,13 @@ static int syscall_malloc(syscallrq_t *rq)
         GETARG(size_t *, size);
         GETARG(void **, blk);
 
+        const char **pref_ram = _cpuctl_preferred_APP_RAM;
+        if (*GETPROCESS()->pdata->pref_ram != NULL) {
+                pref_ram = *GETPROCESS()->pdata->pref_ram;
+        }
+
         void *mem = NULL;
-        int   err = _kmalloc(_MM_PROG, *size, _cpuctl_preferred_APP_RAM, _MM_FLAG__DMA, _MM_FLAG__DMA, &mem);
+        int   err = _kmalloc(_MM_PROG, *size, pref_ram, _MM_FLAG__DMA, _MM_FLAG__DMA, &mem);
         if (!err) {
                 err = _process_register_resource(GETPROCESS(), mem);
                 if (err) {
@@ -1354,8 +1359,13 @@ static int syscall_zalloc(syscallrq_t *rq)
         GETARG(size_t *, size);
         GETARG(void **, blk);
 
+        const char **pref_ram = _cpuctl_preferred_APP_RAM;
+        if (*GETPROCESS()->pdata->pref_ram != NULL) {
+                pref_ram = *GETPROCESS()->pdata->pref_ram;
+        }
+
         void *mem = NULL;
-        int   err = _kzalloc(_MM_PROG, *size, _cpuctl_preferred_APP_RAM, _MM_FLAG__DMA, _MM_FLAG__DMA, &mem);
+        int   err = _kzalloc(_MM_PROG, *size, pref_ram, _MM_FLAG__DMA, _MM_FLAG__DMA, &mem);
         if (!err) {
                 err = _process_register_resource(GETPROCESS(), mem);
                 if (err) {

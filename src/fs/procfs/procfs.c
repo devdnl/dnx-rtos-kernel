@@ -1083,12 +1083,20 @@ static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size,
 
 #if __OS_SYSTEM_SHEBANG_ENABLE__ > 0
         case FILE_CONTENT_BIN: {
-                const _program_table_desc_t
-                        *const program_table = sys_get_programs_table();
-                if (file->arg < (int32_t)program_table->number_of_programs) {
+                size_t n = file->arg;
 
-                        buf_snprintf(buff, &size, &clen, &seek, "#!%s\n",
-                                program_table->program_entry[file->arg].name);
+                for (const appset_table_t *appset = sys_get_program_table(); appset;
+                        appset                    = appset->next) {
+
+                        if (n < appset->table->number_of_programs) {
+
+                                buf_snprintf(buff, &size, &clen, &seek, "#!%s\n",
+                                        appset->table->program_entry[n].name);
+                                break;
+
+                        } else {
+                                n -= appset->table->number_of_programs;
+                        }
                 }
                 break;
         }

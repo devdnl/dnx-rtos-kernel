@@ -69,6 +69,7 @@ typedef struct {
         const char    *name;         //!< program name
         const size_t  *globals_size; //!< size of program global variables
         const size_t  *stack_depth;  //!< stack depth
+        const char  ***pref_ram;     //!< preffered application RAM
         process_func_t main;         //!< program main function
 } _program_entry_t;
 
@@ -113,7 +114,7 @@ struct _process {
         pid_t                   pid;           //!< process ID
         u8_t                    flag;          //!< control flags
         u8_t                    curr_task;     //!< current working task (thread)
-        task_data_t taskdata[__OS_PROCESS_MAX_THREADS__]; //!< array of tasks data
+        task_data_t             taskdata[__OS_PROCESS_MAX_THREADS__]; //!< array of tasks data
 };
 
 typedef struct appset_table {
@@ -144,8 +145,8 @@ extern int         _process_set_CWD(_process_t *, const char *);
 extern int         _process_register_resource(_process_t *, res_header_t *);
 extern int         _process_release_resource(_process_t *, res_header_t *, res_type_t);
 extern int         _process_descriptor_free(_process_t *, int, res_type_t);
-extern int _process_descriptor_allocate(_process_t *, int *, res_header_t *, bool);
-extern int _process_descriptor_get_resource(_process_t *, int, res_header_t **);
+extern int         _process_descriptor_allocate(_process_t *, int *, res_header_t *, bool);
+extern int         _process_descriptor_get_resource(_process_t *, int, res_header_t **);
 extern const char *_process_get_name(_process_t *);
 extern size_t      _process_get_count(void);
 extern _process_t *_process_get_active(void);
@@ -175,8 +176,7 @@ extern void        _calculate_CPU_load(void);
 extern int         _get_average_CPU_load(_avg_CPU_load_t *);
 extern void        _task_get_process_container(task_t *, _process_t **, tid_t *);
 extern void        _task_get_process_container_unprotected(task_t *, _process_t **);
-extern int _process_thread_create(_process_t *, thread_func_t, const _thread_attr_t *,
-        void *, tid_t *);
+extern int _process_thread_create(_process_t *, thread_func_t, const _thread_attr_t *, void *, tid_t *);
 extern const appset_table_t *_process_get_appset_table(void);
 extern int                   _process_register_appset(const void **, size_t);
 
