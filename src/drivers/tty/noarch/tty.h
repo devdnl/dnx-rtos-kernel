@@ -1,11 +1,11 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    tty.h
 
 @author  Daniel Zorychta
 
 @brief   TTY driver header file. Internal usage only.
 
-@note    Copyright (C) 2013 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 #ifndef _TTY_H_
 #define _TTY_H_
@@ -103,6 +103,7 @@ extern bool  ttyedit_is_echo_enabled(ttyedit_t *);
 extern char *ttyedit_get_value(ttyedit_t *);
 extern void  ttyedit_set_value(ttyedit_t *, const char *, bool);
 extern void  ttyedit_clear(ttyedit_t *);
+extern void  ttyedit_clear_collected_character(ttyedit_t *);
 extern void  ttyedit_insert_char(ttyedit_t *, char);
 extern void  ttyedit_remove_char(ttyedit_t *);
 extern void  ttyedit_delete_char(ttyedit_t *);

@@ -1,11 +1,11 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    tty_editln.c
 
 @author  Daniel Zorychta
 
 @brief   TTY edit line (input line).
 
-@note    Copyright (C) 2013 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 // #pragma GCC optimize("Og")
 
@@ -53,8 +53,8 @@
                 return -EINVAL;       \
         }
 
-#define REJECT_SURROGATE(ucs2)                                       \
-        if (ucs2 >= UNI_SUR_HIGH_START && ucs2 <= UNI_SUR_LOW_END) { \
+#define REJECT_SURROGATE(ucs4)                                       \
+        if (ucs4 >= UNI_SUR_HIGH_START && ucs4 <= UNI_SUR_LOW_END) { \
                 return -EINVAL;                                      \
         }
 
@@ -71,9 +71,9 @@ struct ttyedit {
         void     *self;
         char      input_char[8];
         u8_t      input_char_count;
-        wchar_t   buffer_ucs2[EDITLINE_LEN + 1];
+        wchar_t   buffer_ucs4[EDITLINE_LEN + 1];
         char      buffer_utf8[4 * EDITLINE_LEN + 1];
-        u16_t     length_ucs2;
+        u16_t     length_ucs4;
         u16_t     cursor_position;
         bool      echo_enabled;
 };
@@ -81,10 +81,10 @@ struct ttyedit {
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static wchar_t utf8_to_ucs2(const char **text);
-static int     ucs2_to_utf8(int32_t ucs2, char *utf8);
+static int32_t utf8_to_ucs4(const char **text);
+static int     ucs4_to_utf8(int32_t ucs4, char *utf8);
 static int     unicode_count_chars(const char *utf8);
-static void    ucs2_buffer_to_utf8_buffer(ttyedit_t *this, size_t pos);
+static void    ucs4_buffer_to_utf8_buffer(ttyedit_t *this, size_t pos);
 
 /*==============================================================================
   Local objects
@@ -227,7 +227,7 @@ char *ttyedit_get_value(ttyedit_t *this)
                 return NULL;
         }
 
-        ucs2_buffer_to_utf8_buffer(this, 0);
+        ucs4_buffer_to_utf8_buffer(this, 0);
 
         return this->buffer_utf8;
 }
@@ -252,8 +252,8 @@ void ttyedit_set_value(ttyedit_t *this, const char *str, bool show)
         if (n < 0) {
                 return;
 
-        } else if (n >= cast(int, ARRAY_SIZE(this->buffer_ucs2))) {
-                n = ARRAY_SIZE(this->buffer_ucs2) - 1;
+        } else if (n >= cast(int, ARRAY_SIZE(this->buffer_ucs4))) {
+                n = ARRAY_SIZE(this->buffer_ucs4) - 1;
         }
 
         if (show) {
@@ -263,17 +263,17 @@ void ttyedit_set_value(ttyedit_t *this, const char *str, bool show)
         ttyedit_clear(this);
 
         const char *utf8 = str;
-        wchar_t    *ucs2 = this->buffer_ucs2;
+        wchar_t    *ucs4 = this->buffer_ucs4;
         while (*utf8 != '\0') {
-                *ucs2 = utf8_to_ucs2(&utf8);
-                if (ucs2 == 0) {
+                *ucs4 = utf8_to_ucs4(&utf8);
+                if (ucs4 == 0) {
                         break;
                 } else {
-                        ucs2++;
+                        ucs4++;
                 }
         }
 
-        this->length_ucs2     = n;
+        this->length_ucs4     = n;
         this->cursor_position = n;
 
         if (show) {
@@ -296,10 +296,25 @@ void ttyedit_set_value(ttyedit_t *this, const char *str, bool show)
 void ttyedit_clear(ttyedit_t *this)
 {
         if (is_valid(this)) {
-                memset(this->buffer_ucs2, 0, sizeof(this->buffer_ucs2));
+                memset(this->buffer_ucs4, 0, sizeof(this->buffer_ucs4));
                 memset(this->buffer_utf8, 0, sizeof(this->buffer_utf8));
                 this->cursor_position = 0;
-                this->length_ucs2     = 0;
+                this->length_ucs4     = 0;
+        }
+}
+
+//==============================================================================
+/**
+ * @brief Clear collected character.
+ *
+ * @param this          editline object
+ */
+//==============================================================================
+void ttyedit_clear_collected_character(ttyedit_t *this)
+{
+        if (is_valid(this)) {
+                memset(this->input_char, 0, sizeof(this->input_char));
+                this->input_char_count = 0;
         }
 }
 
@@ -317,11 +332,11 @@ void ttyedit_insert_char(ttyedit_t *this, char c)
                 return;
         }
 
-        if (this->length_ucs2 >= ARRAY_SIZE(this->buffer_ucs2) - 1) {
+        if (this->length_ucs4 >= ARRAY_SIZE(this->buffer_ucs4) - 1) {
                 return;
         }
 
-        if (this->input_char_count < 4) {
+        if (this->input_char_count < 6) {
                 this->input_char[this->input_char_count++] = c;
 
         } else {
@@ -331,22 +346,21 @@ void ttyedit_insert_char(ttyedit_t *this, char c)
         }
 
         const char *utf8 = this->input_char;
-        wchar_t     ucs2 = utf8_to_ucs2(&utf8);
-        if (ucs2 == 0) {
+        int32_t     ucs4 = utf8_to_ucs4(&utf8);
+        if (ucs4 <= 0) {
                 return;
         }
 
-        memset(this->input_char, 0, sizeof(this->input_char));
-        this->input_char_count = 0;
+        ttyedit_clear_collected_character(this);
 
-        if (this->cursor_position < this->length_ucs2) {
+        if (this->cursor_position < this->length_ucs4) {
 
-                for (uint i = this->length_ucs2; i > this->cursor_position; i--) {
-                        this->buffer_ucs2[i] = this->buffer_ucs2[i - 1];
+                for (uint i = this->length_ucs4; i > this->cursor_position; i--) {
+                        this->buffer_ucs4[i] = this->buffer_ucs4[i - 1];
                 }
 
-                this->buffer_ucs2[this->cursor_position++] = ucs2;
-                this->length_ucs2++;
+                this->buffer_ucs4[this->cursor_position++] = ucs4;
+                this->length_ucs4++;
 
                 if (this->echo_enabled) {
                         size_t wrcnt;
@@ -354,7 +368,7 @@ void ttyedit_insert_char(ttyedit_t *this, char c)
                         const char *cmd = VT100_SAVE_CURSOR_POSITION;
                         sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
 
-                        ucs2_buffer_to_utf8_buffer(this, this->cursor_position - 1);
+                        ucs4_buffer_to_utf8_buffer(this, this->cursor_position - 1);
                         cmd = this->buffer_utf8;
                         sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
 
@@ -362,13 +376,13 @@ void ttyedit_insert_char(ttyedit_t *this, char c)
                         sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
                 }
         } else {
-                this->buffer_ucs2[this->cursor_position++] = ucs2;
-                this->length_ucs2++;
+                this->buffer_ucs4[this->cursor_position++] = ucs4;
+                this->length_ucs4++;
 
                 if (this->echo_enabled) {
                         size_t wrcnt;
                         char   utf8[8];
-                        ucs2_to_utf8(ucs2, utf8);
+                        ucs4_to_utf8(ucs4, utf8);
                         sys_fwrite(utf8, strlen(utf8), &wrcnt, *this->out_file);
                 }
         }
@@ -387,24 +401,24 @@ void ttyedit_remove_char(ttyedit_t *this)
                 return;
         }
 
-        if (this->cursor_position == 0 || this->length_ucs2 == 0) {
+        if (this->cursor_position == 0 || this->length_ucs4 == 0) {
                 return;
         }
 
         this->cursor_position--;
 
-        for (uint i = this->cursor_position; i < this->length_ucs2; i++) {
-                this->buffer_ucs2[i] = this->buffer_ucs2[i + 1];
+        for (uint i = this->cursor_position; i < this->length_ucs4; i++) {
+                this->buffer_ucs4[i] = this->buffer_ucs4[i + 1];
         }
 
-        this->length_ucs2--;
+        this->length_ucs4--;
 
         size_t wrcnt;
 
         const char *cmd = "\b" VT100_ERASE_LINE_FROM_CUR VT100_SAVE_CURSOR_POSITION;
         sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
 
-        ucs2_buffer_to_utf8_buffer(this, this->cursor_position);
+        ucs4_buffer_to_utf8_buffer(this, this->cursor_position);
         cmd = this->buffer_utf8;
         sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
 
@@ -425,22 +439,22 @@ void ttyedit_delete_char(ttyedit_t *this)
                 return;
         }
 
-        if (this->length_ucs2 == 0 || this->cursor_position == this->length_ucs2) {
+        if (this->length_ucs4 == 0 || this->cursor_position == this->length_ucs4) {
                 return;
         }
 
-        for (uint i = this->cursor_position; i <= this->length_ucs2; i++) {
-                this->buffer_ucs2[i] = this->buffer_ucs2[i + 1];
+        for (uint i = this->cursor_position; i <= this->length_ucs4; i++) {
+                this->buffer_ucs4[i] = this->buffer_ucs4[i + 1];
         }
 
-        this->length_ucs2--;
+        this->length_ucs4--;
 
         size_t wrcnt;
 
         const char *cmd = VT100_SAVE_CURSOR_POSITION VT100_ERASE_LINE_FROM_CUR;
         sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
 
-        ucs2_buffer_to_utf8_buffer(this, this->cursor_position);
+        ucs4_buffer_to_utf8_buffer(this, this->cursor_position);
         cmd = this->buffer_utf8;
         sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
 
@@ -458,6 +472,8 @@ void ttyedit_delete_char(ttyedit_t *this)
 void ttyedit_move_cursor_left(ttyedit_t *this)
 {
         if (is_valid(this)) {
+                ttyedit_clear_collected_character(this);
+
                 if (this->cursor_position > 0) {
                         size_t      wrcnt;
                         const char *cmd = VT100_SHIFT_CURSOR_LEFT(1);
@@ -477,7 +493,9 @@ void ttyedit_move_cursor_left(ttyedit_t *this)
 void ttyedit_move_cursor_right(ttyedit_t *this)
 {
         if (is_valid(this)) {
-                if (this->cursor_position < this->length_ucs2) {
+                ttyedit_clear_collected_character(this);
+
+                if (this->cursor_position < this->length_ucs4) {
                         size_t      wrcnt;
                         const char *cmd = VT100_SHIFT_CURSOR_RIGHT(1);
                         sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
@@ -496,6 +514,8 @@ void ttyedit_move_cursor_right(ttyedit_t *this)
 void ttyedit_move_cursor_home(ttyedit_t *this)
 {
         if (is_valid(this)) {
+                ttyedit_clear_collected_character(this);
+
                 size_t      wrcnt;
                 const char *cmd = VT100_CURSOR_OFF;
                 sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
@@ -520,11 +540,13 @@ void ttyedit_move_cursor_home(ttyedit_t *this)
 void ttyedit_move_cursor_end(ttyedit_t *this)
 {
         if (is_valid(this)) {
+                ttyedit_clear_collected_character(this);
+
                 size_t      wrcnt;
                 const char *cmd = VT100_CURSOR_OFF;
                 sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
 
-                while (this->cursor_position < this->length_ucs2) {
+                while (this->cursor_position < this->length_ucs4) {
                         char *cmd = VT100_SHIFT_CURSOR_RIGHT(1);
                         sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
                         this->cursor_position++;
@@ -537,27 +559,27 @@ void ttyedit_move_cursor_end(ttyedit_t *this)
 
 //==============================================================================
 /**
- * @brief  Convert UCS2 buffer to UTF8 buffer.
+ * @brief  Convert ucs4 buffer to UTF8 buffer.
  *
  * @param  this         editline object
- * @param  pos          position in UCS2 buffer
+ * @param  pos          position in ucs4 buffer
  */
 //==============================================================================
-static void ucs2_buffer_to_utf8_buffer(ttyedit_t *this, size_t pos)
+static void ucs4_buffer_to_utf8_buffer(ttyedit_t *this, size_t pos)
 {
-        if (pos >= this->length_ucs2) {
+        if (pos >= this->length_ucs4) {
                 memset(this->buffer_utf8, 0, sizeof(this->buffer_utf8));
                 return;
         }
 
-        wchar_t *ucs2 = &this->buffer_ucs2[pos];
+        wchar_t *ucs4 = &this->buffer_ucs4[pos];
         char    *utf8 = this->buffer_utf8;
 
-        while (*ucs2) {
-                int n = ucs2_to_utf8(*ucs2, utf8);
+        while (*ucs4) {
+                int n = ucs4_to_utf8(*ucs4, utf8);
                 if (n > 0) {
                         utf8 += n;
-                        ucs2++;
+                        ucs4++;
                 } else {
                         break;
                 }
@@ -570,12 +592,12 @@ static void ucs2_buffer_to_utf8_buffer(ttyedit_t *this, size_t pos)
  *
  * @param  text         pointer to text buffer
  *
- * @return Unicode character
+ * @return Unicode character or -1 on error.
  */
 //==============================================================================
-static wchar_t utf8_to_ucs2(const char **text)
+static int32_t utf8_to_ucs4(const char **text)
 {
-        wchar_t unicode = 0;
+        int32_t unicode = -1;
 
         if (text && *text && **text != '\0') {
 
@@ -586,75 +608,148 @@ static wchar_t utf8_to_ucs2(const char **text)
                         if ((c & 0xE0) == 0xC0) {
                                 if (*str != '\0') {
                                         unicode = ((c & 0x1F) << 6);
+                                        *text += 1;
+                                } else {
+                                        return -1;
                                 }
+
                                 if (*str != '\0') {
                                         unicode |= (*str++ & 0x3F);
+                                        *text += 1;
+                                } else {
+                                        return -1;
                                 }
-                                *text += 2;
 
                         } else if ((c & 0xF0) == 0xE0) {
-                                unicode = ((c & 0x0F) << 12);
+                                if (*str != '\0') {
+                                        unicode = ((c & 0x0F) << 12);
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
                                 if (*str != '\0') {
                                         unicode |= (*str++ & 0x3F) << 6;
+                                        *text += 1;
+                                } else {
+                                        return -1;
                                 }
+
                                 if (*str != '\0') {
                                         unicode |= (*str++ & 0x3F) << 0;
+                                        *text += 1;
+                                } else {
+                                        return -1;
                                 }
-                                *text += 3;
 
                         } else if ((c & 0xF8) == 0xF0) {
                                 if (*str != '\0') {
                                         unicode = ((c & 0x07) << 18);
+                                        *text += 1;
+                                } else {
+                                        return -1;
                                 }
+
                                 if (*str != '\0') {
                                         unicode |= (*str++ & 0x3F) << 12;
+                                        *text += 1;
+                                } else {
+                                        return -1;
                                 }
+
                                 if (*str != '\0') {
                                         unicode |= (*str++ & 0x3F) << 6;
+                                        *text += 1;
+                                } else {
+                                        return -1;
                                 }
+
                                 if (*str != '\0') {
                                         unicode |= (*str++ & 0x3F) << 0;
+                                        *text += 1;
+                                } else {
+                                        return -1;
                                 }
-                                *text += 4;
 
                         } else if ((c & 0xFC) == 0xF8) {
                                 if (*str != '\0') {
                                         unicode = ((c & 0x03) << 24);
+                                        *text += 1;
+                                } else {
+                                        return -1;
                                 }
+
                                 if (*str != '\0') {
                                         unicode |= (*str++ & 0x3F) << 18;
+                                        *text += 1;
+                                } else {
+                                        return -1;
                                 }
+
                                 if (*str != '\0') {
                                         unicode |= (*str++ & 0x3F) << 12;
+                                        *text += 1;
+                                } else {
+                                        return -1;
                                 }
+
                                 if (*str != '\0') {
                                         unicode |= (*str++ & 0x3F) << 6;
+                                        *text += 1;
+                                } else {
+                                        return -1;
                                 }
+
                                 if (*str != '\0') {
                                         unicode |= (*str++ & 0x3F) << 0;
+                                        *text += 1;
+                                } else {
+                                        return -1;
                                 }
-                                *text += 5;
 
                         } else if ((c & 0xFE) == 0xFC) {
                                 if (*str != '\0') {
                                         unicode = ((c & 0x01) << 30);
+                                        *text += 1;
+                                } else {
+                                        return -1;
                                 }
+
                                 if (*str != '\0') {
                                         unicode |= (*str++ & 0x3F) << 24;
+                                        *text += 1;
+                                } else {
+                                        return -1;
                                 }
+
                                 if (*str != '\0') {
                                         unicode |= (*str++ & 0x3F) << 18;
+                                        *text += 1;
+                                } else {
+                                        return -1;
                                 }
+
                                 if (*str != '\0') {
                                         unicode |= (*str++ & 0x3F) << 12;
+                                        *text += 1;
+                                } else {
+                                        return -1;
                                 }
+
                                 if (*str != '\0') {
                                         unicode |= (*str++ & 0x3F) << 6;
+                                        *text += 1;
+                                } else {
+                                        return -1;
                                 }
+
                                 if (*str != '\0') {
                                         unicode |= (*str++ & 0x3F) << 0;
+                                        *text += 1;
+                                } else {
+                                        return -1;
                                 }
-                                *text += 6;
+
                         } else {
                                 unicode = 0;
                                 *text += 1;
@@ -670,47 +765,47 @@ static wchar_t utf8_to_ucs2(const char **text)
 
 //==============================================================================
 /**
- * @brief  Convert UCS2 to UTF8.
+ * @brief  Convert ucs4 to UTF8.
  *
- * @param  ucs2         UCS2 character
+ * @param  ucs4         ucs4 character
  * @param  utf8         UTF8 buffer output
  *
  * @return Number of converted bytes or -1 if conversion error.
  */
 //==============================================================================
-static int ucs2_to_utf8(int32_t ucs2, char *utf8)
+static int ucs4_to_utf8(int32_t ucs4, char *utf8)
 {
-        REJECT_FFFF(ucs2);
+        REJECT_FFFF(ucs4);
 
-        if (ucs2 < 0x80) {
-                utf8[0] = ucs2;
+        if (ucs4 < 0x80) {
+                utf8[0] = ucs4;
                 utf8[1] = '\0';
                 return 1;
         }
 
-        if (ucs2 < 0x800) {
-                utf8[0] = (ucs2 >> 6) | 0xC0;
-                utf8[1] = (ucs2 & 0x3F) | 0x80;
+        if (ucs4 < 0x800) {
+                utf8[0] = (ucs4 >> 6) | 0xC0;
+                utf8[1] = (ucs4 & 0x3F) | 0x80;
                 utf8[2] = '\0';
                 return 2;
         }
 
-        if (ucs2 < 0xFFFF) {
-                utf8[0] = ((ucs2 >> 12)) | 0xE0;
-                utf8[1] = ((ucs2 >> 6) & 0x3F) | 0x80;
-                utf8[2] = ((ucs2) & 0x3F) | 0x80;
+        if (ucs4 < 0xFFFF) {
+                utf8[0] = ((ucs4 >> 12)) | 0xE0;
+                utf8[1] = ((ucs4 >> 6) & 0x3F) | 0x80;
+                utf8[2] = ((ucs4) & 0x3F) | 0x80;
                 utf8[3] = '\0';
-                REJECT_SURROGATE(ucs2);
-                REJECT_NOT_CHAR(ucs2);
+                REJECT_SURROGATE(ucs4);
+                REJECT_NOT_CHAR(ucs4);
                 return 3;
         }
 
-        if (ucs2 <= UNICODE_UTF8_4) {
+        if (ucs4 <= UNICODE_UTF8_4) {
                 /* http://tidy.sourceforge.net/cgi-bin/lxr/source/src/utf8.c#L380 */
-                utf8[0] = 0xF0 | (ucs2 >> 18);
-                utf8[1] = 0x80 | ((ucs2 >> 12) & 0x3F);
-                utf8[2] = 0x80 | ((ucs2 >> 6) & 0x3F);
-                utf8[3] = 0x80 | ((ucs2 & 0x3F));
+                utf8[0] = 0xF0 | (ucs4 >> 18);
+                utf8[1] = 0x80 | ((ucs4 >> 12) & 0x3F);
+                utf8[2] = 0x80 | ((ucs4 >> 6) & 0x3F);
+                utf8[3] = 0x80 | ((ucs4 & 0x3F));
                 utf8[4] = '\0';
                 return 4;
         }
@@ -738,7 +833,7 @@ static int unicode_count_chars(const char *utf8)
         }
 
         while (p - utf8 < len) {
-                utf8_to_ucs2(&p);
+                utf8_to_ucs4(&p);
 
                 chars++;
                 if (*p == '\0') {

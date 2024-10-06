@@ -1,11 +1,11 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    tty_bfr.c
 
 @author  Daniel Zorychta
 
 @brief   Code in this file is responsible for buffer support.
 
-@note    Copyright (C) 2013, 2014 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -24,7 +24,9 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
+
+// #pragma GCC optimize("Og")
 
 /*==============================================================================
   Include files

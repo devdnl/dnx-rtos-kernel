@@ -1,11 +1,11 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    tty.c
 
 @author  Daniel Zorychta
 
 @brief   This file support virtual terminal.
 
-@note    Copyright (C) 2012, 2014 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 // #pragma GCC optimize("Og")
 
@@ -668,6 +668,7 @@ static void vt100_analyze(tty_io_t *io, char c)
         ttycmd_resp_t resp = ttycmd_analyze(tty->vtcmd, c);
         switch (resp) {
         case TTYCMD_KEY_ENTER:
+                ttyedit_clear_collected_character(tty->editline);
                 handle_new_line(tty);
                 break;
 
