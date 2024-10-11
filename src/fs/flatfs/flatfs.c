@@ -25,6 +25,8 @@ Brief   Daniel Zorychta
 
 ==============================================================================*/
 
+// #pragma GCC optimize("Og")
+
 /*==============================================================================
   Include files
 ==============================================================================*/
@@ -204,7 +206,6 @@ static void index_remove(flatfs_t *hdl, u32_t node_num);
 static bool index_find(flatfs_t *hdl, const char *name, size_t name_len, mode_t mode, blk_file_t *blk, u32_t *node_num);
 static bool index_get(flatfs_t *hdl, u32_t node_num, blk_file_t *blk);
 static void index_add(flatfs_t *hdl, u32_t node_num, const blk_file_t *blk);
-static void index_update(flatfs_t *hdl, u32_t node_num, const blk_file_t *blk);
 
 /*==============================================================================
   Local objects
@@ -1003,6 +1004,9 @@ API_FS_MKDIR(flatfs, void *fs_handle, const char *path, mode_t mode)
 
                 if (err == ENOENT) {
                         err = node_create(hdl, hdl->tmp_path, mode | S_IFDIR, blk, &node_num);
+
+                } else if (err == ESUCC) {
+                        err = EEXIST;
                 }
 
                 finish:
@@ -1249,6 +1253,10 @@ API_FS_READDIR(flatfs, void *fs_handle, kdir_t *kdir)
                         kdir->dirent.dev = 0;
                         kdir->dirent.mode |= blk->mode;
                         kdir->dirent.d_name = dir->item_name;
+
+                        if (S_ISDIR(kdir->dirent.mode)) {
+                                sys_strlcat(blk->name, "/", sizeof(blk->name));
+                        }
 
                         index_add(hdl, node, blk);
 
@@ -1750,6 +1758,20 @@ static int check_bitmaps_coherency_and_repair(flatfs_t *hdl)
                                                         MSG("removed incoherent node %u in block %u",
                                                                node, address);
                                                 }
+
+                                                if (S_ISDIR(file->mode) and (LAST_CHARACTER(file->name) != '/')) {
+                                                        sys_strlcat(file->name, "/", sizeof(file->name));
+
+                                                        file->crc = calc_blk_crc(file);
+
+                                                        err = block_write(hdl, address, file, 1);
+                                                        if (err) {
+                                                                goto finish;
+                                                        }
+
+                                                        MSG("fixed incorrect directory name in node %u in block %u",
+                                                               node, address);
+                                                }
                                         }
 
                                         mask <<= 1;
@@ -1911,6 +1933,7 @@ static int node_create(flatfs_t *hdl, const char *name, mode_t mode,
                         blk->uid   = 0;
                         blk->gid   = 0;
                         blk->size  = 0;
+                        memset(blk->name, 0, sizeof(blk->name));
                         sys_strlcpy(blk->name, name, MAX_FILE_NAME_LEN);
 
                         hdl->bitmap.word[i] |= mask;
@@ -2044,7 +2067,7 @@ static int file_block_read(flatfs_t *hdl, u32_t node_num, blk_file_t *blk)
 //==============================================================================
 static int file_block_write(flatfs_t *hdl, u32_t node_num, blk_file_t *blk)
 {
-        index_update(hdl, node_num, blk);
+        index_add(hdl, node_num, blk);
 
         blk->crc = calc_blk_crc(blk);
         return block_write(hdl, node_get_blkaddr(hdl, node_num), blk, 1);
@@ -2153,60 +2176,54 @@ static bool index_get(flatfs_t *hdl, u32_t node_num, blk_file_t *blk)
 static void index_add(flatfs_t *hdl, u32_t node_num, const blk_file_t *blk)
 {
 #if __FLATFS_INDEX_SIZE__ > 0
-        i32_t min_hit = INT32_MAX;
-        bool found = false;
-
-        for (size_t i = 0; i < ARRAY_SIZE(hdl->path_index); i++) {
-
-                path_index_t *index = &hdl->path_index[i];
-
-                if (isstrempty(index->blk.name)) {
-                        index->hit = INT32_MIN;
-                        min_hit = INT32_MIN;
-                        break;
-                } else {
-                        min_hit = min(min_hit, index->hit);
-                }
-        }
-
-        for (size_t i = 0; not found and (i < ARRAY_SIZE(hdl->path_index)); i++) {
-                path_index_t *index = &hdl->path_index[i];
-
-                if (index->hit == min_hit) {
-                        index->blk = *blk;
-                        index->hit = 0;
-                        index->node = node_num;
-                        break;
-                }
-        }
-#else
-        UNUSED_ARG3(hdl, node_num, blk);
-#endif
-}
-
-//==============================================================================
-/**
- * @brief  Update index.
- *
- * @param  hdl          file system handle
- * @param  node_num     node number
- * @param  blk          block data
- */
-//==============================================================================
-static void index_update(flatfs_t *hdl, u32_t node_num, const blk_file_t *blk)
-{
-#if __FLATFS_INDEX_SIZE__ > 0
+        /*
+         * Find that current node exits in the index.
+         */
         for (size_t i = 0; i < ARRAY_SIZE(hdl->path_index); i++) {
 
                 path_index_t *index = &hdl->path_index[i];
 
                 if (index->node == node_num) {
                         index->blk = *blk;
-                        break;
+                        index->hit++;
+                        return;
                 }
         }
+
+        /*
+         * Find the less used or empty index.
+         */
+        i32_t  min_hit   = INT32_MAX;
+        size_t entry_num = 0;
+
+        for (size_t i = 0; i < ARRAY_SIZE(hdl->path_index); i++) {
+
+                path_index_t *index = &hdl->path_index[i];
+
+                if (index->node == UINT32_MAX) {
+                        index->hit = INT32_MIN;
+                        min_hit    = INT32_MIN;
+                        entry_num  = i;
+                        break;
+
+                } else {
+                        if (index->hit < min_hit) {
+                                min_hit   = index->hit;
+                                entry_num = i;
+                        }
+                }
+        }
+
+        /*
+         * Use index slot for new node.
+         */
+        path_index_t *index = &hdl->path_index[entry_num];
+        index->blk  = *blk;
+        index->hit  = 0;
+        index->node = node_num;
+
 #else
-        UNUSED_ARG3(hdl,  node_num, blk);
+        UNUSED_ARG3(hdl, node_num, blk);
 #endif
 }
 
