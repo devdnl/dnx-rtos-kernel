@@ -996,8 +996,7 @@ static int buffer_reset(uds_t *uds, UDS_socket_t *socket)
 
         } else if (socket->protocol == NETM_PROTOCOL__DATAGRAM) {
                 datagram_t datagram;
-                while (sys_queue_receive(socket->buf, &datagram, socket->recv_timeout) ==
-                        0) {
+                while (sys_queue_receive(socket->buf, &datagram, 0) == 0) {
 
                         if (datagram.from) {
                                 zfree(cast(void **, &datagram.from));
