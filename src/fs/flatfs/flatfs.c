@@ -455,7 +455,7 @@ API_FS_OPEN(flatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
 
                         if (err == ENOENT) {
                                 if (flags & O_CREAT) {
-                                        err = node_create(hdl, path, S_IFREG, blk, &file->node_num);
+                                        err = node_create(hdl, path, S_IFREG | 0666, blk, &file->node_num);
                                 }
                         }
 
@@ -1096,7 +1096,6 @@ API_FS_OPENDIR(flatfs, void *fs_handle, const char *path, kdir_t *kdir)
 
                 foreach_used_file_node(hdl, 0)
                 {
-
                         DBG("diropen() node: %lu", node);
 
                         blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
@@ -1195,6 +1194,8 @@ API_FS_READDIR(flatfs, void *fs_handle, kdir_t *kdir)
                         goto finish;
                 }
 
+                index_add(hdl, node, blk);
+
                 DBG("diropen() node: %lu: '%s'", node, blk->name);
 
                 dir->seek    = node + 1;
@@ -1240,8 +1241,6 @@ API_FS_READDIR(flatfs, void *fs_handle, kdir_t *kdir)
                         if (S_ISDIR(kdir->dirent.mode)) {
                                 sys_strlcat(blk->name, "/", sizeof(blk->name));
                         }
-
-                        index_add(hdl, node, blk);
 
                         goto finish;
                 } else {
@@ -1394,8 +1393,14 @@ API_FS_CHMOD(flatfs, void *fs_handle, const char *path, mode_t mode)
                 u32_t       node;
 
                 err = node_find(hdl, path, MAX_FILE_NAME_LEN, FIND_ANY_NODE, file, &node);
+                if (err) {
+                        sys_strlcpy(hdl->tmp_path, path, sizeof(hdl->tmp_path));
+                        sys_strlcat(hdl->tmp_path, "/", sizeof(hdl->tmp_path));
+                        err = node_find(hdl, hdl->tmp_path, MAX_FILE_NAME_LEN, FIND_ANY_NODE, file, &node);
+                }
+
                 if (!err) {
-                        file->mode = (file->mode & S_IPMT) | (mode & S_IPMT);
+                        file->mode = (file->mode & S_IFMT) | (mode & S_IPMT);
                         err        = file_block_write(hdl, node, file);
                 }
 
@@ -1720,7 +1725,9 @@ static int check_bitmaps_coherency_and_repair(flatfs_t *hdl)
 
                                         MSG("fixed incoherent node %u in block %u", node, address);
 
-                                } else if (hdl->force_check and (bmp_pri->word[i] & mask)) {
+                                }
+
+                                if (hdl->force_check and (bmp_pri->word[i] & mask)) {
 
                                         err = block_read(hdl, address, file, 1);
                                         if (err) {
@@ -1903,7 +1910,7 @@ static int node_create(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t 
                         blk->magic = MAGIC_BLOCK_FILE;
                         blk->ctime = now;
                         blk->mtime = now;
-                        blk->mode  = 0666 | mode;
+                        blk->mode  = mode;
                         blk->uid   = 0;
                         blk->gid   = 0;
                         blk->size  = 0;
@@ -2149,20 +2156,6 @@ static void index_add(flatfs_t *hdl, u32_t node_num, const blk_file_t *blk)
 {
 #if __FLATFS_INDEX_SIZE__ > 0
         /*
-         * Find that current node exits in the index.
-         */
-        for (size_t i = 0; i < ARRAY_SIZE(hdl->path_index); i++) {
-
-                path_index_t *index = &hdl->path_index[i];
-
-                if (index->node == node_num) {
-                        index->blk = *blk;
-                        index->hit++;
-                        return;
-                }
-        }
-
-        /*
          * Find the less used or empty index.
          */
         i32_t  min_hit   = INT32_MAX;
@@ -2172,7 +2165,12 @@ static void index_add(flatfs_t *hdl, u32_t node_num, const blk_file_t *blk)
 
                 path_index_t *index = &hdl->path_index[i];
 
-                if (index->node == UINT32_MAX) {
+                if (index->node == node_num) {
+                        index->blk = *blk;
+                        index->hit++;
+                        return;
+
+                } else if (index->node == UINT32_MAX) {
                         index->hit = INT32_MIN;
                         min_hit    = INT32_MIN;
                         entry_num  = i;
