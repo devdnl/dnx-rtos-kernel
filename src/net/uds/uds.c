@@ -440,12 +440,12 @@ int UDS_socket_bind(void *ctx, UDS_socket_t *socket, const NETM_UDS_sockaddr_t *
                                 zfree(cast(void **, &socket->path));
                         }
 
-                        err = zalloc(path_len + 1, cast(void **, &socket->path));
+                        err = kalloc(path_len + 1, cast(void **, &socket->path));
                         if (err) {
                                 return err;
                         }
 
-                        strcpy(socket->path, addr->path);
+                        sys_strlcpy(socket->path, addr->path, path_len + 1);
                 }
 
                 sys_mutex_unlock(uds->socket.mutex);
@@ -1095,14 +1095,14 @@ static int buffer_datagram_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buff
         datagram.data = NULL;
         datagram.from = NULL;
 
-        int err = zalloc(len, cast(void **, &datagram.data));
+        int err = kalloc(len, cast(void **, &datagram.data));
         if (not err) {
                 memcpy(datagram.data, data, len);
         }
 
         if (not err and socket->path) {
                 size_t from_len = strsize(socket->path);
-                err             = zalloc(from_len, cast(void **, &datagram.from));
+                err             = kalloc(from_len, cast(void **, &datagram.from));
                 if (not err) {
                         sys_strlcpy(datagram.from, socket->path, from_len);
                 }
