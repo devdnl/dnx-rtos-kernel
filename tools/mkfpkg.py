@@ -134,7 +134,7 @@ if __name__ == "__main__":
 
         entry_list = []
 
-        # foma header
+        # fpkg header
         fout.write(b"FPKG\n")
 
         # skip header
