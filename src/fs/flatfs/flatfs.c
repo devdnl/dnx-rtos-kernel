@@ -965,6 +965,26 @@ API_FS_MKDIR(flatfs, void *fs_handle, const char *path, mode_t mode)
                 u32_t       node_num;
 
                 /*
+                 * Try to open root directory
+                 */
+                sys_strlcpy(hdl->tmp_path, path, sizeof(hdl->tmp_path));
+                if (not isstreq(hdl->tmp_path, "/")) {
+                        char *slash = strrchr(hdl->tmp_path, '/');
+                        if (slash) {
+                                slash++;
+                                *slash = '\0';
+
+                                if (not isstreq(hdl->tmp_path, "/")) {
+                                        err = node_find(hdl, hdl->tmp_path, MAX_FILE_NAME_LEN, FIND_ANY_NODE, blk, &node_num);
+                                        if (err) {
+                                                err = ENOENT;
+                                                goto finish;
+                                        }
+                                }
+                        }
+                }
+
+                /*
                  * Try to open directory that should contains selected dir
                  */
                 sys_strlcpy(hdl->tmp_path, path, sizeof(hdl->tmp_path));
