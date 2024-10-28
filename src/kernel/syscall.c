@@ -1327,7 +1327,7 @@ static int syscall_malloc(syscallrq_t *rq)
         GETARG(void **, blk);
 
         const char **pref_ram = _cpuctl_preferred_APP_RAM;
-        if (*GETPROCESS()->pdata->pref_ram != NULL) {
+        if (GETPROCESS()->pdata->pref_ram and *GETPROCESS()->pdata->pref_ram) {
                 pref_ram = *GETPROCESS()->pdata->pref_ram;
         }
 
@@ -1360,7 +1360,7 @@ static int syscall_zalloc(syscallrq_t *rq)
         GETARG(void **, blk);
 
         const char **pref_ram = _cpuctl_preferred_APP_RAM;
-        if (*GETPROCESS()->pdata->pref_ram != NULL) {
+        if (GETPROCESS()->pdata->pref_ram and *GETPROCESS()->pdata->pref_ram) {
                 pref_ram = *GETPROCESS()->pdata->pref_ram;
         }
 

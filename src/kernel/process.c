@@ -3169,11 +3169,15 @@ static int allocate_process_globals(_process_t *proc, size_t app_ctx_size,
 {
         int err = ESUCC;
 
+        const char **pref_ram = _cpuctl_preferred_APP_RAM;
+        if (proc->pdata->pref_ram and *proc->pdata->pref_ram) {
+                pref_ram = *proc->pdata->pref_ram;
+        }
+
         if (*usrprog->globals_size > 0) {
                 res_header_t *mem;
-                err = _kzalloc(_MM_PROG, *usrprog->globals_size,
-                        _cpuctl_preferred_APP_RAM, _MM_FLAG__DMA, _MM_FLAG__DMA,
-                        cast(void *, &mem));
+                err = _kzalloc(_MM_PROG, *usrprog->globals_size, pref_ram,
+                       _MM_FLAG__DMA, _MM_FLAG__DMA, cast(void *, &mem));
                 if (!err) {
                         proc->globals = &mem[1];
                         _process_register_resource(proc, mem);
@@ -3182,7 +3186,7 @@ static int allocate_process_globals(_process_t *proc, size_t app_ctx_size,
 
         if (!err and (app_ctx_size > 0)) {
                 res_header_t *ctx;
-                err = _kzalloc(_MM_PROG, app_ctx_size, _cpuctl_preferred_APP_RAM,
+                err = _kzalloc(_MM_PROG, app_ctx_size, pref_ram,
                         _MM_FLAG__DMA, _MM_FLAG__DMA, cast(void *, &ctx));
                 if (!err) {
                         proc->app_ctx = &ctx[1];
