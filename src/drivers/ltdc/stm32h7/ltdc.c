@@ -282,6 +282,7 @@ API_MOD_IOCTL(LTDC, void *device_handle, int request, void *arg)
                 feat->pixel_format = hdl->config.pixel_format;
                 feat->width = __LTDC_WIDTH__;
                 feat->height = __LTDC_HEIGHT__;
+                err = 0;
                 break;
         }
 
