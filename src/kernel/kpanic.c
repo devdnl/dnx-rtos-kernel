@@ -55,13 +55,12 @@ typedef struct {
         uint32_t CRC32;  /* CRC32 */
 
         struct {
-                enum _kernel_panic_desc_cause cause;       /* kernel panic cause */
                 const char                   *name;        /* process name       */
+                enum _kernel_panic_desc_cause cause;       /* kernel panic cause */
                 pid_t                         pid;         /* process ID         */
                 tid_t                         tid;         /* thread ID          */
                 bool                          kernelspace; /* kernel space       */
                 u8_t                          syscall;     /* syscall            */
-                _process_t                   *process;     /* process pointer    */
         } content;
 } kernel_panic_desc;
 
@@ -69,8 +68,7 @@ typedef struct {
   Local function prototypes
 ==============================================================================*/
 static void catch_process(enum _kernel_panic_desc_cause suggested_cause, bool isr);
-static void report_kernel_panic(_process_t *proc, enum _kernel_panic_desc_cause cause,
-        bool isr);
+static void report_kernel_panic(_process_t *proc, enum _kernel_panic_desc_cause cause, bool isr);
 static void app_crash_handler(void *arg);
 
 /*==============================================================================
@@ -116,8 +114,9 @@ static const char *CAUSE[] = {
 //==============================================================================
 int _kernel_panic_init(void)
 {
-        _task_create(app_crash_handler, "", _STACK_DEPTH_MINIMAL, NULL,
-                &kpanic_app_crash_task);
+        _task_create(app_crash_handler, "", _STACK_DEPTH_LOW, NULL, &kpanic_app_crash_task);
+        _task_set_priority(kpanic_app_crash_task, _PRIORITY_REALTIME);
+
         return 0;
 }
 
@@ -145,32 +144,27 @@ bool _kernel_panic_info(struct _kernel_panic_info *info)
                 const char *panic_type;
 
                 if ((strncmp(kpanic_desc.content.name, "kworker", 128) == 0) ||
-                        (kpanic_desc.content.cause >=
-                                _KERNEL_PANIC_DESC_CAUSE_CPUFAULT)) {
+                        (kpanic_desc.content.cause >= _KERNEL_PANIC_DESC_CAUSE_CPUFAULT)) {
                         panic_type = "KERNEL PANIC";
                 } else {
                         panic_type = "APP CRASH";
                 }
 
-                printk(VT100_FONT_COLOR_RED
-                        "%s: '%s' [%d:%d,%s,%s,%u]" VT100_RESET_ATTRIBUTES,
-                        panic_type, kpanic_desc.content.name, kpanic_desc.content.pid,
-                        kpanic_desc.content.tid, CAUSE[kpanic_desc.content.cause],
-                        kpanic_desc.content.kernelspace ? "KRN" : "USR",
+                printk(VT100_FONT_COLOR_RED "%s: '%s' [%d:%d,%s,%s,%u]" VT100_RESET_ATTRIBUTES, panic_type,
+                        kpanic_desc.content.name, kpanic_desc.content.pid, kpanic_desc.content.tid,
+                        CAUSE[kpanic_desc.content.cause], kpanic_desc.content.kernelspace ? "KRN" : "USR",
                         kpanic_desc.content.syscall);
 
                 _cpuctl_print_exception();
 #endif
 
                 if (info) {
-                        info->cause = min(kpanic_desc.content.cause,
-                                kpanic_desc.content.cause);
+                        info->cause = min(kpanic_desc.content.cause, kpanic_desc.content.cause);
 
                         info->cause_str = CAUSE[info->cause];
 
-                        info->name = (kpanic_desc.content.name == NULL)
-                                ? "<unknown>"
-                                : kpanic_desc.content.name;
+                        info->name = (kpanic_desc.content.name == NULL) ? "<unknown>"
+                                                                        : kpanic_desc.content.name;
 
                         info->kernelspace = kpanic_desc.content.kernelspace;
                         info->pid         = kpanic_desc.content.pid;
@@ -230,8 +224,7 @@ static void catch_process(enum _kernel_panic_desc_cause suggested_cause, bool is
         report_kernel_panic(kpanic_trap_proc, suggested_cause, isr);
 
         if (++kpanic_ctr > 1000) {
-                report_kernel_panic(kpanic_trap_proc, _KERNEL_PANIC_DESC_CAUSE_PANICLOOP,
-                        isr);
+                report_kernel_panic(kpanic_trap_proc, _KERNEL_PANIC_DESC_CAUSE_PANICLOOP, isr);
                 _cpuctl_restart_system();
 
         } else if (not _mm_check_consistency(isr)) {
@@ -265,8 +258,7 @@ static void catch_process(enum _kernel_panic_desc_cause suggested_cause, bool is
  * @param  isr          called from ISR
  */
 //==============================================================================
-static void report_kernel_panic(_process_t *proc, enum _kernel_panic_desc_cause cause,
-        bool isr)
+static void report_kernel_panic(_process_t *proc, enum _kernel_panic_desc_cause cause, bool isr)
 {
         kpanic_desc.content.cause = cause;
         kpanic_desc.valid1        = _KERNEL_PANIC_DESC_VALID1;
@@ -285,11 +277,9 @@ static void report_kernel_panic(_process_t *proc, enum _kernel_panic_desc_cause 
 
                 _process_get_pid(proc, &kpanic_desc.content.pid);
 
-                kpanic_desc.content.kernelspace = _process_is_kernelspace(proc,
-                        kpanic_desc.content.tid, isr);
+                kpanic_desc.content.kernelspace = _process_is_kernelspace(proc, kpanic_desc.content.tid, isr);
 
-                kpanic_desc.content.syscall = _process_get_curr_syscall(proc,
-                        kpanic_desc.content.tid, isr);
+                kpanic_desc.content.syscall = _process_get_curr_syscall(proc, kpanic_desc.content.tid, isr);
         }
 
         kpanic_desc.CRC32 = calc_crc32(&kpanic_desc.content, sizeof(kpanic_desc.content));
@@ -306,12 +296,6 @@ static void app_crash_handler(void *arg)
 {
         UNUSED_ARG1(arg);
 
-        /*
-         * Set the highest possible priority in case to select this task by
-         * scheduler when crash happen.
-         */
-        _task_set_priority(_THIS_TASK, _PRIORITY_REALTIME);
-
         while (true) {
                 if (not kpanic_trap_proc) {
                         _task_suspend(kpanic_app_crash_task);
@@ -324,13 +308,11 @@ static void app_crash_handler(void *arg)
                         }
                 }
 
-                _process_kill(kpanic_desc.content.pid);
+                _printk("*** APP CRASH: '%s' [%d:%d,%s,%s,%u] ***", _process_get_name(kpanic_trap_proc),
+                        kpanic_desc.content.pid, kpanic_desc.content.tid, CAUSE[kpanic_desc.content.cause],
+                        kpanic_desc.content.kernelspace ? "KRN" : "USR", kpanic_desc.content.syscall);
 
-                _printk("*** APP CRASH: '%s' [%d:%d,%s,%s,%u] ***",
-                        _process_get_name(kpanic_trap_proc), kpanic_desc.content.pid,
-                        kpanic_desc.content.tid, CAUSE[kpanic_desc.content.cause],
-                        kpanic_desc.content.kernelspace ? "KRN" : "USR",
-                        kpanic_desc.content.syscall);
+                _process_kill(kpanic_desc.content.pid);
 
                 kpanic_desc.CRC32 = 0;
                 kpanic_trap_proc  = NULL;

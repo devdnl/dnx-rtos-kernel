@@ -185,21 +185,17 @@ typedef struct {
 } reg_dump_t;
 
 typedef struct {
-        uint8_t  enable;       /*!< Specifies the status of the region.*/
-        uint8_t  number;       /*!< Specifies the number of the region to protect.*/
-        uint32_t base_address; /*!< Specifies the base address of the region to protect.*/
-        uint8_t  size;         /*!< Specifies the size of the region to protect.*/
-        uint8_t  sub_region_disable; /*!< Specifies the number of the subregion protection
-                                        to disable.*/
-        uint8_t type_ext_field;      /*!< Specifies the TEX field level.*/
-        uint8_t access_permission;   /*!< Specifies the region access permission type.*/
-        uint8_t disable_exec;        /*!< Specifies the instruction access status.*/
-        uint8_t is_shareable;  /*!< Specifies the shareability status of the protected
-                                  region.*/
-        uint8_t is_cacheable;  /*!< Specifies the cacheable status of the region
-                                  protected.*/
-        uint8_t is_bufferable; /*!< Specifies the bufferable status of the protected
-                                  region.*/
+        uint8_t  enable;             /*!< Specifies the status of the region.*/
+        uint8_t  number;             /*!< Specifies the number of the region to protect.*/
+        uint32_t base_address;       /*!< Specifies the base address of the region to protect.*/
+        uint8_t  size;               /*!< Specifies the size of the region to protect.*/
+        uint8_t  sub_region_disable; /*!< Specifies the number of the subregion protection to disable.*/
+        uint8_t  type_ext_field;     /*!< Specifies the TEX field level.*/
+        uint8_t  access_permission;  /*!< Specifies the region access permission type.*/
+        uint8_t  disable_exec;       /*!< Specifies the instruction access status.*/
+        uint8_t  is_shareable;       /*!< Specifies the shareability status of the protected region.*/
+        uint8_t  is_cacheable;       /*!< Specifies the cacheable status of the region protected.*/
+        uint8_t  is_bufferable;      /*!< Specifies the bufferable status of the protected region.*/
 } MPU_region_t;
 
 /*==============================================================================
@@ -302,8 +298,7 @@ void _cpuctl_init(void)
 
         u32_t dma_cache = _MM_FLAG__DMA | _MM_FLAG__CACHE;
 
-        _mm_register_region(&axisram, AXISRAM_HEAP_START, AXISRAM_HEAP_SIZE, dma_cache,
-                "AXISRAM");
+        _mm_register_region(&axisram, AXISRAM_HEAP_START, AXISRAM_HEAP_SIZE, dma_cache, "AXISRAM");
 
         if (DTCM_SIZE > 0) {
                 _mm_register_region(&dtcm, DTCM_START, DTCM_SIZE, 0, "DTCM");
@@ -568,8 +563,7 @@ void _cpuctl_update_system_clocks(void)
 //==============================================================================
 void _cpuctl_delay_us(u16_t microseconds)
 {
-        u32_t ticks = ((u64_t)microseconds * SysTick->LOAD * __OS_TASK_SCHED_FREQ__) /
-                1000000;
+        u32_t ticks = ((u64_t)microseconds * SysTick->LOAD * __OS_TASK_SCHED_FREQ__) / 1000000;
 
         while (ticks > 0) {
                 i32_t now = SysTick->VAL;
@@ -615,17 +609,38 @@ void _cpuctl_print_exception(void)
 
 //==============================================================================
 /**
+ * @brief  Infinite loop.
+ */
+//==============================================================================
+void _task_infinite_loop(void)
+{
+        while (true) {
+                __asm volatile("nop");
+        }
+}
+
+//==============================================================================
+/**
  * @brief Hard Fault ISR
  */
 //==============================================================================
 void HardFault_Handler(void)
 {
-        __asm volatile(" tst lr, #4                                                \n"
-                       " ite eq                                                    \n"
-                       " mrseq r0, msp                                             \n"
-                       " mrsne r0, psp                                             \n"
-                       " ldr r1, [r0, #24]                                         \n"
-                       " b get_registers_from_stack                                \n");
+        // remember registers
+        __asm volatile("tst lr, #4                   \n"
+                       "ite eq                       \n"
+                       "mrseq r0, msp                \n"
+                       "mrsne r0, psp                \n"
+                       "ldr r1, [r0, #24]            \n"
+                       "b get_registers_from_stack   \n");
+
+        // return to infinite loop instead of broken code
+        __asm volatile("tst lr, #4                   \n"
+                       "ite EQ                       \n"
+                       "mrseq r0, msp                \n"
+                       "mrsne r0, psp                \n"
+                       "ldr r1, =_task_infinite_loop \n"
+                       "str r1, [r0, #24]            \n");
 }
 
 //==============================================================================
@@ -855,10 +870,9 @@ static void MPU_conf_region(MPU_region_t *mpu_region)
                         ((uint32_t)mpu_region->size << MPU_RASR_SIZE_Pos) |
                         ((uint32_t)mpu_region->enable << MPU_RASR_ENABLE_Pos);
 
-                printk("CPU: DCACHE disabled for MPU region %u [%lXh-%lXh]",
-                        mpu_region->number, mpu_region->base_address,
-                        mpu_region->base_address +
-                                MPU_region_size_to_blk(mpu_region->size) - 1);
+                printk("CPU: DCACHE disabled for MPU region %u [%lXh-%lXh]", mpu_region->number,
+                        mpu_region->base_address,
+                        mpu_region->base_address + MPU_region_size_to_blk(mpu_region->size) - 1);
         } else {
                 MPU->RBAR = 0x00;
                 MPU->RASR = 0x00;
