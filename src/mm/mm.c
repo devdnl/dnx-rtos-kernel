@@ -435,7 +435,11 @@ size_t _mm_get_mem_usage(void)
         size_t memusage = STACK_START - RAM_START;
 
         for (_mm_region_t *r = regions; r; r = r->next) {
-                memusage += _heap_get_used(&r->heap);
+                if (r->flags & _MM_FLAG__NOHEAP) {
+                        memusage += r->size;
+                } else {
+                        memusage += _heap_get_used(&r->heap);
+                }
         }
 
         return memusage;
@@ -453,7 +457,7 @@ size_t _mm_get_mem_size(void)
         size_t ramsize = STACK_START - RAM_START;
 
         for (_mm_region_t *r = regions; r; r = r->next) {
-                ramsize += _heap_get_size(&r->heap);
+                ramsize += r->size;
         }
 
         return ramsize;
