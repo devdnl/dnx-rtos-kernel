@@ -221,8 +221,6 @@ enum {
 struct UART_mem {
         kqueue_t *tx_queue;
         kqueue_t *rx_queue;
-        kmtx_t   *port_lock_rx_mtx;
-        kmtx_t   *port_lock_tx_mtx;
         void     *uarthdl;
         u8_t      major;
         u8_t      minor;

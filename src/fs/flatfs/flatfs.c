@@ -217,7 +217,8 @@ static int   check_file_block_coherency(flatfs_t *hdl, const blk_file_t *blk);
 static u32_t node_get_blkaddr(flatfs_t *hdl, u32_t node_num);
 static int   node_find(flatfs_t *hdl, const char *name, size_t name_len, mode_t mode_mask, blk_file_t *blk,
           u32_t *node_num);
-static int   node_create(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t *blk, u32_t *node_num);
+static int   node_create(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t *blk, u32_t *node_num,
+          time_t time);
 static int   node_remove(flatfs_t *hdl, u32_t node_num);
 static void  set_bitmap_bit(flatfs_t *hdl, u32_t node_num, bool set);
 static u32_t calc_blk_crc(const void *blk);
@@ -318,7 +319,7 @@ API_FS_INIT(flatfs, void **fs_handle, const char *src_path, const char *opts)
                 }
 #endif
 
-                err = sys_mutex_create(KMTX_TYPE_NORMAL, &hdl->mtx);
+                err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &hdl->mtx);
                 if (!err) {
 
                         err = sys_llist_create(sys_llist_functor_cmp_pointers, NULL, &hdl->open_files);
@@ -405,6 +406,9 @@ API_FS_OPEN(flatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
                 *fhdl = file;
                 *fpos = 0;
 
+                time_t mtime = 0;
+                sys_gettime(&mtime);
+
                 err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
                 if (!err) {
                         blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
@@ -455,7 +459,8 @@ API_FS_OPEN(flatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
 
                         if (err == ENOENT) {
                                 if (flags & O_CREAT) {
-                                        err = node_create(hdl, path, S_IFREG | 0666, blk, &file->node_num);
+                                        err = node_create(hdl, path, S_IFREG | 0666, blk, &file->node_num,
+                                                mtime);
                                 }
                         }
 
@@ -467,9 +472,6 @@ API_FS_OPEN(flatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
                          * Opened block should be a regular file
                          */
                         if (S_ISREG(blk->mode)) {
-                                time_t mtime = 0;
-                                sys_gettime(&mtime);
-
                                 if (flags & O_TRUNC) {
 
                                         blk->size  = 0;
@@ -575,6 +577,9 @@ API_FS_WRITE(flatfs, void *fs_handle, void *fhdl, const u8_t *src, size_t count,
                 return EROFS;
         }
 
+        time_t now = 0;
+        sys_gettime(&now);
+
         int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (!err) {
 
@@ -658,9 +663,6 @@ API_FS_WRITE(flatfs, void *fs_handle, void *fhdl, const u8_t *src, size_t count,
                         }
 
                         if (*wrctr > 0) {
-                                time_t now = 0;
-                                sys_gettime(&now);
-
                                 if ((blk->size < seek) or (not hdl->noatime)) {
                                         blk->mtime = now;
                                         blk->size  = max(blk->size, seek);
@@ -959,6 +961,9 @@ API_FS_MKDIR(flatfs, void *fs_handle, const char *path, mode_t mode)
 {
         flatfs_t *hdl = fs_handle;
 
+        time_t now = 0;
+        sys_gettime(&now);
+
         int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (!err) {
                 blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
@@ -975,7 +980,8 @@ API_FS_MKDIR(flatfs, void *fs_handle, const char *path, mode_t mode)
                                 *slash = '\0';
 
                                 if (not isstreq(hdl->tmp_path, "/")) {
-                                        err = node_find(hdl, hdl->tmp_path, MAX_FILE_NAME_LEN, FIND_ANY_NODE, blk, &node_num);
+                                        err = node_find(hdl, hdl->tmp_path, MAX_FILE_NAME_LEN, FIND_ANY_NODE,
+                                                blk, &node_num);
                                         if (err) {
                                                 err = ENOENT;
                                                 goto finish;
@@ -1004,7 +1010,7 @@ API_FS_MKDIR(flatfs, void *fs_handle, const char *path, mode_t mode)
                 err = node_find(hdl, hdl->tmp_path, MAX_FILE_NAME_LEN, FIND_ANY_NODE, blk, &node_num);
 
                 if (err == ENOENT) {
-                        err = node_create(hdl, hdl->tmp_path, mode | S_IFDIR, blk, &node_num);
+                        err = node_create(hdl, hdl->tmp_path, mode | S_IFDIR, blk, &node_num, now);
 
                 } else if (err == ESUCC) {
                         err = EEXIST;
@@ -1744,7 +1750,6 @@ static int check_bitmaps_coherency_and_repair(flatfs_t *hdl)
                                         }
 
                                         MSG("fixed incoherent node %u in block %u", node, address);
-
                                 }
 
                                 if (hdl->force_check and (bmp_pri->word[i] & mask)) {
@@ -1905,11 +1910,13 @@ static int node_find(flatfs_t *hdl, const char *name, size_t name_len, mode_t mo
  * @param  mode         file mode
  * @param  blk          block buffer
  * @param  node_num     node number
+ * @param  time         create time
  *
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-static int node_create(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t *blk, u32_t *node_num)
+static int node_create(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t *blk, u32_t *node_num,
+        time_t time)
 {
         if (hdl->read_only) {
                 return EROFS;
@@ -1923,13 +1930,10 @@ static int node_create(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t 
 
                         *node_num = node;
 
-                        time_t now = 0;
-                        sys_gettime(&now);
-
                         memset(blk, 0, sizeof(blk_file_t));
                         blk->magic = MAGIC_BLOCK_FILE;
-                        blk->ctime = now;
-                        blk->mtime = now;
+                        blk->ctime = time;
+                        blk->mtime = time;
                         blk->mode  = mode;
                         blk->uid   = 0;
                         blk->gid   = 0;

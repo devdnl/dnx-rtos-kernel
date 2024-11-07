@@ -1095,9 +1095,9 @@ static int buffer_datagram_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buff
         datagram.data = NULL;
         datagram.from = NULL;
 
-        int err = kalloc(len, cast(void **, &datagram.data));
+        int err = kalloc(datagram.len, cast(void **, &datagram.data));
         if (not err) {
-                memcpy(datagram.data, data, len);
+                memcpy(datagram.data, data, datagram.len);
         }
 
         if (not err and socket->path) {

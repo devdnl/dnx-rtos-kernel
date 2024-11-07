@@ -550,14 +550,18 @@ API_MOD_STAT(TTY, void *device_handle, struct vfs_dev_stat *device_stat)
 //==============================================================================
 static int configure(tty_t *tty, const TTY_config_t *conf)
 {
-        kfile_t *in, *out;
+        kfile_t *in = NULL, *out = NULL;
 
-        int err = sys_fopen(conf->input_file, O_RDWR, 0, &in);
+        int err = 0;
+
+        if (conf->input_file) {
+                err = sys_fopen(conf->input_file, O_RDWR, 0, &in);
+        }
 
         if (!err) {
                 if (strcmp(conf->input_file, conf->output_file) == 0) {
                         out = in;
-                } else {
+                } else if (conf->output_file) {
                         err = sys_fopen(conf->output_file, O_RDONLY, 0, &out);
                 }
         }

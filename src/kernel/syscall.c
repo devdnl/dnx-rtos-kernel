@@ -3554,9 +3554,9 @@ static int syscall_lowpowermode(syscallrq_t *rq)
 //==============================================================================
 static int syscall_registerappset(syscallrq_t *rq)
 {
-        GETARG(const void **, appset_array);
+        GETARG(const void **, appset_address_array);
         GETARG(const size_t *, array_size);
-        return _process_register_appset(appset_array, *array_size);
+        return _process_register_appset(appset_address_array, *array_size);
 }
 
 //==============================================================================

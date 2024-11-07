@@ -211,14 +211,6 @@ API_MOD_INIT(UART, void **device_handle, u8_t major, u8_t minor, const void *con
                 if (err)
                         goto finish;
 
-                err = sys_mutex_create(KMTX_TYPE_NORMAL, &hdl->port_lock_rx_mtx);
-                if (err)
-                        goto finish;
-
-                err = sys_mutex_create(KMTX_TYPE_NORMAL, &hdl->port_lock_tx_mtx);
-                if (err)
-                        goto finish;
-
                 err = _UART_LLD__turn_on(hdl);
                 if (!err) {
                         hdl->config = UART_DEFAULT_CONFIG;
@@ -232,12 +224,6 @@ API_MOD_INIT(UART, void **device_handle, u8_t major, u8_t minor, const void *con
 
                 finish:
                 if (err) {
-                        if (hdl->port_lock_tx_mtx)
-                                sys_mutex_destroy(hdl->port_lock_tx_mtx);
-
-                        if (hdl->port_lock_rx_mtx)
-                                sys_mutex_destroy(hdl->port_lock_rx_mtx);
-
                         if (hdl->rx_queue)
                                 sys_queue_destroy(hdl->rx_queue);
 
@@ -265,27 +251,15 @@ API_MOD_RELEASE(UART, void *device_handle)
 {
         struct UART_mem *hdl = device_handle;
 
-        if (sys_mutex_lock(hdl->port_lock_rx_mtx, RELEASE_TIMEOUT) == ESUCC) {
-                if (sys_mutex_lock(hdl->port_lock_tx_mtx, RELEASE_TIMEOUT) == ESUCC) {
+        sys_queue_destroy(hdl->rx_queue);
+        sys_queue_destroy(hdl->tx_queue);
 
-                        sys_mutex_destroy(hdl->port_lock_rx_mtx);
-                        sys_mutex_destroy(hdl->port_lock_tx_mtx);
+        _UART_LLD__turn_off(hdl);
 
-                        sys_queue_destroy(hdl->rx_queue);
-                        sys_queue_destroy(hdl->tx_queue);
+        _UART_mem[hdl->major] = NULL;
+        sys_free(&device_handle);
 
-                        _UART_LLD__turn_off(hdl);
-
-                        _UART_mem[hdl->major] = NULL;
-                        sys_free(&device_handle);
-
-                        return ESUCC;
-                }
-
-                sys_mutex_unlock(hdl->port_lock_rx_mtx);
-        }
-
-        return EBUSY;
+        return ESUCC;
 }
 
 //==============================================================================
@@ -348,16 +322,13 @@ API_MOD_WRITE(UART,
 
         struct UART_mem *hdl = device_handle;
 
-        int err = sys_mutex_lock(hdl->port_lock_tx_mtx, MTX_BLOCK_TIMEOUT);
-        if (!err) {
-                while (count--) {
-                        sys_queue_send(hdl->tx_queue, src, TX_WAIT_TIMEOUT);
-                        _UART_LLD__resume_transmit(hdl);
-                        src++;
-                        (*wrcnt)++;
-                }
+        int err = 0;
 
-                sys_mutex_unlock(hdl->port_lock_tx_mtx);
+        while (count--) {
+                sys_queue_send(hdl->tx_queue, src, TX_WAIT_TIMEOUT);
+                _UART_LLD__resume_transmit(hdl);
+                src++;
+                (*wrcnt)++;
         }
 
         return err;
@@ -389,26 +360,23 @@ API_MOD_READ(UART,
 
         struct UART_mem *hdl = device_handle;
 
-        int err = sys_mutex_lock(hdl->port_lock_rx_mtx, MTX_BLOCK_TIMEOUT);
-        if (!err) {
-                *rdcnt = 0;
+        *rdcnt = 0;
 
-                while (count--) {
-                        u32_t timeout = fattr.non_blocking_rd ? 0 : RX_WAIT_TIMEOUT;
+        int err = 0;
 
-                        err = sys_queue_receive(hdl->rx_queue, dst, timeout);
-                        if (!err) {
-                                dst++;
-                                (*rdcnt)++;
-                        } else {
-                                if (fattr.non_blocking_rd) {
-                                        err = 0;
-                                }
-                                break;
+        while (count--) {
+                u32_t timeout = fattr.non_blocking_rd ? 0 : RX_WAIT_TIMEOUT;
+
+                err = sys_queue_receive(hdl->rx_queue, dst, timeout);
+                if (!err) {
+                        dst++;
+                        (*rdcnt)++;
+                } else {
+                        if (fattr.non_blocking_rd) {
+                                err = 0;
                         }
+                        break;
                 }
-
-                sys_mutex_unlock(hdl->port_lock_rx_mtx);
         }
 
         return err;

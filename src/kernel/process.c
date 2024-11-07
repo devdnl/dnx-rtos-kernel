@@ -3066,17 +3066,17 @@ const appset_table_t *_process_get_appset_table(void)
 /**
  * @brief  Register new appset(s).
  *
- * @param  appset       appset vectors array
- * @param  appset_count number of vectors
+ * @param  appset_address_array         appset address array
+ * @param  appset_count                 number of addresses
  *
  * @return One of errno value.
  */
 //==============================================================================
-int _process_register_appset(const void **appset_array, size_t appset_count)
+int _process_register_appset(const void **appset_address_array, size_t appset_count)
 {
         int err = EINVAL;
 
-        if (not appset_array or not appset_count) {
+        if (not appset_address_array or not appset_count) {
                 return err;
         }
 
@@ -3097,7 +3097,7 @@ int _process_register_appset(const void **appset_array, size_t appset_count)
                         break;
                 }
 
-                at->table = appset_array[i];
+                at->table = appset_address_array[i];
                 at->next  = NULL;
 
                 appset->next = at;
