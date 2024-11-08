@@ -348,6 +348,22 @@ void _cpuctl_init(void)
                 MPU_conf_region(&mpu);
         }
 
+#if __CPU_SDRAM_EXECUTABLE__ || __CPU_SDRAM_CACHEABLE__ || __CPU_SDRAM_SHAREABLE__ || __CPU_SDRAM_BUFFERABLE__
+        mpu.enable             = MPU_REGION_ENABLE;
+        mpu.access_permission  = MPU_REGION_FULL_ACCESS;
+        mpu.disable_exec       = __CPU_SDRAM_EXECUTABLE__ ? MPU_INSTRUCTION_ACCESS_ENABLE
+                                                          : MPU_INSTRUCTION_ACCESS_DISABLE;
+        mpu.type_ext_field     = MPU_TEX_LEVEL1;
+        mpu.is_bufferable      = __CPU_SDRAM_BUFFERABLE__ ? MPU_ACCESS_BUFFERABLE : MPU_ACCESS_NOT_BUFFERABLE;
+        mpu.is_cacheable       = __CPU_SDRAM_CACHEABLE__ ? MPU_ACCESS_CACHEABLE : MPU_ACCESS_NOT_CACHEABLE;
+        mpu.is_shareable       = __CPU_SDRAM_SHAREABLE__ ? MPU_ACCESS_SHAREABLE : MPU_ACCESS_NOT_SHAREABLE;
+        mpu.sub_region_disable = 0;
+        mpu.base_address       = 0xC0000000;
+        mpu.size               = MPU_REGION_SIZE_512MiB;
+        mpu.number             = mpu_region++;
+        MPU_conf_region(&mpu);
+#endif
+
         MPU_enable(MPU_PRIVILEGED_DEFAULT);
 
         if (__CPU_ICACHE_ENABLE__) {

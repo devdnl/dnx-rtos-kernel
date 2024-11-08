@@ -172,21 +172,17 @@ typedef struct {
 } reg_dump_t;
 
 typedef struct {
-        uint8_t  enable;       /*!< Specifies the status of the region.*/
-        uint8_t  number;       /*!< Specifies the number of the region to protect.*/
-        uint32_t base_address; /*!< Specifies the base address of the region to protect.*/
-        uint8_t  size;         /*!< Specifies the size of the region to protect.*/
-        uint8_t  sub_region_disable; /*!< Specifies the number of the subregion protection
-                                        to disable.*/
-        uint8_t type_ext_field;      /*!< Specifies the TEX field level.*/
-        uint8_t access_permission;   /*!< Specifies the region access permission type.*/
-        uint8_t disable_exec;        /*!< Specifies the instruction access status.*/
-        uint8_t is_shareable;  /*!< Specifies the shareability status of the protected
-                                  region.*/
-        uint8_t is_cacheable;  /*!< Specifies the cacheable status of the region
-                                  protected.*/
-        uint8_t is_bufferable; /*!< Specifies the bufferable status of the protected
-                                  region.*/
+        uint8_t  enable;             /*!< Specifies the status of the region.*/
+        uint8_t  number;             /*!< Specifies the number of the region to protect.*/
+        uint32_t base_address;       /*!< Specifies the base address of the region to protect.*/
+        uint8_t  size;               /*!< Specifies the size of the region to protect.*/
+        uint8_t  sub_region_disable; /*!< Specifies the number of the subregion protection to disable.*/
+        uint8_t  type_ext_field;     /*!< Specifies the TEX field level.*/
+        uint8_t  access_permission;  /*!< Specifies the region access permission type.*/
+        uint8_t  disable_exec;       /*!< Specifies the instruction access status.*/
+        uint8_t  is_shareable;       /*!< Specifies the shareability status of the protected region.*/
+        uint8_t  is_cacheable;       /*!< Specifies the cacheable status of the region protected.*/
+        uint8_t  is_bufferable;      /*!< Specifies the bufferable status of the protected region.*/
 } MPU_region_t;
 
 /*==============================================================================
@@ -194,11 +190,9 @@ typedef struct {
 ==============================================================================*/
 void get_registers_from_stack(uint32_t *stack_address);
 
-#if __CPU_RAM1_RAM2_CACHE_DISABLE__ == _YES_
 static void MPU_disable(void);
 static void MPU_enable(uint32_t MPU_Control);
 static void MPU_conf_region(MPU_region_t *mpu_region);
-#endif
 
 /*==============================================================================
   Local object definitions
@@ -261,29 +255,46 @@ void _cpuctl_init(void)
         _cpuctl_init_CPU_load_counter();
 #endif
 
-#if __CPU_RAM1_RAM2_CACHE_DISABLE__ == _YES_
         MPU_disable();
-        MPU_region_t mpu;
+        MPU_region_t mpu        = {0};
+        uint8_t      mpu_region = 0;
+
+        if (__CPU_RAM1_RAM2_CACHE_DISABLE__ == _YES_) {
+                mpu.enable             = MPU_REGION_ENABLE;
+                mpu.access_permission  = MPU_REGION_FULL_ACCESS;
+                mpu.base_address       = 0x20010000; // SRAM1 start
+                mpu.disable_exec       = MPU_INSTRUCTION_ACCESS_ENABLE;
+                mpu.type_ext_field     = MPU_TEX_LEVEL1;
+                mpu.is_bufferable      = MPU_ACCESS_NOT_BUFFERABLE;
+                mpu.is_cacheable       = MPU_ACCESS_NOT_CACHEABLE;
+                mpu.is_shareable       = MPU_ACCESS_SHAREABLE;
+                mpu.size               = MPU_REGION_SIZE_512KiB;
+                mpu.sub_region_disable = 0;
+                mpu.number             = mpu_region++;
+                MPU_conf_region(&mpu);
+        }
+
+#if __CPU_SDRAM_EXECUTABLE__ || __CPU_SDRAM_CACHEABLE__ || __CPU_SDRAM_SHAREABLE__ || __CPU_SDRAM_BUFFERABLE__
         mpu.enable             = MPU_REGION_ENABLE;
         mpu.access_permission  = MPU_REGION_FULL_ACCESS;
-        mpu.base_address       = 0x20010000; // SRAM1 start
-        mpu.disable_exec       = MPU_INSTRUCTION_ACCESS_ENABLE;
+        mpu.disable_exec       = __CPU_SDRAM_EXECUTABLE__ ? MPU_INSTRUCTION_ACCESS_ENABLE
+                                                          : MPU_INSTRUCTION_ACCESS_DISABLE;
         mpu.type_ext_field     = MPU_TEX_LEVEL1;
-        mpu.is_bufferable      = MPU_ACCESS_NOT_BUFFERABLE;
-        mpu.is_cacheable       = MPU_ACCESS_NOT_CACHEABLE;
-        mpu.is_shareable       = MPU_ACCESS_SHAREABLE;
-        mpu.number             = MPU_REGION_NUMBER0;
-        mpu.size               = MPU_REGION_SIZE_512KiB;
+        mpu.is_bufferable      = __CPU_SDRAM_BUFFERABLE__ ? MPU_ACCESS_BUFFERABLE : MPU_ACCESS_NOT_BUFFERABLE;
+        mpu.is_cacheable       = __CPU_SDRAM_CACHEABLE__ ? MPU_ACCESS_CACHEABLE : MPU_ACCESS_NOT_CACHEABLE;
+        mpu.is_shareable       = __CPU_SDRAM_SHAREABLE__ ? MPU_ACCESS_SHAREABLE : MPU_ACCESS_NOT_SHAREABLE;
         mpu.sub_region_disable = 0;
+        mpu.base_address       = 0xC0000000;
+        mpu.size               = MPU_REGION_SIZE_512MiB;
+        mpu.number             = mpu_region++;
         MPU_conf_region(&mpu);
-        MPU_enable(MPU_PRIVILEGED_DEFAULT);
 #endif
 
-        u32_t ram1_ram2_flags = (__CPU_RAM1_RAM2_CACHE_DISABLE__ ? 0 : _MM_FLAG__CACHE) |
-                _MM_FLAG__DMA;
+        MPU_enable(MPU_PRIVILEGED_DEFAULT);
 
-        _mm_register_region(&sram1, SRAM1_HEAP_START, SRAM1_HEAP_SIZE, ram1_ram2_flags,
-                "SRAM1");
+        u32_t ram1_ram2_flags = (__CPU_RAM1_RAM2_CACHE_DISABLE__ ? 0 : _MM_FLAG__CACHE) | _MM_FLAG__DMA;
+
+        _mm_register_region(&sram1, SRAM1_HEAP_START, SRAM1_HEAP_SIZE, ram1_ram2_flags, "SRAM1");
         _mm_register_region(&sram2, SRAM2_START, SRAM2_SIZE, ram1_ram2_flags, "SRAM2");
         _mm_register_region(&dtcm, DTCM_START, DTCM_SIZE, _MM_FLAG__DMA, "DTCM");
 
@@ -461,8 +472,8 @@ int _cpuctl_low_power_mode(int mode)
 
                 if ((RCC->BDCR & RCC_BDCR_RTCEN)) {
                         CLEAR_BIT(RTC->ISR,
-                                RTC_ISR_ALRAF | RTC_ISR_TAMP3F | RTC_ISR_TAMP2F |
-                                        RTC_ISR_TAMP1F | RTC_ISR_WUTF);
+                                RTC_ISR_ALRAF | RTC_ISR_TAMP3F | RTC_ISR_TAMP2F | RTC_ISR_TAMP1F |
+                                        RTC_ISR_WUTF);
                 }
 
                 __WFI();
@@ -482,8 +493,8 @@ int _cpuctl_low_power_mode(int mode)
 
                 if ((RCC->BDCR & RCC_BDCR_RTCEN)) {
                         CLEAR_BIT(RTC->ISR,
-                                RTC_ISR_ALRAF | RTC_ISR_TAMP3F | RTC_ISR_TAMP2F |
-                                        RTC_ISR_TAMP1F | RTC_ISR_WUTF);
+                                RTC_ISR_ALRAF | RTC_ISR_TAMP3F | RTC_ISR_TAMP2F | RTC_ISR_TAMP1F |
+                                        RTC_ISR_WUTF);
                 }
 
                 __WFI();
@@ -502,8 +513,8 @@ int _cpuctl_low_power_mode(int mode)
 
                 if ((RCC->BDCR & RCC_BDCR_RTCEN)) {
                         CLEAR_BIT(RTC->ISR,
-                                RTC_ISR_ALRAF | RTC_ISR_TAMP3F | RTC_ISR_TAMP2F |
-                                        RTC_ISR_TAMP1F | RTC_ISR_WUTF);
+                                RTC_ISR_ALRAF | RTC_ISR_TAMP3F | RTC_ISR_TAMP2F | RTC_ISR_TAMP1F |
+                                        RTC_ISR_WUTF);
                 }
 
                 __WFI();
@@ -556,8 +567,7 @@ void _cpuctl_update_system_clocks(void)
 //==============================================================================
 void _cpuctl_delay_us(u16_t microseconds)
 {
-        u32_t ticks = ((u64_t)microseconds * SysTick->LOAD * __OS_TASK_SCHED_FREQ__) /
-                1000000;
+        u32_t ticks = ((u64_t)microseconds * SysTick->LOAD * __OS_TASK_SCHED_FREQ__) / 1000000;
 
         while (ticks > 0) {
                 i32_t now = SysTick->VAL;
@@ -777,7 +787,6 @@ void _cpuctl_clean_invalidate_dcache_by_addr(void *addr, u32_t size)
 #endif
 }
 
-#if __CPU_RAM1_RAM2_CACHE_DISABLE__ == _YES_
 //==============================================================================
 /**
  * @brief  Disables the MPU
@@ -848,7 +857,6 @@ static void MPU_conf_region(MPU_region_t *mpu_region)
                 MPU->RASR = 0x00;
         }
 }
-#endif
 
 /*==============================================================================
   End of file
