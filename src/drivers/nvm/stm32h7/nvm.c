@@ -305,8 +305,6 @@ API_MOD_WRITE(NVM, void *device_handle, const u8_t *src, size_t count, fpos_t *f
                                 src = hdl->tmp_buf;
                         }
 
-                        FLASH_unlock(hdl, sector_info.bank);
-
                         err = FLASH_program_flash_word(hdl, sector_info.bank, dst,
                                 cast(u32_t *, src));
 
@@ -319,8 +317,6 @@ API_MOD_WRITE(NVM, void *device_handle, const u8_t *src, size_t count, fpos_t *f
                                 *wrcnt += bytes;
                                 pos += bytes;
                         }
-
-                        FLASH_lock(hdl, sector_info.bank);
                 }
         }
 
@@ -434,9 +430,7 @@ API_MOD_IOCTL(NVM, void *device_handle, int request, void *arg)
                 u8_t   bank   = SECTOR_INFO[sector].bank;
 
                 if (sector < ARRAY_SIZE(SECTOR_INFO)) {
-                        FLASH_unlock(hdl, bank);
                         err = FLASH_erase_sector(hdl, bank, SECTOR_INFO[sector].sector);
-                        FLASH_lock(hdl, bank);
 
                 } else {
                         err = ESPIPE;
@@ -457,9 +451,7 @@ API_MOD_IOCTL(NVM, void *device_handle, int request, void *arg)
                         size_t sector = i + hdl->start_sector;
                         u8_t   bank   = SECTOR_INFO[sector].bank;
 
-                        FLASH_unlock(hdl, bank);
                         err = FLASH_erase_sector(hdl, bank, SECTOR_INFO[sector].sector);
-                        FLASH_lock(hdl, bank);
 
                         if (err) {
                                 break;
@@ -654,11 +646,13 @@ static void FLASH_lock(NVM_t *hdl, u8_t bank)
 //==============================================================================
 static int FLASH_erase_sector(NVM_t *hdl, u8_t bank, uint32_t sector)
 {
-        sys_critical_section_begin();
+        int err = 0;
 
-        int err = FLASH_wait_for_operation_finish(hdl, bank);
+        for (size_t i = 0; i < 5; i++) {
+                sys_critical_section_begin();
 
-        if (!err) {
+                FLASH_unlock(hdl, bank);
+
                 volatile u32_t *CR = (bank == 1) ? &FLASH->CR1 : &FLASH->CR2;
                 u32_t sector_mask  = ((sector << FLASH_CR_SNB_Pos) & FLASH_CR_SNB_Msk);
 
@@ -669,9 +663,15 @@ static int FLASH_erase_sector(NVM_t *hdl, u8_t bank, uint32_t sector)
                 err = FLASH_wait_for_operation_finish(hdl, bank);
 
                 CLEAR_BIT(*CR, FLASH_CR_SER | FLASH_CR_SNB);
-        }
 
-        sys_critical_section_end();
+                FLASH_lock(hdl, bank);
+
+                sys_critical_section_end();
+
+                if (not err) {
+                        break;
+                }
+        }
 
         return err;
 }
@@ -689,57 +689,57 @@ static int FLASH_erase_sector(NVM_t *hdl, u8_t bank, uint32_t sector)
 //==============================================================================
 static int FLASH_program_flash_word(NVM_t *hdl, u8_t bank, u32_t address, u32_t *data)
 {
+        sys_critical_section_begin();
+
+        FLASH_unlock(hdl, bank);
+
+        /*
+         * Programming phase.
+         */
+        volatile u32_t *CR = (bank == 1) ? &FLASH->CR1 : &FLASH->CR2;
+
+        CLEAR_BIT(*CR, FLASH_CR_PSIZE);
+        SET_BIT(*CR, FLASH_CR_PG);
+
+        __ISB();
+        __DSB();
+
+        size_t             row_index = FLASH_NB_32BITWORD_IN_FLASHWORD;
+        volatile uint32_t *dest_addr = cast(volatile uint32_t *, address);
+        volatile uint32_t *src_addr  = data;
+
+        while (row_index--) {
+                *dest_addr++ = *src_addr++;
+        }
+
+        __ISB();
+        __DSB();
+
         int err = FLASH_wait_for_operation_finish(hdl, bank);
 
-        sys_ISR_disable();
+        CLEAR_BIT(*CR, FLASH_CR_PG);
 
+        /*
+         * Verification phase.
+         */
         if (!err) {
-                /*
-                 * Programming phase.
-                 */
-                volatile u32_t *CR = (bank == 1) ? &FLASH->CR1 : &FLASH->CR2;
-
-                CLEAR_BIT(*CR, FLASH_CR_PSIZE);
-                SET_BIT(*CR, FLASH_CR_PG);
-
-                __ISB();
-                __DSB();
-
-                size_t             row_index = FLASH_NB_32BITWORD_IN_FLASHWORD;
-                volatile uint32_t *dest_addr = cast(volatile uint32_t *, address);
-                volatile uint32_t *src_addr  = data;
+                row_index = FLASH_NB_32BITWORD_IN_FLASHWORD;
+                dest_addr = cast(volatile uint32_t *, address);
+                src_addr  = data;
 
                 while (row_index--) {
-                        *dest_addr++ = *src_addr++;
-                }
-
-                __ISB();
-                __DSB();
-
-                err = FLASH_wait_for_operation_finish(hdl, bank);
-
-                CLEAR_BIT(*CR, FLASH_CR_PG);
-
-                /*
-                 * Verification phase.
-                 */
-                if (!err) {
-                        row_index = FLASH_NB_32BITWORD_IN_FLASHWORD;
-                        dest_addr = cast(volatile uint32_t *, address);
-                        src_addr  = data;
-
-                        while (row_index--) {
-                                if (*dest_addr++ != *src_addr++) {
-                                        dev_dbg(hdl, "verification fail @ %p",
-                                                src_addr - 1);
-                                        err = EILSEQ;
-                                        break;
-                                }
+                        if (*dest_addr++ != *src_addr++) {
+                                dev_dbg(hdl, "verification fail @ %p",
+                                        src_addr - 1);
+                                err = EILSEQ;
+                                break;
                         }
                 }
         }
 
-        sys_ISR_enable();
+        FLASH_lock(hdl, bank);
+
+        sys_critical_section_end();
 
         return err;
 }
