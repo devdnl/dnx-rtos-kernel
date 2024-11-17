@@ -1319,7 +1319,7 @@ static int card_read_blocks_DMA(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
         if (!err && mem_dma) {
                 size_t cache_line_size = 32;
                 _cpuctl_invalidate_dcache_by_addr(dst - cache_line_size,
-                        blocks * BLOCKSIZE + 2 * cache_line_size);
+                        blocks * SDMMC_BLOCKSIZE + 2 * cache_line_size);
         }
 
         return err;
