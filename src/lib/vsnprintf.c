@@ -126,7 +126,6 @@
 //==============================================================================
 int _vsnprintf(char *buf, size_t size, const char *format, va_list arg)
 {
-#if (__OS_PRINTF_ENABLE__ > 0)
         char   chr;
         int    arg_size;
         size_t scan_len     = 1;
@@ -399,7 +398,6 @@ int _vsnprintf(char *buf, size_t size, const char *format, va_list arg)
         bool put_float()
         {
                 if (chr == 'f' || chr == 'F' || chr == 'g' || chr == 'G') {
-#if __OS_PRINTF_FLOAT_ENABLE__ == _YES_
                         char result[65];
                         arg_size = !point ? 10 : arg_size;
                         if (arg_size > 0) {
@@ -419,11 +417,6 @@ int _vsnprintf(char *buf, size_t size, const char *format, va_list arg)
                                         }
                                 }
                         }
-#else
-                        double val = va_arg(arg, double);
-                        (void)val;
-                        put_char('0');
-#endif
                         return true;
                 } else {
                         return false;
@@ -497,13 +490,6 @@ int _vsnprintf(char *buf, size_t size, const char *format, va_list arg)
                 *buf = 0;
 
         return (scan_len - 1);
-#else
-        UNUSED_ARG1(buf);
-        UNUSED_ARG1(size);
-        UNUSED_ARG1(format);
-        UNUSED_ARG1(arg);
-        return 0;
-#endif
 }
 
 //==============================================================================

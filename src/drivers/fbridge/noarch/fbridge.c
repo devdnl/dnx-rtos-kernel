@@ -39,8 +39,8 @@ Brief   File Bridge
   Local object types
 ==============================================================================*/
 typedef struct {
-        u8_t major;
-        u8_t minor;
+        u8_t     major;
+        u8_t     minor;
         kfile_t *read_file;
         kfile_t *write_file;
 } FBRIDGE_t;
@@ -170,18 +170,18 @@ API_MOD_CLOSE(FBRIDGE, void *device_handle, bool force)
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_WRITE(FBRIDGE,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrctr,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(FBRIDGE, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrctr,
+        struct vfs_fattr fattr)
 {
         FBRIDGE_t *hdl = device_handle;
 
-        sys_ioctl(hdl->write_file, fattr.non_blocking_wr
-                  ? IOCTL_VFS__NON_BLOCKING_WR_MODE : IOCTL_VFS__DEFAULT_WR_MODE);
+        int rq = IOCTL_VFS__DEFAULT_WR_MODE;
+
+        if (fattr.non_blocking_wr) {
+                rq = IOCTL_VFS__NON_BLOCKING_WR_MODE;
+        }
+
+        sys_ioctl(hdl->write_file, rq);
 
         sys_fseek(hdl->write_file, *fpos, SEEK_SET);
 
@@ -202,18 +202,21 @@ API_MOD_WRITE(FBRIDGE,
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(FBRIDGE,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdctr,
-             struct vfs_fattr fattr)
+API_MOD_READ(FBRIDGE, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdctr,
+        struct vfs_fattr fattr)
 {
         FBRIDGE_t *hdl = device_handle;
 
-        sys_ioctl(hdl->read_file, fattr.non_blocking_rd
-                  ? IOCTL_VFS__NON_BLOCKING_RD_MODE : IOCTL_VFS__DEFAULT_RD_MODE);
+        int rq = IOCTL_VFS__DEFAULT_RD_MODE;
+
+        if (fattr.non_blocking_rd) {
+                rq = IOCTL_VFS__NON_BLOCKING_RD_MODE;
+
+        } else if (fattr.non_strict_rd) {
+                rq = IOCTL_VFS__NON_STRICT_RD_MODE;
+        }
+
+        sys_ioctl(hdl->read_file, rq);
 
         sys_fseek(hdl->read_file, *fpos, SEEK_SET);
 
@@ -277,7 +280,7 @@ API_MOD_STAT(FBRIDGE, void *device_handle, struct vfs_dev_stat *device_stat)
         FBRIDGE_t *hdl = device_handle;
 
         struct stat stat_buf;
-        int err = sys_fstat(hdl->read_file, &stat_buf);
+        int         err      = sys_fstat(hdl->read_file, &stat_buf);
         device_stat->st_size = stat_buf.st_size;
 
         return err;
@@ -302,8 +305,12 @@ static int configure(FBRIDGE_t *hdl, const FBRIDGE_conf_t *conf)
         if (not err) {
                 err = sys_fopen(conf->write_path, O_WRONLY, 0, &new_write_file);
                 if (not err) {
-                        if (hdl->read_file)  sys_fclose(hdl->read_file);
-                        if (hdl->write_file) sys_fclose(hdl->write_file);
+                        if (hdl->read_file) {
+                                sys_fclose(hdl->read_file);
+                        }
+                        if (hdl->write_file) {
+                                sys_fclose(hdl->write_file);
+                        }
 
                         hdl->read_file  = new_read_file;
                         hdl->write_file = new_write_file;

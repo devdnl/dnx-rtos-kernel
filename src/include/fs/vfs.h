@@ -1,11 +1,11 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    vfs.h
 
 @author  Daniel Zorychta
 
 @brief   This file support virtual file system
 
-@note    Copyright (C) 2012, 2013 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 #ifndef _VFS_H_
 #define _VFS_H_
@@ -47,123 +47,125 @@ extern "C" {
   Exported macros
 ==============================================================================*/
 /* set position equal to offset bytes */
-#define VFS_SEEK_SET                            0
+#define VFS_SEEK_SET 0
 
 /* set position to current location plus offset */
-#define VFS_SEEK_CUR                            1
+#define VFS_SEEK_CUR 1
 
 /* set position to EOF plus offset */
-#define VFS_SEEK_END                            2
+#define VFS_SEEK_END 2
 
 /* translate functions to STDC */
 #ifndef SEEK_SET
-#define SEEK_SET                                VFS_SEEK_SET
+#define SEEK_SET VFS_SEEK_SET
 #endif
 
 #ifndef SEEK_CUR
-#define SEEK_CUR                                VFS_SEEK_CUR
+#define SEEK_CUR VFS_SEEK_CUR
 #endif
 
 #ifndef SEEK_END
-#define SEEK_END                                VFS_SEEK_END
+#define SEEK_END VFS_SEEK_END
 #endif
 
 /* file access flags. Doxygen documentation in "fs/fs.h" */
 #ifndef O_RDONLY
-#define O_RDONLY                                00
+#define O_RDONLY 00
 #endif
 
 #ifndef O_WRONLY
-#define O_WRONLY                                01
+#define O_WRONLY 01
 #endif
 
 #ifndef O_RDWR
-#define O_RDWR                                  02
+#define O_RDWR 02
 #endif
 
 #ifndef O_CREAT
-#define O_CREAT                                 0100
+#define O_CREAT 0100
 #endif
 
 #ifndef O_EXCL
-#define O_EXCL                                  0200
+#define O_EXCL 0200
 #endif
 
 #ifndef O_TRUNC
-#define O_TRUNC                                 01000
+#define O_TRUNC 01000
 #endif
 
 #ifndef O_APPEND
-#define O_APPEND                                02000
+#define O_APPEND 02000
 #endif
 
 #ifndef O_NONBLOCK
-#define O_NONBLOCK                              04000
+#define O_NONBLOCK 04000
 #endif
 
 #ifndef O_DIRECTORY
-#define O_DIRECTORY                             0200000
+#define O_DIRECTORY 0200000
 #endif
 
 #ifndef O_SHARED
-#define O_SHARED                                0400000
+#define O_SHARED 0400000
 #endif
 
 /* modes */
-#define S_IRWXU                                 0000700    /* RWX mask for owner */
-#define S_IRUSR                                 0000400    /* R for owner */
-#define S_IWUSR                                 0000200    /* W for owner */
-#define S_IXUSR                                 0000100    /* X for owner */
+#define S_IRWXU            0000700 /* RWX mask for owner */
+#define S_IRUSR            0000400 /* R for owner */
+#define S_IWUSR            0000200 /* W for owner */
+#define S_IXUSR            0000100 /* X for owner */
 
-#define S_IRWXG                                 0000070    /* RWX mask for group */
-#define S_IRGRP                                 0000040    /* R for group */
-#define S_IWGRP                                 0000020    /* W for group */
-#define S_IXGRP                                 0000010    /* X for group */
+#define S_IRWXG            0000070 /* RWX mask for group */
+#define S_IRGRP            0000040 /* R for group */
+#define S_IWGRP            0000020 /* W for group */
+#define S_IXGRP            0000010 /* X for group */
 
-#define S_IRWXO                                 0000007    /* RWX mask for other */
-#define S_IROTH                                 0000004    /* R for other */
-#define S_IWOTH                                 0000002    /* W for other */
-#define S_IXOTH                                 0000001    /* X for other */
+#define S_IRWXO            0000007 /* RWX mask for other */
+#define S_IROTH            0000004 /* R for other */
+#define S_IWOTH            0000002 /* W for other */
+#define S_IXOTH            0000001 /* X for other */
 
-#define S_ISUID                                 0004000    /* set user id on execution */
-#define S_ISGID                                 0002000    /* set group id on execution */
-#define S_ISVTX                                 0001000    /* save swapped text even after use */
+#define S_ISUID            0004000 /* set user id on execution */
+#define S_ISGID            0002000 /* set group id on execution */
+#define S_ISVTX            0001000 /* save swapped text even after use */
 
-#define S_IPMT                                  (000777)
-#define S_IFMT                                  (070000)
+#define S_IPMT             (000777)
+#define S_IFMT             (070000)
 
-#define S_ISREG(mode_t_m)                       ((mode_t_m & S_IFMT) == S_IFREG)
-#define S_ISDIR(mode_t_m)                       ((mode_t_m & S_IFMT) == S_IFDIR)
-#define S_ISDEV(mode_t_m)                       ((mode_t_m & S_IFMT) == S_IFDEV)
-#define S_ISLNK(mode_t_m)                       ((mode_t_m & S_IFMT) == S_IFLNK)
-#define S_ISPROG(mode_t_m)                      ((mode_t_m & S_IFMT) == S_IFPROG)
-#define S_ISFIFO(mode_t_m)                      ((mode_t_m & S_IFMT) == S_IFIFO)
+#define S_ISREG(mode_t_m)  ((mode_t_m & S_IFMT) == S_IFREG)
+#define S_ISDIR(mode_t_m)  ((mode_t_m & S_IFMT) == S_IFDIR)
+#define S_ISDEV(mode_t_m)  ((mode_t_m & S_IFMT) == S_IFDEV)
+#define S_ISLNK(mode_t_m)  ((mode_t_m & S_IFMT) == S_IFLNK)
+#define S_ISPROG(mode_t_m) ((mode_t_m & S_IFMT) == S_IFPROG)
+#define S_ISFIFO(mode_t_m) ((mode_t_m & S_IFMT) == S_IFIFO)
 
-#define S_IFREG                                 0000000
-#define S_IFDIR                                 0010000
-#define S_IFDEV                                 0020000
-#define S_IFLNK                                 0030000
-#define S_IFPROG                                0040000
-#define S_IFIFO                                 0050000
+#define S_IFREG            0000000
+#define S_IFDIR            0010000
+#define S_IFDEV            0020000
+#define S_IFLNK            0030000
+#define S_IFPROG           0040000
+#define S_IFIFO            0050000
 
 /* stream definitions */
-#define EOF                                     (-1)
-#define ETX                                     0x03
-#define EOT                                     0x04
+#define EOF (-1)
+#define ETX 0x03
+#define EOT 0x04
 
 /* IO operations on files */
-#define IOCTL_PIPE__CLOSE                       0xF0000
-#define IOCTL_PIPE__CLEAR                       0xF0001
-#define IOCTL_PIPE__PERMANENT                   0xF0002
-#define IOCTL_VFS__NON_BLOCKING_RD_MODE         0xF0003
-#define IOCTL_VFS__DEFAULT_RD_MODE              0xF0004
-#define IOCTL_VFS__IS_NON_BLOCKING_RD_MODE      0xF0005
-#define IOCTL_VFS__NON_BLOCKING_WR_MODE         0xF0006
-#define IOCTL_VFS__DEFAULT_WR_MODE              0xF0007
-#define IOCTL_VFS__IS_NON_BLOCKING_WR_MODE      0xF0008
+#define IOCTL_PIPE__CLOSE                  0xF0000
+#define IOCTL_PIPE__CLEAR                  0xF0001
+#define IOCTL_PIPE__PERMANENT              0xF0002
+#define IOCTL_VFS__NON_BLOCKING_RD_MODE    0xF0003
+#define IOCTL_VFS__DEFAULT_RD_MODE         0xF0004
+#define IOCTL_VFS__IS_NON_BLOCKING_RD_MODE 0xF0005
+#define IOCTL_VFS__NON_BLOCKING_WR_MODE    0xF0006
+#define IOCTL_VFS__DEFAULT_WR_MODE         0xF0007
+#define IOCTL_VFS__IS_NON_BLOCKING_WR_MODE 0xF0008
+#define IOCTL_VFS__NON_STRICT_RD_MODE      0xF0009
+#define IOCTL_VFS__IS_NON_STRICT_RD_MODE   0xF000A
 
 /* file system identifier */
-#define _VFS_FILE_SYSTEM_MAGIC_NO               0xD9EFD24F
+#define _VFS_FILE_SYSTEM_MAGIC_NO 0xD9EFD24F
 
 /*==============================================================================
   Exported object types
@@ -173,69 +175,72 @@ struct vfs_file;
 
 /** device info. Doxygen documentation in drivers/driver.h */
 struct vfs_dev_stat {
-        u64_t st_size;                  /**< total size, in bytes */
-        u8_t  st_major;                 /**< device major number  */
-        u8_t  st_minor;                 /**< device minor number  */
+        u64_t st_size;  /**< total size, in bytes */
+        u8_t  st_major; /**< device major number  */
+        u8_t  st_minor; /**< device minor number  */
 };
 
 /** file write/read attributes. Doxygen documentation in fs/fs.h */
 struct vfs_fattr {
-        bool non_blocking_rd:1;         /**< non-blocking file read access */
-        bool non_blocking_wr:1;         /**< non-blocking file write access */
+        bool non_blocking_rd :1; /**< non-blocking file read access */
+        bool non_strict_rd   :1; /**< non-strict file read access */
+        bool non_blocking_wr :1; /**< non-blocking file write access */
 };
 
 /** file system interface */
 typedef struct vfs_FS_itf {
-        int (*fs_init    )(void **fshdl, const char *path, const char *opts);
-        int (*fs_release )(void *fshdl);
-        int (*fs_open    )(void *fshdl, void **fhdl, fpos_t *fpos, const char *path, u32_t flags);
-        int (*fs_close   )(void *fshdl, void  *fhdl, bool force);
-        int (*fs_write   )(void *fshdl, void  *fhdl, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt, struct vfs_fattr attr);
-        int (*fs_read    )(void *fshdl, void  *fhdl, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr attr);
-        int (*fs_ioctl   )(void *fshdl, void  *fhdl, int iroq, void *arg);
-        int (*fs_fstat   )(void *fshdl, void  *fhdl, struct stat *stat);
-        int (*fs_flush   )(void *fshdl, void  *fhdl);
-        int (*fs_mknod   )(void *fshdl, const char *path, const dev_t dev);
-        int (*fs_sync    )(void *fshdl);
-        int (*fs_opendir )(void *fshdl, const char *path, struct vfs_dir *dir);
+        int (*fs_init)(void **fshdl, const char *path, const char *opts);
+        int (*fs_release)(void *fshdl);
+        int (*fs_open)(void *fshdl, void **fhdl, fpos_t *fpos, const char *path, u32_t flags);
+        int (*fs_close)(void *fshdl, void *fhdl, bool force);
+        int (*fs_write)(void *fshdl, void *fhdl, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+                struct vfs_fattr attr);
+        int (*fs_read)(void *fshdl, void *fhdl, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt,
+                struct vfs_fattr attr);
+        int (*fs_ioctl)(void *fshdl, void *fhdl, int iroq, void *arg);
+        int (*fs_fstat)(void *fshdl, void *fhdl, struct stat *stat);
+        int (*fs_flush)(void *fshdl, void *fhdl);
+        int (*fs_mknod)(void *fshdl, const char *path, const dev_t dev);
+        int (*fs_sync)(void *fshdl);
+        int (*fs_opendir)(void *fshdl, const char *path, struct vfs_dir *dir);
         int (*fs_closedir)(void *fshdl, struct vfs_dir *dir);
-        int (*fs_readdir )(void *fshdl, struct vfs_dir *dir);
-    #if __OS_ENABLE_FSTAT__ == _YES_
-        int (*fs_stat   )(void *fshdl, const char *path, struct stat *stat);
-    #endif
-    #if __OS_ENABLE_STATFS__ == _YES_
-        int (*fs_statfs )(void *fshdl, struct statfs *statfs);
-    #endif
-    #if __OS_ENABLE_MKDIR__ == _YES_
-        int (*fs_mkdir  )(void *fshdl, const char *path, mode_t);
-    #endif
-    #if __OS_ENABLE_MKFIFO__ == _YES_
-        int (*fs_mkfifo )(void *fshdl, const char *path, mode_t);
-    #endif
-    #if __OS_ENABLE_REMOVE__ == _YES_
-        int (*fs_remove )(void *fshdl, const char *path);
-    #endif
-    #if __OS_ENABLE_RENAME__ == _YES_
-        int (*fs_rename )(void *fshdl, const char *old_name, const char *new_name);
-    #endif
-    #if __OS_ENABLE_CHMOD__ == _YES_
-        int (*fs_chmod  )(void *fshdl, const char *path, mode_t mode);
-    #endif
-    #if __OS_ENABLE_CHOWN__ == _YES_
-        int (*fs_chown  )(void *fshdl, const char *path, uid_t owner, gid_t group);
-    #endif
+        int (*fs_readdir)(void *fshdl, struct vfs_dir *dir);
+#if __OS_ENABLE_FSTAT__ == _YES_
+        int (*fs_stat)(void *fshdl, const char *path, struct stat *stat);
+#endif
+#if __OS_ENABLE_STATFS__ == _YES_
+        int (*fs_statfs)(void *fshdl, struct statfs *statfs);
+#endif
+#if __OS_ENABLE_MKDIR__ == _YES_
+        int (*fs_mkdir)(void *fshdl, const char *path, mode_t);
+#endif
+#if __OS_ENABLE_MKFIFO__ == _YES_
+        int (*fs_mkfifo)(void *fshdl, const char *path, mode_t);
+#endif
+#if __OS_ENABLE_REMOVE__ == _YES_
+        int (*fs_remove)(void *fshdl, const char *path);
+#endif
+#if __OS_ENABLE_RENAME__ == _YES_
+        int (*fs_rename)(void *fshdl, const char *old_name, const char *new_name);
+#endif
+#if __OS_ENABLE_CHMOD__ == _YES_
+        int (*fs_chmod)(void *fshdl, const char *path, mode_t mode);
+#endif
+#if __OS_ENABLE_CHOWN__ == _YES_
+        int (*fs_chown)(void *fshdl, const char *path, uid_t owner, gid_t group);
+#endif
         uint32_t fs_magic;
 } vfs_FS_itf_t;
 
 /** file flags */
 typedef struct vfs_file_flags {
-        bool                rd     :1;          //! file read mode
-        bool                wr     :1;          //! file write mode
-        bool                append :1;          //! file append mode (one of rd/wr is set)
-        bool                eof    :1;          //! end of file
-        bool                error  :1;          //! error occurred
-        bool                seekmod:1;          //! file position modified
-        struct vfs_fattr    fattr;
+        bool             rd      :1; //! file read mode
+        bool             wr      :1; //! file write mode
+        bool             append  :1; //! file append mode (one of rd/wr is set)
+        bool             eof     :1; //! end of file
+        bool             error   :1; //! error occurred
+        bool             seekmod :1; //! file position modified
+        struct vfs_fattr fattr;
 } vfs_file_flags_t;
 
 /** file type */
@@ -254,10 +259,10 @@ typedef struct vfs_dir {
         res_header_t        header;
         void               *FS_hdl;
         const vfs_FS_itf_t *FS_if;
-        void               *d_hdl;          //!< Directory descriptor
-        size_t              d_items;        //!< number of items
-        size_t              d_seek;         //!< seek
-        dirent_t            dirent;         //!< directory entry data
+        void               *d_hdl;   //!< Directory descriptor
+        size_t              d_items; //!< number of items
+        size_t              d_seek;  //!< seek
+        dirent_t            dirent;  //!< directory entry data
 } kdir_t;
 
 /** Path with CWD */
@@ -276,39 +281,40 @@ enum path_correction {
 /*==============================================================================
   Exported API functions
 ==============================================================================*/
-extern int  _vfs_init       (void);
-extern int  _vfs_realpath   (char *path, enum path_correction corr);
-extern int  _vfs_mount      (const struct vfs_path*, const struct vfs_path*, const struct vfs_FS_itf*, const char*);
-extern int  _vfs_umount     (const struct vfs_path*);
-extern int  _vfs_getmntentry(int, struct mntent*);
-extern int  _vfs_mknod      (const struct vfs_path*, dev_t);
-extern int  _vfs_mkdir      (const struct vfs_path*, mode_t);
-extern int  _vfs_mkfifo     (const struct vfs_path*, mode_t);
-extern int  _vfs_opendir    (const struct vfs_path*, kdir_t**);
-extern int  _vfs_closedir   (kdir_t*);
-extern int  _vfs_readdir    (kdir_t*, dirent_t**);
-extern int  _vfs_seekdir    (kdir_t*, u32_t);
-extern int  _vfs_telldir    (kdir_t*, u32_t*);
-extern int  _vfs_remove     (const struct vfs_path*);
-extern int  _vfs_rename     (const struct vfs_path*, const struct vfs_path*);
-extern int  _vfs_chmod      (const struct vfs_path*, mode_t);
-extern int  _vfs_chown      (const struct vfs_path*, uid_t, gid_t);
-extern int  _vfs_stat       (const struct vfs_path*, struct stat*);
-extern int  _vfs_statfs     (const struct vfs_path*, struct statfs*);
-extern int  _vfs_fopen      (const struct vfs_path*, int, mode_t, kfile_t**);
-extern int  _vfs_fopen_ref  (kfile_t*);
-extern int  _vfs_fclose     (kfile_t*, bool);
-extern int  _vfs_fwrite     (const void*, size_t, size_t*, kfile_t*);
-extern int  _vfs_fread      (void*, size_t, size_t*, kfile_t*);
-extern int  _vfs_fseek      (kfile_t*, i64_t, int);
-extern int  _vfs_ftell      (kfile_t*, i64_t*);
-extern int  _vfs_vfioctl    (kfile_t*, int, va_list);
-extern int  _vfs_fstat      (kfile_t*, struct stat*);
-extern int  _vfs_fflush     (kfile_t*);
-extern int  _vfs_feof       (kfile_t*, int*);
-extern int  _vfs_clearerr   (kfile_t*);
-extern int  _vfs_ferror     (kfile_t*, int*);
-extern void _vfs_sync       (void);
+extern int  _vfs_init(void);
+extern int  _vfs_realpath(char *path, enum path_correction corr);
+extern int  _vfs_mount(const struct vfs_path *, const struct vfs_path *, const struct vfs_FS_itf *,
+         const char *);
+extern int  _vfs_umount(const struct vfs_path *);
+extern int  _vfs_getmntentry(int, struct mntent *);
+extern int  _vfs_mknod(const struct vfs_path *, dev_t);
+extern int  _vfs_mkdir(const struct vfs_path *, mode_t);
+extern int  _vfs_mkfifo(const struct vfs_path *, mode_t);
+extern int  _vfs_opendir(const struct vfs_path *, kdir_t **);
+extern int  _vfs_closedir(kdir_t *);
+extern int  _vfs_readdir(kdir_t *, dirent_t **);
+extern int  _vfs_seekdir(kdir_t *, u32_t);
+extern int  _vfs_telldir(kdir_t *, u32_t *);
+extern int  _vfs_remove(const struct vfs_path *);
+extern int  _vfs_rename(const struct vfs_path *, const struct vfs_path *);
+extern int  _vfs_chmod(const struct vfs_path *, mode_t);
+extern int  _vfs_chown(const struct vfs_path *, uid_t, gid_t);
+extern int  _vfs_stat(const struct vfs_path *, struct stat *);
+extern int  _vfs_statfs(const struct vfs_path *, struct statfs *);
+extern int  _vfs_fopen(const struct vfs_path *, int, mode_t, kfile_t **);
+extern int  _vfs_fopen_ref(kfile_t *);
+extern int  _vfs_fclose(kfile_t *, bool);
+extern int  _vfs_fwrite(const void *, size_t, size_t *, kfile_t *);
+extern int  _vfs_fread(void *, size_t, size_t *, kfile_t *);
+extern int  _vfs_fseek(kfile_t *, i64_t, int);
+extern int  _vfs_ftell(kfile_t *, i64_t *);
+extern int  _vfs_vfioctl(kfile_t *, int, va_list);
+extern int  _vfs_fstat(kfile_t *, struct stat *);
+extern int  _vfs_fflush(kfile_t *);
+extern int  _vfs_feof(kfile_t *, int *);
+extern int  _vfs_clearerr(kfile_t *);
+extern int  _vfs_ferror(kfile_t *, int *);
+extern void _vfs_sync(void);
 
 /*==============================================================================
   Exported inline functions

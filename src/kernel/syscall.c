@@ -1417,7 +1417,7 @@ static int syscall_free(syscallrq_t *rq)
 //==============================================================================
 static int syscall_syslogread(syscallrq_t *rq)
 {
-#if ((__OS_SYSTEM_MSG_ENABLE__ > 0) && (__OS_PRINTF_ENABLE__ > 0))
+#if (__OS_SYSTEM_MSG_ENABLE__ > 0)
         GETARG(char *, str);
         GETARG(size_t *, len);
         GETARG(const struct timeval *, from_time);

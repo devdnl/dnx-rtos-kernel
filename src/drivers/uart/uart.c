@@ -364,15 +364,19 @@ API_MOD_READ(UART,
 
         int err = 0;
 
-        while (count--) {
-                u32_t timeout = fattr.non_blocking_rd ? 0 : RX_WAIT_TIMEOUT;
+        u32_t timeout = fattr.non_blocking_rd ? 0 : RX_WAIT_TIMEOUT;
 
+        while (count--) {
                 err = sys_queue_receive(hdl->rx_queue, dst, timeout);
                 if (!err) {
                         dst++;
                         (*rdcnt)++;
+
+                        if (fattr.non_strict_rd) {
+                                timeout = 0;
+                        }
                 } else {
-                        if (fattr.non_blocking_rd) {
+                        if (fattr.non_blocking_rd or fattr.non_strict_rd) {
                                 err = 0;
                         }
                         break;

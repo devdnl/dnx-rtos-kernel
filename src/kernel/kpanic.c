@@ -79,7 +79,7 @@ static u32_t             kpanic_ctr;
 static _process_t       *kpanic_trap_proc;
 static task_t           *kpanic_app_crash_task;
 
-#if ((__OS_SYSTEM_MSG_ENABLE__ > 0) && (__OS_PRINTF_ENABLE__ > 0))
+#if (__OS_SYSTEM_MSG_ENABLE__ > 0)
 static const char *CAUSE[] = {
         "SEGFAULT",
         "STACKOVF",
@@ -140,7 +140,7 @@ bool _kernel_panic_info(struct _kernel_panic_info *info)
         }
 
         if (occurred) {
-#if ((__OS_SYSTEM_MSG_ENABLE__ > 0) && (__OS_PRINTF_ENABLE__ > 0))
+#if (__OS_SYSTEM_MSG_ENABLE__ > 0)
                 const char *panic_type;
 
                 if ((strncmp(kpanic_desc.content.name, "kworker", 128) == 0) ||

@@ -367,6 +367,8 @@ API_MOD_READ(TTY, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, si
 
         *rdcnt = 0;
 
+        u32_t timeout_ms = fattr.non_blocking_rd ? 0 : _MAX_DELAY_MS;
+
         while (count--) {
                 if (fattr.non_blocking_rd) {
                         if (sys_mutex_lock(tty->secure_mtx, _MAX_DELAY_MS) == ESUCC) {
@@ -379,8 +381,8 @@ API_MOD_READ(TTY, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, si
                         }
                 }
 
-                if (sys_queue_receive(tty->queue_out, dst, fattr.non_blocking_rd ? 0 : _MAX_DELAY_MS) ==
-                        ESUCC) {
+                if (sys_queue_receive(tty->queue_out, dst, timeout_ms) == ESUCC) {
+
                         (*rdcnt)++;
 
                         if (*dst == '\n') {
@@ -388,6 +390,10 @@ API_MOD_READ(TTY, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, si
                         }
 
                         dst++;
+
+                        if (fattr.non_strict_rd) {
+                                timeout_ms = 0;
+                        }
                 }
         }
 

@@ -34,11 +34,11 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define MTX_TIMEOUT                     60000
-#define PIPE_LENGTH                     __OS_STREAM_BUFFER_LENGTH__
-#define PIPE_WRITE_TIMEOUT              1
-#define PIPE_READ_TIMEOUT               MAX_DELAY
-#define DATA_CHAIN_SIZE                 __RAMFS_FILE_CHAIN_SIZE__
+#define MTX_TIMEOUT        60000
+#define PIPE_LENGTH        __OS_STREAM_BUFFER_LENGTH__
+#define PIPE_WRITE_TIMEOUT 1
+#define PIPE_READ_TIMEOUT  MAX_DELAY
+#define DATA_CHAIN_SIZE    __RAMFS_FILE_CHAIN_SIZE__
 
 /*==============================================================================
   Local types, enums definitions
@@ -46,18 +46,18 @@
 /** regular file data chain */
 typedef struct data_chain {
         struct data_chain *next;
-        u8_t buf[DATA_CHAIN_SIZE];
+        u8_t               buf[DATA_CHAIN_SIZE];
 } data_chain_t;
 
 /** node structure */
 typedef struct node {
-        char            *name;                  //!< file name
-        mode_t           mode;                  //!< protection
-        uid_t            uid;                   //!< user ID of owner
-        gid_t            gid;                   //!< group ID of owner
-        size_t           size;                  //!< file size
-        time_t           mtime;                 //!< time of last modification
-        time_t           ctime;                 //!< time of creation
+        char  *name;  //!< file name
+        mode_t mode;  //!< protection
+        uid_t  uid;   //!< user ID of owner
+        gid_t  gid;   //!< group ID of owner
+        size_t size;  //!< file size
+        time_t mtime; //!< time of last modification
+        time_t ctime; //!< time of creation
 
         union {
                 pipe_t       *pipe_t;
@@ -69,30 +69,31 @@ typedef struct node {
 
 /** info of opened file */
 struct opened_file_info {
-        node_t          *child;                 //!< opened node
-        node_t          *parent;                //!< base of opened node
-        bool             remove_at_close;       //!< file to remove after close
+        node_t *child;           //!< opened node
+        node_t *parent;          //!< base of opened node
+        bool    remove_at_close; //!< file to remove after close
 };
 
 /** main memory structure */
 struct RAMFS {
-        node_t           root_dir;              //!< root dir '/'
-        kmtx_t          *resource_mtx;          //!< lock mutex
-        llist_t         *opended_files;         //!< list with opened files
-        size_t           file_count;            //!< number of files
+        node_t   root_dir;      //!< root dir '/'
+        kmtx_t  *resource_mtx;  //!< lock mutex
+        llist_t *opended_files; //!< list with opened files
+        size_t   file_count;    //!< number of files
 };
 
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static int  new_node                    (struct RAMFS *hdl, node_t *parent, char *filename, mode_t mode, i32_t *item, node_t **child);
-static int  delete_node                 (struct RAMFS *hdl, node_t *base, node_t *target, u32_t position);
-static int  get_node                    (const char *path, node_t *startnode, i32_t deep, i32_t *item, node_t **node);
-static uint get_path_deep               (const char *path);
-static int  add_node_to_open_files_list (struct RAMFS *hdl, node_t *parent, node_t *child);
-static void clear_regular_file          (node_t *node);
-static int  write_regular_file          (node_t *node, const u8_t *src, size_t count, fpos_t fpos, size_t *wrcnt);
-static int  read_regular_file           (node_t *node, u8_t *dst, size_t count, fpos_t fpos, size_t *rdcnt);
+static int  new_node(struct RAMFS *hdl, node_t *parent, char *filename, mode_t mode, i32_t *item,
+         node_t **child);
+static int  delete_node(struct RAMFS *hdl, node_t *base, node_t *target, u32_t position);
+static int  get_node(const char *path, node_t *startnode, i32_t deep, i32_t *item, node_t **node);
+static uint get_path_deep(const char *path);
+static int  add_node_to_open_files_list(struct RAMFS *hdl, node_t *parent, node_t *child);
+static void clear_regular_file(node_t *node);
+static int  write_regular_file(node_t *node, const u8_t *src, size_t count, fpos_t fpos, size_t *wrcnt);
+static int  read_regular_file(node_t *node, u8_t *dst, size_t count, fpos_t fpos, size_t *rdcnt);
 
 /*==============================================================================
   Local object definitions
@@ -121,31 +122,37 @@ API_FS_INIT(ramfs, void **fs_handle, const char *src_path, const char *opts)
                 struct RAMFS *hdl = *fs_handle;
 
                 err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &hdl->resource_mtx);
-                if (err)
+                if (err) {
                         goto finish;
+                }
 
                 err = sys_llist_create(NULL, NULL, &hdl->root_dir.data.llist_t);
-                if (err)
+                if (err) {
                         goto finish;
+                }
 
                 err = sys_llist_create(sys_llist_functor_cmp_pointers, NULL, &hdl->opended_files);
-                if (err)
+                if (err) {
                         goto finish;
+                }
 
                 hdl->root_dir.name = "/";
                 hdl->root_dir.size = sizeof(node_t);
                 hdl->root_dir.mode = (S_IRWXU | S_IRWXG | S_IRWXO) | S_IFDIR;
 
-                finish:
+        finish:
                 if (err) {
-                        if (hdl->resource_mtx)
+                        if (hdl->resource_mtx) {
                                 sys_mutex_destroy(hdl->resource_mtx);
+                        }
 
-                        if (hdl->root_dir.data.llist_t)
+                        if (hdl->root_dir.data.llist_t) {
                                 sys_llist_destroy(hdl->root_dir.data.llist_t);
+                        }
 
-                        if (hdl->opended_files)
+                        if (hdl->opended_files) {
                                 sys_llist_destroy(hdl->opended_files);
+                        }
 
                         sys_free(fs_handle);
                 }
@@ -201,18 +208,17 @@ API_FS_MKNOD(ramfs, void *fs_handle, const char *path, const dev_t dev)
                         char *basename = strrchr(path, '/') + 1;
 
                         char *child_name;
-                        err = sys_zalloc(strsize(basename), cast(void**, &child_name));
+                        err = sys_zalloc(strsize(basename), cast(void **, &child_name));
                         if (!err) {
                                 strcpy(child_name, basename);
 
                                 node_t *child;
-                                err = new_node(hdl, parent, child_name,
-                                               S_IRWXU | S_IRGRP | S_IROTH | S_IFDEV,
-                                               NULL, &child);
+                                err = new_node(hdl, parent, child_name, S_IRWXU | S_IRGRP | S_IROTH | S_IFDEV,
+                                        NULL, &child);
                                 if (!err) {
                                         child->data.dev_t = dev;
                                 } else {
-                                        sys_free(cast(void**, &child_name));
+                                        sys_free(cast(void **, &child_name));
                                 }
                         }
                 }
@@ -253,16 +259,15 @@ API_FS_MKDIR(ramfs, void *fs_handle, const char *path, mode_t mode)
                         char *basename = strrchr(path, '/') + 1;
 
                         char *child_name;
-                        err = sys_zalloc(strsize(basename), cast(void**, &child_name));
+                        err = sys_zalloc(strsize(basename), cast(void **, &child_name));
                         if (!err) {
                                 strcpy(child_name, basename);
 
                                 node_t *child;
-                                err = new_node(hdl, parent, child_name,
-                                               (mode & S_IPMT) | S_IFDIR,
-                                               NULL, &child);
+                                err = new_node(hdl, parent, child_name, (mode & S_IPMT) | S_IFDIR, NULL,
+                                        &child);
                                 if (err) {
-                                        sys_free(cast(void**, &child_name));
+                                        sys_free(cast(void **, &child_name));
                                 }
                         }
                 }
@@ -299,16 +304,15 @@ API_FS_MKFIFO(ramfs, void *fs_handle, const char *path, mode_t mode)
                         char *basename = strrchr(path, '/') + 1;
 
                         char *child_name;
-                        err = sys_zalloc(strsize(basename), cast(void**, &child_name));
+                        err = sys_zalloc(strsize(basename), cast(void **, &child_name));
                         if (!err) {
                                 strcpy(child_name, basename);
 
                                 node_t *child;
-                                err = new_node(hdl, parent, child_name,
-                                               (mode & S_IPMT) | S_IFIFO,
-                                               NULL, &child);
+                                err = new_node(hdl, parent, child_name, (mode & S_IPMT) | S_IFIFO, NULL,
+                                        &child);
                                 if (err) {
-                                        sys_free(cast(void**, &child_name));
+                                        sys_free(cast(void **, &child_name));
                                 }
                         }
                 }
@@ -341,9 +345,9 @@ API_FS_OPENDIR(ramfs, void *fs_handle, const char *path, kdir_t *dir)
                 err = get_node(path, &hdl->root_dir, 0, NULL, &parent);
                 if (!err) {
                         if (S_ISDIR(parent->mode)) {
-                                dir->d_items    = sys_llist_size(parent->data.llist_t);
-                                dir->d_seek     = 0;
-                                dir->d_hdl      = parent;
+                                dir->d_items = sys_llist_size(parent->data.llist_t);
+                                dir->d_seek  = 0;
+                                dir->d_hdl   = parent;
                         } else {
                                 err = ENOTDIR;
                         }
@@ -406,7 +410,7 @@ API_FS_READDIR(ramfs, void *fs_handle, kdir_t *dir)
                                         dir->dirent.size = dev_stat.st_size;
                                 } else if (err == ENODEV) {
                                         dir->dirent.size = 0;
-                                        err = ESUCC;
+                                        err              = ESUCC;
                                 }
 
                                 dir->dirent.dev = child->data.dev_t;
@@ -444,11 +448,12 @@ API_FS_REMOVE(ramfs, void *fs_handle, const char *path)
 
                 node_t *parent;
                 err = get_node(path, &hdl->root_dir, -1, NULL, &parent);
-                if (err){
+                if (err) {
                         goto finish;
                 }
 
-                i32_t item; node_t *child;
+                i32_t   item;
+                node_t *child;
                 err = get_node(path, &hdl->root_dir, 0, &item, &child);
                 if (err) {
                         goto finish;
@@ -469,10 +474,10 @@ API_FS_REMOVE(ramfs, void *fs_handle, const char *path)
 
                 /* check if file is opened */
                 if (!S_ISDIR(child->mode)) {
-                        sys_llist_foreach(struct opened_file_info*, opened_file, hdl->opended_files) {
+                        sys_llist_foreach (struct opened_file_info *, opened_file, hdl->opended_files) {
                                 if (opened_file->child == child) {
                                         opened_file->remove_at_close = true;
-                                        remove_file = false;
+                                        remove_file                  = false;
                                 }
                         }
                 }
@@ -484,7 +489,7 @@ API_FS_REMOVE(ramfs, void *fs_handle, const char *path)
                         err = ESUCC;
                 }
 
-                finish:
+        finish:
                 sys_mutex_unlock(hdl->resource_mtx);
         }
 
@@ -522,12 +527,12 @@ API_FS_RENAME(ramfs, void *fs_handle, const char *old_name, const char *new_name
                                 char *basename = strrchr(new_name, '/') + 1;
 
                                 char *newname;
-                                err = sys_zalloc(strsize(basename), cast(void**, &newname));
+                                err = sys_zalloc(strsize(basename), cast(void **, &newname));
                                 if (!err) {
                                         strcpy(newname, basename);
 
                                         if (target->name) {
-                                                sys_free(cast(void**, target->name));
+                                                sys_free(cast(void **, target->name));
                                         }
 
                                         target->name = newname;
@@ -635,14 +640,13 @@ API_FS_FSTAT(ramfs, void *fs_handle, void *extra, struct stat *stat)
                         stat->st_dev = opened_file->child->data.dev_t;
 
                         struct vfs_dev_stat dev_stat;
-                        err = sys_driver_stat(opened_file->child->data.dev_t,
-                                              &dev_stat);
+                        err = sys_driver_stat(opened_file->child->data.dev_t, &dev_stat);
                         if (!err) {
                                 stat->st_size = dev_stat.st_size;
 
                         } else if (err == ENODEV) {
                                 stat->st_size = 0;
-                                err = ESUCC;
+                                err           = ESUCC;
                         }
 
                 } else {
@@ -675,8 +679,7 @@ API_FS_STAT(ramfs, void *fs_handle, const char *path, struct stat *stat)
                 node_t *target;
                 err = get_node(path, &hdl->root_dir, 0, NULL, &target);
                 if (!err) {
-                        if ( (strlch(path) == '/' && S_ISDIR(target->mode))
-                           || strlch(path) != '/') {
+                        if ((strlch(path) == '/' && S_ISDIR(target->mode)) || strlch(path) != '/') {
 
                                 struct opened_file_info file;
                                 file.child           = target;
@@ -748,7 +751,8 @@ API_FS_OPEN(ramfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
                 }
 
                 // try to open selected file, if not exist then try create if O_CREAT flag is set
-                i32_t item; node_t *child;
+                i32_t   item;
+                node_t *child;
                 err = get_node(path, &hdl->root_dir, 0, &item, &child);
                 if (err == ENOENT) {
                         // check that file should be created
@@ -759,17 +763,16 @@ API_FS_OPEN(ramfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
                         char *basename = strrchr(path, '/') + 1;
 
                         char *file_name;
-                        err = sys_zalloc(strsize(basename), cast(void**, &file_name));
+                        err = sys_zalloc(strsize(basename), cast(void **, &file_name));
                         if (err) {
                                 goto finish;
                         }
 
                         strcpy(file_name, basename);
 
-                        err = new_node(hdl, parent, file_name, 0666 | S_IFREG,
-                                       &item, &child);
+                        err = new_node(hdl, parent, file_name, 0666 | S_IFREG, &item, &child);
                         if (err) {
-                                sys_free(cast(void**, &file_name));
+                                sys_free(cast(void **, &file_name));
                                 goto finish;
                         }
                 } else {
@@ -811,7 +814,7 @@ API_FS_OPEN(ramfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
                         }
                 }
 
-                finish:
+        finish:
                 sys_mutex_unlock(hdl->resource_mtx);
         }
 
@@ -837,7 +840,7 @@ API_FS_CLOSE(ramfs, void *fs_handle, void *fhdl, bool force)
         if (!err) {
 
                 struct opened_file_info *opened_file = fhdl;
-                int pos = sys_llist_find_begin(hdl->opended_files, opened_file);
+                int                      pos         = sys_llist_find_begin(hdl->opended_files, opened_file);
 
                 if (opened_file && opened_file->child && pos >= 0) {
                         node_t *target = opened_file->child;
@@ -854,7 +857,8 @@ API_FS_CLOSE(ramfs, void *fs_handle, void *fhdl, bool force)
                                 if (opened_file->remove_at_close) {
                                         bool remove = true;
 
-                                        sys_llist_foreach(struct opened_file_info*, file, hdl->opended_files) {
+                                        sys_llist_foreach (struct opened_file_info *, file,
+                                                hdl->opended_files) {
                                                 if (file->child == target) {
                                                         remove = false;
                                                         break;
@@ -862,10 +866,8 @@ API_FS_CLOSE(ramfs, void *fs_handle, void *fhdl, bool force)
                                         }
 
                                         if (remove) {
-                                                err = delete_node(hdl,
-                                                                  opened_file->parent,
-                                                                  opened_file->child,
-                                                                  pos);
+                                                err = delete_node(hdl, opened_file->parent,
+                                                        opened_file->child, pos);
                                         }
                                 } else {
                                         err = ESUCC;
@@ -901,14 +903,8 @@ API_FS_CLOSE(ramfs, void *fs_handle, void *fhdl, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_FS_WRITE(ramfs,
-             void            *fs_handle,
-             void            *fhdl,
-             const u8_t      *src,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *wrcnt,
-             struct vfs_fattr fattr)
+API_FS_WRITE(ramfs, void *fs_handle, void *fhdl, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         struct RAMFS *hdl = fs_handle;
 
@@ -922,7 +918,7 @@ API_FS_WRITE(ramfs,
 
                 if (S_ISDEV(node->mode)) {
                         dev_t dev = node->data.dev_t;
-                        err = sys_driver_write(dev, src, count, fpos, wrcnt, fattr);
+                        err       = sys_driver_write(dev, src, count, fpos, wrcnt, fattr);
 
                 } else if (S_ISFIFO(node->mode)) {
                         pipe_t *pipe = node->data.pipe_t;
@@ -931,8 +927,8 @@ API_FS_WRITE(ramfs,
                         if (!err) {
                                 if (*wrcnt > 0) {
                                         size_t size = 0;
-                                        err = sys_pipe_get_length(pipe, &size);
-                                        node->size = size;
+                                        err         = sys_pipe_get_length(pipe, &size);
+                                        node->size  = size;
                                 }
                         }
 
@@ -963,14 +959,8 @@ API_FS_WRITE(ramfs,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_FS_READ(ramfs,
-            void            *fs_handle,
-            void            *fhdl,
-            u8_t            *dst,
-            size_t           count,
-            fpos_t          *fpos,
-            size_t          *rdcnt,
-            struct vfs_fattr fattr)
+API_FS_READ(ramfs, void *fs_handle, void *fhdl, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt,
+        struct vfs_fattr fattr)
 {
         struct RAMFS *hdl = fs_handle;
 
@@ -982,16 +972,17 @@ API_FS_READ(ramfs,
 
                 if (S_ISDEV(node->mode)) {
                         dev_t dev = node->data.dev_t;
-                        err = sys_driver_read(dev, dst, count, fpos, rdcnt, fattr);
+                        err       = sys_driver_read(dev, dst, count, fpos, rdcnt, fattr);
 
                 } else if (S_ISFIFO(node->mode)) {
                         pipe_t *pipe = node->data.pipe_t;
 
-                        err = sys_pipe_read(pipe, dst, count, rdcnt, fattr.non_blocking_rd);
+                        err = sys_pipe_read(pipe, dst, count, rdcnt,
+                                fattr.non_blocking_rd or fattr.non_strict_rd);
                         if (!err) {
                                 if (*rdcnt > 0) {
                                         size_t size;
-                                        err = sys_pipe_get_length(pipe, &size);
+                                        err        = sys_pipe_get_length(pipe, &size);
                                         node->size = size;
                                 }
                         }
@@ -1030,26 +1021,26 @@ API_FS_IOCTL(ramfs, void *fs_handle, void *fhdl, int request, void *arg)
         if (opened_file && opened_file->child) {
                 if (S_ISDEV(opened_file->child->mode)) {
                         dev_t dev = opened_file->child->data.dev_t;
-                        err = sys_driver_ioctl(dev, request, arg);
+                        err       = sys_driver_ioctl(dev, request, arg);
 
                 } else if (S_ISFIFO(opened_file->child->mode)) {
 
                         switch (request) {
                         case IOCTL_PIPE__CLOSE: {
                                 pipe_t *pipe = opened_file->child->data.pipe_t;
-                                err = sys_pipe_close(pipe);
+                                err          = sys_pipe_close(pipe);
                                 break;
                         }
 
                         case IOCTL_PIPE__CLEAR: {
                                 pipe_t *pipe = opened_file->child->data.pipe_t;
-                                err = sys_pipe_clear(pipe);
+                                err          = sys_pipe_clear(pipe);
                                 break;
                         }
 
                         case IOCTL_PIPE__PERMANENT: {
                                 pipe_t *pipe = opened_file->child->data.pipe_t;
-                                err = sys_pipe_permanent(pipe);
+                                err          = sys_pipe_permanent(pipe);
                                 break;
                         }
 
@@ -1145,7 +1136,7 @@ static int delete_node(struct RAMFS *hdl, node_t *base, node_t *target, u32_t po
         }
 
         if (target->name) {
-                sys_free(cast(void**, &target->name));
+                sys_free(cast(void **, &target->name));
         }
 
         sys_llist_erase(base->data.llist_t, position);
@@ -1238,8 +1229,8 @@ static int get_node(const char *path, node_t *startnode, i32_t deep, i32_t *item
                                 break;
                         }
 
-                        if (  strlen(next_node->name) == path_length
-                           && strncmp(next_node->name, path, path_length) == 0 ) {
+                        if (strlen(next_node->name) == path_length &&
+                                strncmp(next_node->name, path, path_length) == 0) {
 
                                 current_node = next_node;
 
@@ -1263,8 +1254,8 @@ static int get_node(const char *path, node_t *startnode, i32_t deep, i32_t *item
         }
 
         if (current_node) {
-                *node  = current_node;
-                err = ESUCC;
+                *node = current_node;
+                err   = ESUCC;
         }
 
         return err;
@@ -1285,12 +1276,8 @@ static int get_node(const char *path, node_t *startnode, i32_t deep, i32_t *item
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-static int new_node(struct RAMFS *hdl,
-                    node_t       *parent,
-                    char         *filename,
-                    mode_t        mode,
-                    i32_t        *item,
-                    node_t      **child)
+static int new_node(struct RAMFS *hdl, node_t *parent, char *filename, mode_t mode, i32_t *item,
+        node_t **child)
 {
         if (!parent || !filename) {
                 return EINVAL;
@@ -1300,14 +1287,14 @@ static int new_node(struct RAMFS *hdl,
                 return ENOTDIR;
         }
 
-        sys_llist_foreach(node_t*, node, parent->data.llist_t) {
+        sys_llist_foreach (node_t *, node, parent->data.llist_t) {
                 if (strncmp(node->name, filename, 255) == 0) {
                         return EEXIST;
                 }
         }
 
         node_t *node;
-        int err = sys_zalloc(sizeof(node_t), cast(void**, &node));
+        int     err = sys_zalloc(sizeof(node_t), cast(void **, &node));
         if (!err) {
 
                 time_t tm = 0;
@@ -1323,10 +1310,10 @@ static int new_node(struct RAMFS *hdl,
                 node->size         = 0;
 
                 if (S_ISDIR(mode)) {
-                        err = sys_llist_create(NULL, NULL, cast(llist_t**, &node->data));
+                        err = sys_llist_create(NULL, NULL, cast(llist_t **, &node->data));
 
                 } else if (S_ISFIFO(mode)) {
-                        err = sys_pipe_create(cast(pipe_t**, &node->data));
+                        err = sys_pipe_create(cast(pipe_t **, &node->data));
                 }
 
                 if (!err) {
@@ -1344,7 +1331,7 @@ static int new_node(struct RAMFS *hdl,
                 }
 
                 if (err) {
-                        sys_free(cast(void**, &node));
+                        sys_free(cast(void **, &node));
                 }
         }
 
@@ -1362,20 +1349,17 @@ static int new_node(struct RAMFS *hdl,
  * @retval One of errno value (errno.h)
  */
 //==============================================================================
-static int add_node_to_open_files_list(struct RAMFS *hdl,
-                                       node_t       *parent,
-                                       node_t       *child)
+static int add_node_to_open_files_list(struct RAMFS *hdl, node_t *parent, node_t *child)
 {
         struct opened_file_info *opened_file_info;
-        int err = sys_zalloc(sizeof(struct opened_file_info),
-                                 cast(void**, &opened_file_info));
+        int err = sys_zalloc(sizeof(struct opened_file_info), cast(void **, &opened_file_info));
         if (!err) {
                 opened_file_info->remove_at_close = false;
                 opened_file_info->child           = child;
                 opened_file_info->parent          = parent;
 
                 /* find if file shall be removed */
-                sys_llist_foreach(struct opened_file_info*, opened_file, hdl->opended_files) {
+                sys_llist_foreach (struct opened_file_info *, opened_file, hdl->opended_files) {
                         if (opened_file->child == child && opened_file->remove_at_close) {
                                 opened_file_info->remove_at_close = true;
                                 break;
@@ -1384,7 +1368,7 @@ static int add_node_to_open_files_list(struct RAMFS *hdl,
 
                 /* add open file info to list */
                 if (!sys_llist_push_back(hdl->opended_files, opened_file_info)) {
-                        sys_free(cast(void**, &opened_file_info));
+                        sys_free(cast(void **, &opened_file_info));
                         err = ENOMEM;
                 }
         }
@@ -1405,11 +1389,11 @@ static void clear_regular_file(node_t *node)
 
         while (chain) {
                 data_chain_t *next = chain->next;
-                sys_free(cast(void**, &chain));
+                sys_free(cast(void **, &chain));
                 chain = next;
         }
 
-        node->size = 0;
+        node->size              = 0;
         node->data.data_chain_t = NULL;
 }
 
@@ -1426,8 +1410,7 @@ static void clear_regular_file(node_t *node)
  * @retval One of errno value (errno.h)
  */
 //==============================================================================
-static int write_regular_file(node_t *node, const u8_t *src,
-                              size_t count, fpos_t fpos, size_t *wrcnt)
+static int write_regular_file(node_t *node, const u8_t *src, size_t count, fpos_t fpos, size_t *wrcnt)
 {
         int           err   = ESUCC;
         data_chain_t *chain = node->data.data_chain_t;
@@ -1435,7 +1418,7 @@ static int write_regular_file(node_t *node, const u8_t *src,
         size_t        seek  = fpos - (depth * DATA_CHAIN_SIZE);
 
         if (chain == NULL) {
-                err = sys_zalloc(sizeof(data_chain_t), cast(void**, &chain));
+                err = sys_zalloc(sizeof(data_chain_t), cast(void **, &chain));
                 if (!err) {
                         node->data.data_chain_t = chain;
                 }
@@ -1444,8 +1427,7 @@ static int write_regular_file(node_t *node, const u8_t *src,
         // travel to selected chain
         while (!err && depth) {
                 if (chain->next == NULL) {
-                        err = sys_zalloc(sizeof(data_chain_t),
-                                         cast(void**, &chain->next));
+                        err = sys_zalloc(sizeof(data_chain_t), cast(void **, &chain->next));
                 }
 
                 chain = chain->next;
@@ -1456,16 +1438,15 @@ static int write_regular_file(node_t *node, const u8_t *src,
         while (!err && count) {
                 size_t tocpy = min(DATA_CHAIN_SIZE - seek, count);
                 memcpy(&chain->buf[seek], src, tocpy);
-                src    += tocpy;
-                fpos   += tocpy;
+                src += tocpy;
+                fpos += tocpy;
                 *wrcnt += tocpy;
-                count  -= tocpy;
-                seek    = 0;
+                count -= tocpy;
+                seek = 0;
 
                 if (count) {
                         if (chain->next == NULL) {
-                                err = sys_zalloc(sizeof(data_chain_t),
-                                                 cast(void**, &chain->next));
+                                err = sys_zalloc(sizeof(data_chain_t), cast(void **, &chain->next));
                         }
 
                         chain = chain->next;
@@ -1493,8 +1474,7 @@ static int write_regular_file(node_t *node, const u8_t *src,
  * @retval One of errno value (errno.h)
  */
 //==============================================================================
-static int read_regular_file(node_t *node, u8_t *dst,
-                             size_t count, fpos_t fpos, size_t *rdcnt)
+static int read_regular_file(node_t *node, u8_t *dst, size_t count, fpos_t fpos, size_t *rdcnt)
 {
         int err = ESUCC;
 
@@ -1502,18 +1482,19 @@ static int read_regular_file(node_t *node, u8_t *dst,
         size_t        depth = fpos / DATA_CHAIN_SIZE;
         size_t        seek  = fpos - (depth * DATA_CHAIN_SIZE);
 
-        for (; chain && depth; chain = chain->next, depth--);
+        for (; chain && depth; chain = chain->next, depth--)
+                ;
 
         while (chain && count && fpos < node->size) {
                 size_t tocpy = min(DATA_CHAIN_SIZE - seek, count);
-                       tocpy = min(tocpy, node->size - fpos);
+                tocpy        = min(tocpy, node->size - fpos);
 
                 memcpy(dst, &chain->buf[seek], tocpy);
-                dst    += tocpy;
-                fpos   += tocpy;
+                dst += tocpy;
+                fpos += tocpy;
                 *rdcnt += tocpy;
-                count  -= tocpy;
-                seek    = 0;
+                count -= tocpy;
+                seek = 0;
 
                 chain = chain->next;
         }

@@ -79,7 +79,6 @@
 //==============================================================================
 int _vsscanf(const char *str, const char *format, va_list args)
 {
-#if (__OS_SCANF_ENABLE__ > 0)
         int       read_fields = 0;
         int       long_ctr    = 0;
         char      chr;
@@ -372,10 +371,6 @@ int _vsscanf(const char *str, const char *format, va_list args)
 
 sscanf_end:
         return read_fields;
-#else
-        UNUSED_ARG3(str, format, args);
-        return 0;
-#endif
 }
 
 /*==============================================================================

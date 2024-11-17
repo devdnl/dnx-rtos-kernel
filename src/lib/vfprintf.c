@@ -79,8 +79,6 @@ int _vfprintf(kfile_t *file, const char *format, va_list arg)
 {
         int n = 0;
 
-#if (__OS_PRINTF_ENABLE__ > 0)
-
         if (file && format) {
                 va_list carg;
                 va_copy(carg, arg);
@@ -100,9 +98,6 @@ int _vfprintf(kfile_t *file, const char *format, va_list arg)
                 }
         }
 
-#else
-        UNUSED_ARG3(file, format, arg);
-#endif
         return n;
 }
 

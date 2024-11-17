@@ -39,7 +39,7 @@
 #include "lib/vsnprintf.h"
 #include "kernel/errno.h"
 
-#if ((__OS_SYSTEM_MSG_ENABLE__ > 0) && (__OS_PRINTF_ENABLE__ > 0))
+#if (__OS_SYSTEM_MSG_ENABLE__ > 0)
 
 /*==============================================================================
   Local macros

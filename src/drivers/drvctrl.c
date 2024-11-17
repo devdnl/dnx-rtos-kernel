@@ -340,7 +340,7 @@ int _driver_release(dev_t id)
 
         int err = driver__get_module_no_and_mem(id, &modno, &mem);
         if (!err) {
-#if ((__OS_SYSTEM_MSG_ENABLE__ > 0) && (__OS_PRINTF_ENABLE__ > 0))
+#if (__OS_SYSTEM_MSG_ENABLE__ > 0)
                 u8_t        major  = _dev_t__extract_major(id);
                 u8_t        minor  = _dev_t__extract_minor(id);
                 const char *module = _module_get_name(modno);

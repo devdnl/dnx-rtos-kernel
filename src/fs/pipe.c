@@ -204,7 +204,7 @@ int _pipe_read(pipe_t *pipe, u8_t *buf, size_t count, size_t *rdcnt, bool non_bl
                                 break;
                         }
 
-                        u32_t tout = non_blocking || n ? 10 : PIPE_READ_TIMEOUT;
+                        u32_t tout = non_blocking || n ? 0 : PIPE_READ_TIMEOUT;
                         if (_queue_receive(pipe->queue, &buf[n], tout) != ESUCC) {
                                 break;
                         }

@@ -83,7 +83,7 @@ static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefre
 /*==============================================================================
   Local objects
 ==============================================================================*/
-#if ((__OS_SYSTEM_MSG_ENABLE__ > 0) && (__OS_PRINTF_ENABLE__ > 0))
+#if (__OS_SYSTEM_MSG_ENABLE__ > 0)
 static const char *REGISTERED_REGION_STR  = "Registered %s region [%Xh-%Xh]";
 static const char *REGISTRATION_ERROR_STR = "Memory %s registration error (%d) [%Xh-%Xh]";
 #endif

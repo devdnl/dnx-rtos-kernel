@@ -238,7 +238,7 @@ API_MOD_WRITE(QSPI, void *device_handle, const u8_t *src, size_t count, fpos_t *
 
         count = min(count, (memory_size - *fpos));
 
-        int err = sys_mutex_lock(QSPI.mutex, fattr.non_blocking_rd ? 0 : _MAX_DELAY_MS);
+        int err = sys_mutex_lock(QSPI.mutex, fattr.non_blocking_wr ? 0 : _MAX_DELAY_MS);
         if (err) {
                 return err;
         }

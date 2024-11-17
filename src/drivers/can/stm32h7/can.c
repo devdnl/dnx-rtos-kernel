@@ -327,9 +327,13 @@ API_MOD_WRITE(CAN, void *device_handle, const u8_t *src, size_t count, fpos_t *f
 
         int err = EINVAL;
 
-        if (count == sizeof(CAN_msg_t)) {
+        if ((count % sizeof(CAN_msg_t)) != 0) {
+                return err;
+        }
 
-                const CAN_msg_t *msg = cast(void *, src);
+        while (count >= sizeof(CAN_msg_t)) {
+
+                const CAN_msg_t *msg = (void *)src;
 
                 u32_t timeout_ms = fattr.non_blocking_wr ? 0 : hdl->send_timeout;
 
@@ -337,6 +341,13 @@ API_MOD_WRITE(CAN, void *device_handle, const u8_t *src, size_t count, fpos_t *f
 
                 if (!err) {
                         *wrcnt += sizeof(CAN_msg_t);
+                        src += sizeof(CAN_msg_t);
+                        count -= sizeof(CAN_msg_t);
+                } else {
+                        if (fattr.non_blocking_wr) {
+                                err = 0;
+                        }
+                        break;
                 }
         }
 
@@ -366,14 +377,32 @@ API_MOD_READ(CAN, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, si
 
         int err = EINVAL;
 
-        if (count == sizeof(CAN_msg_t)) {
+        if ((count % sizeof(CAN_msg_t)) != 0) {
+                return err;
+        }
 
-                u32_t timeout_ms = fattr.non_blocking_rd ? 0 : hdl->recv_timeout;
+        while (count >= sizeof(CAN_msg_t)) {
 
-                err = recv_msg(hdl, cast(CAN_msg_t *, dst), timeout_ms);
+                CAN_msg_t msg;
+                u32_t     timeout_ms = fattr.non_blocking_rd ? 0 : hdl->recv_timeout;
+
+                err = recv_msg(hdl, &msg, timeout_ms);
 
                 if (!err) {
+                        memcpy(dst, &msg, sizeof(CAN_msg_t));
+
                         *rdcnt += sizeof(CAN_msg_t);
+                        dst += sizeof(CAN_msg_t);
+                        count -= sizeof(CAN_msg_t);
+
+                        if (fattr.non_strict_rd) {
+                                timeout_ms = 0;
+                        }
+                } else {
+                        if (fattr.non_blocking_rd or fattr.non_strict_rd) {
+                                err = 0;
+                        }
+                        break;
                 }
         }
 
