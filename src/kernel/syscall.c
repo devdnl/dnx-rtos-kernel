@@ -475,7 +475,7 @@ static const syscallfunc_t syscalltab[] = {
   Exported objects
 ==============================================================================*/
 _process_t              *_kworker_proc;
-const char *const        dnx_RTOS_version       = "3.0.0";
+const char *const        dnx_RTOS_version       = "3.1.0";
 const char *const        dnx_RTOS_name          = "dnx RTOS";
 const char *const        dnx_RTOS_commit_hash   = COMMIT_HASH;
 const char *const        dnx_RTOS_platform_name = _CPUCTL_PLATFORM_NAME;
