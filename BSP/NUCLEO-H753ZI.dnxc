@@ -5688,18 +5688,6 @@
 				["key"]="__OS_ENABLE_TIMEMAN__";
 				["value"]="_YES_";
 			};
-			[11]={
-				["key"]="__OS_PRINTF_ENABLE__";
-				["value"]="_YES_";
-			};
-			[12]={
-				["key"]="__OS_PRINTF_FLOAT_ENABLE__";
-				["value"]="_YES_";
-			};
-			[13]={
-				["key"]="__OS_SCANF_ENABLE__";
-				["value"]="_YES_";
-			};
 			[14]={
 				["key"]="__OS_ENABLE_MKDIR__";
 				["value"]="_YES_";

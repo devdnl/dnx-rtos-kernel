@@ -11,3 +11,4 @@
 ./optimize.lua ZL26ARM.dnxc stm32f1
 ./optimize.lua NUCLEO-F103RB.dnxc stm32f1
 ./optimize.lua HY-TinySTM103.dnxc stm32f1
+./optimize.lua STM32F746G-DISCO.dnxc stm32f7

@@ -157,12 +157,6 @@
 				["value"]="_NO_";
 			};
 		};
-		["arch/noarch/zero_flags.h"]={
-			[1.000000]={
-				["key"]="__ZERO_CFG_EXAMPLE__";
-				["value"]="_NO_";
-			};
-		};
 		["arch/stm32f1/afm_flags.h"]={
 			[1.000000]={
 				["key"]="__AFM_EVENT_OUT_ENABLE__";
@@ -20532,18 +20526,6 @@
 			};
 			[11.000000]={
 				["key"]="__OS_ENABLE_TIMEMAN__";
-				["value"]="_YES_";
-			};
-			[12.000000]={
-				["key"]="__OS_PRINTF_ENABLE__";
-				["value"]="_YES_";
-			};
-			[13.000000]={
-				["key"]="__OS_PRINTF_FLOAT_ENABLE__";
-				["value"]="_YES_";
-			};
-			[14.000000]={
-				["key"]="__OS_SCANF_ENABLE__";
 				["value"]="_YES_";
 			};
 			[15.000000]={
