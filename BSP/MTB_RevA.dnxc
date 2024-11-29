@@ -127,12 +127,6 @@
 				["value"]="_NO_";
 			};
 		};
-		["arch/noarch/part_flags.h"]={
-			[1]={
-				["key"]="__PART_CFG_EXAMPLE__";
-				["value"]="_NO_";
-			};
-		};
 		["arch/noarch/tty_flags.h"]={
 			[1]={
 				["key"]="__TTY_TERM_COLS__";
@@ -149,18 +143,6 @@
 			[4]={
 				["key"]="__TTY_NUMBER_OF_TERM__";
 				["value"]="3";
-			};
-		};
-		["arch/noarch/urandom_flags.h"]={
-			[1]={
-				["key"]="__URANDOM_CFG_EXAMPLE__";
-				["value"]="_NO_";
-			};
-		};
-		["arch/noarch/zero_flags.h"]={
-			[1]={
-				["key"]="__ZERO_CFG_EXAMPLE__";
-				["value"]="_NO_";
 			};
 		};
 		["arch/stm32f1/afm_flags.h"]={

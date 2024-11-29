@@ -12,3 +12,4 @@
 ./optimize.lua NUCLEO-F103RB.dnxc stm32f1
 ./optimize.lua HY-TinySTM103.dnxc stm32f1
 ./optimize.lua STM32F746G-DISCO.dnxc stm32f7
+./optimize.lua STM32H747I-DISC1.dnxc stm32h7
