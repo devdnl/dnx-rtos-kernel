@@ -115,11 +115,19 @@ function Optimize(tab, arch)
 
     for i,v in pairs(tab.file) do
 
-        if i:match("arch/.*/.*") then
-            if not (i:match("arch/"..arch.."/.*") or i:match("arch/noarch/.*")) then
-                print("Removing useless '"..i.."' entry")
-                tab.file[i] = nil
+        local f = io.open("../config/"..i, "rb")
+        if f then
+            if i:match("arch/.*/.*") then
+                if not (i:match("arch/"..arch.."/.*") or i:match("arch/noarch/.*")) then
+                    print("Removing useless '"..i.."' entry")
+                    tab.file[i] = nil
+                end
             end
+
+            f:close()
+        else
+            print("No config file: " .. i)
+            tab.file[i] = nil
         end
     end
 end

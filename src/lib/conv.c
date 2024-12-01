@@ -422,7 +422,7 @@ char *sys_strtou32(const char *string, int base, u32_t *value)
  * @return converted value
  */
 //==============================================================================
-i32_t _atoi(const char *str)
+i32_t sys_atoi(const char *str)
 {
         i32_t result;
         sys_strtoi32(str, 10, &result);
@@ -439,7 +439,7 @@ i32_t _atoi(const char *str)
  * @return converted value
  */
 //==============================================================================
-double _strtod(const char *str, char **end)
+double sys_strtod(const char *str, char **end)
 {
         double sign    = 1;
         double div     = 1;
@@ -614,9 +614,9 @@ float _strtof(const char *str, char **end)
  * @return converted value
  */
 //==============================================================================
-double _atof(const char *str)
+double sys_atof(const char *str)
 {
-        return _strtod(str, NULL);
+        return sys_strtod(str, NULL);
 }
 
 #if __OS_ENABLE_TIMEMAN__ == _YES_

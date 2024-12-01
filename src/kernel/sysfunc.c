@@ -139,6 +139,52 @@ int sys_fclose(kfile_t *file)
 
 //==============================================================================
 /**
+ * @brief Function writes data to stream.
+ *
+ * The function writes <i>size</i> bytes long buffer, to the stream pointed to
+ * by <i>file</i>, obtaining them from the location given by <i>ptr</i>.
+ * Number of wrote bytes is passed by <i>wrcnt</i> argument.
+ *
+ * @note Function can be used only by file system or driver code.
+ *
+ * @param ptr           data buffer
+ * @param size          buffer size
+ * @param wrcnt         number of wrote bytes
+ * @param file          stream
+ *
+ * @return One of @ref errno value.
+ */
+//==============================================================================
+int sys_fwrite(const void *ptr, size_t size, size_t *wrcnt, kfile_t *file)
+{
+        return _vfs_fwrite(ptr, size, wrcnt, file);
+}
+
+//==============================================================================
+/**
+ * @brief Function reads data to stream.
+ *
+ * The function reads <i>size</i> bytes long buffer, from the stream pointed to
+ * by <i>file</i>, storing them at the location given by <i>ptr</i>.
+ * Number of read bytes is passed by <i>rdcnt</i> argument.
+ *
+ * @note Function can be used only by file system or driver code.
+ *
+ * @param ptr           data buffer
+ * @param size          buffer size
+ * @param rdcnt         number of read bytes
+ * @param file          stream
+ *
+ * @return One of @ref errno value.
+ */
+//==============================================================================
+int sys_fread(void *ptr, size_t size, size_t *rdcnt, kfile_t *file)
+{
+        return _vfs_fread(ptr, size, rdcnt, file);
+}
+
+//==============================================================================
+/**
  * @brief Function create binary semaphore
  *
  * @param[in]  cnt_max          max count value (1 for binary)

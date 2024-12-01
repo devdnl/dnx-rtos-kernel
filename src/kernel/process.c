@@ -2994,7 +2994,7 @@ static int argtab_create(const char *str, u8_t *argc, char **argv[])
                                 if (!err) {
                                         _strlcpy(arg, start, str_len + 1);
 
-                                        if (_llist_push_back(largs, arg) == NULL) {
+                                        if (sys_llist_push_back(largs, arg) == NULL) {
                                                 _kfree(_MM_KRN, cast(void *, &arg));
                                                 goto finish;
                                         }
@@ -3007,7 +3007,7 @@ static int argtab_create(const char *str, u8_t *argc, char **argv[])
                         }
 
                         // create table with arguments
-                        int no_of_args = _llist_size(largs);
+                        int no_of_args = sys_llist_size(largs);
                         *argc          = no_of_args;
 
                         char **arg = NULL;
@@ -3015,7 +3015,7 @@ static int argtab_create(const char *str, u8_t *argc, char **argv[])
                                 0, 0, cast(void *, &arg));
                         if (!err) {
                                 for (int i = 0; i < no_of_args; i++) {
-                                        arg[i] = _llist_take_front(largs);
+                                        arg[i] = sys_llist_take_front(largs);
                                 }
 
                                 arg[no_of_args] = NULL;
@@ -3023,7 +3023,7 @@ static int argtab_create(const char *str, u8_t *argc, char **argv[])
                         }
 
                 finish:
-                        _llist_destroy(largs);
+                        sys_llist_destroy(largs);
                 }
         }
 

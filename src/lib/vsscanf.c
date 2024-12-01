@@ -328,7 +328,7 @@ int _vsscanf(const char *str, const char *format, va_list args)
                                         float *value = va_arg(args, float*);
                                         if (value) {
                                                 char *end;
-                                                *value = _strtod(str, &end);
+                                                *value = sys_strtod(str, &end);
                                                 str += ((int)end - (int)str);
 
                                                 if (*end != '\0')

@@ -456,17 +456,38 @@ void _cpuctl_print_exception(void)
 
 //==============================================================================
 /**
+ * @brief  Infinite loop.
+ */
+//==============================================================================
+void _task_infinite_loop(void)
+{
+        while (true) {
+                __asm volatile("nop");
+        }
+}
+
+//==============================================================================
+/**
  * @brief Hard Fault ISR
  */
 //==============================================================================
 void HardFault_Handler(void)
 {
-        __asm volatile(" tst lr, #4                                                \n"
-                       " ite eq                                                    \n"
-                       " mrseq r0, msp                                             \n"
-                       " mrsne r0, psp                                             \n"
-                       " ldr r1, [r0, #24]                                         \n"
-                       " b get_registers_from_stack                                \n");
+        // remember registers
+        __asm volatile("tst lr, #4                   \n"
+                       "ite eq                       \n"
+                       "mrseq r0, msp                \n"
+                       "mrsne r0, psp                \n"
+                       "ldr r1, [r0, #24]            \n"
+                       "b get_registers_from_stack   \n");
+
+        // return to infinite loop instead of broken code
+        __asm volatile("tst lr, #4                   \n"
+                       "ite EQ                       \n"
+                       "mrseq r0, msp                \n"
+                       "mrsne r0, psp                \n"
+                       "ldr r1, =_task_infinite_loop \n"
+                       "str r1, [r0, #24]            \n");
 }
 
 //==============================================================================

@@ -58,12 +58,12 @@ extern int       _ltimeoff_sec;
 ==============================================================================*/
 extern char      *_itoa(i64_t, char *, u8_t, bool, u8_t);
 extern int        _dtoa(double, char *, int, int);
-extern double     _strtod(const char *, char **);
+extern double     sys_strtod(const char *, char **);
 extern float      _strtof(const char *, char **);
-extern i32_t      _atoi(const char *);
+extern i32_t      sys_atoi(const char *);
 extern char      *sys_strtoi32(const char *, int, i32_t *);
 extern char      *sys_strtou32(const char *, int, u32_t *);
-extern double     _atof(const char *);
+extern double     sys_atof(const char *);
 extern time_t     _mktime(struct tm *);
 extern struct tm *_gmtime_r(const time_t *, struct tm *);
 extern struct tm *_localtime_r(const time_t *, struct tm *);
