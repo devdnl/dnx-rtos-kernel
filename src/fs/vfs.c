@@ -224,7 +224,7 @@ int _vfs_mount(const struct vfs_path *src_path, const struct vfs_path *mount_poi
                  * mount FS if created
                  */
                 if (!err) {
-                        if (!_llist_push_back(VFS.mnt_list, new_fs)) {
+                        if (!sys_llist_push_back(VFS.mnt_list, new_fs)) {
                                 delete_FS_entry(new_fs);
                                 err = ENOMEM;
                         }
@@ -274,7 +274,7 @@ int _vfs_umount(const struct vfs_path *path)
                                 if (mount_fs->children_cnt == 0) {
                                         err = delete_FS_entry(mount_fs);
                                         if (not err) {
-                                                _llist_take(VFS.mnt_list, position);
+                                                sys_llist_take(VFS.mnt_list, position);
                                         }
                                 } else {
                                         err = EBUSY;
@@ -310,7 +310,7 @@ int _vfs_getmntentry(int seek, struct mntent *mntent)
         FS_entry_t *fs  = NULL;
         int         err = _mutex_lock(VFS.resource_mtx, _MAX_DELAY_MS);
         if (!err) {
-                fs  = _llist_at(VFS.mnt_list, seek);
+                fs  = sys_llist_at(VFS.mnt_list, seek);
                 err = fs ? ESUCC : ENOENT;
                 _mutex_unlock(VFS.resource_mtx);
         }
@@ -1399,7 +1399,7 @@ void _vfs_sync(void)
 //==============================================================================
 static bool is_first_fs(const char *mount_point)
 {
-        return _llist_size(VFS.mnt_list) == 0 && strcmp(mount_point, "/") == 0;
+        return sys_llist_size(VFS.mnt_list) == 0 && strcmp(mount_point, "/") == 0;
 }
 
 //==============================================================================

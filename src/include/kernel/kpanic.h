@@ -42,6 +42,9 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
+#define _KERNEL_PANIC_FLAG__KERNEL_SPACE (1 << 0)
+#define _KERNEL_PANIC_FLAG__KERNEL_PANIC (1 << 1)
+#define _KERNEL_PANIC_FLAG__PANIC_LOOP   (1 << 2)
 
 /*==============================================================================
   Exported object types
@@ -54,19 +57,17 @@ enum _kernel_panic_desc_cause {
         _KERNEL_PANIC_DESC_CAUSE_INTERNAL_2 = 4,
         _KERNEL_PANIC_DESC_CAUSE_INTERNAL_3 = 5,
         _KERNEL_PANIC_DESC_CAUSE_INTERNAL_4 = 6,
-        _KERNEL_PANIC_DESC_CAUSE_PANICLOOP  = 7,
         _KERNEL_PANIC_DESC_CAUSE_UNKNOWN    = 8
 };
 
 struct _kernel_panic_info {
-        const char *cause_str;       /* cause string       */
-        const char *name;            /* process name       */
-        int         cause;           /* kernel panic cause */
-        pid_t       pid;             /* process ID         */
-        tid_t       tid;             /* thread ID          */
-        bool        kernelspace;     /* kernel space       */
-        bool        kernel_panic;    /* kernel panic       */
-        bool        syscall;         /* syscall            */
+        const char *cause_str;
+        char        name[64];
+        u32_t       flags;
+        int         cause;
+        pid_t       pid;
+        tid_t       tid;
+        u8_t        syscall;
 };
 
 /*==============================================================================
@@ -77,7 +78,7 @@ struct _kernel_panic_info {
   Exported functions
 ==============================================================================*/
 extern int  _kernel_panic_init(void);
-extern bool _kernel_panic_info(struct _kernel_panic_info*);
+extern bool _kernel_panic_info(struct _kernel_panic_info *);
 extern void _kernel_panic_report(enum _kernel_panic_desc_cause);
 extern void _kernel_panic_report_from_ISR(enum _kernel_panic_desc_cause);
 

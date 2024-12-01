@@ -44,14 +44,14 @@ extern "C" {
   Exported symbolic constants/macros
 ==============================================================================*/
 /** STANDARD STACK SIZES */
-#define _STACK_DEPTH_MINIMAL    (1 * (__OS_TASK_MIN_STACK_DEPTH__))
-#define _STACK_DEPTH_VERY_LOW   (2 * (__OS_TASK_MIN_STACK_DEPTH__))
-#define _STACK_DEPTH_LOW        (4 * (__OS_TASK_MIN_STACK_DEPTH__))
-#define _STACK_DEPTH_MEDIUM     (8 * (__OS_TASK_MIN_STACK_DEPTH__))
-#define _STACK_DEPTH_LARGE      (16 * (__OS_TASK_MIN_STACK_DEPTH__))
-#define _STACK_DEPTH_VERY_LARGE (32 * (__OS_TASK_MIN_STACK_DEPTH__))
-#define _STACK_DEPTH_HUGE       (64 * (__OS_TASK_MIN_STACK_DEPTH__))
-#define _STACK_DEPTH_VERY_HUGE  (128 * (__OS_TASK_MIN_STACK_DEPTH__))
+#define _STACK_DEPTH_MINIMAL    ((1 * (__OS_TASK_MIN_STACK_DEPTH__)) + (__OS_IRQ_STACK_DEPTH__))
+#define _STACK_DEPTH_VERY_LOW   ((2 * (__OS_TASK_MIN_STACK_DEPTH__)) + (__OS_IRQ_STACK_DEPTH__))
+#define _STACK_DEPTH_LOW        ((4 * (__OS_TASK_MIN_STACK_DEPTH__)) + (__OS_IRQ_STACK_DEPTH__))
+#define _STACK_DEPTH_MEDIUM     ((8 * (__OS_TASK_MIN_STACK_DEPTH__)) + (__OS_IRQ_STACK_DEPTH__))
+#define _STACK_DEPTH_LARGE      ((16 * (__OS_TASK_MIN_STACK_DEPTH__)) + (__OS_IRQ_STACK_DEPTH__))
+#define _STACK_DEPTH_VERY_LARGE ((32 * (__OS_TASK_MIN_STACK_DEPTH__)) + (__OS_IRQ_STACK_DEPTH__))
+#define _STACK_DEPTH_HUGE       ((64 * (__OS_TASK_MIN_STACK_DEPTH__)) + (__OS_IRQ_STACK_DEPTH__))
+#define _STACK_DEPTH_VERY_HUGE  ((128 * (__OS_TASK_MIN_STACK_DEPTH__)) + (__OS_IRQ_STACK_DEPTH__))
 #define _STACK_DEPTH_CUSTOM(depth) (depth))
 
 #define _PROCESS_EXIT_FLAG(tid) (1 << (tid))

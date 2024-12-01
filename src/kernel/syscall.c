@@ -968,7 +968,11 @@ static int syscall_open(syscallrq_t *rq)
         if (*flags & O_DIRECTORY) {
 
                 if (*flags & O_CREAT) {
+#if __OS_ENABLE_MKDIR__ == _YES_
                         err = _vfs_mkdir(&path, *mode);
+#else
+                        err = ENOTSUP;
+#endif
                 } else {
                         err = 0;
                 }

@@ -1,5 +1,4 @@
 # Makefile for GNU make
-CSRC_CORE   += lib/btree.c
 CSRC_CORE   += lib/conv.c
 CSRC_CORE   += lib/llist.c
 CSRC_CORE   += lib/vsnprintf.c
