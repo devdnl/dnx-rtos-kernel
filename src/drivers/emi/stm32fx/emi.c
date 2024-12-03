@@ -347,7 +347,7 @@ static int sdram_test(void *address, size_t size)
 
         int err = 0;
 
-        printk("EMI: memory test @ %p of %u bytes", address, size);
+        dev_dbg2(0, 0, "memory test @ %p of %u bytes", address, size);
 
         for (size_t i = 0; i < ARRAY_SIZE(PATTERN); i++) {
 
@@ -363,7 +363,7 @@ static int sdram_test(void *address, size_t size)
                 len = size / sizeof(u32_t);
                 while (len) {
                         if (*ptr != PATTERN[i]) {
-                                printk("EMI: error @ %p", ptr);
+                                dev_dbg2(0, 0, "error @ %p", ptr);
                                 err = EFAULT;
                                 break;
                         }
@@ -383,13 +383,13 @@ static int sdram_test(void *address, size_t size)
         }
 
         clock_t tstop     = sys_get_uptime_ms();
-        float   MiB_per_s = cast(float, (size / (tstop - tstart))) / 1024.0f / 1024.0f * 1000.0f;
+        float   MB_per_s = cast(float, (size / (tstop - tstart))) / 1000.0f;
 
         ptr = address;
         len = size / sizeof(u32_t);
         while (len) {
                 if (*ptr != len) {
-                        printk("EMI: error @ %p", ptr);
+                        dev_dbg2(0, 0, "error @ %p", ptr);
                         err = EFAULT;
                         break;
                 }
@@ -398,8 +398,8 @@ static int sdram_test(void *address, size_t size)
         }
 
         if (not err) {
-                printk("EMI: memory test success.");
-                printk("EMI: memory transfer: %0.3f MiB/s.", MiB_per_s);
+                dev_dbg2(0, 0, "memory test success.");
+                dev_dbg2(0, 0, "memory transfer: %0.3f MB/s.", MB_per_s);
         }
 
         return err;
@@ -453,7 +453,7 @@ static u32_t sdram_calculate_refresh_rate(void)
         i32_t SRR = (((__EMI_SDRAM_REFRESH_RATE_MS__ * 1000) / NR) * MHz) - 20;
 
         if (SRR < 41) {
-                printk("EMI: incorrect SDRAM refresh rate.");
+                dev_dbg2(0, 0, "incorrect SDRAM refresh rate.");
                 SRR = 41;
         }
 
@@ -475,11 +475,11 @@ static int sdram_init(void)
          *    in the FMC_SDCR1 register.
          */
         if (__EMI_SDRAM_TWR__ < __EMI_SDRAM_TRAS__ - __EMI_SDRAM_1_TRCD__) {
-                printk("EMI: SDRAM1 invalid tWR value!");
+                dev_dbg2(0, 0, "SDRAM1 invalid tWR value!");
         }
 
         if (__EMI_SDRAM_TWR__ < __EMI_SDRAM_TRAS__ - __EMI_SDRAM_2_TRCD__) {
-                printk("EMI: SDRAM2 invalid tWR value!");
+                dev_dbg2(0, 0, "SDRAM2 invalid tWR value!");
         }
 
         FMC_BANK_5_6->SDCR[0] = ((__EMI_SDRAM_RPIPE__ & 3) << FMC_SDCRx_RPIPE_Pos) |
@@ -719,9 +719,6 @@ static int register_heap_regions(u32_t mem_addr, size_t mem_size, const char *op
                                         dev_dbg2(0, 0, "too big region size, trimmed to memory size");
                                         reg_size = (mem_size - (reg_addr - mem_addr));
                                 }
-
-                                printk("%s '%s' @ %lXh of %lu", region_type, name, reg_addr,
-                                        reg_size); // TEST
 
                                 mem_region_t *region;
                                 err = sys_zalloc(sizeof(*region) + strsize(name), cast(void **, &region));
