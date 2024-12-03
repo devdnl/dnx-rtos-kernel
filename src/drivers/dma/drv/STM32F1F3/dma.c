@@ -557,7 +557,7 @@ void _DMA_DDI_abort(u32_t dmad)
 
                 if (RT_channel->dmad == dmad) {
                         DMA_Channel_TypeDef *DMA_channel = DMA_HW[GETMAJOR(dmad)].channel[GETCHANNEL(dmad)];
-                        DMA_channel->CR = 0;
+                        DMA_channel->CCR = 0;
                         clear_DMA_IRQ_flags(GETMAJOR(dmad), GETCHANNEL(dmad));
                 }
         }
