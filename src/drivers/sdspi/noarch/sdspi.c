@@ -30,7 +30,6 @@
   Include files
 ==============================================================================*/
 #include "drivers/driver.h"
-#include "drivers/class/storage/sd.h"
 #include "drivers/class/storage/ioctl.h"
 #include "drivers/ioctl_requests.h"
 #include "noarch/sdspi_cfg.h"
@@ -43,6 +42,62 @@
 /*==============================================================================
   Local types, enums definitions
 ==============================================================================*/
+/** card command definitions */
+typedef enum {
+        SD_CMD__CMD0   = (0x40+0 ),     // GO_IDLE_STATE, -
+        SD_CMD__CMD1   = (0x40+1 ),     // SEND_OP_COND (MMC), -
+        SD_CMD__CMD2   = (0x40+2 ),     // ALL_SEND_CID, R2
+        SD_CMD__CMD3   = (0x40+3 ),     // SEND_RELATIVE_ADDR, R6
+        SD_CMD__CMD4   = (0x40+3 ),     // SET_DSR, -
+        SD_CMD__CMD6   = (0x40+6 ),     // SWITCH_FUNC, R1
+        SD_CMD__ACMD6  = (0xC0+6 ),     // SET_BUS_WIDTH, R1
+        SD_CMD__CMD7   = (0x40+7 ),     // SELECT/DESELECT_CARD, R1b/-
+        SD_CMD__CMD8   = (0x40+8 ),     // SEND_IF_COND, R7
+        SD_CMD__CMD9   = (0x40+9 ),     // SEND_CSD, R2
+        SD_CMD__CMD10  = (0x40+10),     // SEND_CID, R2
+        SD_CMD__CMD12  = (0x40+12),     // STOP_TRANSMISSION, R1b
+        SD_CMD__CMD13  = (0x40+13),     // SEND_STATUS (SDC), R1
+        SD_CMD__ACMD13 = (0xC0+13),     // SD_STATUS (SDC), R1
+        SD_CMD__CMD16  = (0x40+16),     // SET_BLOCKLEN, R1
+        SD_CMD__CMD17  = (0x40+17),     // READ_SINGLE_BLOCK, R1
+        SD_CMD__CMD18  = (0x40+18),     // READ_MULTIPLE_BLOCK, R1
+        SD_CMD__CMD23  = (0x40+23),     // SET_BLOCK_COUNT (MMC)
+        SD_CMD__ACMD22 = (0xC0+22),     // SEND_NUM_WR_BLOCKS, R1
+        SD_CMD__ACMD23 = (0xC0+23),     // SET_WR_BLK_ERASE_COUNT, R1
+        SD_CMD__CMD24  = (0x40+24),     // WRITE_BLOCK, R1
+        SD_CMD__CMD25  = (0x40+25),     // WRITE_MULTIPLE_BLOCK, R1
+        SD_CMD__CMD27  = (0x40+27),     // PROGRAM_CSD, R1
+        SD_CMD__CMD28  = (0x40+28),     // SET_WRITE_PROT, R1b
+        SD_CMD__CMD29  = (0x40+29),     // CLR_WRITE_PROT, R1b
+        SD_CMD__CMD30  = (0x40+30),     // SEND_WRITE_PROT, R1
+        SD_CMD__CMD32  = (0x40+32),     // ERASE_WR_BLK_START, R1
+        SD_CMD__CMD33  = (0x40+33),     // ERASE_WR_BLK_END, R1
+        SD_CMD__CMD38  = (0x40+38),     // ERASE, R1b
+        SD_CMD__ACMD41 = (0xC0+41),     // SD_SEND_OP_COND, R3
+        SD_CMD__CMD42  = (0x40+42),     // LOCK_UNLOCK, R1
+        SD_CMD__ACMD42 = (0xC0+42),     // SET_CLR_CARD_DETECT, R1
+        SD_CMD__ACMD51 = (0xC0+51),     // SEND_SCR, R1
+        SD_CMD__CMD55  = (0x40+55),     // APP_CMD, R1
+        SD_CMD__CMD56  = (0x40+56),     // GEN_CMD, R1
+        SD_CMD__CMD58  = (0x40+58)      // READ_OCR, R1
+} SD_cmd_t;
+
+/** card types */
+typedef struct {
+        enum {
+                SD_TYPE__UNKNOWN,
+                SD_TYPE__MMC,
+                SD_TYPE__SD1,
+                SD_TYPE__SD2
+        } type;
+
+        bool block;
+} SD_type_t;
+
+typedef struct {
+        u32_t RESPONSE[4];
+} SD_response_t;
+
 /** driver instance */
 typedef struct {
         u8_t       major;
@@ -343,7 +398,6 @@ static int configure(SDSPI_t *hdl, const SDSPI_config_t *sdspi_cfg)
                 err = sys_ioctl(hdl->SPI_file, IOCTL_SPI__GET_CONFIGURATION, &spi_cfg);
                 if (!err) {
 
-                        spi_cfg.flush_byte = 0xFF;
                         spi_cfg.mode       = SPI_MODE__0;
                         spi_cfg.msb_first  = true;
 
