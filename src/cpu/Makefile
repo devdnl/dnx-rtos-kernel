@@ -55,3 +55,16 @@ HDRLOC_ARCH += cpu/stm32h7/stm32h7xx
 HDRLOC_ARCH += cpu/stm32h7
 HDRLOC_ARCH += cpu/lib/CMSIS
 endif
+
+ifeq ($(TARGET), rpcm0)
+ASRC_ARCH   += cpu/rpcm0/cm0_startup.s
+CSRC_ARCH   += cpu/rpcm0/cpuctl.c
+CSRC_ARCH   += cpu/rpcm0/rpcm0_vectors.c
+HDRLOC_ARCH += cpu/rpcm0/hardware_regs/include
+HDRLOC_ARCH += cpu/rpcm0/hardware_structs/include
+HDRLOC_ARCH += cpu/rpcm0/pico_platform/include
+HDRLOC_ARCH += cpu/rpcm0
+HDRLOC_ARCH += cpu/lib/CMSIS
+GENERATOR   += $(SYS_CPU_LOC)/rpcm0/prepare.sh
+endif
+

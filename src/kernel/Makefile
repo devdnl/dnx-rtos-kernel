@@ -42,3 +42,8 @@ ifeq ($(TARGET), stm32h7)
 CSRC_ARCH   += kernel/FreeRTOS/Source/portable/GCC/ARM_CM7/r0p1/port.c
 HDRLOC_CORE += kernel/FreeRTOS/Source/portable/GCC/ARM_CM7/r0p1
 endif
+
+ifeq ($(TARGET), rpcm0)
+CSRC_ARCH   += kernel/FreeRTOS/Source/portable/GCC/ARM_CM0/port.c
+HDRLOC_CORE += kernel/FreeRTOS/Source/portable/GCC/ARM_CM0
+endif

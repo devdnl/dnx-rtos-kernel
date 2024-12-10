@@ -49,6 +49,10 @@ extern "C" {
 #       include "stm32f7/cpuctl.h"
 #elif defined(ARCH_stm32h7)
 #       include "stm32h7/cpuctl.h"
+#elif defined(ARCH_rpcm0)
+#       include "rpcm0/cpuctl.h"
+#else
+#error CPU architecture not defined!
 #endif
 
 /*==============================================================================

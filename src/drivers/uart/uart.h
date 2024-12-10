@@ -214,6 +214,12 @@ enum {
         #endif
         _UART_COUNT
 };
+#elif defined(ARCH_rpcm0)
+enum {
+        _UART1,
+        _UART2,
+        _UART_COUNT
+};
 #endif
 
 
