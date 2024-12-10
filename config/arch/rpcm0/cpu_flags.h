@@ -93,10 +93,7 @@ __CPU_LD_BOOT2__=_boot2
 # this:AddItem("Generic 03h", "boot2_generic_03h.c")
 # this:AddItem("AT25SF128A", "boot2_at25sf128a.c")
 # this:AddItem("IS25LP080", "boot2_is25lp080.c")
-# this:AddItem("W25Q080", "boot2_w25q080.c")
-# this:AddItem("W28Q16JV", "boot2_w25q080.c")
-# this:AddItem("AT25SF081", "boot2_w25q080.c")
-# this:AddItem("S25FL132K0", "boot2_w25q080.c")
+# this:AddItem("W25Q080, W25Q16JV, AT25SF081, S25FL132K0", "boot2_w25q080.c")
 # this:AddItem("W25X10CL", "boot2_w25x10cl.c")
 #
 # this:SetEvent("clicked",
