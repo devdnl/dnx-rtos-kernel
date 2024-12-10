@@ -56,7 +56,7 @@ __LD_SCRIPT__=RPxx40
 #*/
 
 #/*--
-# local CPULIST = {{"RP2040", "PICO_RP2040", "RPxx40"}}
+# local CPULIST = {{"RP2040", "_PICO_RP2040_", "RPxx40"}}
 #
 # this:AddWidget("Combobox", "Mirocontroller name")
 # for i = 1, #CPULIST do this:AddItem(CPULIST[i][1], CPULIST[i][1]) end
@@ -78,6 +78,43 @@ __LD_SCRIPT__=RPxx40
 #/*
 __CPU_NAME__=RP2040
 #*/
+
+#/*-- Flag is set in __CPU_BOOT2_FILE__ event
+# this:AddWidget("Value")
+#--*/
+#define __CPU_LD_BOOT2__ _boot2
+#/*
+__CPU_LD_BOOT2__=_boot2
+#*/
+
+#/*--
+# this:AddWidget("Combobox", "BOOT2 memory type")
+# this:AddItem("No BOOT2", "none")
+# this:AddItem("Generic 03h", "boot2_generic_03h.c")
+# this:AddItem("AT25SF128A", "boot2_at25sf128a.c")
+# this:AddItem("IS25LP080", "boot2_is25lp080.c")
+# this:AddItem("W25Q080", "boot2_w25q080.c")
+# this:AddItem("W28Q16JV", "boot2_w25q080.c")
+# this:AddItem("AT25SF081", "boot2_w25q080.c")
+# this:AddItem("S25FL132K0", "boot2_w25q080.c")
+# this:AddItem("W25X10CL", "boot2_w25x10cl.c")
+#
+# this:SetEvent("clicked",
+#    function()
+#        local boot2_file = this:GetFlagValue("__CPU_BOOT2_FILE__")
+#        if boot2_file == "none" then
+#           this:SetFlagValue("__CPU_LD_BOOT2__", "")
+#        else
+#           this:SetFlagValue("__CPU_LD_BOOT2__", "_boot2")
+#        end
+#    end
+# )
+#--*/
+#define __CPU_BOOT2_FILE__ boot2_w25q080.c
+#/*
+__CPU_BOOT2_FILE__=boot2_w25q080.c
+#*/
+
 
 #/*
 # * NOTE!
@@ -175,12 +212,12 @@ __CPU_PREFFERED_FAST_RAM__="SRAM"
 CPUCONFIG_AFLAGS=-mcpu=cortex-m0plus -mthumb -ffast-math -fno-math-errno -mthumb-interwork
 CPUCONFIG_CFLAGS=-mcpu=cortex-m0plus -mthumb -ffast-math -fno-math-errno -mthumb-interwork
 CPUCONFIG_CXXFLAGS=-mcpu=cortex-m0plus -mthumb -ffast-math -fno-math-errno -mthumb-interwork
-CPUCONFIG_LDFLAGS=-mcpu=cortex-m0plus -mthumb -mthumb-interwork -nostartfiles
+CPUCONFIG_LDFLAGS=-mcpu=cortex-m0plus -mthumb -mthumb-interwork -nostartfiles -Wl,-u,boot2tab
 
 ifeq ($(__CUSTOM_LD_SCRIPT__), _YES_)
 CPUCONFIG_LDFLAGS += -T$(CONFIG_DIR)/$(__CUSTOM_LD_SCRIPT_FILE__)
 else
-CPUCONFIG_LDFLAGS += -T./src/cpu/rpcm0/ld/$(__LD_SCRIPT__).ld
+CPUCONFIG_LDFLAGS += -T./src/cpu/rpcm0/ld/$(__LD_SCRIPT__)$(__CPU_LD_BOOT2__).ld
 endif
 
 #*/

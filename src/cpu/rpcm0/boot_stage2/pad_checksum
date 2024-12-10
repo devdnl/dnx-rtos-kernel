@@ -56,5 +56,12 @@ try:
         for offs in range(0, len(odata), 16):
             chunk = odata[offs:min(offs + 16, len(odata))]
             ofile.write(".byte {}\n".format(", ".join("0x{:02x}".format(b) for b in chunk)))
+
+    with open(args.ofile+".c", "w") as ofile:
+        ofile.write('const unsigned char boot2tab[256] __attribute__((section(".boot2"))) = {\n')
+        for offs in range(0, len(odata), 16):
+            chunk = odata[offs:min(offs + 16, len(odata))]
+            ofile.write("    {},\n".format(", ".join("0x{:02x}".format(b) for b in chunk)))
+        ofile.write('};\n')
 except:
     sys.exit("Could not open output file '{}'".format(args.ofile))

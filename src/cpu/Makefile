@@ -58,8 +58,11 @@ endif
 
 ifeq ($(TARGET), rpcm0)
 ASRC_ARCH   += cpu/rpcm0/cm0_startup.s
+ifneq ($(__CPU_BOOT2_FILE__), none)
+    CSRC_ARCH   += cpu/rpcm0/boot_stage2/build/$(__CPU_BOOT2_FILE__)
+endif
 CSRC_ARCH   += cpu/rpcm0/cpuctl.c
-CSRC_ARCH   += cpu/rpcm0/rpcm0_vectors.c
+CSRC_ARCH   += cpu/rpcm0/cm0_vectors.c
 HDRLOC_ARCH += cpu/rpcm0/hardware_regs/include
 HDRLOC_ARCH += cpu/rpcm0/hardware_structs/include
 HDRLOC_ARCH += cpu/rpcm0/pico_platform/include
