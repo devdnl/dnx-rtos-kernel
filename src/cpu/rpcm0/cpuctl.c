@@ -131,8 +131,8 @@ const char *_cpuctl_fast_mem[]          = {__CPU_PREFFERED_FAST_RAM__, NULL};
 //==============================================================================
 void _cpuctl_init(void)
 {
-        //NVIC_SetVectorTable(NVIC_VectTab_FLASH, __CPU_VTOR_TAB_POSITION__);
-        //NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
+        // NVIC_SetVectorTable(NVIC_VectTab_FLASH, __CPU_VTOR_TAB_POSITION__);
+        // NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
 
 #if __CPU_DISABLE_INTER_OF_MCYCLE_INSTR__ == _YES_
         /* disable interrupting multi-cycle instructions */
@@ -140,7 +140,7 @@ void _cpuctl_init(void)
 #endif
 
         /* enable sleep on idle debug */
-        //SET_BIT(DBGMCU->CR, DBGMCU_CR_DBG_SLEEP);
+        // SET_BIT(DBGMCU->CR, DBGMCU_CR_DBG_SLEEP);
 
 #if (__OS_MONITOR_CPU_LOAD__ > 0)
         _cpuctl_init_CPU_load_counter();
@@ -412,22 +412,30 @@ void _task_infinite_loop(void)
 void HardFault_Handler(void)
 {
         // remember registers
-/*        __asm volatile("tst lr, #4                   \n"
-                       "ite eq                       \n"
-                       "mrseq r0, msp                \n"
-                       "mrsne r0, psp                \n"
-                       "ldr r1, [r0, #24]            \n"
+        __asm volatile("mov r1, #4                   \n"
+                       "mov r0, lr                   \n"
+                       "tst r0, r1                   \n"
+                       "beq equal1                   \n"
+                       "  mrs r0, psp                \n"
+                       "  b end1                     \n"
+                       "equal1:                      \n"
+                       "  mrs r0, msp                \n"
+                       "end1:                        \n"
+                       "ldr r1, [r0, #24] \n"
                        "b get_registers_from_stack   \n");
-*/
+
         // return to infinite loop instead of broken code
-        /*
-        __asm volatile("tst lr, #4                   \n"
-                       "ite EQ                       \n"
-                       "mrseq r0, msp                \n"
-                       "mrsne r0, psp                \n"
+        __asm volatile("mov r1, #4                   \n"
+                       "mov r0, lr                   \n"
+                       "tst r0, r1                   \n"
+                       "beq equal2                   \n"
+                       "  mrs r0, psp                \n"
+                       "  b end2                     \n"
+                       "equal2:                      \n"
+                       "  mrs r0, msp                \n"
+                       "end2:                        \n"
                        "ldr r1, =_task_infinite_loop \n"
                        "str r1, [r0, #24]            \n");
-                       */
 }
 
 //==============================================================================
