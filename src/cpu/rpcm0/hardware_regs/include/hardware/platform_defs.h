@@ -17,6 +17,9 @@
 #endif
 #endif
 
+#define SET_BIT(reg, bit) ((reg) |= (bit))
+#define CLEAR_BIT(reg, bit) ((reg) &= ~(bit))
+
 #define NUM_CORES _u(2)
 #define NUM_DMA_CHANNELS _u(12)
 #define NUM_DMA_TIMERS _u(4)

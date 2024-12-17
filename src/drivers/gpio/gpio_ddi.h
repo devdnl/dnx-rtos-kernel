@@ -1,11 +1,11 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    gpio_ddi.h
 
 @author  Daniel Zorychta
 
 @brief   GPIO Driver Direct Interface.
 
-@note    Copyright (C) 2016 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 /**
  * @defgroup drv-gpio-ddi GPIO Driver Direct Interface.
@@ -60,6 +60,8 @@
 #include "stm32f7/gpio_cfg.h"
 #elif defined(ARCH_stm32h7)
 #include "stm32h7/gpio_cfg.h"
+#elif defined(ARCH_rpcm0)
+#include "rpcm0/gpio_cfg.h"
 #endif
 
 #ifdef __cplusplus

@@ -38,6 +38,7 @@ Driver handles GPIO peripheral.
 \li stm32f4
 \li stm32f7
 \li stm32h7
+\li rpcm0
 
 \section drv-gpio-ddesc Details
 \subsection drv-gpio-ddesc-num Meaning of major and minor numbers
@@ -173,6 +174,8 @@ typedef enum {
         GPIO_pin_speed__medium,    /*!< Medium speed.*/
         GPIO_pin_speed__high,      /*!< High speed.*/
         GPIO_pin_speed__very_high, /*!< Very high speed.*/
+        GPIO_pin_speed__slow = GPIO_pin_speed__low,
+        GPIO_pin_speed__fast = GPIO_pin_speed__very_high,
         GPIO_pin_speed_amount,
 } GPIO_pin_speed_t;
 
@@ -194,6 +197,7 @@ typedef enum {
         GPIO_pin_pull_mode__none,
         GPIO_pin_pull_mode__pull_down,
         GPIO_pin_pull_mode__pull_up,
+        GPIO_pin_pull_mode__bus_keeper,
         GPIO_pin_pull_mode_amount,
 } GPIO_pin_pull_mode_t;
 
@@ -201,10 +205,11 @@ typedef enum {
  * Type represent pin multiplexer.
  */
 typedef enum {
-        GPIO_pin_mux__disable,
 #if defined(ARCH_stm32f1)
+        GPIO_pin_mux__disable,
         GPIO_pin_mux__alternate_function_output,
 #elif defined(ARCH_stm32f3)
+        GPIO_pin_mux__disable,
         GPIO_pin_mux__AF0_MCO       = 1,
         GPIO_pin_mux__AF0_RTC_50Hz  = 1,
         GPIO_pin_mux__AF0_SWJ       = 1,
@@ -305,6 +310,7 @@ typedef enum {
         GPIO_pin_mux__AF14_USB      = 15,
         GPIO_pin_mux__AF15_EVENTOUT = 16,
 #elif defined(ARCH_stm32f4)
+        GPIO_pin_mux__disable,
         GPIO_pin_mux__AF0_MCO        = 1,
         GPIO_pin_mux__AF0_RTC_50Hz   = 1,
         GPIO_pin_mux__AF0_SWJ        = 1,
@@ -398,6 +404,7 @@ typedef enum {
         GPIO_pin_mux__AF14_RNG       = 15,
         GPIO_pin_mux__AF15_EVENTOUT  = 16,
 #elif defined(ARCH_stm32f7)
+        GPIO_pin_mux__disable,
         GPIO_pin_mux__AF0_MCO        = 1,
         GPIO_pin_mux__AF0_RTC_50Hz   = 1,
         GPIO_pin_mux__AF0_SWJ        = 1,
@@ -480,6 +487,7 @@ typedef enum {
         GPIO_pin_mux__AF14_LTDC      = 15,
         GPIO_pin_mux__AF15_EVENTOUT  = 16,
 #elif defined(ARCH_stm32h7)
+        GPIO_pin_mux__disable,
         GPIO_pin_mux__AF0_C1DSLEEP     = 1,
         GPIO_pin_mux__AF0_C1SLEEP      = 1,
         GPIO_pin_mux__AF0_C2DSLEEP     = 1,
@@ -633,6 +641,62 @@ typedef enum {
         GPIO_pin_mux__AF14_TIM24       = 15,
         GPIO_pin_mux__AF14_UART5       = 15,
         GPIO_pin_mux__AF15_EVENTOUT    = 16,
+#elif defined(ARCH_rpcm0)
+        GPIO_pin_mux__XIP_SCK       = 0,
+        GPIO_pin_mux__XIP_CS        = 0,
+        GPIO_pin_mux__XIP_SD0       = 0,
+        GPIO_pin_mux__XIP_SD1       = 0,
+        GPIO_pin_mux__XIP_SD2       = 0,
+        GPIO_pin_mux__XIP_SD3       = 0,
+        GPIO_pin_mux__SPI0_RX       = 1,
+        GPIO_pin_mux__SPI0_CS       = 1,
+        GPIO_pin_mux__SPI0_SCK      = 1,
+        GPIO_pin_mux__SPI0_TX       = 1,
+        GPIO_pin_mux__SPI1_RX       = 1,
+        GPIO_pin_mux__SPI1_CS       = 1,
+        GPIO_pin_mux__SPI1_SCK      = 1,
+        GPIO_pin_mux__SPI1_TX       = 1,
+        GPIO_pin_mux__UART0_TX      = 2,
+        GPIO_pin_mux__UART0_RX      = 2,
+        GPIO_pin_mux__UART0_CTS     = 2,
+        GPIO_pin_mux__UART0_RTS     = 2,
+        GPIO_pin_mux__UART1_TX      = 2,
+        GPIO_pin_mux__UART1_RX      = 2,
+        GPIO_pin_mux__UART1_CTS     = 2,
+        GPIO_pin_mux__UART1_RTS     = 2,
+        GPIO_pin_mux__I2C0_SDA      = 3,
+        GPIO_pin_mux__I2C0_SCL      = 3,
+        GPIO_pin_mux__I2C1_SDA      = 3,
+        GPIO_pin_mux__I2C1_SCL      = 3,
+        GPIO_pin_mux__PWM0_A        = 4,
+        GPIO_pin_mux__PWM0_B        = 4,
+        GPIO_pin_mux__PWM1_A        = 4,
+        GPIO_pin_mux__PWM1_B        = 4,
+        GPIO_pin_mux__PWM2_A        = 4,
+        GPIO_pin_mux__PWM2_B        = 4,
+        GPIO_pin_mux__PWM3_A        = 4,
+        GPIO_pin_mux__PWM3_B        = 4,
+        GPIO_pin_mux__PWM4_A        = 4,
+        GPIO_pin_mux__PWM4_B        = 4,
+        GPIO_pin_mux__PWM5_A        = 4,
+        GPIO_pin_mux__PWM5_B        = 4,
+        GPIO_pin_mux__PWM6_A        = 4,
+        GPIO_pin_mux__PWM6_B        = 4,
+        GPIO_pin_mux__PWM7_A        = 4,
+        GPIO_pin_mux__PWM7_B        = 4,
+        GPIO_pin_mux__SIO           = 5,
+        GPIO_pin_mux__PIO0          = 6,
+        GPIO_pin_mux__PIO1          = 7,
+        GPIO_pin_mux__CLOCK_GPIN0   = 8,
+        GPIO_pin_mux__CLOCK_GPOUT0  = 8,
+        GPIO_pin_mux__CLOCK_GPIN1   = 8,
+        GPIO_pin_mux__CLOCK_GPOUT1  = 8,
+        GPIO_pin_mux__CLOCK_GPOUT2  = 8,
+        GPIO_pin_mux__CLOCK_GPOUT3  = 8,
+        GPIO_pin_mux__USB_OVCUR_DET = 9,
+        GPIO_pin_mux__USB_VBUS_DET  = 9,
+        GPIO_pin_mux__USB_VBUS_EN   = 9,
+        GPIO_pin_mux__disable       = 31,
 #endif
         GPIO_pin_mux_amount,
 } GPIO_pin_mux_t;
@@ -641,12 +705,14 @@ typedef enum {
  * Type represent pin in port configuration.
  */
 typedef struct {
-        GPIO_pin_in_port_t   pin;   /*!< Pin address.*/
-        GPIO_pin_speed_t     speed; /*!< Pin output speed.*/
-        GPIO_pin_mode_t      mode;  /*!< Pin mode.*/
-        GPIO_pin_pull_mode_t pull;  /*!< Pin pull mode.*/
-        GPIO_pin_mux_t       mux;   /*!< Pin multiplexer.*/
-        bool                 state; /*!< Pin output state.*/
+        GPIO_pin_in_port_t   pin;               /*!< Pin address.*/
+        GPIO_pin_speed_t     speed;             /*!< Pin output speed.*/
+        GPIO_pin_mode_t      mode;              /*!< Pin mode.*/
+        GPIO_pin_pull_mode_t pull;              /*!< Pin pull mode.*/
+        GPIO_pin_mux_t       mux;               /*!< Pin multiplexer.*/
+        u32_t                drive_strength;    /*!< Pin drive strength.*/
+        bool                 schmitt_input;     /*!< Pin Schmitt Input.*/
+        bool                 state;             /*!< Pin output state.*/
 } GPIO_pin_in_port_conf_t;
 
 /*==============================================================================
