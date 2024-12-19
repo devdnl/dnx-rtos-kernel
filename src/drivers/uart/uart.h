@@ -35,6 +35,7 @@
 #include "uart_ioctl.h"
 #include "gpio/gpio_ddi.h"
 #include "gpio_ioctl.h"
+#include <assert.h>
 
 #if defined(ARCH_stm32f1)
 #include "stm32f1/stm32f10x.h"
@@ -51,6 +52,14 @@
 #elif defined(ARCH_stm32h7)
 #include "stm32h7/stm32h7xx.h"
 #include "stm32h7/lib/stm32h7xx_ll_rcc.h"
+#elif defined(ARCH_rpcm0)
+#include "rpcm0/misc/misc.h"
+#include "lib/CMSIS/core_cm0plus.h"
+#include "hardware/regs/uart.h"
+#include "hardware/regs/resets.h"
+#include "hardware/regs/addressmap.h"
+#include "hardware/structs/uart.h"
+#include "hardware/structs/resets.h"
 #endif
 
 #ifdef __cplusplus
@@ -216,8 +225,8 @@ enum {
 };
 #elif defined(ARCH_rpcm0)
 enum {
+        _UART0,
         _UART1,
-        _UART2,
         _UART_COUNT
 };
 #endif

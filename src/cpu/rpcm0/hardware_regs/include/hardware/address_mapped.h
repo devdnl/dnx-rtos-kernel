@@ -8,6 +8,7 @@
 #define _HARDWARE_ADDRESS_MAPPED_H
 
 //#include "pico.h"
+#include <stdint.h>
 #include "hardware/regs/addressmap.h"
 
 /** \file address_mapped.h

@@ -1,4 +1,4 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    cpuctl.h
 
 @author  Daniel Zorychta
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 #ifndef _CPUCTL_H_
 #define _CPUCTL_H_
@@ -43,7 +43,11 @@ extern "C" {
   Exported symbolic constants/macros
 ==============================================================================*/
 /* CPU/platform name */
-#define _CPUCTL_PLATFORM_NAME "ARM Cortex-M0+ Raspberry Pi Pico"
+#if __CPU_FAMILY__ == _RP2040_
+#define _CPUCTL_PLATFORM_NAME "ARM Cortex-M0+ RP2040"
+#else
+#define _CPUCTL_PLATFORM_NAME "Unknown"
+#endif
 #define _CPUCTL_VENDOR_NAME   "Raspberry Pi"
 #define _CPUCTL_BYTE_ORDER    _BYTE_ORDER_LITTLE_ENDIAN
 

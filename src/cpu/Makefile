@@ -63,6 +63,7 @@ ifneq ($(__CPU_BOOT2_FILE__), none)
 endif
 CSRC_ARCH   += cpu/rpcm0/cpuctl.c
 CSRC_ARCH   += cpu/rpcm0/cm0_vectors.c
+CSRC_ARCH   += cpu/rpcm0/misc/misc.c
 HDRLOC_ARCH += cpu/rpcm0/hardware_regs/include
 HDRLOC_ARCH += cpu/rpcm0/hardware_structs/include
 HDRLOC_ARCH += cpu/rpcm0/pico_platform/include
