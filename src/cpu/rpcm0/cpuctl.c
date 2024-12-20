@@ -36,6 +36,10 @@
 #include "kernel/kwrapper.h"
 #include "kernel/sysfunc.h"
 #include "core_cm0plus.h"
+#include "misc/misc.h"
+#include "hardware/regs/addressmap.h"
+#include "hardware/regs/vreg_and_chip_reset.h"
+#include "hardware/structs/vreg_and_chip_reset.h"
 // clang-format on
 
 /*==============================================================================
@@ -121,6 +125,28 @@ const char *_cpuctl_fast_mem[]          = {__CPU_PREFFERED_FAST_RAM__, NULL};
 
 //==============================================================================
 /**
+ * @brief  Set CPU safe clock configuration.
+ */
+//==============================================================================
+static void set_safe_clock_configuration(void)
+{
+        clocks__configure_internal(clk_adc, 0,
+                CLOCKS_CLK_ADC_CTRL_AUXSRC_VALUE_ROSC_CLKSRC_PH << CLOCKS_CLK_ADC_CTRL_AUXSRC_LSB, (1 << 8));
+
+        clocks__configure_internal(clk_ref, CLOCKS_CLK_REF_CTRL_SRC_VALUE_ROSC_CLKSRC_PH, 0, (1 << 8));
+
+        clocks__configure_internal(clk_usb, 0,
+                CLOCKS_CLK_USB_CTRL_AUXSRC_VALUE_ROSC_CLKSRC_PH << CLOCKS_CLK_USB_CTRL_AUXSRC_LSB, (1 << 8));
+
+        clocks__configure_internal(clk_peri, 0,
+                CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_ROSC_CLKSRC_PH << CLOCKS_CLK_PERI_CTRL_AUXSRC_LSB,
+                (1 << 8));
+
+        clocks__configure_internal(clk_sys, CLOCKS_CLK_SYS_CTRL_SRC_VALUE_CLK_REF, 0, (1 << 8));
+}
+
+//==============================================================================
+/**
  * @brief  Basic (first) CPU/microcontroller configuration. This function is
  *         called before system start.
  *
@@ -131,8 +157,9 @@ const char *_cpuctl_fast_mem[]          = {__CPU_PREFFERED_FAST_RAM__, NULL};
 //==============================================================================
 void _cpuctl_init(void)
 {
-        // NVIC_SetVectorTable(NVIC_VectTab_FLASH, __CPU_VTOR_TAB_POSITION__);
-        // NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
+        SCB->VTOR = (__CPU_VTOR_TAB_POSITION__ & 0x1FFFFF80UL);
+
+        set_safe_clock_configuration();
 
 #if __CPU_DISABLE_INTER_OF_MCYCLE_INSTR__ == _YES_
         /* disable interrupting multi-cycle instructions */
@@ -149,29 +176,21 @@ void _cpuctl_init(void)
         _mm_register_region(&sram, SRAM_HEAP_START, SRAM_HEAP_SIZE, _MM_FLAG__DMA, "SRAM");
 
 #if __CPU_SHOW_AND_CLEAR_RESET_SOURCE__
-        /*
-        u32_t CSR = RCC->CSR;
-        SET_BIT(RCC->CSR, RCC_CSR_RMVF);
+        u32_t reset_flags = vreg_and_chip_reset_hw->chip_reset;
+
         printk("Reset source:");
-        if (CSR & RCC_CSR_LPWRRSTF) {
-                printk("  Low power reset");
+
+        if (reset_flags & VREG_AND_CHIP_RESET_CHIP_RESET_HAD_PSM_RESTART_BITS) {
+                printk("  Debug port");
         }
-        if (CSR & RCC_CSR_WWDGRSTF) {
-                printk("  Window watchdog reset");
-        }
-        if (CSR & RCC_CSR_IWDGRSTF) {
-                printk("  Watchdog reset");
-        }
-        if (CSR & RCC_CSR_SFTRSTF) {
-                printk("  Software reset");
-        }
-        if (CSR & RCC_CSR_PORRSTF) {
-                printk("  POR reset");
-        }
-        if (CSR & RCC_CSR_PINRSTF) {
+
+        if (reset_flags & VREG_AND_CHIP_RESET_CHIP_RESET_HAD_RUN_BITS) {
                 printk("  Pin reset");
         }
-        */
+
+        if (reset_flags & VREG_AND_CHIP_RESET_CHIP_RESET_HAD_POR_BITS) {
+                printk("  POR or BOR reset");
+        }
 #endif
 }
 
@@ -182,6 +201,7 @@ void _cpuctl_init(void)
 //==============================================================================
 void _cpuctl_restart_system(void)
 {
+        set_safe_clock_configuration();
         NVIC_SystemReset();
 }
 
@@ -305,9 +325,9 @@ void _cpuctl_update_system_clocks(void)
 
         /* update context switch counter frequency */
         _critical_section_begin();
-        /*LL_RCC_ClocksTypeDef freq;
-        LL_RCC_GetSystemClocksFreq(&freq);
-        SysTick_Config((freq.HCLK_Frequency / (u32_t)__OS_TASK_SCHED_FREQ__) - 1);*/
+
+        u32_t clk_sys = clocks__get_clk_sys_frequency();
+        SysTick_Config((clk_sys / (u32_t)__OS_TASK_SCHED_FREQ__) - 1);
 
         calculate_ticks_per_us();
 

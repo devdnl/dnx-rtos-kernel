@@ -37,6 +37,7 @@ extern "C" {
 ==============================================================================*/
 #include "config.h"
 #include "lib/sys/types.h"
+#include "hardware/structs/clocks.h"
 
 /*==============================================================================
   Exported symbolic constants/macros
@@ -49,7 +50,21 @@ extern "C" {
 /*==============================================================================
   Exported objects
 ==============================================================================*/
-extern u32_t clocks__get_uart_frequency(u8_t uart);
+extern u32_t clocks__get_gpclk_frequency(u8_t clock);
+extern u32_t clocks__get_usb_pll_frequency(void);
+extern u32_t clocks__get_sys_pll_frequency(void);
+extern u32_t clocks__get_xosc_frequency(void);
+extern u32_t clocks__get_rosc_frequency(void);
+extern u32_t clocks__get_clk_gpout_frequency(u8_t clock);
+extern u32_t clocks__get_clk_adc_frequency(void);
+extern u32_t clocks__get_clk_usb_frequency(void);
+extern u32_t clocks__get_clk_rtc_frequency(void);
+extern u32_t clocks__get_clk_peri_frequency(void);
+extern u32_t clocks__get_clk_sys_frequency(void);
+extern u32_t clocks__get_clk_ref_aux_frequency(void);
+extern u32_t clocks__get_clk_ref_frequency(void);
+extern u32_t clocks__get_frequency(clock_num_t clock);
+extern int   clocks__configure_internal(clock_num_t clock, uint32_t src, uint32_t auxsrc, uint32_t div);
 
 /*==============================================================================
   Exported function prototypes

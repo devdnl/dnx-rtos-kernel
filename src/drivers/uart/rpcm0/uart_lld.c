@@ -199,7 +199,7 @@ int _UART_LLD__configure(struct UART_mem *hdl, const struct UART_rich_config *co
 
         bool hwfc = (config->basic.features & UART_FEATURE__HARDWARE_FLOW_CTRL);
 
-        uart_hw->imsc = UART_UARTIMSC_RTIM_BITS;
+        uart_hw->imsc = UART_UARTIMSC_RTIM_BITS | UART_UARTIMSC_RXIM_BITS;
 
         uart_hw->ifls = (1 << UART_UARTIFLS_RXIFLSEL_LSB) | (0 << UART_UARTIFLS_TXIFLSEL_LSB);
 
@@ -264,7 +264,7 @@ static uint32_t uart_disable_before_lcr_write(struct UART_mem *hdl)
                 uint32_t brdiv_ratio = 64u * current_ibrd + current_fbrd;
                 brdiv_ratio <<= 10;
                 // 3662 is ~(15 * 244.14) where 244.14 is 16e6 / 2^16
-                uint32_t scaled_freq  = clocks__get_uart_frequency(hdl->major) / 3662ul;
+                uint32_t scaled_freq  = clocks__get_clk_peri_frequency() / 3662ul;
                 uint32_t wait_time_us = brdiv_ratio / scaled_freq;
 
                 sys_sleep_ms(wait_time_us / 1000 + 1);
@@ -285,7 +285,7 @@ static void uart_set_baudrate(struct UART_mem *hdl, uint baudrate)
 {
         uart_hw_t *uart_hw = UART[hdl->major].uart_hw;
 
-        uint32_t baud_rate_div = (8 * clocks__get_uart_frequency(hdl->major) / baudrate) + 1;
+        uint32_t baud_rate_div = (8 * clocks__get_clk_peri_frequency() / baudrate) + 1;
         uint32_t baud_ibrd     = baud_rate_div >> 7;
         uint32_t baud_fbrd;
 
@@ -327,7 +327,7 @@ static void IRQ_handle(u8_t major)
         /*
          * Receive interrupt
          */
-        if (uart_hw->mis & UART_UARTMIS_RTMIS_BITS) {
+        if (uart_hw->mis & (UART_UARTMIS_RTMIS_BITS | UART_UARTMIS_RXMIS_BITS)) {
                 while (not(uart_hw->fr & UART_UARTFR_RXFE_BITS)) {
                         u8_t byte  = uart_hw->dr;
                         bool woken = false;
