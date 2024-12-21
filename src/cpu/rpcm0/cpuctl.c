@@ -441,7 +441,7 @@ void HardFault_Handler(void)
                        "equal1:                      \n"
                        "  mrs r0, msp                \n"
                        "end1:                        \n"
-                       "ldr r1, [r0, #24] \n"
+                       "ldr r1, [r0, #24]            \n"
                        "b get_registers_from_stack   \n");
 
         // return to infinite loop instead of broken code

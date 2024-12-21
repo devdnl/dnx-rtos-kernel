@@ -511,7 +511,7 @@ static int xosc_init(void)
 static int pll_init(pll_hw_t *pll, u32_t refdiv, u32_t fbdiv, u32_t postdiv1, u32_t postdiv2,
         u32_t reset_flag)
 {
-        if ((refdiv < 1) or (refdiv > 31)) {
+        if ((refdiv < 1) or (refdiv > 63)) {
                 return EINVAL;
         }
 
