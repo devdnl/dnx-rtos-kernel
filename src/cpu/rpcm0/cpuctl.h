@@ -48,8 +48,8 @@ extern "C" {
 #else
 #define _CPUCTL_PLATFORM_NAME "Unknown"
 #endif
-#define _CPUCTL_VENDOR_NAME   "Raspberry Pi"
-#define _CPUCTL_BYTE_ORDER    _BYTE_ORDER_LITTLE_ENDIAN
+#define _CPUCTL_VENDOR_NAME "Raspberry Pi"
+#define _CPUCTL_BYTE_ORDER  _BYTE_ORDER_LITTLE_ENDIAN
 
 /* renames of interrupts vectors for kernel purposes */
 #define xPortPendSVHandler  PendSV_Handler
@@ -78,6 +78,9 @@ extern "C" {
 #define __VTOR_PRESENT         1       /*!< Set to 1 if CPU supports Vector Table Offset Register */
 #define __MPU_PRESENT          1       /*!< MPU present */
 #define __FPU_PRESENT          0       /*!< FPU present */
+
+/* Number of cores */
+#define _CPUCTL_CORE_NUM 1
 
 /*==============================================================================
   Exported types, enums definitions

@@ -45,5 +45,7 @@ endif
 
 ifeq ($(TARGET), rpcm0)
 CSRC_ARCH   += kernel/FreeRTOS/Source/portable/GCC/ARM_CM0/port.c
+CSRC_ARCH   += kernel/FreeRTOS/Source/portable/GCC/ARM_CM0/portasm.c
+CSRC_ARCH   += kernel/FreeRTOS/Source/portable/GCC/ARM_CM0/mpu_wrappers_v2_asm.c
 HDRLOC_CORE += kernel/FreeRTOS/Source/portable/GCC/ARM_CM0
 endif

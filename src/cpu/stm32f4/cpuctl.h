@@ -67,6 +67,10 @@ extern "C" {
 /* CACHE macros */
 #define _CPUCTL_CACHE_ALIGN 1
 
+/* Number of cores */
+#define _CPUCTL_CORE_NUM 1
+
+
 /*==============================================================================
   Exported types, enums definitions
 ==============================================================================*/
