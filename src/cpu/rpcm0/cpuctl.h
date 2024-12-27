@@ -142,6 +142,7 @@ extern void _cpuctl_update_system_clocks(void);
 extern void _cpuctl_delay_us(u16_t);
 extern void _cpuctl_print_exception(void);
 extern int  _cpuctl_low_power_mode(int mode);
+extern u8_t _cpuctl_get_cpu_id(void);
 
 #if (__OS_MONITOR_CPU_LOAD__ > 0)
 extern void  _cpuctl_init_CPU_load_counter(void);

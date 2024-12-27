@@ -215,7 +215,7 @@ void _kernel_release_resources(void)
          * Force context switch to Idle task to delete finished tasks. Task
          * priority is restored in the vApplicationIdleHook().
          */
-        vTaskPrioritySet(xTaskGetIdleTaskHandle(), configMAX_PRIORITIES - 1);
+        vTaskPrioritySet(_kernel_get_idle_task_handle(), configMAX_PRIORITIES - 1);
         taskYIELD();
 }
 
@@ -228,7 +228,11 @@ void _kernel_release_resources(void)
 //==============================================================================
 task_t *_kernel_get_idle_task_handle(void)
 {
+#if (configNUMBER_OF_CORES > 1)
+        return xTaskGetIdleTaskHandleForCore(_cpuctl_get_cpu_id());
+#else
         return xTaskGetIdleTaskHandle();
+#endif
 }
 
 //==============================================================================

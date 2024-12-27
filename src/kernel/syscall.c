@@ -537,16 +537,18 @@ int _syscall_init(void)
 __attribute__((section(".syscall"))) int syscall(syscall_t syscall, va_list args)
 {
         int err = ENOSYS;
+        u8_t cpuid = _cpuctl_get_cpu_id();
 
         if (syscall == SYSCALL_GETRUNTIMECTX) {
                 /*
                  * NOTE: handled separately because this syscall should work as
                  *       fast as possible.
                  */
+
                 _dnxrtctx_t *ctx = va_arg(args, _dnxrtctx_t *);
-                ctx->global_ref  = &_global;
-                ctx->errno_ref   = &_errno;
-                ctx->app_ctx_ref = &_app_ctx;
+                ctx->global_ref  = &_global[cpuid];
+                ctx->errno_ref   = &_errno[cpuid];
+                ctx->app_ctx_ref = &_app_ctx[cpuid];
                 err              = 0;
 
         } else if (syscall < _SYSCALL_COUNT) {
@@ -563,7 +565,7 @@ __attribute__((section(".syscall"))) int syscall(syscall_t syscall, va_list args
 
                 err = syscall_do(&syscallrq);
                 if (err) {
-                        _errno = err;
+                        _errno[cpuid] = err;
                 }
         }
 

@@ -125,9 +125,9 @@ typedef struct appset_table {
 /*==============================================================================
   Exported object declarations
 ==============================================================================*/
-extern void *_global;
-extern int   _errno;
-extern void *_app_ctx;
+extern void *_global[_CPUCTL_CORE_NUM];
+extern int   _errno[_CPUCTL_CORE_NUM];
+extern void *_app_ctx[_CPUCTL_CORE_NUM];
 
 /*==============================================================================
   Exported function prototypes

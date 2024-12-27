@@ -131,8 +131,8 @@ static _process_t     *active_process_list;
 static _process_t     *terminate_process_list;
 static _process_t     *destroy_process_list;
 static _process_t     *zombie_process_list;
-static _process_t     *active_process;
-static u32_t           CPU_total_time_last;
+static _process_t     *active_process[_CPUCTL_CORE_NUM];
+static u32_t           CPU_total_time_last[_CPUCTL_CORE_NUM];
 static _avg_CPU_load_t avg_CPU_load_calc;
 static _avg_CPU_load_t avg_CPU_load_result;
 static kmtx_t         *process_mtx;
@@ -145,16 +145,16 @@ static appset_table_t  appset_base;
   Exported object definitions
 ==============================================================================*/
 /* CPU total time */
-u32_t _CPU_total_time = 0;
+u32_t _CPU_total_time[_CPUCTL_CORE_NUM] = {0};
 
 /* error number */
-int _errno = ESUCC;
+int _errno[_CPUCTL_CORE_NUM] = {ESUCC};
 
 /* global variables */
-void *_global = NULL;
+void *_global[_CPUCTL_CORE_NUM] = {NULL};
 
 /* Application context */
-void *_app_ctx = NULL;
+void *_app_ctx[_CPUCTL_CORE_NUM] = {NULL};
 
 /*==============================================================================
   External object definitions
@@ -917,7 +917,7 @@ size_t _process_get_count(void)
 //==============================================================================
 _process_t *_process_get_active(void)
 {
-        return active_process;
+        return active_process[_cpuctl_get_cpu_id()];
 }
 
 //==============================================================================
@@ -983,8 +983,10 @@ int _process_get_priority(pid_t pid, int *prio)
         if (pid && prio) {
                 _kernel_scheduler_lock();
 
-                if (active_process->pid == pid) {
-                        *prio = _task_get_priority(active_process->taskdata[0].task);
+                _process_t *active_proc = active_process[_cpuctl_get_cpu_id()];
+
+                if (active_proc->pid == pid) {
+                        *prio = _task_get_priority(active_proc->taskdata[0].task);
                         err   = ESUCC;
 
                 } else {
@@ -1021,8 +1023,10 @@ int _process_get_container(pid_t pid, _process_t **process)
         if (pid && process) {
                 _kernel_scheduler_lock();
 
-                if (active_process->pid == pid) {
-                        *process = active_process;
+                _process_t *active_proc = active_process[_cpuctl_get_cpu_id()];
+
+                if (active_proc->pid == pid) {
+                        *process = active_proc;
                         err      = ESUCC;
                 }
 
@@ -1081,7 +1085,7 @@ tid_t _process_get_active_thread(_process_t *process, bool isr)
         }
 
         if (process == NULL) {
-                process = active_process;
+                process = active_process[_cpuctl_get_cpu_id()];
         }
 
         if (process) {
@@ -1110,8 +1114,10 @@ pid_t _process_get_active_process_pid(void)
 
         _kernel_scheduler_lock();
 
-        if (active_process) {
-                pid = active_process->pid;
+        _process_t *active_proc = active_process[_cpuctl_get_cpu_id()];
+
+        if (active_proc) {
+                pid = active_proc->pid;
         }
 
         _kernel_scheduler_unlock();
@@ -1584,6 +1590,13 @@ void _task_get_process_container_unprotected(task_t *taskhdl, _process_t **proc)
 //==============================================================================
 void _calculate_CPU_load(void)
 {
+        u32_t CPU_total_time = 0;
+        for (size_t i = 0; i < _CPUCTL_CORE_NUM; i++) {
+                CPU_total_time += _CPU_total_time[i];
+                _CPU_total_time[i] = 0;
+                CPU_total_time_last[i] = 0;
+        }
+
         // calculates 1 second CPU load of all processes
         avg_CPU_load_calc.avg1sec = 0;
 
@@ -1594,7 +1607,7 @@ void _calculate_CPU_load(void)
 
                         if (proc->taskdata[i].task) {
                                 proc->taskdata[i].CPU_load = proc->taskdata[i].timecnt /
-                                        (_CPU_total_time / 1000);
+                                        (CPU_total_time / 1000);
                                 proc->taskdata[i].timecnt = 0;
                                 avg_CPU_load_calc.avg1sec += proc->taskdata[i].CPU_load;
 
@@ -1607,9 +1620,6 @@ void _calculate_CPU_load(void)
         }
 
         avg_CPU_load_result.avg1sec = avg_CPU_load_calc.avg1sec;
-
-        _CPU_total_time     = 0;
-        CPU_total_time_last = 0;
 
         // calculates average CPU load
         avg_CPU_load_calc.avg1min += avg_CPU_load_result.avg1sec;
@@ -1663,6 +1673,7 @@ int _get_average_CPU_load(_avg_CPU_load_t *avg)
 bool _process_is_consistent(bool isr)
 {
         bool sanity_ok = true;
+        u8_t cpuid = _cpuctl_get_cpu_id();
 
         if (not isr) {
                 _kernel_scheduler_lock();
@@ -1694,7 +1705,7 @@ bool _process_is_consistent(bool isr)
                 goto end;
         }
 
-        sanity_ok = active_process ? _mm_is_object_in_heap(active_process) : true;
+        sanity_ok = active_process[cpuid] ? _mm_is_object_in_heap(active_process[cpuid]) : true;
         if (!sanity_ok) {
                 goto end;
         }
@@ -2546,6 +2557,8 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
         int err = ESUCC;
 
         if (attr) {
+                u8_t cpuid = _cpuctl_get_cpu_id();
+
                 /*
                  * Apply Current Working Directory path
                  */
@@ -2572,7 +2585,7 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
 
                 if (attr->fd_stdin >= 0) {
                         res_header_t *res;
-                        if (_process_descriptor_get_resource(active_process,
+                        if (_process_descriptor_get_resource(active_process[cpuid],
                                     attr->fd_stdin, &res) == 0) {
                                 if (_vfs_fopen_ref(res->self) == 0) {
                                         proc->desctab.resource[0] = res;
@@ -2597,7 +2610,7 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
 
                 if (attr->fd_stdout >= 0) {
                         res_header_t *res;
-                        if (_process_descriptor_get_resource(active_process,
+                        if (_process_descriptor_get_resource(active_process[cpuid],
                                     attr->fd_stdout, &res) == 0) {
                                 if (_vfs_fopen_ref(res->self) == 0) {
                                         proc->desctab.resource[1] = res;
@@ -2622,7 +2635,7 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
 
                 if (attr->fd_stderr >= 0) {
                         res_header_t *res;
-                        if (_process_descriptor_get_resource(active_process,
+                        if (_process_descriptor_get_resource(active_process[cpuid],
                                     attr->fd_stderr, &res) == 0) {
                                 if (_vfs_fopen_ref(res->self) == 0) {
                                         proc->desctab.resource[2] = res;
@@ -3214,19 +3227,21 @@ void _task_switched_in(void *task, void *proc, void *task_data)
 {
         UNUSED_ARG1(task);
 
-        CPU_total_time_last = _CPU_total_time;
-        active_process      = proc;
+        u8_t cpuid = _cpuctl_get_cpu_id();
 
-        if (active_process && (active_process->header.type == RES_TYPE_PROCESS)) {
-                active_process->curr_task = cast(task_data_t *, task_data)->id;
-                _errno                    = cast(task_data_t *, task_data)->errnov;
-                _global                   = active_process->globals;
-                _app_ctx                  = active_process->app_ctx;
+        CPU_total_time_last[cpuid] = _CPU_total_time[cpuid];
+        active_process[cpuid]      = proc;
+
+        if (active_process[cpuid] && (active_process[cpuid]->header.type == RES_TYPE_PROCESS)) {
+                active_process[cpuid]->curr_task = cast(task_data_t *, task_data)->id;
+                _errno[cpuid]                    = cast(task_data_t *, task_data)->errnov;
+                _global[cpuid]                   = active_process[cpuid]->globals;
+                _app_ctx[cpuid]                  = active_process[cpuid]->app_ctx;
 
         } else {
-                _global  = NULL;
-                _app_ctx = NULL;
-                _errno   = 0;
+                _global[cpuid]  = NULL;
+                _app_ctx[cpuid] = NULL;
+                _errno[cpuid]   = 0;
         }
 
         if (process_mtx_locked) {
@@ -3251,19 +3266,21 @@ void _task_switched_out(void *task, void *proc, void *task_data)
 {
         UNUSED_ARG2(task, proc);
 
-        if (active_process && (active_process->header.type == RES_TYPE_PROCESS)) {
-                cast(task_data_t *, task_data)->errnov = _errno;
-                active_process->globals                = _global;
-                active_process->app_ctx                = _app_ctx;
+        u8_t cpuid = _cpuctl_get_cpu_id();
+
+        if (active_process[cpuid] && (active_process[cpuid]->header.type == RES_TYPE_PROCESS)) {
+                cast(task_data_t *, task_data)->errnov = _errno[cpuid];
+                active_process[cpuid]->globals         = _global[cpuid];
+                active_process[cpuid]->app_ctx         = _app_ctx[cpuid];
 
 #if (__OS_MONITOR_CPU_LOAD__ > 0)
-                _CPU_total_time += _cpuctl_get_CPU_load_counter_delta();
-                active_process->taskdata[active_process->curr_task]
-                        .timecnt += (_CPU_total_time - CPU_total_time_last);
+                _CPU_total_time[cpuid] += _cpuctl_get_CPU_load_counter_delta();
+                active_process[cpuid]->taskdata[active_process[cpuid]->curr_task]
+                        .timecnt += (_CPU_total_time[cpuid] - CPU_total_time_last[cpuid]);
 #endif
         } else {
 #if (__OS_MONITOR_CPU_LOAD__ > 0)
-                _CPU_total_time += _cpuctl_get_CPU_load_counter_delta();
+                _CPU_total_time[cpuid] += _cpuctl_get_CPU_load_counter_delta();
 #endif
         }
 }

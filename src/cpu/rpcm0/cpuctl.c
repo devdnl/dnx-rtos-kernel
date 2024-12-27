@@ -40,6 +40,7 @@
 #include "hardware/regs/addressmap.h"
 #include "hardware/regs/vreg_and_chip_reset.h"
 #include "hardware/structs/vreg_and_chip_reset.h"
+#include "hardware/structs/sio.h"
 // clang-format on
 
 /*==============================================================================
@@ -303,6 +304,18 @@ int _cpuctl_low_power_mode(int mode)
         }
 
         return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Return CPU ID.
+ *
+ * @return CPU ID.
+ */
+//==============================================================================
+u8_t _cpuctl_get_cpu_id(void)
+{
+        return sio_hw->cpuid;
 }
 
 //==============================================================================
