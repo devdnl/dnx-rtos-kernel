@@ -111,8 +111,7 @@ extern void _task_switched_in(void *, void *, void *);
 #define configUSE_PICOLIBC_TLS                    0
 #define configUSE_C_RUNTIME_TLS_SUPPORT           0
 #define configCHECK_HANDLER_INSTALLATION          0
-#define configUSE_PASSIVE_IDLE_HOOK               0
-#define configUSE_DYNAMIC_EXCEPTION_HANDLERS      0
+#define configUSE_PASSIVE_IDLE_HOOK               1
 
 /* Hook function related definitions. */
 #define configUSE_IDLE_HOOK            1
@@ -139,9 +138,6 @@ extern void _task_switched_in(void *, void *, void *);
 #define configKERNEL_INTERRUPT_PRIORITY       _CPU_IRQ_RTOS_KERNEL_PRIORITY_
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY  _CPU_IRQ_RTOS_APICALL_PRIORITY_
 #define configMAX_API_CALL_INTERRUPT_PRIORITY _CPU_IRQ_RTOS_APICALL_PRIORITY_
-
-/* Define to trap errors during development. */
-// #define configASSERT(x)
 
 /* FreeRTOS MPU specific definitions. */
 #define configINCLUDE_APPLICATION_DEFINED_PRIVILEGED_FUNCTIONS 0
@@ -175,6 +171,8 @@ extern void _task_switched_in(void *, void *, void *);
 #if __OS_ENABLE_SYS_ASSERT__ > 0
 extern void _assert_hook(bool assert, const char *msg);
 #define configASSERT(x) _assert_hook(x, "kernel")
+#else
+#define configASSERT(x) (void)(x)
 #endif
 
 #endif /* FREERTOS_CONFIG_H */

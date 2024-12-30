@@ -71,16 +71,8 @@ extern "C" {
 /* CACHE macros */
 #define _CPUCTL_CACHE_ALIGN 1
 
-/* Configuration of the ARM Cortex-M0+ Processor and Core Peripherals */
-#define __CM0PLUS_REV          0x0001U /*!< CM0PLUS Core Revision */
-#define __NVIC_PRIO_BITS       2       /*!< Number of Bits used for Priority Levels */
-#define __Vendor_SysTickConfig 0       /*!< Set to 1 if different SysTick Config is used */
-#define __VTOR_PRESENT         1       /*!< Set to 1 if CPU supports Vector Table Offset Register */
-#define __MPU_PRESENT          1       /*!< MPU present */
-#define __FPU_PRESENT          0       /*!< FPU present */
-
 /* Number of cores */
-#define _CPUCTL_CORE_NUM 1
+#define _CPUCTL_CORE_NUM 2
 
 /*==============================================================================
   Exported types, enums definitions

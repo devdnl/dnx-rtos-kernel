@@ -1,11 +1,11 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    khooks.c
 
 @author  Daniel Zorychta
 
 @brief   This file support all kernel hooks
 
-@note    Copyright (C) 2012, 2013 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 /*==============================================================================
   Include files
@@ -59,6 +59,9 @@ static u64_t sanity_check_tref;
 #if __OS_ENABLE_SYS_ASSERT__ > 0
 static bool assert_hook_suspend;
 #endif
+
+static StaticTask_t xIdleTaskTCB[_CPUCTL_CORE_NUM];
+static StackType_t  uxIdleTaskStack[_CPUCTL_CORE_NUM][_STACK_DEPTH_MINIMAL];
 
 /*==============================================================================
   Exported object definitions
@@ -103,6 +106,20 @@ void vApplicationIdleHook(void)
 
 //==============================================================================
 /**
+ * @brief
+ *
+ * @param  ?
+ *
+ * @return ?
+ */
+//==============================================================================
+void vApplicationPassiveIdleHook(void)
+{
+        __asm volatile ("nop");
+}
+
+//==============================================================================
+/**
  * @brief Stack overflow hook
  */
 //==============================================================================
@@ -137,26 +154,48 @@ void vApplicationTickHook(void)
  * @brief Memory for idle task.
  */
 //==============================================================================
-void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
-        StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize)
+void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer,
+        uint32_t *pulIdleTaskStackSize)
 {
-        /* If the buffers to be provided to the Idle task are declared inside this
-        function then they must be declared static - otherwise they will be allocated on
-        the stack and so not exists after this function exits. */
-        static StaticTask_t xIdleTaskTCB;
-        static StackType_t  uxIdleTaskStack[_STACK_DEPTH_MINIMAL];
-
         /* Pass out a pointer to the StaticTask_t structure in which the Idle task's
         state will be stored. */
-        *ppxIdleTaskTCBBuffer = &xIdleTaskTCB;
+        *ppxIdleTaskTCBBuffer = &xIdleTaskTCB[0];
 
         /* Pass out the array that will be used as the Idle task's stack. */
-        *ppxIdleTaskStackBuffer = uxIdleTaskStack;
+        *ppxIdleTaskStackBuffer = uxIdleTaskStack[0];
 
         /* Pass out the size of the array pointed to by *ppxIdleTaskStackBuffer.
         Note that, as the array is necessarily of type StackType_t,
         configMINIMAL_STACK_SIZE is specified in words, not bytes. */
-        *pulIdleTaskStackSize = ARRAY_SIZE(uxIdleTaskStack);
+        *pulIdleTaskStackSize = ARRAY_SIZE(uxIdleTaskStack[0]);
+}
+
+//==============================================================================
+/**
+ * @brief
+ *
+ * @param  ?
+ *
+ * @return ?
+ */
+//==============================================================================
+void vApplicationGetPassiveIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
+        StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize,
+        BaseType_t xPassiveIdleTaskIndex)
+{
+        BaseType_t cpu_id = xPassiveIdleTaskIndex + 1;
+
+        /* Pass out a pointer to the StaticTask_t structure in which the Idle task's
+        state will be stored. */
+        *ppxIdleTaskTCBBuffer = &xIdleTaskTCB[cpu_id];
+
+        /* Pass out the array that will be used as the Idle task's stack. */
+        *ppxIdleTaskStackBuffer = uxIdleTaskStack[cpu_id];
+
+        /* Pass out the size of the array pointed to by *ppxIdleTaskStackBuffer.
+        Note that, as the array is necessarily of type StackType_t,
+        configMINIMAL_STACK_SIZE is specified in words, not bytes. */
+        *pulIdleTaskStackSize = ARRAY_SIZE(uxIdleTaskStack[cpu_id]);
 }
 
 //==============================================================================

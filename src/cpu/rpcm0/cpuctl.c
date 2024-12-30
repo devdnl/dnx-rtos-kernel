@@ -38,6 +38,7 @@
 #include "core_cm0plus.h"
 #include "misc/misc.h"
 #include "hardware/regs/addressmap.h"
+#include "hardware/regs/sio.h"
 #include "hardware/regs/vreg_and_chip_reset.h"
 #include "hardware/structs/vreg_and_chip_reset.h"
 #include "hardware/structs/sio.h"
@@ -250,18 +251,20 @@ void _cpuctl_init_CPU_load_counter(void)
 #if (__OS_MONITOR_CPU_LOAD__ > 0)
 u32_t _cpuctl_get_CPU_load_counter_delta(void)
 {
-        static uint32_t last;
-        bool            ovf = SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk;
-        u32_t           now = SysTick->VAL;
+        static uint32_t last[_CPUCTL_CORE_NUM];
+
+        u8_t  cpuid = _cpuctl_get_cpu_id();
+        bool  ovf   = SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk;
+        u32_t now   = SysTick->VAL;
 
         u32_t delta;
         if (ovf) {
-                delta = ((SysTick->LOAD + 1) - now) + last;
+                delta = ((SysTick->LOAD + 1) - now) + last[cpuid];
         } else {
-                delta = last - now;
+                delta = last[cpuid] - now;
         }
 
-        last = now;
+        last[cpuid] = now;
 
         return delta;
 }
@@ -315,7 +318,7 @@ int _cpuctl_low_power_mode(int mode)
 //==============================================================================
 u8_t _cpuctl_get_cpu_id(void)
 {
-        return sio_hw->cpuid;
+        return (*(uint32_t *)(SIO_BASE + SIO_CPUID_OFFSET));
 }
 
 //==============================================================================

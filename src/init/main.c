@@ -105,6 +105,8 @@ void dnxinit(void *arg)
          * If cause problems (strange system behavior, kernel panics) disable
          * this option.
          */
+        // FIXME wykorzystać idle task stack jako stos startowy, wtedy nie trzeba tego stosu dodawac do HEAP
+        //       moze nawet ten task nie bedzie potrzebny
         _mm_register_region(&main_stack, STACK_START, STACK_SIZE, _CPUCTL_STACK_REGION_FLAGS, "SRAM");
 
         _task_exit();
@@ -122,6 +124,7 @@ int main(void)
 
         printk("Welcome to dnx RTOS %s!", dnx_RTOS_version);
         printk("Running on platform %s", dnx_RTOS_platform_name);
+        printk("System cores: %u\n", _CPUCTL_CORE_NUM);
 
         _cpuctl_init();
         _kernel_panic_init();
