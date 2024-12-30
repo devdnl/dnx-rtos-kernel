@@ -60,12 +60,9 @@ typedef volatile uint32_t spin_lock_t;
   Exported functions
 ==============================================================================*/
 extern uint8_t      get_core_num(void);
-extern void         __mem_fence_acquire(void);
-extern void         __mem_fence_release(void);
 extern spin_lock_t *spin_lock_instance(uint8_t lock_num);
 extern void         multicore_fifo_drain(void);
 extern void         multicore_fifo_clear_irq(void);
-extern void         multicore_launch_core1_raw(void (*entry)(void), uint32_t *sp, uint32_t vector_table);
 extern void         multicore_launch_core1_with_stack(void (*entry)(void), uint32_t *stack_bottom,
                 size_t stack_size_bytes);
 /*==============================================================================

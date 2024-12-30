@@ -26,7 +26,7 @@
 
 ==============================================================================*/
 
-//#pragma GCC optimize("Og")
+// #pragma GCC optimize("Og")
 
 /*==============================================================================
   Include files
@@ -74,11 +74,9 @@
 ==============================================================================*/
 //==============================================================================
 /**
- * @brief
+ * @brief  Get core number.
  *
- * @param  ?
- *
- * @return ?
+ * @return Current core number.
  */
 //==============================================================================
 uint8_t get_core_num(void)
@@ -88,45 +86,11 @@ uint8_t get_core_num(void)
 
 //==============================================================================
 /**
- * @brief
+ * @brief  Return spin lock instance.
  *
- * @param  ?
+ * @param  lock_num     spin lock number
  *
- * @return ?
- */
-//==============================================================================
-void __mem_fence_acquire(void)
-{
-        // the original code below makes it hard for us to be included from C++ via a header
-        // which itself is in an extern "C", so just use __dmb instead, which is what
-        // is required on Cortex M0+
-        __asm volatile("dmb 0xF" ::: "memory");
-}
-
-//==============================================================================
-/**
- * @brief
- *
- * @param  ?
- *
- * @return ?
- */
-//==============================================================================
-void __mem_fence_release(void)
-{
-        // the original code below makes it hard for us to be included from C++ via a header
-        // which itself is in an extern "C", so just use __dmb instead, which is what
-        // is required on Cortex M0+
-        __asm volatile("dmb 0xF" ::: "memory");
-}
-
-//==============================================================================
-/**
- * @brief
- *
- * @param  ?
- *
- * @return ?
+ * @return Spin lock instance.
  */
 //==============================================================================
 spin_lock_t *spin_lock_instance(uint8_t lock_num)
@@ -136,11 +100,9 @@ spin_lock_t *spin_lock_instance(uint8_t lock_num)
 
 //==============================================================================
 /**
- * @brief
+ * @brief  Check if FIFO has valid data.
  *
- * @param  ?
- *
- * @return ?
+ * @return true/false.
  */
 //==============================================================================
 inline bool multicore_fifo_rvalid(void)
@@ -150,11 +112,7 @@ inline bool multicore_fifo_rvalid(void)
 
 //==============================================================================
 /**
- * @brief
- *
- * @param  ?
- *
- * @return ?
+ * @brief  Clear FIFO data.
  */
 //==============================================================================
 inline void multicore_fifo_drain(void)
@@ -166,11 +124,7 @@ inline void multicore_fifo_drain(void)
 
 //==============================================================================
 /**
- * @brief
- *
- * @param  ?
- *
- * @return ?
+ * @brief  Clear FIFO interrupt flag.
  */
 //==============================================================================
 inline void multicore_fifo_clear_irq(void)
@@ -242,11 +196,7 @@ uint32_t multicore_fifo_pop_blocking(void)
 
 //==============================================================================
 /**
- * @brief
- *
- * @param  ?
- *
- * @return ?
+ * @brief  Core 1 trampoline code.
  */
 //==============================================================================
 static void __attribute__((naked)) core1_trampoline(void)
@@ -256,11 +206,12 @@ static void __attribute__((naked)) core1_trampoline(void)
 
 //==============================================================================
 /**
- * @brief
+ * @brief  Core 1 wrapper
  *
- * @param  ?
+ * @param  entry        code entry
+ * @param  stack_base   stack base address
  *
- * @return ?
+ * @return Value from executed entry function.
  */
 //==============================================================================
 static inline int core1_wrapper(int (*entry)(void), void *stack_base)
@@ -271,14 +222,14 @@ static inline int core1_wrapper(int (*entry)(void), void *stack_base)
 
 //==============================================================================
 /**
- * @brief
+ * @brief  Launch Core 1.
  *
- * @param  ?
- *
- * @return ?
+ * @param  entry        entry function
+ * @param  sp           stack pointer top address
+ * @param  vector_table vector table address
  */
 //==============================================================================
-void multicore_launch_core1_raw(void (*entry)(void), uint32_t *sp, uint32_t vector_table)
+static void multicore_launch_core1_raw(void (*entry)(void), uint32_t *sp, uint32_t vector_table)
 {
         // Allow for the fact that the caller may have already enabled the FIFO IRQ for their
         // own purposes (expecting FIFO content after core 1 is launched). We must disable
@@ -316,17 +267,16 @@ void multicore_launch_core1_raw(void (*entry)(void), uint32_t *sp, uint32_t vect
 
 //==============================================================================
 /**
- * @brief
+ * @brief  Launch Core 1 with stack address.
  *
- * @param  ?
- *
- * @return ?
+ * @param  entry                entry function
+ * @param  stack_bottom         stack pointer bottom address
+ * @param  stack_size_bytes     stack size in bytes
  */
 //==============================================================================
 void multicore_launch_core1_with_stack(void (*entry)(void), uint32_t *stack_bottom, size_t stack_size_bytes)
 {
-        uint32_t *stack_ptr = stack_bottom + stack_size_bytes / sizeof(uint32_t);
-        // Push values onto top of stack for core1_trampoline
+        uint32_t *stack_ptr = stack_bottom + (stack_size_bytes / sizeof(uint32_t));
 
         stack_ptr -= 3;
         uint32_t vector_table = SCB->VTOR;

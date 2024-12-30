@@ -31,7 +31,7 @@
  * Implementation of functions defined in portable.h for the RP2040 port.
  *----------------------------------------------------------------------*/
 
-//#pragma GCC optimize("Og")
+// #pragma GCC optimize("Og")
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -303,11 +303,11 @@ BaseType_t xPortStartScheduler(void)
         configASSERT(ucPrimaryCoreNum == INVALID_PRIMARY_CORE_NUM);
 
         spin_lock_t *spin_lock = spin_lock_instance(configSMP_SPINLOCK_0);
-        __mem_fence_release();
+        __DMB();
         *spin_lock = 1;
 
         spin_lock = spin_lock_instance(configSMP_SPINLOCK_1);
-        __mem_fence_release();
+        __DMB();
         *spin_lock = 1;
 
         ucPrimaryCoreNum = configTICK_CORE;
@@ -331,7 +331,6 @@ void vPortEndScheduler(void)
 {
         /* Not implemented in ports where there is nothing to return to. */
         while (1) {
-                __asm volatile("nop");
         }
 }
 

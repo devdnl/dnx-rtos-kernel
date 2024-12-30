@@ -16,6 +16,11 @@
 #define CONTROL_THREAD_UNPRIVILEGED         (1 << CONTROL_THREAD_UNPRIVILEGED_bit)
 #define CONTROL_ALTERNATE_STACK             (1 << CONTROL_ALTERNATE_STACK_bit)
 
+#define SIO_BASE                0xd0000000UL
+#define SIO_CPUID_OFFSET        0x00000000UL
+#define PPB_BASE                0xe0000000UL
+#define BOOTROM_VTABLE_OFFSET   0x00
+#define M0PLUS_VTOR_OFFSET      0x0000ed08UL
 
 /*==============================================================================
 ARMv7-M (Cortex-M3) startup code
@@ -32,22 +37,22 @@ Reset_Handler:
 /*==============================================================================
 Lock CORE1
 ==============================================================================*/
-//    // Only core 0 should run the C runtime startup code; core 1 is normally
-//    // sleeping in the bootrom at this point but check to be sure (e.g. if
-//    // debugger put core 1 at the ELF entry point for some reason)
-//    ldr r0, =(SIO_BASE + SIO_CPUID_OFFSET)
-//    ldr r0, [r0]
-//#if __ARM_ARCH_6M__
-//    cmp r0, #0
-//    beq 1f
-//#else
-//    cbz r0, 1f
-//#endif
-//hold_non_core0_in_bootrom:
-//    // Send back to the ROM to wait for core 0 to launch it.
-//    ldr r0, =BOOTROM_VTABLE_OFFSET
-//    b _enter_vtable_in_r0
-//1:
+    // Only core 0 should run the C runtime startup code; core 1 is normally
+    // sleeping in the bootrom at this point but check to be sure (e.g. if
+    // debugger put core 1 at the ELF entry point for some reason)
+    ldr r0, =(SIO_BASE + SIO_CPUID_OFFSET)
+    ldr r0, [r0]
+    cmp r0, #0
+    beq 1f
+
+    // Send back to the ROM to wait for core 0 to launch it.
+    ldr r0, =BOOTROM_VTABLE_OFFSET
+    ldr r1, =(PPB_BASE + M0PLUS_VTOR_OFFSET)
+    str r0, [r1]
+    ldmia r0!, {r1, r2}
+    msr msp, r1
+    bx r2
+1:
 
 /*==============================================================================
 Initialize the process stack pointer

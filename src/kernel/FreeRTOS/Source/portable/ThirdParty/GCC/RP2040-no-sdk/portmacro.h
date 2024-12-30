@@ -37,6 +37,7 @@
 /* *INDENT-ON* */
 
 #include "port_helper.h"
+#include "core_cm0plus.h"
 
 /*-----------------------------------------------------------
  * Port specific definitions.
@@ -233,7 +234,7 @@ static inline void vPortRecursiveLock( uint32_t ulLockNum,
             }
         }
 
-        __mem_fence_acquire();
+        __DMB();
         configASSERT( ucRecursionCountByLock[ ulLockNum ] == 0 );
         ucRecursionCountByLock[ ulLockNum ] = 1;
         ucOwnedByCore[ ulCoreNum ] |= ulLockBit;
@@ -246,7 +247,7 @@ static inline void vPortRecursiveLock( uint32_t ulLockNum,
         if( !--ucRecursionCountByLock[ ulLockNum ] )
         {
             ucOwnedByCore[ ulCoreNum ] &= ~ulLockBit;
-            __mem_fence_release();
+            __DMB();
             *pxSpinLock = 1;
         }
     }
