@@ -39,9 +39,14 @@
 #include "misc/misc.h"
 #include "hardware/regs/addressmap.h"
 #include "hardware/regs/sio.h"
+#include "hardware/regs/watchdog.h"
+#include "hardware/regs/psm.h"
+#include "hardware/regs/resets.h"
 #include "hardware/regs/vreg_and_chip_reset.h"
 #include "hardware/structs/vreg_and_chip_reset.h"
-#include "hardware/structs/sio.h"
+#include "hardware/structs/watchdog.h"
+#include "hardware/structs/psm.h"
+#include "hardware/structs/resets.h"
 // clang-format on
 
 /*==============================================================================
@@ -204,7 +209,19 @@ void _cpuctl_init(void)
 void _cpuctl_restart_system(void)
 {
         set_safe_clock_configuration();
-        NVIC_SystemReset();
+
+        CLEAR_BIT(watchdog_hw->ctrl, WATCHDOG_CTRL_ENABLE_BITS);
+
+        SET_BIT(psm_hw->wdsel, PSM_WDSEL_BITS);
+
+        CLEAR_BIT(watchdog_hw->ctrl,
+                WATCHDOG_CTRL_PAUSE_DBG0_BITS | WATCHDOG_CTRL_PAUSE_DBG1_BITS |
+                        WATCHDOG_CTRL_PAUSE_JTAG_BITS);
+
+        SET_BIT(watchdog_hw->ctrl, WATCHDOG_CTRL_TRIGGER_BITS);
+
+        while (true) {
+        }
 }
 
 //==============================================================================
