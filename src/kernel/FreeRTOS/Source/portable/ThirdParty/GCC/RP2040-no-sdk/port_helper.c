@@ -161,7 +161,6 @@ void multicore_fifo_push_blocking(uint32_t data)
 {
         // We wait for the fifo to have some space
         while (!multicore_fifo_wready()) {
-                __asm volatile("nop");
         }
 
         // sio_hw->fifo_wr = data;

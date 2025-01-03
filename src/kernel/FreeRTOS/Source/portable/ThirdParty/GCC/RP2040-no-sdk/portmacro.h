@@ -75,6 +75,13 @@ typedef uint32_t         UBaseType_t;
 #else
     #error configTICK_TYPE_WIDTH_IN_BITS set to unsupported tick type width.
 #endif
+
+#if configASSERTPort_DEFINED == 0
+#define configASSERTPort(x)
+#else
+#define configASSERTPort(x) configASSERT(x)
+#endif
+
 /*-----------------------------------------------------------*/
 
 /* Architecture specifics. */
@@ -213,10 +220,10 @@ static inline void vPortRecursiveLock( uint32_t ulLockNum,
     static uint8_t ucOwnedByCore[ portMAX_CORE_COUNT ];
     static uint8_t ucRecursionCountByLock[ portRTOS_SPINLOCK_COUNT ];
 
-    configASSERT( ulLockNum < portRTOS_SPINLOCK_COUNT );
+    configASSERTPort( ulLockNum < portRTOS_SPINLOCK_COUNT );
     uint32_t ulCoreNum = get_core_num();
     uint32_t ulLockBit = 1u << ulLockNum;
-    configASSERT( ulLockBit < 256u );
+    configASSERTPort( ulLockBit < 256u );
 
     if( uxAcquire )
     {
@@ -224,7 +231,7 @@ static inline void vPortRecursiveLock( uint32_t ulLockNum,
         {
             if( ucOwnedByCore[ ulCoreNum ] & ulLockBit )
             {
-                configASSERT( ucRecursionCountByLock[ ulLockNum ] != 255u );
+                configASSERTPort( ucRecursionCountByLock[ ulLockNum ] != 255u );
                 ucRecursionCountByLock[ ulLockNum ]++;
                 return;
             }
@@ -235,14 +242,14 @@ static inline void vPortRecursiveLock( uint32_t ulLockNum,
         }
 
         __DMB();
-        configASSERT( ucRecursionCountByLock[ ulLockNum ] == 0 );
+        configASSERTPort( ucRecursionCountByLock[ ulLockNum ] == 0 );
         ucRecursionCountByLock[ ulLockNum ] = 1;
         ucOwnedByCore[ ulCoreNum ] |= ulLockBit;
     }
     else
     {
-        configASSERT( ( ucOwnedByCore[ ulCoreNum ] & ulLockBit ) != 0 );
-        configASSERT( ucRecursionCountByLock[ ulLockNum ] != 0 );
+        configASSERTPort( ( ucOwnedByCore[ ulCoreNum ] & ulLockBit ) != 0 );
+        configASSERTPort( ucRecursionCountByLock[ ulLockNum ] != 0 );
 
         if( !--ucRecursionCountByLock[ ulLockNum ] )
         {

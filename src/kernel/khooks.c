@@ -68,8 +68,8 @@ static StackType_t  uxIdleTaskStack[_CPUCTL_CORE_NUM][_STACK_DEPTH_MINIMAL];
 ==============================================================================*/
 u32_t              _uptime_counter_sec = 0;
 u64_t              _tick_counter       = 0;
-extern u32_t       _CPU_total_time;
 extern _process_t *_kernel_panic_trap_proc;
+extern CPU_load_t  CPU_load[_CPUCTL_CORE_NUM];
 
 /*==============================================================================
   Function definitions
@@ -115,7 +115,7 @@ void vApplicationIdleHook(void)
 //==============================================================================
 void vApplicationPassiveIdleHook(void)
 {
-        __asm volatile ("nop");
+        __asm volatile("nop");
 }
 
 //==============================================================================
@@ -139,13 +139,14 @@ void vApplicationTickHook(void)
         _tick_counter++;
 
 #if (__OS_MONITOR_CPU_LOAD__ > 0)
-        _CPU_total_time += _cpuctl_get_CPU_load_counter_delta();
+        u8_t cpu_id = _cpuctl_get_cpu_id();
+        CPU_load[cpu_id].CPU_total_time += _cpuctl_get_CPU_load_counter_delta();
 #endif
 
         if (++sec_divider >= configTICK_RATE_HZ) {
                 sec_divider = 0;
                 _uptime_counter_sec++;
-                _calculate_CPU_load();
+                _calculate_CPU_load_from_IRQ();
         }
 }
 

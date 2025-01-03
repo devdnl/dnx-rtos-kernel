@@ -171,8 +171,6 @@ extern void _task_switched_in(void *, void *, void *);
 #if __OS_ENABLE_SYS_ASSERT__ > 0
 extern void _assert_hook(bool assert, const char *msg);
 #define configASSERT(x) _assert_hook(x, "kernel")
-#else
-#define configASSERT(x) (void)(x)
 #endif
 
 #endif /* FREERTOS_CONFIG_H */

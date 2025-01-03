@@ -61,8 +61,11 @@ typedef volatile uint32_t spin_lock_t;
 ==============================================================================*/
 extern uint8_t      get_core_num(void);
 extern spin_lock_t *spin_lock_instance(uint8_t lock_num);
+extern bool         multicore_fifo_rvalid(void);
 extern void         multicore_fifo_drain(void);
 extern void         multicore_fifo_clear_irq(void);
+extern uint32_t     multicore_fifo_pop_blocking(void);
+extern void         multicore_fifo_push_blocking(uint32_t data);
 extern void         multicore_launch_core1_with_stack(void (*entry)(void), uint32_t *stack_bottom,
                 size_t stack_size_bytes);
 /*==============================================================================

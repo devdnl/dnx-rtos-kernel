@@ -226,30 +226,6 @@ void vPortStartFirstTask(void)
                 "    .word pxCurrentTCBs            \n");
 }
 
-void SIO_IRQ_PROC0_IRQHandler(void)
-{
-        /* We must remove the contents (which we don't care about)
-         * to clear the IRQ */
-        multicore_fifo_drain();
-
-        /* And explicitly clear any other IRQ flags. */
-        multicore_fifo_clear_irq();
-
-        portYIELD_FROM_ISR(pdTRUE);
-}
-
-void SIO_IRQ_PROC1_IRQHandler(void)
-{
-        /* We must remove the contents (which we don't care about)
-         * to clear the IRQ */
-        multicore_fifo_drain();
-
-        /* And explicitly clear any other IRQ flags. */
-        multicore_fifo_clear_irq();
-
-        portYIELD_FROM_ISR(pdTRUE);
-}
-
 /*
  * See header file for description.
  */
@@ -479,6 +455,8 @@ void xPortPendSVHandler(void)
 
 void xPortSysTickHandler(void)
 {
+        configASSERT(get_core_num() == 0);
+
         uint32_t ulPreviousMask;
 
         ulPreviousMask = taskENTER_CRITICAL_FROM_ISR();

@@ -101,6 +101,10 @@ typedef struct {
         uint32_t MFAR; // MemManage Fault Address Register
 } reg_dump_t;
 
+typedef enum {
+        multicore_cmd__update_systick_frequency = 0x7a1aea11,
+} multicore_cmd_t;
+
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
@@ -340,6 +344,74 @@ u8_t _cpuctl_get_cpu_id(void)
 
 //==============================================================================
 /**
+ * @brief
+ *
+ * @param  ?
+ *
+ * @return ?
+ */
+//==============================================================================
+static void update_context_timers(u8_t cpuid)
+{
+#if (__OS_MONITOR_CPU_LOAD__ > 0)
+        _cpuctl_init_CPU_load_counter();
+#endif
+
+        u32_t clk_sys = clocks__get_clk_sys_frequency();
+        SysTick_Config((clk_sys / (u32_t)__OS_TASK_SCHED_FREQ__) - 1);
+
+        if (cpuid != 0) {
+                CLEAR_BIT(SysTick->CTRL, SysTick_CTRL_TICKINT_Msk);
+                NVIC_ClearPendingIRQ(SysTick_IRQn);
+        }
+
+        calculate_ticks_per_us();
+}
+
+//==============================================================================
+/**
+ * @brief  Processor 0 FIFO interrupt.
+ */
+//==============================================================================
+void SIO_IRQ_PROC0_IRQHandler(void)
+{
+        while (multicore_fifo_rvalid()) {
+                uint32_t code = multicore_fifo_pop_blocking();
+
+                if (code == multicore_cmd__update_systick_frequency) {
+                        update_context_timers(0);
+                }
+        }
+
+        /* And explicitly clear any other IRQ flags. */
+        multicore_fifo_clear_irq();
+
+        portYIELD_FROM_ISR(pdTRUE);
+}
+
+//==============================================================================
+/**
+ * @brief  Processor 1 FIFO interrupt.
+ */
+//==============================================================================
+void SIO_IRQ_PROC1_IRQHandler(void)
+{
+        while (multicore_fifo_rvalid()) {
+                uint32_t code = multicore_fifo_pop_blocking();
+
+                if (code == multicore_cmd__update_systick_frequency) {
+                        update_context_timers(1);
+                }
+        }
+
+        /* And explicitly clear any other IRQ flags. */
+        multicore_fifo_clear_irq();
+
+        portYIELD_FROM_ISR(pdTRUE);
+}
+
+//==============================================================================
+/**
  * @brief  Function update all system clock after CPU frequency change.
  *         Function must update all devices which base on main clock oscillator.
  *         Function is called after clock/frequency change from clock management driver.
@@ -351,20 +423,13 @@ u8_t _cpuctl_get_cpu_id(void)
 //==============================================================================
 void _cpuctl_update_system_clocks(void)
 {
-        /* update CPU load timer frequency */
-#if (__OS_MONITOR_CPU_LOAD__ > 0)
-        _cpuctl_init_CPU_load_counter();
-#endif
+        u8_t cpuid = _cpuctl_get_cpu_id();
 
-        /* update context switch counter frequency */
         _critical_section_begin();
-
-        u32_t clk_sys = clocks__get_clk_sys_frequency();
-        SysTick_Config((clk_sys / (u32_t)__OS_TASK_SCHED_FREQ__) - 1);
-
-        calculate_ticks_per_us();
-
+        update_context_timers(cpuid);
         _critical_section_end();
+
+        multicore_fifo_push_blocking(multicore_cmd__update_systick_frequency);
 }
 
 //==============================================================================
