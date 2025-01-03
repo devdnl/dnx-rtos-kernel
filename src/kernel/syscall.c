@@ -202,6 +202,8 @@ typedef enum {
         SYSCALL_LOWPOWERMODE,           // int errno (const int *mode)
         SYSCALL_REGISTERAPPSET,         // int errno (const void **appset_array, const size_t *array_size)
         SYSCALL_MEMREGIONINFO,          // int errno (size_t idx, _mm_region_info_t *region_info)
+        SYSCALL_PINTHREADTOCORE,        // int errno (pid_t *pid , tid_t *tid, u32_t *core_mask)
+        SYSCALL_GETCURRENTCORE,         // int errno (u8_t *core)
         _SYSCALL_COUNT,
 } syscall_t;
 // clang-format on
@@ -342,6 +344,8 @@ static int syscall_reboottoaddr(syscallrq_t *rq);
 static int syscall_lowpowermode(syscallrq_t *rq);
 static int syscall_registerappset(syscallrq_t *rq);
 static int syscall_memregioninfo(syscallrq_t *rq);
+static int syscall_pinthreadtocore(syscallrq_t *rq);
+static int syscall_getcurrentcore(syscallrq_t *rq);
 
 /*==============================================================================
   Local objects
@@ -471,6 +475,8 @@ static const syscallfunc_t syscalltab[] = {
         [SYSCALL_LOWPOWERMODE]       = syscall_lowpowermode,
         [SYSCALL_REGISTERAPPSET]     = syscall_registerappset,
         [SYSCALL_MEMREGIONINFO]      = syscall_memregioninfo,
+        [SYSCALL_PINTHREADTOCORE]    = syscall_pinthreadtocore,
+        [SYSCALL_GETCURRENTCORE]     = syscall_getcurrentcore,
 };
 
 /*==============================================================================
@@ -536,7 +542,7 @@ int _syscall_init(void)
 //==============================================================================
 __attribute__((section(".syscall"))) int syscall(syscall_t syscall, va_list args)
 {
-        int err = ENOSYS;
+        int  err   = ENOSYS;
         u8_t cpuid = _cpuctl_get_cpu_id();
 
         if (syscall == SYSCALL_GETRUNTIMECTX) {
@@ -3581,6 +3587,46 @@ static int syscall_memregioninfo(syscallrq_t *rq)
         GETARG(size_t, idx);
         GETARG(_mm_region_info_t *, region_info);
         return _mm_get_region_info(idx, region_info);
+}
+
+//==============================================================================
+/**
+ * @brief  This syscall pin process's thread to the core.
+ *
+ * @param  rq                   syscall request
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int syscall_pinthreadtocore(syscallrq_t *rq)
+{
+        GETARG(pid_t *, pid);
+        GETARG(tid_t *, tid);
+        GETARG(u32_t *, core_mask);
+
+        pid_t _pid = *pid;
+
+        if (_pid == 0) {
+                _process_get_pid(GETPROCESS(), &_pid);
+        }
+
+        return _process_thread_pin_to_core(_pid, *tid, *core_mask);
+}
+
+//==============================================================================
+/**
+ * @brief  This syscall return current core.
+ *
+ * @param  rq                   syscall request
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int syscall_getcurrentcore(syscallrq_t *rq)
+{
+        GETARG(u8_t *, core);
+
+        return _process_get_current_core(core);
 }
 
 /*==============================================================================

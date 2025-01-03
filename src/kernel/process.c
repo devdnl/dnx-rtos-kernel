@@ -1436,6 +1436,70 @@ int _process_thread_get_stat(pid_t pid, tid_t tid, _thread_stat_t *stat)
 
 //==============================================================================
 /**
+ * Function pin process thread to selected core.
+ *
+ * @param  pid          process ID
+ * @param  tid          thread ID
+ * @param  core_mask    core mask
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+int _process_thread_pin_to_core(pid_t pid, tid_t tid, u32_t core_mask)
+{
+#if ((configNUMBER_OF_CORES > 1) && (configUSE_CORE_AFFINITY == 1))
+        int err = EINVAL;
+
+        if (not pid or (tid >= __OS_PROCESS_MAX_THREADS__) or not core_mask) {
+                return err;
+        }
+
+        err = ENOENT;
+
+        ATOMIC (process_mtx) {
+                foreach_process (p, active_process_list) {
+                        if (p->pid == pid) {
+                                if (p->taskdata[tid].task) {
+                                        _task_pin_core(p->taskdata[tid].task, core_mask);
+                                        err = 0;
+                                        break;
+                                }
+                        }
+                }
+        }
+
+        return err;
+#else
+        UNUSED_ARG3(pid, tid, core_mask);
+        return ENOSUP;
+#endif
+}
+
+//==============================================================================
+/**
+ * Function get current core.
+ *
+ * @param  core         current core
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+int _process_get_current_core(u8_t *core)
+{
+        if (not core) {
+                return EINVAL;
+        }
+
+#if ((configNUMBER_OF_CORES > 1) && (configUSE_CORE_AFFINITY == 1))
+        *core = _cpuctl_get_cpu_id();
+#else
+        *core = 0;
+#endif
+        return 0;
+}
+
+//==============================================================================
+/**
  * Thread kill helper.
  *
  * @param  arg          thread's argument

@@ -171,6 +171,8 @@ extern u8_t        _process_get_max_threads(_process_t *);
 extern int         _process_thread_kill(_process_t *, tid_t);
 extern task_t     *_process_thread_get_task(_process_t *, tid_t);
 extern int         _process_thread_get_stat(pid_t, tid_t, _thread_stat_t *);
+extern int         _process_thread_pin_to_core(pid_t, tid_t, u32_t);
+extern int         _process_get_current_core(u8_t *);
 extern int         _process_thread_exit(int);
 extern int         _process_thread_get_status(_process_t *, tid_t, int *);
 extern bool        _process_is_consistent(bool);

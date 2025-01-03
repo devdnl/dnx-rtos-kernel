@@ -510,6 +510,21 @@ void *_task_get_storage_pointer(task_t *taskhdl, u8_t index)
 
 //==============================================================================
 /**
+ * @brief  Pin task to particular cores.
+ *
+ * @param[in] *taskhdl          task handle (NULL for current task)
+ * @param[in]  core_mask        core mask
+ */
+//==============================================================================
+void _task_pin_core(task_t *taskhdl, u32_t core_mask)
+{
+#if ( ( configNUMBER_OF_CORES > 1 ) && ( configUSE_CORE_AFFINITY == 1 ) )
+        vTaskCoreAffinitySet(taskhdl, core_mask);
+#endif
+}
+
+//==============================================================================
+/**
  * @brief Function create binary semaphore
  *
  * @param[in]  cnt_max          max count value (1 for binary)
