@@ -68,6 +68,7 @@ struct _kernel_panic_info {
         pid_t       pid;
         tid_t       tid;
         u8_t        syscall;
+        u8_t        core;
 };
 
 /*==============================================================================

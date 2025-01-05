@@ -106,11 +106,7 @@ void vApplicationIdleHook(void)
 
 //==============================================================================
 /**
- * @brief
- *
- * @param  ?
- *
- * @return ?
+ * @brief  Passive idle hook.
  */
 //==============================================================================
 void vApplicationPassiveIdleHook(void)
