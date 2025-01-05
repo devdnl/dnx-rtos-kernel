@@ -129,7 +129,6 @@ inline void multicore_fifo_drain(void)
 //==============================================================================
 inline void multicore_fifo_clear_irq(void)
 {
-        // Write any value to clear the error flags
         *((volatile uint32_t *)(SIO_BASE + SIO_FIFO_ST_OFFSET)) = 0xFF;
 }
 
@@ -142,7 +141,6 @@ inline void multicore_fifo_clear_irq(void)
 //==============================================================================
 bool multicore_fifo_wready(void)
 {
-        // return sio_hw->fifo_st & SIO_FIFO_ST_RDY_BITS;
         return *((volatile uint32_t *)(SIO_BASE + SIO_FIFO_ST_OFFSET)) & SIO_FIFO_ST_RDY_BITS;
 }
 
@@ -159,14 +157,11 @@ bool multicore_fifo_wready(void)
 //==============================================================================
 void multicore_fifo_push_blocking(uint32_t data)
 {
-        // We wait for the fifo to have some space
         while (!multicore_fifo_wready()) {
         }
 
-        // sio_hw->fifo_wr = data;
         *((volatile uint32_t *)(SIO_BASE + SIO_FIFO_WR_OFFSET)) = data;
 
-        // Fire off an event to the other core
         __SEV();
 }
 
@@ -183,13 +178,10 @@ void multicore_fifo_push_blocking(uint32_t data)
 //==============================================================================
 uint32_t multicore_fifo_pop_blocking(void)
 {
-        // If nothing there yet, we wait for an event first,
-        // to try and avoid too much busy waiting
         while (!multicore_fifo_rvalid()) {
                 __WFE();
         }
 
-        // return sio_hw->fifo_rd;
         return *((volatile uint32_t *)(SIO_BASE + SIO_FIFO_RD_OFFSET));
 }
 
@@ -247,15 +239,14 @@ static void multicore_launch_core1_raw(void (*entry)(void), uint32_t *sp, uint32
         uint32_t seq = 0;
         do {
                 uint32_t cmd = cmd_sequence[seq];
-                // Always drain the READ FIFO (from core 1) before sending a 0
                 if (!cmd) {
                         multicore_fifo_drain();
-                        // Execute a SEV as core 1 may be waiting for FIFO space via WFE
                         __SEV();
                 }
+
                 multicore_fifo_push_blocking(cmd);
                 uint32_t response = multicore_fifo_pop_blocking();
-                // Move to next state on correct response (echo-d value) otherwise start over
+
                 seq = (cmd == response) ? seq + 1 : 0;
         } while (seq < ARRAY_SIZE(cmd_sequence));
 
