@@ -44,7 +44,7 @@ HDRLOC_CORE += kernel/FreeRTOS/Source/portable/GCC/ARM_CM7/r0p1
 endif
 
 ifeq ($(TARGET), rpcm0)
-CSRC_ARCH   += kernel/FreeRTOS/Source/portable/ThirdParty/GCC/RP2040-no-sdk/port.c
-CSRC_ARCH   += kernel/FreeRTOS/Source/portable/ThirdParty/GCC/RP2040-no-sdk/port_helper.c
-HDRLOC_CORE += kernel/FreeRTOS/Source/portable/ThirdParty/GCC/RP2040-no-sdk
+CSRC_ARCH   += kernel/dnx-ports/GCC/RP2040/port.c
+CSRC_ARCH   += kernel/dnx-ports/GCC/RP2040/port_helper.c
+HDRLOC_CORE += kernel/dnx-ports/GCC/RP2040
 endif
