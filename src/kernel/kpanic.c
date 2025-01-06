@@ -1,4 +1,4 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    kpanic.c
 
 @author  Daniel Zorychta
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 /*==============================================================================
   Include files
@@ -150,7 +150,7 @@ bool _kernel_panic_info(struct _kernel_panic_info *info)
                         panic_type = "APP CRASH";
                 }
 
-                printk(VT100_FONT_COLOR_RED "%s: '%s' [%u:%d:%d,%s,%s,%u]" VT100_RESET_ATTRIBUTES,
+                printk("%s: '%s' [%u:%d:%d,%s,%s,%u]",
                         panic_type, kpanic_desc.content.name, kpanic_desc.content.core,
                         kpanic_desc.content.pid, kpanic_desc.content.tid, CAUSE[kpanic_desc.content.cause],
                         (kpanic_desc.content.flags & _KERNEL_PANIC_FLAG__KERNEL_SPACE) ? "KRN" : "USR",

@@ -5,6 +5,7 @@ CSRC_CORE   += kernel/process.c
 CSRC_CORE   += kernel/time.c
 CSRC_CORE   += kernel/khooks.c
 CSRC_CORE   += kernel/kwrapper.c
+CSRC_CORE   += kernel/kworker.c
 CSRC_CORE   += kernel/kpanic.c
 CSRC_CORE   += kernel/printk.c
 CSRC_CORE   += kernel/FreeRTOS/Source/croutine.c

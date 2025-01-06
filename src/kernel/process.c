@@ -1,4 +1,4 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    process.c
 
 @author  Daniel Zorychta
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 // #pragma GCC optimize("Og")
 
@@ -36,6 +36,7 @@
 #include "kernel/khooks.h"
 #include "kernel/kpanic.h"
 #include "kernel/kwrapper.h"
+#include "kernel/kworker.h"
 #include "kernel/printk.h"
 #include "kernel/sysfunc.h"
 #include "lib/cast.h"
@@ -267,7 +268,7 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
                 goto finish;
         }
 
-        if (proc->pdata->main != _syscall_kworker_process) {
+        if (proc->pdata->main != _kworker_process) {
                 err = _flag_create(&proc->event);
                 if (err) {
                         goto finish;
@@ -1796,7 +1797,7 @@ bool _process_is_consistent(bool isr)
                         goto end;
                 }
 
-                bool found = (p->pdata->main == _syscall_kworker_process);
+                bool found = (p->pdata->main == _kworker_process);
 
                 for (appset_table_t *appset = &appset_base; appset; appset = appset->next) {
 
@@ -1844,7 +1845,7 @@ bool _process_is_consistent(bool isr)
                 }
 
                 res_header_t *flag = (void *)p->event;
-                sanity_ok          = (p->pdata->main != _syscall_kworker_process)
+                sanity_ok          = (p->pdata->main != _kworker_process)
                                  ? (_mm_is_object_in_heap(flag) && (flag->self == flag) &&
                                   (flag->type == RES_TYPE_FLAG))
                                  : true;
@@ -1938,7 +1939,7 @@ bool _process_is_consistent(bool isr)
                         goto end;
                 }
 
-                sanity_ok = (p->pdata->main == _syscall_kworker_process)
+                sanity_ok = (p->pdata->main == _kworker_process)
                         ? ((p->flag & PROC_FLAG_KWORKER) == PROC_FLAG_KWORKER)
                         : true;
                 if (!sanity_ok) {
@@ -1948,7 +1949,7 @@ bool _process_is_consistent(bool isr)
                         goto end;
                 }
 
-                sanity_ok = (p->pdata->main != _syscall_kworker_process)
+                sanity_ok = (p->pdata->main != _kworker_process)
                         ? ((p->flag & PROC_FLAG_KWORKER) == 0)
                         : true;
                 if (!sanity_ok) {
@@ -3173,12 +3174,12 @@ static int find_program(const char *name, const _program_entry_t **prog)
 
         static const _program_entry_t kworker = {
                 .globals_size = &kworker_globals_size,
-                .main         = _syscall_kworker_process,
+                .main         = _kworker_process,
                 .name         = "kworker",
                 .stack_depth  = &kworker_stack_depth,
         };
 
-        if (strncmp(name, "kworker", 32) == 0) {
+        if (strncmp(name, "kworker", 128) == 0) {
                 *prog = &kworker;
                 return ESUCC;
         }

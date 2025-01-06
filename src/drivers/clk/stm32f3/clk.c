@@ -1,4 +1,4 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    clk.c
 
 @author  Daniel Zorychta
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 /*==============================================================================
   Include files
@@ -520,6 +520,11 @@ API_MOD_IOCTL(CLK, void *device_handle, int request, void *arg)
                                 clkinf->freq_Hz = 0;
                                 #endif
                                 clkinf->name = "ADC34";
+                                break;
+
+                        case 20:
+                                clkinf->freq_Hz = freq.SYSCLK_Frequency;
+                                clkinf->name = "CPU0CLK";
                                 break;
 
                         default:

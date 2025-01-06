@@ -414,6 +414,16 @@ API_MOD_IOCTL(CLK, void *device_handle, int request, void *arg)
                                 clkinf->name    = "clk_gpout3";
                                 break;
 
+                        case 18:
+                                clkinf->freq_Hz = clocks__get_clk_sys_frequency();
+                                clkinf->name    = "CPU0CLK";
+                                break;
+
+                        case 19:
+                                clkinf->freq_Hz = clocks__get_clk_sys_frequency();
+                                clkinf->name    = "CPU1CLK";
+                                break;
+
                         default:
                                 clkinf->freq_Hz = 0;
                                 clkinf->name    = NULL;

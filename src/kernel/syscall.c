@@ -1,11 +1,11 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    syscall.c
 
 @author  Daniel Zorychta
 
 @brief   System call handling - kernel space
 
-@note    Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 // #pragma GCC optimize("Og")
 
@@ -56,8 +56,6 @@
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define FS_CACHE_SYNC_PERIOD_MS    (1000 * __OS_SYSTEM_CACHE_SYNC_PERIOD__)
-
 #define GETARG(type, var)          type var = va_arg(rq->args, type)
 #define LOADARG(type)              va_arg(rq->args, type)
 #define GETRETURN(type, var)       type var = rq->retptr
@@ -482,7 +480,6 @@ static const syscallfunc_t syscalltab[] = {
 /*==============================================================================
   Exported objects
 ==============================================================================*/
-_process_t              *_kworker_proc;
 const char *const        dnx_RTOS_version       = "3.2.1";
 const char *const        dnx_RTOS_name          = "dnx RTOS";
 const char *const        dnx_RTOS_commit_hash   = COMMIT_HASH;
@@ -504,27 +501,7 @@ struct reboot_to_address reboot_address;
 //==============================================================================
 int _syscall_init(void)
 {
-        static const _process_attr_t attr = {
-                .at_init      = NULL,
-                .at_init_ctx  = NULL,
-                .cwd          = "/",
-                .app_ctx_size = 128,
-                .fd_stdin     = -1,
-                .fd_stdout    = -1,
-                .fd_stderr    = -1,
-                .p_stdin      = NULL,
-                .p_stdout     = NULL,
-                .p_stderr     = NULL,
-                .priority     = _PRIORITY_NORMAL,
-                .detached     = true,
-        };
-
-        int err = _process_create("kworker", &attr, NULL);
-        if (!err) {
-                err = _process_create(__OS_INIT_PROG__, &attr, NULL);
-        }
-
-        return err;
+        return 0;
 }
 
 //==============================================================================
@@ -576,39 +553,6 @@ __attribute__((section(".syscall"))) int syscall(syscall_t syscall, va_list args
         }
 
         return err;
-}
-
-//==============================================================================
-/**
- * @brief  Main syscall process (master) [KERNELSPACE].
- *
- * @param  argc         argument count
- * @param  argv         arguments
- *
- * @return Never exit (0)
- */
-//==============================================================================
-int _syscall_kworker_process(int argc, char *argv[])
-{
-        UNUSED_ARG2(argc, argv);
-
-        _task_get_process_container(_THIS_TASK, &_kworker_proc, NULL);
-        _task_set_priority(_THIS_TASK, _PRIORITY_HIGHEST);
-
-        clock_t sync_period_ref = _kernel_get_uptime_ms();
-
-        for (;;) {
-                _sleep_ms(1000);
-
-                if ((_kernel_get_uptime_ms() - sync_period_ref) >= FS_CACHE_SYNC_PERIOD_MS) {
-                        _vfs_sync();
-                        sync_period_ref = _kernel_get_uptime_ms();
-                }
-
-                _process_clean_up_killed_processes();
-        }
-
-        return -1;
 }
 
 //==============================================================================

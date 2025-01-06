@@ -1,4 +1,4 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    procfs.c
 
 @author  Daniel Zorychta
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 /*==============================================================================
   Include files
@@ -1055,9 +1055,10 @@ static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size,
 
         case FILE_CONTENT_CPUINFO:
                 buf_snprintf(buff, &size, &clen, &seek,
-                        "CPU name: %s\n"
-                        "CPU vendor: %s\n",
-                        _CPUCTL_PLATFORM_NAME, _CPUCTL_VENDOR_NAME);
+                        "CPU name  : %s\n"
+                        "CPU vendor: %s\n"
+                        "CPU cores : %u\n",
+                        _CPUCTL_PLATFORM_NAME, _CPUCTL_VENDOR_NAME, _CPUCTL_CORE_NUM);
 
                 kfile_t *pll;
                 if (sys_fopen(CLK_FILE_PATH, O_RDWR, 0, &pll) == ESUCC) {
