@@ -307,25 +307,17 @@
 				["value"]="0x08000000";
 			};
 			[10]={
-				["key"]="__CUSTOM_LD_SCRIPT__";
-				["value"]="_NO_";
+				["key"]="__CPU_PREFFERED_APP_RAM__";
+				["value"]="\"SDRAM\", \"PSRAM\", \"SRAM\", \"CCM\"";
 			};
 			[11]={
-				["key"]="__CUSTOM_LD_SCRIPT_FILE__";
-				["value"]="\"./config/custom_script.ld\"";
+				["key"]="__CPU_PREFFERED_FS_RAM__";
+				["value"]="\"SDRAM\", \"PSRAM\", \"SRAM\", \"CCM\"";
 			};
-            [10]={
-                ["key"]="__CPU_PREFFERED_APP_RAM__";
-                ["value"]="\"SDRAM\", \"PSRAM\", \"SRAM\", \"CCM\"";
-            };
-            [11]={
-                ["key"]="__CPU_PREFFERED_FS_RAM__";
-                ["value"]="\"SDRAM\", \"PSRAM\", \"SRAM\", \"CCM\"";
-            };
-            [12]={
-                ["key"]="__CPU_PREFFERED_FAST_RAM__";
-                ["value"]="\"CCM\", \"SRAM\", \"SDRAM\", \"PSRAM\"";
-            };
+			[12]={
+				["key"]="__CPU_PREFFERED_FAST_RAM__";
+				["value"]="\"CCM\", \"SRAM\", \"SDRAM\", \"PSRAM\"";
+			};
 		};
 		["arch/stm32f3/gpio_flags.h"]={
 			[1]={

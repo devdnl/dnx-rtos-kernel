@@ -432,18 +432,18 @@
 				["key"]="__CUSTOM_LD_SCRIPT_FILE__";
 				["value"]="\"./config/custom_script.ld\"";
 			};
-            [12]={
-                ["key"]="__CPU_PREFFERED_APP_RAM__";
-                ["value"]="\"SDRAM\", \"PSRAM\", \"SRAM\", \"SRAM1\", \"SRAM2\", \"SRAM3\", \"CCM\"";
-            };
-            [13]={
-                ["key"]="__CPU_PREFFERED_FS_RAM__";
-                ["value"]="\"SDRAM\", \"PSRAM\", \"SRAM\", \"SRAM1\", \"SRAM2\", \"SRAM3\", \"CCM\"";
-            };
-            [14]={
-                ["key"]="__CPU_PREFFERED_FAST_RAM__";
-                ["value"]="\"CCM\", \"SRAM\", \"SRAM1\", \"SRAM2\", \"SRAM3\", \"SDRAM\", \"PSRAM\"";
-            };
+			[12]={
+				["key"]="__CPU_PREFFERED_APP_RAM__";
+				["value"]="\"SDRAM\", \"PSRAM\", \"SRAM\", \"SRAM1\", \"SRAM2\", \"SRAM3\", \"CCM\"";
+			};
+			[13]={
+				["key"]="__CPU_PREFFERED_FS_RAM__";
+				["value"]="\"SDRAM\", \"PSRAM\", \"SRAM\", \"SRAM1\", \"SRAM2\", \"SRAM3\", \"CCM\"";
+			};
+			[14]={
+				["key"]="__CPU_PREFFERED_FAST_RAM__";
+				["value"]="\"CCM\", \"SRAM\", \"SRAM1\", \"SRAM2\", \"SRAM3\", \"SDRAM\", \"PSRAM\"";
+			};
 		};
 		["arch/stm32f4/dci_flags.h"]={
 			[1]={
