@@ -1,4 +1,4 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    kwrapper.h
 
 @author  Daniel Zorychta
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 #ifndef _KWRAPPER_H_
 #define _KWRAPPER_H_
@@ -57,16 +57,16 @@ extern "C" {
 #define _KERNEL_VERSION tskKERNEL_VERSION_NUMBER
 
 /** OS BASIC DEFINITIONS */
-#define _THIS_TASK NULL
+#define _THIS_TASK    NULL
 
-#define _MAX_DELAY_MS ((portMAX_DELAY)-1000)
+#define _MAX_DELAY_MS ((portMAX_DELAY) - 1000)
 #define _MAX_DELAY_S  (_MAX_DELAY_MS / 1000)
 
 /** PRIORITIES */
-#define _PRIORITY(prio)   (prio + (configMAX_PRIORITIES / 2))
-#define _PRIORITY_LOWEST  (-(int)((configMAX_PRIORITIES / 2) - 1))
-#define _PRIORITY_NORMAL  0
-#define _PRIORITY_HIGHEST ((int)((configMAX_PRIORITIES / 2) - 1))
+#define _PRIORITY(prio)    (prio + (configMAX_PRIORITIES / 2))
+#define _PRIORITY_LOWEST   (-(int)((configMAX_PRIORITIES / 2) - 1))
+#define _PRIORITY_NORMAL   0
+#define _PRIORITY_HIGHEST  ((int)((configMAX_PRIORITIES / 2) - 1))
 #define _PRIORITY_REALTIME ((int)(configMAX_PRIORITIES / 2))
 
 /*==============================================================================
@@ -108,6 +108,7 @@ extern void    _task_yield_from_ISR(bool);
 extern task_t *_task_get_handle(void);
 extern void    _task_set_storage_pointer(task_t *, u8_t, void *);
 extern void   *_task_get_storage_pointer(task_t *, u8_t);
+extern void    _task_pin_core(task_t *taskhdl, u32_t core_mask);
 extern int     _semaphore_create(size_t, size_t, ksem_t **);
 extern int     _semaphore_destroy(ksem_t *);
 extern int     _semaphore_wait(ksem_t *, u32_t);

@@ -1,4 +1,4 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    kpanic.c
 
 @author  Daniel Zorychta
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 /*==============================================================================
   Include files
@@ -62,6 +62,7 @@ typedef struct {
                 pid_t                         pid;
                 tid_t                         tid;
                 u8_t                          syscall;
+                u8_t                          core;
         } content;
 } kernel_panic_desc;
 
@@ -149,9 +150,9 @@ bool _kernel_panic_info(struct _kernel_panic_info *info)
                         panic_type = "APP CRASH";
                 }
 
-                printk(VT100_FONT_COLOR_RED "%s: '%s' [%d:%d,%s,%s,%u]" VT100_RESET_ATTRIBUTES, panic_type,
-                        kpanic_desc.content.name, kpanic_desc.content.pid, kpanic_desc.content.tid,
-                        CAUSE[kpanic_desc.content.cause],
+                printk("%s: '%s' [%u:%d:%d,%s,%s,%u]",
+                        panic_type, kpanic_desc.content.name, kpanic_desc.content.core,
+                        kpanic_desc.content.pid, kpanic_desc.content.tid, CAUSE[kpanic_desc.content.cause],
                         (kpanic_desc.content.flags & _KERNEL_PANIC_FLAG__KERNEL_SPACE) ? "KRN" : "USR",
                         kpanic_desc.content.syscall);
 
@@ -169,6 +170,7 @@ bool _kernel_panic_info(struct _kernel_panic_info *info)
                         info->pid     = kpanic_desc.content.pid;
                         info->tid     = kpanic_desc.content.tid;
                         info->syscall = kpanic_desc.content.syscall;
+                        info->core    = kpanic_desc.content.core;
                 }
 
                 kpanic_desc.valid1 = 0;
@@ -262,6 +264,7 @@ static void report_kernel_panic(_process_t *proc, enum _kernel_panic_desc_cause 
         kpanic_desc.valid1        = _KERNEL_PANIC_DESC_VALID1;
 
         kpanic_desc.content.flags = (++kpanic_ctr >= PANIC_LOOP_COUNT) ? _KERNEL_PANIC_FLAG__PANIC_LOOP : 0;
+        kpanic_desc.content.core  = _cpuctl_get_cpu_id();
 
         if (_process_get_pid(proc, &kpanic_desc.content.pid) == 0) {
 
@@ -313,8 +316,9 @@ static void app_crash_handler(void *arg)
                         }
                 }
 
-                _printk("*** APP CRASH: '%s' [%d:%d,%s,%s,%u] ***", _process_get_name(kpanic_trap_proc),
-                        kpanic_desc.content.pid, kpanic_desc.content.tid, CAUSE[kpanic_desc.content.cause],
+                _printk("*** APP CRASH: '%s' [%u:%d:%d,%s,%s,%u] ***", _process_get_name(kpanic_trap_proc),
+                        kpanic_desc.content.core, kpanic_desc.content.pid, kpanic_desc.content.tid,
+                        CAUSE[kpanic_desc.content.cause],
                         (kpanic_desc.content.flags & _KERNEL_PANIC_FLAG__KERNEL_SPACE) ? "KRN" : "USR",
                         kpanic_desc.content.syscall);
 

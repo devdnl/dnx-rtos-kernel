@@ -534,7 +534,7 @@
 			};
 			[13]={
 				["key"]="__CPU_VTOR_TAB_POSITION__";
-				["value"]="0x00000";
+				["value"]="0x08000000";
 			};
 			[14]={
 				["key"]="__CUSTOM_LD_SCRIPT__";
@@ -542,7 +542,7 @@
 			};
 			[15]={
 				["key"]="__CUSTOM_LD_SCRIPT_FILE__";
-				["value"]="\"custom_script.ld\"";
+				["value"]="\"./config/custom_script.ld\"";
 			};
 			[16]={
 				["key"]="__CPU_PREFFERED_APP_RAM__";
@@ -554,7 +554,7 @@
 			};
 			[18]={
 				["key"]="__CPU_PREFFERED_FAST_RAM__";
-				["value"]="\"DTCM\", \"SRAM1\", \"SRAM2\"";
+				["value"]="\"DTCM\", \"SRAM1\", \"SRAM2\", \"SRAM\", \"SDRAM\", \"PSRAM\"";
 			};
 			[19]={
 				["key"]="__CPU_SDRAM_EXECUTABLE__";

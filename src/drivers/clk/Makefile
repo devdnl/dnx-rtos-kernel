@@ -22,4 +22,8 @@ ifeq ($(__ENABLE_CLK__), _YES_)
       CSRC_ARCH   += drivers/clk/$(TARGET)/clk.c
       CXXSRC_ARCH +=
    endif 
+   ifeq ($(TARGET), rpcm0)
+      CSRC_ARCH   += drivers/clk/$(TARGET)/clk.c
+      CXXSRC_ARCH +=
+   endif 
 endif

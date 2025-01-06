@@ -1,4 +1,4 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    uart_lld.c
 
 @author  Daniel Zorychta
@@ -26,7 +26,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 /*==============================================================================
   Include files
@@ -731,6 +731,7 @@ int _UART_LLD__turn_off(struct UART_mem *hdl)
         SET_BIT(*SETUP->APBRSTR, SETUP->APBRSTR_UARTRST);
         CLEAR_BIT(*SETUP->APBRSTR, SETUP->APBRSTR_UARTRST);
         CLEAR_BIT(*SETUP->APBENR, SETUP->APBENR_UARTEN);
+        sys_free(&hdl->uarthdl);
 
         return ESUCC;
 }

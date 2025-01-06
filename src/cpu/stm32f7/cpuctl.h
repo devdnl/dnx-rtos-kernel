@@ -1,4 +1,4 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    cpuctl.h
 
 @author  Daniel Zorychta
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 #ifndef _CPUCTL_H_
 #define _CPUCTL_H_
@@ -58,6 +58,9 @@ extern "C" {
 /* CACHE macros */
 #define _CPUCTL_CACHE_ALIGN 32
 
+/* Number of cores */
+#define _CPUCTL_CORE_NUM 1
+
 /*==============================================================================
   Exported types, enums definitions
 ==============================================================================*/
@@ -86,6 +89,7 @@ extern void _cpuctl_update_system_clocks(void);
 extern void _cpuctl_delay_us(u16_t);
 extern void _cpuctl_print_exception(void);
 extern int  _cpuctl_low_power_mode(int mode);
+extern u8_t _cpuctl_get_cpu_id(void);
 
 #if (__OS_MONITOR_CPU_LOAD__ > 0)
 extern void  _cpuctl_init_CPU_load_counter(void);

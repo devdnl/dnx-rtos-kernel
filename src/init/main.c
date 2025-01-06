@@ -1,11 +1,11 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    main.c
 
 @author  Daniel Zorychta
 
 @brief   This file provide system initialization and RTOS start.
 
-@note    Copyright (C) 2012, 2013  Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2024  Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -23,8 +23,7 @@
 
          Full license text is available on the following file: doc/license.txt.
 
-
-*//*==========================================================================*/
+==============================================================================*/
 
 /*==============================================================================
   Include files
@@ -38,6 +37,7 @@
 #include "kernel/syscall.h"
 #include "kernel/kpanic.h"
 #include "kernel/kwrapper.h"
+#include "kernel/kworker.h"
 #include "kernel/sysfunc.h"
 #include "kernel/khooks.h"
 #include "net/netm.h"
@@ -45,11 +45,6 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-/* Stack size declared by linker script */
-#define STACK_SIZE                      (((size_t)&__stack_size) - 512)
-
-/* Stack start declared by linker script */
-#define STACK_START                     ((void *)&__stack_start)
 
 /*==============================================================================
   Local types, enums definitions
@@ -62,53 +57,14 @@
 /*==============================================================================
   Local object definitions
 ==============================================================================*/
-static _mm_region_t main_stack;
 
 /*==============================================================================
   Exported object definitions
 ==============================================================================*/
-/** pointer to stack size value */
-extern void *__stack_size;
-
-/** pointer to stack start */
-extern void *__stack_start;
 
 /*==============================================================================
   Function definitions
 ==============================================================================*/
-
-//==============================================================================
-/**
- * @brief  Task used to initialize dnx RTOS system. This task decrease stack
- *         usage in startup phase. Task after system initialization is deleted.
- */
-//==============================================================================
-void dnxinit(void *arg)
-{
-        UNUSED_ARG1(arg);
-
-#if __OS_ENABLE_SHARED_MEMORY__ > 0
-        _shm_init();
-#endif
-
-        _vfs_init();
-
-#if _ENABLE_NETWORK_
-        _net_init();
-#endif
-        _process_init();
-        _syscall_init();
-
-        /*
-         * This code reuse the main() stack that after kernel start is abandoned.
-         * The stack region is reused for HEAP purposes.
-         * If cause problems (strange system behavior, kernel panics) disable
-         * this option.
-         */
-        _mm_register_region(&main_stack, STACK_START, STACK_SIZE, _CPUCTL_STACK_REGION_FLAGS, "SRAM");
-
-        _task_exit();
-}
 
 //==============================================================================
 /**
@@ -122,11 +78,22 @@ int main(void)
 
         printk("Welcome to dnx RTOS %s!", dnx_RTOS_version);
         printk("Running on platform %s", dnx_RTOS_platform_name);
+        printk("CPU cores: %u\n", _CPUCTL_CORE_NUM);
 
         _cpuctl_init();
         _kernel_panic_init();
-        _task_create(dnxinit, "", (1024 / sizeof(StackType_t)), NULL, NULL);
+#if __OS_ENABLE_SHARED_MEMORY__ > 0
+        _shm_init();
+#endif
+        _vfs_init();
+#if _ENABLE_NETWORK_
+        _net_init();
+#endif
+        _process_init();
+        _syscall_init();
+        _kworker_init();
         _kernel_start();
+
         return -1;
 }
 

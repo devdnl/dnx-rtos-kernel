@@ -23,4 +23,8 @@ ifeq ($(__ENABLE_UART__), _YES_)
       CSRC_ARCH   += drivers/uart/stm32fx/uart_lld.c
       CXXSRC_ARCH +=
    endif
+   ifeq ($(TARGET), rpcm0)
+      CSRC_ARCH   += drivers/uart/rpcm0/uart_lld.c
+      CXXSRC_ARCH +=
+   endif
 endif
