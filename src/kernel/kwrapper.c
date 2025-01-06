@@ -520,6 +520,8 @@ void _task_pin_core(task_t *taskhdl, u32_t core_mask)
 {
 #if ( ( configNUMBER_OF_CORES > 1 ) && ( configUSE_CORE_AFFINITY == 1 ) )
         vTaskCoreAffinitySet(taskhdl, core_mask);
+#else
+        UNUSED_ARG2(taskhdl, core_mask);
 #endif
 }
 

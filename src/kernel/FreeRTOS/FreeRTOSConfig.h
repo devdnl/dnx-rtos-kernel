@@ -112,7 +112,10 @@ extern void _task_switched_in(void *, void *, void *);
 #define configUSE_C_RUNTIME_TLS_SUPPORT           0
 #define configCHECK_HANDLER_INSTALLATION          0
 #define configUSE_PASSIVE_IDLE_HOOK               1
+
+#if configNUMBER_OF_CORES > 1
 #define configUSE_CORE_AFFINITY                   1
+#endif
 
 /* Hook function related definitions. */
 #define configUSE_IDLE_HOOK            1

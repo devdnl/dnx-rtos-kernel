@@ -50,14 +50,14 @@ this:AddWidget("Combobox", "Clock polarity")
 this:AddItem("SDIO_CK generated on rising edge", "SDIO_CLOCK_EDGE_RISING")
 this:AddItem("SDIO_CK generated on falling edge", "SDIO_CLOCK_EDGE_FALLING")
 --*/
-#define __SDMMC_CFG_SDMMC1_CLOCK_EDGE__ SDIO_CLOCK_EDGE_RISING
+#define __SDMMC_CFG_SDMMC1_CLOCK_EDGE__ SDMMC_CLOCK_EDGE_RISING
 
 /*--
 this:AddWidget("Combobox", "Hardware flow control")
 this:AddItem("Disable", "SDIO_HARDWARE_FLOW_CONTROL_DISABLE")
 this:AddItem("Enable", "SDIO_HARDWARE_FLOW_CONTROL_ENABLE")
 --*/
-#define __SDMMC_CFG_SDMMC1_HW_FLOW_CTRL__ SDIO_HARDWARE_FLOW_CONTROL_DISABLE
+#define __SDMMC_CFG_SDMMC1_HW_FLOW_CTRL__ SDMMC_HARDWARE_FLOW_CONTROL_DISABLE
 
 /*--
 this:AddWidget("Combobox", "Bus wide")
@@ -65,24 +65,24 @@ this:AddItem("1-bit wide bus", "SDIO_BUS_WIDE_1B")
 this:AddItem("4-bit wide bus", "SDIO_BUS_WIDE_4B")
 this:AddItem("8-bit wide bus", "SDIO_BUS_WIDE_8B")
 --*/
-#define __SDMMC_CFG_SDMMC1_BUS_WIDE__ SDIO_BUS_WIDE_4B
+#define __SDMMC_CFG_SDMMC1_BUS_WIDE__ SDMMC_BUS_WIDE_4B
 
 /*--
 this:AddWidget("Spinbox", 1, 256, "Clock divide factor")
 --*/
-#define __SDMMC_CFG_SDMMC1_CKDIV__ 1
+#define __SDMMC_CFG_SDMMC1_CKDIV__ 3
 
 /*--
 this:AddWidget("Spinbox", 100, 60000, "Card operation timeout [ms]")
 --*/
-#define __SDMMC_CFG_SDMMC1_CARD_TIMEOUT__ 500
+#define __SDMMC_CFG_SDMMC1_CARD_TIMEOUT__ 5000
 
 /*--
 this:AddWidget("Combobox", "Power save")
 this:AddItem("Disable", "SDIO_CLOCK_POWER_SAVE_DISABLE")
 this:AddItem("Enable", "SDIO_CLOCK_POWER_SAVE_ENABLE")
 --*/
-#define __SDMMC_CFG_SDMMC1_PWRSAVE__ SDIO_CLOCK_POWER_SAVE_DISABLE
+#define __SDMMC_CFG_SDMMC1_PWRSAVE__ SDMMC_CLOCK_POWER_SAVE_DISABLE
 
 /*--
 this:AddWidget("Combobox", "Device type")

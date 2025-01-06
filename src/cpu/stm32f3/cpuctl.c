@@ -300,6 +300,18 @@ int _cpuctl_low_power_mode(int mode)
 
 //==============================================================================
 /**
+ * @brief  Return CPU ID.
+ *
+ * @return CPU ID.
+ */
+//==============================================================================
+u8_t _cpuctl_get_cpu_id(void)
+{
+        return 0;
+}
+
+//==============================================================================
+/**
  * @brief  Start counter used for CPU load measurement. Timer should be set
  *         to at least 1MHz and should not overflow until 1 second.
  *

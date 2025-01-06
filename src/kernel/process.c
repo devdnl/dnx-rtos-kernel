@@ -1472,7 +1472,7 @@ int _process_thread_pin_to_core(pid_t pid, tid_t tid, u32_t core_mask)
         return err;
 #else
         UNUSED_ARG3(pid, tid, core_mask);
-        return ENOSUP;
+        return ENOTSUP;
 #endif
 }
 

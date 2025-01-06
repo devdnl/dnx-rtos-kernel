@@ -670,7 +670,7 @@
 			};
 			[12]={
 				["key"]="__CPU_VTOR_TAB_POSITION__";
-				["value"]="0x00000";
+				["value"]="0x08000000";
 			};
 			[13]={
 				["key"]="__CUSTOM_LD_SCRIPT__";
@@ -678,7 +678,7 @@
 			};
 			[14]={
 				["key"]="__CUSTOM_LD_SCRIPT_FILE__";
-				["value"]="\"custom_script.ld\"";
+				["value"]="\"./config/custom_script.ld\"";
 			};
 			[15]={
 				["key"]="__CPU_PREFFERED_APP_RAM__";
@@ -692,6 +692,22 @@
 				["key"]="__CPU_PREFFERED_FAST_RAM__";
 				["value"]="\"DTCM\", \"AXISRAM\", \"SRAM1\", \"SRAM2\", \"SRAM3\", \"SRAM4\", \"SDRAM\", \"PSRAM\", \"SRAM\"";
 			};
+            [18]={
+                ["key"]="__CPU_SDRAM_EXECUTABLE__";
+                ["value"]="_NO_";
+            };
+            [19]={
+                ["key"]="__CPU_SDRAM_CACHEABLE__";
+                ["value"]="_NO_";
+            };
+            [20]={
+                ["key"]="__CPU_SDRAM_SHAREABLE__";
+                ["value"]="_NO_";
+            };
+            [21]={
+                ["key"]="__CPU_SDRAM_BUFFERABLE__";
+                ["value"]="_NO_";
+            };
 		};
 		["arch/stm32h7/emi_flags.h"]={
 			[1]={

@@ -450,8 +450,28 @@
 			};
 			[7]={
 				["key"]="__CPU_VTOR_TAB_POSITION__";
-				["value"]="0x00000";
+				["value"]="0x08000000";
 			};
+            [8]={
+                ["key"]="__CUSTOM_LD_SCRIPT__";
+                ["value"]="_NO_";
+            };
+            [9]={
+                ["key"]="__CUSTOM_LD_SCRIPT_FILE__";
+                ["value"]="\"./config/custom_script.ld\"";
+            };
+            [10]={
+                ["key"]="__CPU_PREFFERED_APP_RAM__";
+                ["value"]="\"SRAM\"";
+            };
+            [11]={
+                ["key"]="__CPU_PREFFERED_FS_RAM__";
+                ["value"]="\"SRAM\"";
+            };
+            [12]={
+                ["key"]="__CPU_PREFFERED_FAST_RAM__";
+                ["value"]="\"SRAM\"";
+            };
 		};
 		["arch/stm32f1/eth_flags.h"]={
 			[1]={

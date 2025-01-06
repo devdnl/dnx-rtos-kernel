@@ -531,6 +531,18 @@ int _cpuctl_low_power_mode(int mode)
 
 //==============================================================================
 /**
+ * @brief  Return CPU ID.
+ *
+ * @return CPU ID.
+ */
+//==============================================================================
+u8_t _cpuctl_get_cpu_id(void)
+{
+        return 0;
+}
+
+//==============================================================================
+/**
  * @brief  Function update all system clock after CPU frequency change.
  *         Function must update all devices which base on main clock oscillator.
  *         Function is called after clock/frequency change from clock management driver.
