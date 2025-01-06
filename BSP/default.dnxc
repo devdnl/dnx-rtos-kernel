@@ -11698,15 +11698,15 @@
 		["arch/stm32f4/sdmmc_flags.h"]={
 			[1.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_CLOCK_EDGE__";
-				["value"]="SDMMC_CLOCK_EDGE_RISING";
+				["value"]="SDIO_CLOCK_EDGE_RISING";
 			};
 			[2.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_HW_FLOW_CTRL__";
-				["value"]="SDMMC_HARDWARE_FLOW_CONTROL_DISABLE";
+				["value"]="SDIO_HARDWARE_FLOW_CONTROL_DISABLE";
 			};
 			[3.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_BUS_WIDE__";
-				["value"]="SDMMC_BUS_WIDE_4B";
+				["value"]="SDIO_BUS_WIDE_4B";
 			};
 			[4.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_CKDIV__";
@@ -11718,7 +11718,7 @@
 			};
 			[6.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_PWRSAVE__";
-				["value"]="SDMMC_CLOCK_POWER_SAVE_DISABLE";
+				["value"]="SDIO_CLOCK_POWER_SAVE_DISABLE";
 			};
 			[7.000000]={
 				["key"]="__SDMMC_CFG_SDMMC1_TYPE__";
