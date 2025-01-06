@@ -1,11 +1,11 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    syscall.c
 
 @author  Daniel Zorychta
 
 @brief   System call handling - kernel space
 
-@note    Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -24,7 +24,9 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
+
+// #pragma GCC optimize("Og")
 
 /*==============================================================================
   Include files
@@ -54,8 +56,6 @@
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define FS_CACHE_SYNC_PERIOD_MS    (1000 * __OS_SYSTEM_CACHE_SYNC_PERIOD__)
-
 #define GETARG(type, var)          type var = va_arg(rq->args, type)
 #define LOADARG(type)              va_arg(rq->args, type)
 #define GETRETURN(type, var)       type var = rq->retptr
@@ -200,6 +200,9 @@ typedef enum {
         SYSCALL_LOWPOWERMODE,           // int errno (const int *mode)
         SYSCALL_REGISTERAPPSET,         // int errno (const void **appset_array, const size_t *array_size)
         SYSCALL_MEMREGIONINFO,          // int errno (size_t idx, _mm_region_info_t *region_info)
+        SYSCALL_PINTHREADTOCORE,        // int errno (pid_t *pid , tid_t *tid, u32_t *core_mask)
+        SYSCALL_GETCURRENTCORE,         // int errno (u8_t *core)
+        SYSCALL_GETCPUCORECOUNT,        // int errno (u8_t *core_count)
         _SYSCALL_COUNT,
 } syscall_t;
 // clang-format on
@@ -340,6 +343,9 @@ static int syscall_reboottoaddr(syscallrq_t *rq);
 static int syscall_lowpowermode(syscallrq_t *rq);
 static int syscall_registerappset(syscallrq_t *rq);
 static int syscall_memregioninfo(syscallrq_t *rq);
+static int syscall_pinthreadtocore(syscallrq_t *rq);
+static int syscall_getcurrentcore(syscallrq_t *rq);
+static int syscall_getcpucorecount(syscallrq_t *rq);
 
 /*==============================================================================
   Local objects
@@ -469,12 +475,14 @@ static const syscallfunc_t syscalltab[] = {
         [SYSCALL_LOWPOWERMODE]       = syscall_lowpowermode,
         [SYSCALL_REGISTERAPPSET]     = syscall_registerappset,
         [SYSCALL_MEMREGIONINFO]      = syscall_memregioninfo,
+        [SYSCALL_PINTHREADTOCORE]    = syscall_pinthreadtocore,
+        [SYSCALL_GETCURRENTCORE]     = syscall_getcurrentcore,
+        [SYSCALL_GETCPUCORECOUNT]    = syscall_getcpucorecount,
 };
 
 /*==============================================================================
   Exported objects
 ==============================================================================*/
-_process_t              *_kworker_proc;
 const char *const        dnx_RTOS_version       = "3.2.1";
 const char *const        dnx_RTOS_name          = "dnx RTOS";
 const char *const        dnx_RTOS_commit_hash   = COMMIT_HASH;
@@ -496,27 +504,7 @@ struct reboot_to_address reboot_address;
 //==============================================================================
 int _syscall_init(void)
 {
-        static const _process_attr_t attr = {
-                .at_init      = NULL,
-                .at_init_ctx  = NULL,
-                .cwd          = "/",
-                .app_ctx_size = 128,
-                .fd_stdin     = -1,
-                .fd_stdout    = -1,
-                .fd_stderr    = -1,
-                .p_stdin      = NULL,
-                .p_stdout     = NULL,
-                .p_stderr     = NULL,
-                .priority     = _PRIORITY_NORMAL,
-                .detached     = true,
-        };
-
-        int err = _process_create("kworker", &attr, NULL);
-        if (!err) {
-                err = _process_create(__OS_INIT_PROG__, &attr, NULL);
-        }
-
-        return err;
+        return 0;
 }
 
 //==============================================================================
@@ -534,17 +522,19 @@ int _syscall_init(void)
 //==============================================================================
 __attribute__((section(".syscall"))) int syscall(syscall_t syscall, va_list args)
 {
-        int err = ENOSYS;
+        int  err   = ENOSYS;
+        u8_t cpuid = _cpuctl_get_cpu_id();
 
         if (syscall == SYSCALL_GETRUNTIMECTX) {
                 /*
                  * NOTE: handled separately because this syscall should work as
                  *       fast as possible.
                  */
+
                 _dnxrtctx_t *ctx = va_arg(args, _dnxrtctx_t *);
-                ctx->global_ref  = &_global;
-                ctx->errno_ref   = &_errno;
-                ctx->app_ctx_ref = &_app_ctx;
+                ctx->global_ref  = &_global[cpuid];
+                ctx->errno_ref   = &_errno[cpuid];
+                ctx->app_ctx_ref = &_app_ctx[cpuid];
                 err              = 0;
 
         } else if (syscall < _SYSCALL_COUNT) {
@@ -561,44 +551,11 @@ __attribute__((section(".syscall"))) int syscall(syscall_t syscall, va_list args
 
                 err = syscall_do(&syscallrq);
                 if (err) {
-                        _errno = err;
+                        _errno[cpuid] = err;
                 }
         }
 
         return err;
-}
-
-//==============================================================================
-/**
- * @brief  Main syscall process (master) [KERNELSPACE].
- *
- * @param  argc         argument count
- * @param  argv         arguments
- *
- * @return Never exit (0)
- */
-//==============================================================================
-int _syscall_kworker_process(int argc, char *argv[])
-{
-        UNUSED_ARG2(argc, argv);
-
-        _task_get_process_container(_THIS_TASK, &_kworker_proc, NULL);
-        _task_set_priority(_THIS_TASK, _PRIORITY_HIGHEST);
-
-        clock_t sync_period_ref = _kernel_get_uptime_ms();
-
-        for (;;) {
-                _sleep_ms(1000);
-
-                if ((_kernel_get_uptime_ms() - sync_period_ref) >= FS_CACHE_SYNC_PERIOD_MS) {
-                        _vfs_sync();
-                        sync_period_ref = _kernel_get_uptime_ms();
-                }
-
-                _process_clean_up_killed_processes();
-        }
-
-        return -1;
 }
 
 //==============================================================================
@@ -3577,6 +3534,63 @@ static int syscall_memregioninfo(syscallrq_t *rq)
         GETARG(size_t, idx);
         GETARG(_mm_region_info_t *, region_info);
         return _mm_get_region_info(idx, region_info);
+}
+
+//==============================================================================
+/**
+ * @brief  This syscall pin process's thread to the core.
+ *
+ * @param  rq                   syscall request
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int syscall_pinthreadtocore(syscallrq_t *rq)
+{
+        GETARG(pid_t *, pid);
+        GETARG(tid_t *, tid);
+        GETARG(u32_t *, core_mask);
+
+        pid_t _pid = *pid;
+
+        if (_pid == 0) {
+                _process_get_pid(GETPROCESS(), &_pid);
+        }
+
+        return _process_thread_pin_to_core(_pid, *tid, *core_mask);
+}
+
+//==============================================================================
+/**
+ * @brief  This syscall return current core.
+ *
+ * @param  rq                   syscall request
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int syscall_getcurrentcore(syscallrq_t *rq)
+{
+        GETARG(u8_t *, core);
+
+        return _process_get_current_core(core);
+}
+
+//==============================================================================
+/**
+ * @brief  This syscall return number of CPU cores.
+ *
+ * @param  rq                   syscall request
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int syscall_getcpucorecount(syscallrq_t *rq)
+{
+        GETARG(u8_t *, core_count);
+
+        *core_count = _CPUCTL_CORE_NUM;
+        return 0;
 }
 
 /*==============================================================================

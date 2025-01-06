@@ -1,4 +1,4 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    process.h
 
 @author  Daniel Zorychta
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 #ifndef _PROCESS_H_
 #define _PROCESS_H_
@@ -85,18 +85,18 @@ typedef struct dchain {
 } dchain_t;
 
 typedef struct {
-        task_t *task;             //!< task
-        u32_t   timecnt;          //!< counter used to calculate CPU load
-        int     status;           //!< thread exit status
-        int     errnov;           //!< thread error number
-        u16_t   CPU_load;         //!< CPU load
-        u16_t   syscalls_per_sec; //!< syscalls/s
-        u16_t   syscalls_ctr;     //!< syscall counter
-        u16_t   stack_size;       //!< stack size
-        bool    kernelspace;      //!< execution in kernel space
-        tid_t   id;               //!< thread id
-        u8_t    curr_syscall;     //!< current syscall
-        bool    running;          //!< thread is running
+        task_t *task;                       //!< task
+        u32_t   timecnt[_CPUCTL_CORE_NUM];  //!< counter used to calculate CPU load
+        int     status;                     //!< thread exit status
+        int     errnov;                     //!< thread error number
+        u16_t   CPU_load[_CPUCTL_CORE_NUM]; //!< CPU load
+        u16_t   syscalls_per_sec;           //!< syscalls/s
+        u16_t   syscalls_ctr;               //!< syscall counter
+        u16_t   stack_size;                 //!< stack size
+        bool    kernelspace;                //!< execution in kernel space
+        tid_t   id;                         //!< thread id
+        u8_t    curr_syscall;               //!< current syscall
+        bool    running;                    //!< thread is running
 } task_data_t;
 
 struct _process {
@@ -122,12 +122,20 @@ typedef struct appset_table {
         struct appset_table         *next;
 } appset_table_t;
 
+typedef struct {
+        u32_t           CPU_total_time_last;
+        u32_t           CPU_total_time;
+        _avg_CPU_load_t avg_CPU_load_calc;
+        _avg_CPU_load_t avg_CPU_load_result;
+} CPU_load_t;
+
 /*==============================================================================
   Exported object declarations
 ==============================================================================*/
-extern void *_global;
-extern int   _errno;
-extern void *_app_ctx;
+extern void      *_global[_CPUCTL_CORE_NUM];
+extern int        _errno[_CPUCTL_CORE_NUM];
+extern void      *_app_ctx[_CPUCTL_CORE_NUM];
+extern CPU_load_t CPU_load[_CPUCTL_CORE_NUM];
 
 /*==============================================================================
   Exported function prototypes
@@ -163,6 +171,8 @@ extern u8_t        _process_get_max_threads(_process_t *);
 extern int         _process_thread_kill(_process_t *, tid_t);
 extern task_t     *_process_thread_get_task(_process_t *, tid_t);
 extern int         _process_thread_get_stat(pid_t, tid_t, _thread_stat_t *);
+extern int         _process_thread_pin_to_core(pid_t, tid_t, u32_t);
+extern int         _process_get_current_core(u8_t *);
 extern int         _process_thread_exit(int);
 extern int         _process_thread_get_status(_process_t *, tid_t, int *);
 extern bool        _process_is_consistent(bool);
@@ -172,7 +182,7 @@ extern bool        _process_is_kernelspace(_process_t *, tid_t, bool);
 extern u8_t        _process_get_curr_syscall(_process_t *, tid_t, bool);
 extern void        _task_switched_in(void *, void *, void *);
 extern void        _task_switched_out(void *, void *, void *);
-extern void        _calculate_CPU_load(void);
+extern void        _calculate_CPU_load_from_IRQ(void);
 extern int         _get_average_CPU_load(_avg_CPU_load_t *);
 extern void        _task_get_process_container(task_t *, _process_t **, tid_t *);
 extern void        _task_get_process_container_unprotected(task_t *, _process_t **);

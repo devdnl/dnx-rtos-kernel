@@ -1,4 +1,4 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    cpuctl.c
 
 @author  Daniel Zorychta
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 /*==============================================================================
   Include files
@@ -237,7 +237,7 @@ const char *_cpuctl_fast_mem[]          = {__CPU_PREFFERED_FAST_RAM__, NULL};
 //==============================================================================
 void _cpuctl_init(void)
 {
-        NVIC_SetVectorTable(NVIC_VectTab_FLASH, __CPU_VTOR_TAB_POSITION__);
+        NVIC_SetVectorTable(0, __CPU_VTOR_TAB_POSITION__);
         NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
 
         /* enable FPU */
@@ -527,6 +527,18 @@ int _cpuctl_low_power_mode(int mode)
         }
 
         return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Return CPU ID.
+ *
+ * @return CPU ID.
+ */
+//==============================================================================
+u8_t _cpuctl_get_cpu_id(void)
+{
+        return 0;
 }
 
 //==============================================================================

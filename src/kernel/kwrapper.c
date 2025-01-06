@@ -1,4 +1,4 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    kwrapper.c
 
 @author  Daniel Zorychta
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 /*==============================================================================
   Include files
@@ -215,7 +215,7 @@ void _kernel_release_resources(void)
          * Force context switch to Idle task to delete finished tasks. Task
          * priority is restored in the vApplicationIdleHook().
          */
-        vTaskPrioritySet(xTaskGetIdleTaskHandle(), configMAX_PRIORITIES - 1);
+        vTaskPrioritySet(_kernel_get_idle_task_handle(), configMAX_PRIORITIES - 1);
         taskYIELD();
 }
 
@@ -228,7 +228,11 @@ void _kernel_release_resources(void)
 //==============================================================================
 task_t *_kernel_get_idle_task_handle(void)
 {
+#if (configNUMBER_OF_CORES > 1)
+        return xTaskGetIdleTaskHandleForCore(_cpuctl_get_cpu_id());
+#else
         return xTaskGetIdleTaskHandle();
+#endif
 }
 
 //==============================================================================
@@ -502,6 +506,23 @@ void _task_set_storage_pointer(task_t *taskhdl, u8_t index, void *ptr)
 void *_task_get_storage_pointer(task_t *taskhdl, u8_t index)
 {
         return pvTaskGetThreadLocalStoragePointer(taskhdl, index);
+}
+
+//==============================================================================
+/**
+ * @brief  Pin task to particular cores.
+ *
+ * @param[in] *taskhdl          task handle (NULL for current task)
+ * @param[in]  core_mask        core mask
+ */
+//==============================================================================
+void _task_pin_core(task_t *taskhdl, u32_t core_mask)
+{
+#if ( ( configNUMBER_OF_CORES > 1 ) && ( configUSE_CORE_AFFINITY == 1 ) )
+        vTaskCoreAffinitySet(taskhdl, core_mask);
+#else
+        UNUSED_ARG2(taskhdl, core_mask);
+#endif
 }
 
 //==============================================================================

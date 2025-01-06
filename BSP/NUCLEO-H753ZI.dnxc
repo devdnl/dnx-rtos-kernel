@@ -618,7 +618,7 @@
 			};
 			[6]={
 				["key"]="__CPU_IRQ_RTOS_APICALL_PRIORITY_VAL__";
-				["value"]="12";
+				["value"]="14";
 			};
 			[7]={
 				["key"]="__CPU_DEFAULT_IRQ_PRIORITY__";
@@ -638,19 +638,51 @@
 			};
 			[11]={
 				["key"]="__CPU_DCACHE_ENABLE__";
-				["value"]="_NO_";
+				["value"]="_YES_";
 			};
 			[12]={
-				["key"]="__CPU_VTOR_TAB_POSITION__";
-				["value"]="0x00000";
+				["key"]="__CPU_RAM1_RAM2_CACHE_DISABLE__";
+				["value"]="_NO_";
 			};
 			[13]={
+				["key"]="__CPU_VTOR_TAB_POSITION__";
+				["value"]="0x08000000";
+			};
+			[14]={
 				["key"]="__CUSTOM_LD_SCRIPT__";
 				["value"]="_NO_";
 			};
-			[14]={
+			[15]={
 				["key"]="__CUSTOM_LD_SCRIPT_FILE__";
 				["value"]="\"./config/custom_script.ld\"";
+			};
+			[16]={
+				["key"]="__CPU_PREFFERED_APP_RAM__";
+				["value"]="\"SDRAM\", \"PSRAM\", \"SRAM\", \"SRAM1\", \"SRAM2\", \"DTCM\"";
+			};
+			[17]={
+				["key"]="__CPU_PREFFERED_FS_RAM__";
+				["value"]="\"SDRAM\", \"PSRAM\", \"SRAM\", \"SRAM1\", \"SRAM2\", \"DTCM\"";
+			};
+			[18]={
+				["key"]="__CPU_PREFFERED_FAST_RAM__";
+				["value"]="\"DTCM\", \"SRAM1\", \"SRAM2\", \"SRAM\", \"SDRAM\", \"PSRAM\"";
+			};
+			[19]={
+				["key"]="__CPU_SDRAM_EXECUTABLE__";
+				["value"]="_NO_";
+			};
+			[20]={
+				["key"]="__CPU_SDRAM_CACHEABLE__";
+				["value"]="_NO_";
+			};
+			[21]={
+				["key"]="__CPU_SDRAM_SHAREABLE__";
+				["value"]="_NO_";
+			};
+			[22]={
+				["key"]="__CPU_SDRAM_BUFFERABLE__";
+				["value"]="_NO_";
 			};
 		};
 		["arch/stm32h7/emi_flags.h"]={

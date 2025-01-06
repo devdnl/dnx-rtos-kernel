@@ -1,4 +1,4 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    clk.c
 
 @author  Daniel Zorychta
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 /*==============================================================================
   Include files
@@ -672,6 +672,11 @@ API_MOD_IOCTL(CLK, void *device_handle, int request, void *arg)
                         case 30:
                                 clkinf->freq_Hz = LL_RCC_GetSAIClockFreq(LL_RCC_SAI2_CLKSOURCE);
                                 clkinf->name = "SAI2";
+                                break;
+
+                        case 31:
+                                clkinf->freq_Hz = freq.SYSCLK_Frequency;
+                                clkinf->name = "CPU0CLK";
                                 break;
 
                         default:

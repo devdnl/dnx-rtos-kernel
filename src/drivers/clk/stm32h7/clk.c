@@ -1,4 +1,4 @@
-/*=========================================================================*//**
+/*==============================================================================
 @file    clk.c
 
 @author  Daniel Zorychta
@@ -24,7 +24,7 @@
          Full license text is available on the following file: doc/license.txt.
 
 
-*//*==========================================================================*/
+==============================================================================*/
 
 /*==============================================================================
   Include files
@@ -817,6 +817,14 @@ API_MOD_IOCTL(CLK, void *device_handle, int request, void *arg)
                                 clkinf->freq_Hz = LL_RCC_GetFMCClockFreq(LL_RCC_FMC_CLKSOURCE);
                                 clkinf->name = "FMC";
                                 break;
+
+                        case 50: {
+                                LL_RCC_ClocksTypeDef freq;
+                                LL_RCC_GetSystemClocksFreq(&freq);
+                                clkinf->freq_Hz = freq.SYSCLK_Frequency;
+                                clkinf->name = "CPU0CLK";
+                                break;
+                        }
 
                         default:
                                 clkinf->freq_Hz = 0;
