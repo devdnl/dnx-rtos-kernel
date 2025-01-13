@@ -413,17 +413,19 @@ void ttyedit_remove_char(ttyedit_t *this)
 
         this->length_ucs4--;
 
-        size_t wrcnt;
+        if (ttyedit_is_echo_enabled(this)) {
+                size_t wrcnt;
 
-        const char *cmd = "\b" VT100_ERASE_LINE_FROM_CUR VT100_SAVE_CURSOR_POSITION;
-        sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+                const char *cmd = "\b" VT100_ERASE_LINE_FROM_CUR VT100_SAVE_CURSOR_POSITION;
+                sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
 
-        ucs4_buffer_to_utf8_buffer(this, this->cursor_position);
-        cmd = this->buffer_utf8;
-        sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+                ucs4_buffer_to_utf8_buffer(this, this->cursor_position);
+                cmd = this->buffer_utf8;
+                sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
 
-        cmd = VT100_RESTORE_CURSOR_POSITION;
-        sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+                cmd = VT100_RESTORE_CURSOR_POSITION;
+                sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+        }
 }
 
 //==============================================================================
@@ -449,17 +451,19 @@ void ttyedit_delete_char(ttyedit_t *this)
 
         this->length_ucs4--;
 
-        size_t wrcnt;
+        if (ttyedit_is_echo_enabled(this)) {
+                size_t wrcnt;
 
-        const char *cmd = VT100_SAVE_CURSOR_POSITION VT100_ERASE_LINE_FROM_CUR;
-        sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+                const char *cmd = VT100_SAVE_CURSOR_POSITION VT100_ERASE_LINE_FROM_CUR;
+                sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
 
-        ucs4_buffer_to_utf8_buffer(this, this->cursor_position);
-        cmd = this->buffer_utf8;
-        sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+                ucs4_buffer_to_utf8_buffer(this, this->cursor_position);
+                cmd = this->buffer_utf8;
+                sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
 
-        cmd = VT100_RESTORE_CURSOR_POSITION;
-        sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+                cmd = VT100_RESTORE_CURSOR_POSITION;
+                sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+        }
 }
 
 //==============================================================================
@@ -475,9 +479,11 @@ void ttyedit_move_cursor_left(ttyedit_t *this)
                 ttyedit_clear_collected_character(this);
 
                 if (this->cursor_position > 0) {
-                        size_t      wrcnt;
-                        const char *cmd = VT100_SHIFT_CURSOR_LEFT(1);
-                        sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+                        if (ttyedit_is_echo_enabled(this)) {
+                                size_t      wrcnt;
+                                const char *cmd = VT100_SHIFT_CURSOR_LEFT(1);
+                                sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+                        }
                         this->cursor_position--;
                 }
         }
@@ -496,9 +502,11 @@ void ttyedit_move_cursor_right(ttyedit_t *this)
                 ttyedit_clear_collected_character(this);
 
                 if (this->cursor_position < this->length_ucs4) {
-                        size_t      wrcnt;
-                        const char *cmd = VT100_SHIFT_CURSOR_RIGHT(1);
-                        sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+                        if (ttyedit_is_echo_enabled(this)) {
+                                size_t      wrcnt;
+                                const char *cmd = VT100_SHIFT_CURSOR_RIGHT(1);
+                                sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+                        }
                         this->cursor_position++;
                 }
         }
@@ -516,17 +524,25 @@ void ttyedit_move_cursor_home(ttyedit_t *this)
         if (is_valid(this)) {
                 ttyedit_clear_collected_character(this);
 
+                const char *cmd;
                 size_t      wrcnt;
-                const char *cmd = VT100_CURSOR_OFF;
-                sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+
+                if (ttyedit_is_echo_enabled(this)) {
+                        cmd = VT100_CURSOR_OFF;
+                        sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+                }
 
                 while (this->cursor_position > 0) {
-                        sys_fwrite("\b", 1, &wrcnt, *this->out_file);
+                        if (ttyedit_is_echo_enabled(this)) {
+                                sys_fwrite("\b", 1, &wrcnt, *this->out_file);
+                        }
                         this->cursor_position--;
                 }
 
-                cmd = VT100_CURSOR_ON;
-                sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+                if (ttyedit_is_echo_enabled(this)) {
+                        cmd = VT100_CURSOR_ON;
+                        sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+                }
         }
 }
 
@@ -542,18 +558,26 @@ void ttyedit_move_cursor_end(ttyedit_t *this)
         if (is_valid(this)) {
                 ttyedit_clear_collected_character(this);
 
+                const char *cmd;
                 size_t      wrcnt;
-                const char *cmd = VT100_CURSOR_OFF;
-                sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+
+                if (ttyedit_is_echo_enabled(this)) {
+                        cmd = VT100_CURSOR_OFF;
+                        sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+                }
 
                 while (this->cursor_position < this->length_ucs4) {
-                        char *cmd = VT100_SHIFT_CURSOR_RIGHT(1);
-                        sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+                        if (ttyedit_is_echo_enabled(this)) {
+                                cmd = VT100_SHIFT_CURSOR_RIGHT(1);
+                                sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+                        }
                         this->cursor_position++;
                 }
 
-                cmd = VT100_CURSOR_ON;
-                sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+                if (ttyedit_is_echo_enabled(this)) {
+                        cmd = VT100_CURSOR_ON;
+                        sys_fwrite(cmd, strlen(cmd), &wrcnt, *this->out_file);
+                }
         }
 }
 
