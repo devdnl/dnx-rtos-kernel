@@ -1350,7 +1350,11 @@ int INET_socket_getaddress(void *ctx, INET_socket_t *inet_sock,
                 netconn_getaddr(inet_sock->netconn, &lwip_addr, &sockaddr->port, 0));
 
         if (!err) {
-                create_addr(&sockaddr->addr, &lwip_addr);
+                if (lwip_addr.addr == INET_PSEUDO_LOOPBACK_IP) {
+                        sockaddr->addr = NETM_INET_IPv4_LOOPBACK;
+                } else {
+                        create_addr(&sockaddr->addr, &lwip_addr);
+                }
         }
 
         return err;
