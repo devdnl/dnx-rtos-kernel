@@ -25,6 +25,7 @@ Brief    External Memory Interface
 ==============================================================================*/
 
 // TODO Driver is not completed!
+// #pragma GCC optimize("Og")
 
 /*==============================================================================
   Include files
@@ -349,7 +350,7 @@ static int sdram_test(void *address, size_t size)
 
         dev_dbg2(0, 0, "memory test @ %p of %u bytes", address, size);
 
-        for (size_t i = 0; i < ARRAY_SIZE(PATTERN); i++) {
+        for (size_t i = 0; not err and (i < ARRAY_SIZE(PATTERN)); i++) {
 
                 u32_t *ptr = address;
                 size_t len = size / sizeof(u32_t);
@@ -372,34 +373,40 @@ static int sdram_test(void *address, size_t size)
                 }
         }
 
-        u32_t *ptr = address;
-        size_t len = size / sizeof(u32_t);
+        float MB_per_s = 0;
 
-        clock_t tstart = sys_get_uptime_ms();
+        if (not err) {
+                u32_t *ptr = address;
+                size_t len = size / sizeof(u32_t);
 
-        while (len) {
-                *ptr++ = len;
-                len--;
-        }
+                clock_t tstart = sys_get_uptime_ms();
 
-        clock_t tstop     = sys_get_uptime_ms();
-        float   MB_per_s = cast(float, (size / (tstop - tstart))) / 1000.0f;
-
-        ptr = address;
-        len = size / sizeof(u32_t);
-        while (len) {
-                if (*ptr != len) {
-                        dev_dbg2(0, 0, "error @ %p", ptr);
-                        err = EFAULT;
-                        break;
+                while (len) {
+                        *ptr++ = len;
+                        len--;
                 }
-                ptr++;
-                len--;
+
+                clock_t tstop = sys_get_uptime_ms();
+                MB_per_s      = cast(float, (size / (tstop - tstart))) / 1000.0f;
+
+                ptr = address;
+                len = size / sizeof(u32_t);
+                while (len) {
+                        if (*ptr != len) {
+                                dev_dbg2(0, 0, "error @ %p", ptr);
+                                err = EFAULT;
+                                break;
+                        }
+                        ptr++;
+                        len--;
+                }
         }
 
         if (not err) {
                 dev_dbg2(0, 0, "memory test success.");
                 dev_dbg2(0, 0, "memory transfer: %0.3f MB/s.", MB_per_s);
+        } else {
+                dev_dbg2(0, 0, "memory test failed.");
         }
 
         return err;
