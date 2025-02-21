@@ -381,11 +381,10 @@ API_MOD_READ(CAN, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, si
                 return err;
         }
 
+        u32_t timeout_ms = fattr.non_blocking_rd ? 0 : hdl->recv_timeout;
+
         while (count >= sizeof(CAN_msg_t)) {
-
                 CAN_msg_t msg;
-                u32_t     timeout_ms = fattr.non_blocking_rd ? 0 : hdl->recv_timeout;
-
                 err = recv_msg(hdl, &msg, timeout_ms);
 
                 if (!err) {
