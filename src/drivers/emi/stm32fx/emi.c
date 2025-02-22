@@ -80,6 +80,8 @@ Brief    External Memory Interface
 #define SDRAM_MODE_REG_WRITE_BURST_MODE_PROG_LENGTH            (0 << SDRAM_MODE_REG_WRITE_BURST_MODE_Pos)
 #define SDRAM_MODE_REG_WRITE_BURST_MODE_SINGLE_LOCATION_ACCESS (1 << SDRAM_MODE_REG_WRITE_BURST_MODE_Pos)
 
+#define FMC_BCRx_RESET_VALUE                                   0x000030D2
+
 #if defined(ARCH_stm32f1)
 #error No FMC implementation!
 #elif defined(ARCH_stm32f4)
@@ -177,6 +179,14 @@ API_MOD_INIT(EMI, void **device_handle, u8_t major, u8_t minor, const void *conf
 
                 SET_BIT(RCC->AHB3RSTR, RCC_AHB3RSTR_FMCRST);
                 CLEAR_BIT(RCC->AHB3RSTR, RCC_AHB3RSTR_FMCRST);
+
+                /*
+                 * AN4861 5.6.1 Disable FMC Bank1 if not used
+                 */
+                FMC_Bank1_R->BTCR[0] = FMC_BCRx_RESET_VALUE;
+                FMC_Bank1_R->BTCR[1] = FMC_BCRx_RESET_VALUE;
+                FMC_Bank1_R->BTCR[2] = FMC_BCRx_RESET_VALUE;
+                FMC_Bank1_R->BTCR[3] = FMC_BCRx_RESET_VALUE;
 
 #if (__EMI_SDRAM_1_ENABLE__ or __EMI_SDRAM_2_ENABLE__)
                 err = sdram_init();
@@ -476,6 +486,8 @@ static u32_t sdram_calculate_refresh_rate(void)
 //==============================================================================
 static int sdram_init(void)
 {
+        FMC_ENABLE();
+
         /*
          * 1. Program the memory device features into the FMC_SDCRx register.
          *    The SDRAM clock frequency, RBURST and RPIPE must be programmed
@@ -532,8 +544,6 @@ static int sdram_init(void)
                 (((__EMI_SDRAM_TRAS__ - 1) & 0xF) << FMC_SDTRx_TRAS_Pos) |
                 (((__EMI_SDRAM_TXSR__ - 1) & 0xF) << FMC_SDTRx_TXSR_Pos) |
                 (((__EMI_SDRAM_TMRD__ - 1) & 0xF) << FMC_SDTRx_TMRD_Pos);
-
-        FMC_ENABLE();
 
         /* From this point software is sending commands to SDRAM chips.*/
         /*
