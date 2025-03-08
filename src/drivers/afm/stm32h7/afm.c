@@ -5,7 +5,7 @@
 
 @brief   This driver support AFM.
 
-@note    Copyright (C) 2022  Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2025  Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -36,6 +36,18 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
+#define GPV_AXI_READ_ISS_OVERRIDE  (1 << 0)
+#define GPV_AXI_WRITE_ISS_OVERRIDE (1 << 1)
+
+#define GPV_SET_AXI_QOS(_channel_)                                                                     \
+        if (__AFM_AXI_IN##_channel_##_READ_QOS__ != 0) {                                               \
+                WRITE_REG(GPV->AXI_INI##_channel_##_READ_QOS, __AFM_AXI_IN##_channel_##_READ_QOS__);   \
+                SET_BIT(GPV->AXI_INI##_channel_##_FN_MOD, GPV_AXI_READ_ISS_OVERRIDE);                  \
+        }                                                                                              \
+        if (__AFM_AXI_IN##_channel_##_WRITE_QOS__ != 0) {                                              \
+                WRITE_REG(GPV->AXI_INI##_channel_##_WRITE_QOS, __AFM_AXI_IN##_channel_##_WRITE_QOS__); \
+                SET_BIT(GPV->AXI_INI##_channel_##_FN_MOD, GPV_AXI_WRITE_ISS_OVERRIDE);                 \
+        }
 
 /*==============================================================================
   Local types, enums definitions
@@ -79,47 +91,33 @@ API_MOD_INIT(AFM, void **device_handle, u8_t major, u8_t minor, const void *conf
                 __IO uint32_t tmpreg = READ_BIT(RCC->APB4ENR, RCC_APB4ENR_SYSCFGEN);
                 UNUSED_ARG1(tmpreg);
 
-                SYSCFG->PMCR = __AFM_PC3SO__
-                             | __AFM_PC2SO__
-                             | __AFM_PA1SO__
-                             | __AFM_PA0SO__
-                             | __AFM_MII_RMII_SEL__
-                             | __AFM_BOOSTVDDSEL__
-                             | __AFM_BOOSTEREN__
-                             | __AFM_PB9_FMP__
-                             | __AFM_PB8_FMP__
-                             | __AFM_PB7_FMP__
-                             | __AFM_PB6_FMP__
-                             | __AFM_I2C4_FMP__
-                             | __AFM_I2C3_FMP__
-                             | __AFM_I2C2_FMP__
-                             | __AFM_I2C1_FMP__;
+                SYSCFG->PMCR = __AFM_PC3SO__ | __AFM_PC2SO__ | __AFM_PA1SO__ | __AFM_PA0SO__ |
+                        __AFM_MII_RMII_SEL__ | __AFM_BOOSTVDDSEL__ | __AFM_BOOSTEREN__ | __AFM_PB9_FMP__ |
+                        __AFM_PB8_FMP__ | __AFM_PB7_FMP__ | __AFM_PB6_FMP__ | __AFM_I2C4_FMP__ |
+                        __AFM_I2C3_FMP__ | __AFM_I2C2_FMP__ | __AFM_I2C1_FMP__;
 
-                SYSCFG->CFGR = __AFM_AXISRAML__
-                             | __AFM_ITCML__
-                             | __AFM_DTCML__
-                             | __AFM_SRAM1L__
-                             | __AFM_SRAM2L__
-                             | __AFM_SRAM3L__
-                             | __AFM_SRAM4L__
-                             | __AFM_BKRAML__
-                             | __AFM_CM7L__
-                             | __AFM_FLASHL__
-                             | __AFM_PVDL__;
+                SYSCFG->CFGR = __AFM_AXISRAML__ | __AFM_ITCML__ | __AFM_DTCML__ | __AFM_SRAM1L__ |
+                        __AFM_SRAM2L__ | __AFM_SRAM3L__ | __AFM_SRAM4L__ | __AFM_BKRAML__ | __AFM_CM7L__ |
+                        __AFM_FLASHL__ | __AFM_PVDL__;
 
-                SYSCFG->CCCR  = (__AFM_PCC__ << SYSCFG_CCCR_PCC_Pos)
-                              | (__AFM_NCC__ << SYSCFG_CCCR_NCC_Pos);
+                SYSCFG->CCCR = (__AFM_PCC__ << SYSCFG_CCCR_PCC_Pos) | (__AFM_NCC__ << SYSCFG_CCCR_NCC_Pos);
 
                 if (__AFM_CMP_EN__) {
                         SET_BIT(RCC->CR, RCC_CR_CSION);
 
-                        SYSCFG->CCCSR = __AFM_HSLV__
-                                      | __AFM_CS__
-                                      | __AFM_CMP_EN__;
+                        SYSCFG->CCCSR = __AFM_HSLV__ | __AFM_CS__ | __AFM_CMP_EN__;
                 }
 
                 SYSCFG->UR13 = __AFM_D1SBRST__;
                 SYSCFG->UR14 = __AFM_D1STPRST__;
+
+                GPV_SET_AXI_QOS(1);
+                GPV_SET_AXI_QOS(2);
+                GPV_SET_AXI_QOS(3);
+                GPV_SET_AXI_QOS(4);
+                GPV_SET_AXI_QOS(5);
+                GPV_SET_AXI_QOS(6);
+                GPV_SET_AXI_QOS(7);
 
                 return ESUCC;
         } else {
@@ -195,13 +193,8 @@ API_MOD_CLOSE(AFM, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(AFM,
-              void            *device_handle,
-              const u8_t      *src,
-              size_t           count,
-              fpos_t          *fpos,
-              size_t          *wrcnt,
-              struct vfs_fattr fattr)
+API_MOD_WRITE(AFM, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, src, count, fpos, wrcnt, fattr);
 
@@ -222,13 +215,8 @@ API_MOD_WRITE(AFM,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(AFM,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(AFM, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, dst, count, fpos, rdcnt, fattr);
 
@@ -290,5 +278,5 @@ API_MOD_STAT(AFM, void *device_handle, struct vfs_dev_stat *device_stat)
 }
 
 /*==============================================================================
-                                             End of file
+  End of file
 ==============================================================================*/

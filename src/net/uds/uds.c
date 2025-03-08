@@ -933,7 +933,7 @@ static int socket_unregister(uds_t *uds, UDS_socket_t *socket)
         if (not err) {
                 err = ENOENT;
 
-                int pos = sys_llist_contains(uds->socket.list, socket);
+                int pos = sys_llist_find_begin(uds->socket.list, socket);
                 if (pos >= 0) {
                         if (sys_llist_take(uds->socket.list, pos) == socket) {
                                 err = 0;

@@ -25,6 +25,7 @@ Brief    External Memory Interface
 ==============================================================================*/
 
 // TODO Driver is not completed!
+// #pragma GCC optimize("Og")
 
 /*==============================================================================
   Include files
@@ -78,6 +79,8 @@ Brief    External Memory Interface
 #define SDRAM_MODE_REG_WRITE_BURST_MODE_Pos                    9
 #define SDRAM_MODE_REG_WRITE_BURST_MODE_PROG_LENGTH            (0 << SDRAM_MODE_REG_WRITE_BURST_MODE_Pos)
 #define SDRAM_MODE_REG_WRITE_BURST_MODE_SINGLE_LOCATION_ACCESS (1 << SDRAM_MODE_REG_WRITE_BURST_MODE_Pos)
+
+#define FMC_BCRx_RESET_VALUE                                   0x000030D2
 
 #if defined(ARCH_stm32f1)
 #error No FMC implementation!
@@ -176,6 +179,14 @@ API_MOD_INIT(EMI, void **device_handle, u8_t major, u8_t minor, const void *conf
 
                 SET_BIT(RCC->AHB3RSTR, RCC_AHB3RSTR_FMCRST);
                 CLEAR_BIT(RCC->AHB3RSTR, RCC_AHB3RSTR_FMCRST);
+
+                /*
+                 * AN4861 5.6.1 Disable FMC Bank1 if not used
+                 */
+                FMC_Bank1_R->BTCR[0] = FMC_BCRx_RESET_VALUE;
+                FMC_Bank1_R->BTCR[1] = FMC_BCRx_RESET_VALUE;
+                FMC_Bank1_R->BTCR[2] = FMC_BCRx_RESET_VALUE;
+                FMC_Bank1_R->BTCR[3] = FMC_BCRx_RESET_VALUE;
 
 #if (__EMI_SDRAM_1_ENABLE__ or __EMI_SDRAM_2_ENABLE__)
                 err = sdram_init();
@@ -349,7 +360,7 @@ static int sdram_test(void *address, size_t size)
 
         dev_dbg2(0, 0, "memory test @ %p of %u bytes", address, size);
 
-        for (size_t i = 0; i < ARRAY_SIZE(PATTERN); i++) {
+        for (size_t i = 0; not err and (i < ARRAY_SIZE(PATTERN)); i++) {
 
                 u32_t *ptr = address;
                 size_t len = size / sizeof(u32_t);
@@ -372,34 +383,40 @@ static int sdram_test(void *address, size_t size)
                 }
         }
 
-        u32_t *ptr = address;
-        size_t len = size / sizeof(u32_t);
+        float MB_per_s = 0;
 
-        clock_t tstart = sys_get_uptime_ms();
+        if (not err) {
+                u32_t *ptr = address;
+                size_t len = size / sizeof(u32_t);
 
-        while (len) {
-                *ptr++ = len;
-                len--;
-        }
+                clock_t tstart = sys_get_uptime_ms();
 
-        clock_t tstop     = sys_get_uptime_ms();
-        float   MB_per_s = cast(float, (size / (tstop - tstart))) / 1000.0f;
-
-        ptr = address;
-        len = size / sizeof(u32_t);
-        while (len) {
-                if (*ptr != len) {
-                        dev_dbg2(0, 0, "error @ %p", ptr);
-                        err = EFAULT;
-                        break;
+                while (len) {
+                        *ptr++ = len;
+                        len--;
                 }
-                ptr++;
-                len--;
+
+                clock_t tstop = sys_get_uptime_ms();
+                MB_per_s      = cast(float, (size / (tstop - tstart))) / 1000.0f;
+
+                ptr = address;
+                len = size / sizeof(u32_t);
+                while (len) {
+                        if (*ptr != len) {
+                                dev_dbg2(0, 0, "error @ %p", ptr);
+                                err = EFAULT;
+                                break;
+                        }
+                        ptr++;
+                        len--;
+                }
         }
 
         if (not err) {
                 dev_dbg2(0, 0, "memory test success.");
                 dev_dbg2(0, 0, "memory transfer: %0.3f MB/s.", MB_per_s);
+        } else {
+                dev_dbg2(0, 0, "memory test failed.");
         }
 
         return err;
@@ -469,18 +486,24 @@ static u32_t sdram_calculate_refresh_rate(void)
 //==============================================================================
 static int sdram_init(void)
 {
+        FMC_ENABLE();
+
         /*
          * 1. Program the memory device features into the FMC_SDCRx register.
          *    The SDRAM clock frequency, RBURST and RPIPE must be programmed
          *    in the FMC_SDCR1 register.
          */
+#if __EMI_SDRAM_1_ENABLE__ > 0
         if (__EMI_SDRAM_TWR__ < __EMI_SDRAM_TRAS__ - __EMI_SDRAM_1_TRCD__) {
                 dev_dbg2(0, 0, "SDRAM1 invalid tWR value!");
         }
+#endif
 
+#if __EMI_SDRAM_2_ENABLE__ > 0
         if (__EMI_SDRAM_TWR__ < __EMI_SDRAM_TRAS__ - __EMI_SDRAM_2_TRCD__) {
                 dev_dbg2(0, 0, "SDRAM2 invalid tWR value!");
         }
+#endif
 
         FMC_BANK_5_6->SDCR[0] = ((__EMI_SDRAM_RPIPE__ & 3) << FMC_SDCRx_RPIPE_Pos) |
                 ((__EMI_SDRAM_RBURST__ & 1) << FMC_SDCRx_RBURST_Pos) |
@@ -521,8 +544,6 @@ static int sdram_init(void)
                 (((__EMI_SDRAM_TRAS__ - 1) & 0xF) << FMC_SDTRx_TRAS_Pos) |
                 (((__EMI_SDRAM_TXSR__ - 1) & 0xF) << FMC_SDTRx_TXSR_Pos) |
                 (((__EMI_SDRAM_TMRD__ - 1) & 0xF) << FMC_SDTRx_TMRD_Pos);
-
-        FMC_ENABLE();
 
         /* From this point software is sending commands to SDRAM chips.*/
         /*
