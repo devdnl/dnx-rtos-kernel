@@ -5814,7 +5814,7 @@
 			};
 			[34]={
 				["key"]="__OS_HOSTNAME__";
-				["value"]="\"stm32f746g\"";
+				["value"]="\"stm32f746g-disco\"";
 			};
 			[35]={
 				["key"]="__OS_RTC_FILE_PATH__";

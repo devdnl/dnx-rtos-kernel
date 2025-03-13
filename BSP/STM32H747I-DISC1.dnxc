@@ -5898,7 +5898,7 @@
 			};
 			[34]={
 				["key"]="__OS_HOSTNAME__";
-				["value"]="\"sterownik\"";
+				["value"]="\"stm32h747i-disc1\"";
 			};
 			[35]={
 				["key"]="__OS_RTC_FILE_PATH__";

@@ -1317,6 +1317,17 @@ API_FS_REMOVE(flatfs, void *fs_handle, const char *path)
                 }
 
                 if (not err) {
+                        sys_llist_foreach (file_t *, file, hdl->open_files) {
+                                if (file->node_num == df_node_num) {
+                                        err = EBUSY;
+                                        break;
+                                }
+                        }
+                }
+
+                if (not err) {
+                        bool remove_node = true;
+
                         if (S_ISDIR(file->mode)) {
 
                                 size_t dir_name_len = strlen(hdl->tmp_path);
@@ -1326,18 +1337,33 @@ API_FS_REMOVE(flatfs, void *fs_handle, const char *path)
                                         blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
                                         err             = file_block_read(hdl, node, blk);
                                         if (!err) {
-                                                if (strncmp(blk->name, hdl->tmp_path, dir_name_len) == 0) {
-                                                        err = node_remove(hdl, node);
-                                                }
-                                        }
+                                                if ((strncmp(blk->name, hdl->tmp_path, dir_name_len) == 0) and
+                                                        (strcmp(blk->name, hdl->tmp_path) != 0)) {
 
-                                        if (err) {
+                                                        // TEST blokada usuniecia uzywanego pliku
+                                                        bool file_open = false;
+
+                                                        sys_llist_foreach (file_t *, file, hdl->open_files) {
+                                                                if (file->node_num == node) {
+                                                                        file_open   = true;
+                                                                        remove_node = false;
+                                                                        break;
+                                                                }
+                                                        }
+
+                                                        if (not file_open) {
+                                                                if (node_remove(hdl, node) != 0) {
+                                                                        remove_node = false;
+                                                                }
+                                                        }
+                                                }
+                                        } else {
                                                 goto finish;
                                         }
                                 }
                         }
 
-                        if (not err) {
+                        if (not err and remove_node) {
                                 err = node_remove(hdl, df_node_num);
                         }
                 }
