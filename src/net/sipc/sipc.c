@@ -807,13 +807,13 @@ int SIPC_ifstatus(void *ctx, NETM_SIPC_status_t *status, size_t status_size)
  * @return One of @ref errno value.
  */
 //==============================================================================
-int SIPC_socket_create(void *ctx, NETM_protocol_t prot, SIPC_socket_t *socket)
+int SIPC_socket_create(void *ctx, NETM_socket_type_t type, u8_t prot, SIPC_socket_t *socket)
 {
-        UNUSED_ARG1(ctx);
+        UNUSED_ARG2(ctx, prot);
 
         int err = EINVAL;
 
-        if (prot == NETM_PROTOCOL__STREAM) {
+        if (type == NETM_SOCKET_TYPE__STREAM) {
 
                 socket->port         = 0;
                 socket->recv_timeout = _MAX_DELAY_MS;

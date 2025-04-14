@@ -149,7 +149,7 @@ typedef enum {
         SYSCALL_NETIFDOWN,              // int errno (const char *netname)
         SYSCALL_NETIFSTATUS,            // int errno (const char *netname, NET_family_t *family, NET_generic_status_t *status, size_t *status_size)
         SYSCALL_NETGETHOSTBYNAME,       // int errno (const char *netname, const char *name, void *addr, size_t *addr_size)
-        SYSCALL_NETSOCKETCREATE,        // int errno (int *fd, const char *netname, NET_protocol_t *protocol)
+        SYSCALL_NETSOCKETCREATE,        // int errno (int *fd, const char *netname, NET_socket_type_t *type, u8_t *protocol)
         SYSCALL_NETBIND,                // int errno (int *fd, const NET_generic_sockaddr_t *addr, size_t *addr_size)
         SYSCALL_NETLISTEN,              // int errno (int *fd)
         SYSCALL_NETACCEPT,              // int errno (int *fd, int *new_fd)
@@ -483,7 +483,7 @@ static const syscallfunc_t syscalltab[] = {
 /*==============================================================================
   Exported objects
 ==============================================================================*/
-const char *const        dnx_RTOS_version       = "3.5.0";
+const char *const        dnx_RTOS_version       = "3.6.0";
 const char *const        dnx_RTOS_name          = "dnx RTOS";
 const char *const        dnx_RTOS_commit_hash   = COMMIT_HASH;
 const char *const        dnx_RTOS_platform_name = _CPUCTL_PLATFORM_NAME;
@@ -2192,10 +2192,11 @@ static int syscall_netsocketcreate(syscallrq_t *rq)
 #if _ENABLE_NETWORK_ == _YES_
         GETARG(int *, fd);
         GETARG(const char *, netname);
-        GETARG(NETM_protocol_t *, protocol);
+        GETARG(NETM_socket_type_t *, type);
+        GETARG(u8_t *, protocol);
 
         ksocket_t *socket;
-        int        err = _net_socket_create(netname, *protocol, &socket);
+        int        err = _net_socket_create(netname, *type, *protocol, &socket);
         if (!err) {
                 err = _process_descriptor_allocate(GETPROCESS(), fd, cast(res_header_t *, socket), false);
                 if (err) {

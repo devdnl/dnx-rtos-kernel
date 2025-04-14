@@ -59,7 +59,7 @@ typedef struct UDS_socket {
         kqueue_t          *buf;
         kqueue_t          *conn_req;
         struct UDS_socket *conn_sock;
-        NETM_protocol_t    protocol;
+        NETM_socket_type_t type;
         u32_t              recv_timeout;
         u32_t              send_timeout;
         NETM_shut_t        shutdown;
@@ -78,21 +78,18 @@ extern int   UDS_ifdeinit(void *);
 extern int   UDS_ifup(void *, const NETM_UDS_config_t *, size_t);
 extern int   UDS_ifdown(void *);
 extern int   UDS_ifstatus(void *, NETM_UDS_status_t *, size_t);
-extern int   UDS_socket_create(void *, NETM_protocol_t, UDS_socket_t *);
+extern int   UDS_socket_create(void *, NETM_socket_type_t, u8_t, UDS_socket_t *);
 extern int   UDS_socket_destroy(void *, UDS_socket_t *);
-extern int   UDS_socket_connect(void *, UDS_socket_t *, const NETM_UDS_sockaddr_t *,
-          size_t);
+extern int   UDS_socket_connect(void *, UDS_socket_t *, const NETM_UDS_sockaddr_t *, size_t);
 extern int   UDS_socket_disconnect(void *, UDS_socket_t *);
 extern int   UDS_socket_shutdown(void *, UDS_socket_t *, NETM_shut_t);
 extern int   UDS_socket_bind(void *, UDS_socket_t *, const NETM_UDS_sockaddr_t *, size_t);
 extern int   UDS_socket_listen(void *, UDS_socket_t *);
 extern int   UDS_socket_accept(void *, UDS_socket_t *, UDS_socket_t *);
-extern int   UDS_socket_recv(void *, UDS_socket_t *, void *, size_t, NETM_flags_t,
-          size_t *);
-extern int   UDS_socket_recvfrom(void *, UDS_socket_t *, void *, size_t, NETM_flags_t,
-          NETM_UDS_sockaddr_t *, size_t, size_t *);
-extern int   UDS_socket_send(void *, UDS_socket_t *, const void *, size_t, NETM_flags_t,
-          size_t *);
+extern int   UDS_socket_recv(void *, UDS_socket_t *, void *, size_t, NETM_flags_t, size_t *);
+extern int   UDS_socket_recvfrom(void *, UDS_socket_t *, void *, size_t, NETM_flags_t, NETM_UDS_sockaddr_t *,
+          size_t, size_t *);
+extern int   UDS_socket_send(void *, UDS_socket_t *, const void *, size_t, NETM_flags_t, size_t *);
 extern int   UDS_socket_sendto(void *, UDS_socket_t *, const void *, size_t, NETM_flags_t,
           const NETM_UDS_sockaddr_t *, size_t, size_t *);
 extern int   UDS_gethostbyname(void *, const char *, NETM_UDS_sockaddr_t *, size_t);

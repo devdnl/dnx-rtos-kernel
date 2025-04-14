@@ -2224,7 +2224,7 @@
 			};
 			[34]={
 				["key"]="__OS_HOSTNAME__";
-				["value"]="\"dnxboard\"";
+				["value"]="\"rpipico\"";
 			};
 			[35]={
 				["key"]="__OS_RTC_FILE_PATH__";

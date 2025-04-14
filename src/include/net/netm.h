@@ -74,7 +74,151 @@ extern "C" {
 #define NETM_INET_IPv4_c(ip) ((ip >> 8) & 0xFF)
 
 /** Macro gets part <i>d</i> of INET family network address. */
-#define NETM_INET_IPv4_d(ip) ((ip >> 0) & 0xFF)
+#define NETM_INET_IPv4_d(ip)               ((ip >> 0) & 0xFF)
+
+#define NETM_INET_PROTOCOL_HOPOPT          0
+#define NETM_INET_PROTOCOL_ICMP            1
+#define NETM_INET_PROTOCOL_IGMP            2
+#define NETM_INET_PROTOCOL_GGP             3
+#define NETM_INET_PROTOCOL_IP_IN_IP        4
+#define NETM_INET_PROTOCOL_ST              5
+#define NETM_INET_PROTOCOL_TCP             6
+#define NETM_INET_PROTOCOL_CBT             7
+#define NETM_INET_PROTOCOL_EGP             8
+#define NETM_INET_PROTOCOL_IGP             9
+#define NETM_INET_PROTOCOL_BBN_RCC_MON     10
+#define NETM_INET_PROTOCOL_NVP_II          11
+#define NETM_INET_PROTOCOL_PUP             12
+#define NETM_INET_PROTOCOL_ARGUS           13
+#define NETM_INET_PROTOCOL_EMCON           14
+#define NETM_INET_PROTOCOL_XNET            15
+#define NETM_INET_PROTOCOL_CHAOS           16
+#define NETM_INET_PROTOCOL_UDP             17
+#define NETM_INET_PROTOCOL_MUX             18
+#define NETM_INET_PROTOCOL_DCN_MEAS        19
+#define NETM_INET_PROTOCOL_HMP             20
+#define NETM_INET_PROTOCOL_PRM             21
+#define NETM_INET_PROTOCOL_XNS_IDP         22
+#define NETM_INET_PROTOCOL_TRUNK_1         23
+#define NETM_INET_PROTOCOL_TRUNK_2         24
+#define NETM_INET_PROTOCOL_LEAF_1          25
+#define NETM_INET_PROTOCOL_LEAF_2          26
+#define NETM_INET_PROTOCOL_RDP             27
+#define NETM_INET_PROTOCOL_IRTP            28
+#define NETM_INET_PROTOCOL_ISO_TP4         29
+#define NETM_INET_PROTOCOL_NETBLT          30
+#define NETM_INET_PROTOCOL_MFE_NSP         31
+#define NETM_INET_PROTOCOL_MERIT_INP       32
+#define NETM_INET_PROTOCOL_DCCP            33
+#define NETM_INET_PROTOCOL_3PC             34
+#define NETM_INET_PROTOCOL_IDPR            35
+#define NETM_INET_PROTOCOL_XTP             36
+#define NETM_INET_PROTOCOL_DDP             37
+#define NETM_INET_PROTOCOL_IDPR_CMTP       38
+#define NETM_INET_PROTOCOL_TP              39
+#define NETM_INET_PROTOCOL_IL              40
+#define NETM_INET_PROTOCOL_IPV6            41
+#define NETM_INET_PROTOCOL_SDRP            42
+#define NETM_INET_PROTOCOL_IPV6_ROUTE      43
+#define NETM_INET_PROTOCOL_IPV6_FRAG       44
+#define NETM_INET_PROTOCOL_IDRP            45
+#define NETM_INET_PROTOCOL_RSVP            46
+#define NETM_INET_PROTOCOL_GRE             47
+#define NETM_INET_PROTOCOL_DSR             48
+#define NETM_INET_PROTOCOL_BNA             49
+#define NETM_INET_PROTOCOL_ESP             50
+#define NETM_INET_PROTOCOL_AH              51
+#define NETM_INET_PROTOCOL_I_NLSP          52
+#define NETM_INET_PROTOCOL_SWIPE           53
+#define NETM_INET_PROTOCOL_NARP            54
+#define NETM_INET_PROTOCOL_MOBILE          55
+#define NETM_INET_PROTOCOL_TLSP            56
+#define NETM_INET_PROTOCOL_SKIP            57
+#define NETM_INET_PROTOCOL_IPV6_ICMP       58
+#define NETM_INET_PROTOCOL_IPV6_NONXT      59
+#define NETM_INET_PROTOCOL_IPV6_OPTS       60
+#define NETM_INET_PROTOCOL_ANY             61
+#define NETM_INET_PROTOCOL_CFTP            62
+#define NETM_INET_PROTOCOL_SAT_EXPAK       64
+#define NETM_INET_PROTOCOL_KRYPTOLAN       65
+#define NETM_INET_PROTOCOL_RVD             66
+#define NETM_INET_PROTOCOL_IPPC            67
+#define NETM_INET_PROTOCOL_SAT_MON         69
+#define NETM_INET_PROTOCOL_VISA            70
+#define NETM_INET_PROTOCOL_IPCU            71
+#define NETM_INET_PROTOCOL_CPNX            72
+#define NETM_INET_PROTOCOL_CPHB            73
+#define NETM_INET_PROTOCOL_WSN             74
+#define NETM_INET_PROTOCOL_PVP             75
+#define NETM_INET_PROTOCOL_BR_SAT_MON      76
+#define NETM_INET_PROTOCOL_SUN_ND          77
+#define NETM_INET_PROTOCOL_WB_MON          78
+#define NETM_INET_PROTOCOL_WB_EXPAK        79
+#define NETM_INET_PROTOCOL_ISO_IP          80
+#define NETM_INET_PROTOCOL_VMTP            81
+#define NETM_INET_PROTOCOL_SECURE_VMTP     82
+#define NETM_INET_PROTOCOL_VINES           83
+#define NETM_INET_PROTOCOL_TTP             84
+#define NETM_INET_PROTOCOL_IPTM            84
+#define NETM_INET_PROTOCOL_NSFNET_IGP      85
+#define NETM_INET_PROTOCOL_DGP             86
+#define NETM_INET_PROTOCOL_TCF             87
+#define NETM_INET_PROTOCOL_EIGRP           88
+#define NETM_INET_PROTOCOL_OSPF            89
+#define NETM_INET_PROTOCOL_SPRITE_RPC      90
+#define NETM_INET_PROTOCOL_LARP            91
+#define NETM_INET_PROTOCOL_MTP             92
+#define NETM_INET_PROTOCOL_AX              93
+#define NETM_INET_PROTOCOL_OS              94
+#define NETM_INET_PROTOCOL_MICP            95
+#define NETM_INET_PROTOCOL_SCC_SP          96
+#define NETM_INET_PROTOCOL_ETHERIP         97
+#define NETM_INET_PROTOCOL_ENCAP           98
+#define NETM_INET_PROTOCOL_GMTP            100
+#define NETM_INET_PROTOCOL_IFMP            101
+#define NETM_INET_PROTOCOL_PNNI            102
+#define NETM_INET_PROTOCOL_PIM             103
+#define NETM_INET_PROTOCOL_ARIS            104
+#define NETM_INET_PROTOCOL_SCPS            105
+#define NETM_INET_PROTOCOL_QNX             106
+#define NETM_INET_PROTOCOL_A               107
+#define NETM_INET_PROTOCOL_IPCOMP          108
+#define NETM_INET_PROTOCOL_SNP             109
+#define NETM_INET_PROTOCOL_COMPAQ_PEER     110
+#define NETM_INET_PROTOCOL_IPX_IN_IP       111
+#define NETM_INET_PROTOCOL_VRRP            112
+#define NETM_INET_PROTOCOL_PGM             113
+#define NETM_INET_PROTOCOL_L2TP            115
+#define NETM_INET_PROTOCOL_DDX             116
+#define NETM_INET_PROTOCOL_IATP            117
+#define NETM_INET_PROTOCOL_STP             118
+#define NETM_INET_PROTOCOL_SRP             119
+#define NETM_INET_PROTOCOL_UTI             120
+#define NETM_INET_PROTOCOL_SMP             121
+#define NETM_INET_PROTOCOL_SM              122
+#define NETM_INET_PROTOCOL_PTP             123
+#define NETM_INET_PROTOCOL_IS_IS           124
+#define NETM_INET_PROTOCOL_FIRE            125
+#define NETM_INET_PROTOCOL_CRTP            126
+#define NETM_INET_PROTOCOL_CRUDP           127
+#define NETM_INET_PROTOCOL_SSCOPMCE        128
+#define NETM_INET_PROTOCOL_IPLT            129
+#define NETM_INET_PROTOCOL_SPS             130
+#define NETM_INET_PROTOCOL_PIPE            131
+#define NETM_INET_PROTOCOL_SCTP            132
+#define NETM_INET_PROTOCOL_FC              133
+#define NETM_INET_PROTOCOL_RSVP_E2E_IGNORE 134
+#define NETM_INET_PROTOCOL_MOBILITY        135
+#define NETM_INET_PROTOCOL_UDPLITE         136
+#define NETM_INET_PROTOCOL_MPLS_IN_IP      137
+#define NETM_INET_PROTOCOL_MANET           138
+#define NETM_INET_PROTOCOL_HIP             139
+#define NETM_INET_PROTOCOL_SHIM6           140
+#define NETM_INET_PROTOCOL_WESP            141
+#define NETM_INET_PROTOCOL_ROHC            142
+#define NETM_INET_PROTOCOL_ETHERNET        143
+#define NETM_INET_PROTOCOL_AGGFRAG         144
+#define NETM_INET_PROTOCOL_NSH             145
 
 /*------------------------------------------------------------------------------
   SIPC NETWORK FAMILY
@@ -104,16 +248,13 @@ typedef enum {
         _NETM_FAMILY__COUNT
 } NETM_family_t;
 
-/** Protocol selection. Not all protocols are available for all family networks. */
+/** Socket type. */
 typedef enum {
-        NETM_PROTOCOL__DATAGRAM,                      //!< DATAGRAM type protocol
-        NETM_PROTOCOL__STREAM,                        //!< STREAM type protocol
-        NETM_PROTOCOL__UDP = NETM_PROTOCOL__DATAGRAM, //!< UDP protocol.
-        NETM_PROTOCOL__TCP = NETM_PROTOCOL__STREAM,   //!< TCP protocol.
-        NETM_PROTOCOL__RAW_ICMP,                      //!< ICMP type protocol
-        NETM_PROTOCOL__RAW_IGMP,                      //!< IGMP type protocol
-        _NETM_PROTOCOL__COUNT,                        //!< number of protocols
-} NETM_protocol_t;
+        NETM_SOCKET_TYPE__DATAGRAM, //!< DATAGRAM type socket
+        NETM_SOCKET_TYPE__STREAM,   //!< STREAM type socket
+        NETM_SOCKET_TYPE__RAW,      //!< RAW type socket
+        NETM_SOCKET_TYPE_COUNT,     //!< number of protocols
+} NETM_socket_type_t;
 
 /** Control flags. */
 typedef enum {
@@ -299,16 +440,15 @@ extern int _net_iflist(char **, size_t, size_t *);
 extern int _net_ifup(const char *, const NETM_generic_config_t *, size_t);
 extern int _net_ifdown(const char *);
 extern int _net_ifstatus(const char *, NETM_family_t *, NETM_generic_status_t *, size_t);
-extern int _net_gethostbyname(const char *, const char *, NETM_generic_sockaddr_t *,
-        size_t);
-extern int _net_socket_create(const char *, NETM_protocol_t, ksocket_t **);
+extern int _net_gethostbyname(const char *, const char *, NETM_generic_sockaddr_t *, size_t);
+extern int _net_socket_create(const char *, NETM_socket_type_t, u8_t, ksocket_t **);
 extern int _net_socket_destroy(ksocket_t *);
 extern int _net_socket_bind(ksocket_t *, const NETM_generic_sockaddr_t *, size_t);
 extern int _net_socket_listen(ksocket_t *);
 extern int _net_socket_accept(ksocket_t *, ksocket_t **);
 extern int _net_socket_recv(ksocket_t *, void *, size_t, NETM_flags_t, size_t *);
-extern int _net_socket_recvfrom(ksocket_t *, void *, size_t, NETM_flags_t,
-        NETM_generic_sockaddr_t *, size_t, size_t *);
+extern int _net_socket_recvfrom(ksocket_t *, void *, size_t, NETM_flags_t, NETM_generic_sockaddr_t *, size_t,
+        size_t *);
 extern int _net_socket_send(ksocket_t *, const void *, size_t, NETM_flags_t, size_t *);
 extern int _net_socket_sendto(ksocket_t *, const void *, size_t, NETM_flags_t,
         const NETM_generic_sockaddr_t *, size_t, size_t *);
