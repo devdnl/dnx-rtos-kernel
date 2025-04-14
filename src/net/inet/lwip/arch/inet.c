@@ -38,6 +38,7 @@ Brief    Network management.
 #include "lwip/netif.h"
 #include "lwip/prot/dhcp.h"
 #include "lwip/tcpip.h"
+#include "lwip/dns.h"
 #include "netif/etharp.h"
 
 /*==============================================================================
@@ -45,9 +46,8 @@ Brief    Network management.
 ==============================================================================*/
 #define MAXIMUM_SAFE_UDP_PAYLOAD 1024
 
-#define zalloc(_size, _pptr) \
-        _kzalloc(_MM_NET, _size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, _pptr)
-#define zfree(_pptr) _kfree(_MM_NET, _pptr)
+#define zalloc(_size, _pptr)     _kzalloc(_MM_NET, _size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, _pptr)
+#define zfree(_pptr)             _kfree(_MM_NET, _pptr)
 
 /*==============================================================================
   Local object types
@@ -63,8 +63,9 @@ static dhcp_state_enum_t DHCP_get_state(inet_t *inet);
 static void              restore_configuration(inet_t *inet);
 static int               DHCP_start_client(inet_t *inet);
 static err_t             netif_configure(struct netif *netif);
-static int apply_static_IP_configuration(inet_t *inet, const ip_addr_t *ip_address,
-        const ip_addr_t *net_mask, const ip_addr_t *gateway);
+static int               load_dns_file(inet_t *inet);
+static int apply_static_IP_configuration(inet_t *inet, const ip_addr_t *ip_address, const ip_addr_t *net_mask,
+        const ip_addr_t *gateway);
 
 /*==============================================================================
   External function prototypes
@@ -187,8 +188,7 @@ static void restore_configuration(inet_t *inet)
                         if (was_DHCP) {
                                 DHCP_start_client(inet);
                         } else {
-                                apply_static_IP_configuration(inet, &ip_addr, &netmask,
-                                        &gw);
+                                apply_static_IP_configuration(inet, &ip_addr, &netmask, &gw);
                         }
                 }
 
@@ -269,8 +269,8 @@ static int network_interface_thread(void *arg)
 //==============================================================================
 static void create_addr(NETM_INET_IPv4_t *addr, const ip_addr_t *lwip_addr)
 {
-        *addr = NETM_INET_IPv4(ip4_addr1(lwip_addr), ip4_addr2(lwip_addr),
-                ip4_addr3(lwip_addr), ip4_addr4(lwip_addr));
+        *addr = NETM_INET_IPv4(ip4_addr1(lwip_addr), ip4_addr2(lwip_addr), ip4_addr3(lwip_addr),
+                ip4_addr4(lwip_addr));
 }
 
 //==============================================================================
@@ -282,8 +282,8 @@ static void create_addr(NETM_INET_IPv4_t *addr, const ip_addr_t *lwip_addr)
 //==============================================================================
 static void create_lwIP_addr(ip_addr_t *lwip_addr, const NETM_INET_IPv4_t *addr)
 {
-        IP4_ADDR(lwip_addr, NETM_INET_IPv4_a(*addr), NETM_INET_IPv4_b(*addr),
-                NETM_INET_IPv4_c(*addr), NETM_INET_IPv4_d(*addr));
+        IP4_ADDR(lwip_addr, NETM_INET_IPv4_a(*addr), NETM_INET_IPv4_b(*addr), NETM_INET_IPv4_c(*addr),
+                NETM_INET_IPv4_d(*addr));
 }
 
 //==============================================================================
@@ -295,13 +295,12 @@ static void create_lwIP_addr(ip_addr_t *lwip_addr, const NETM_INET_IPv4_t *addr)
  * @return One of @ref errno value.
  */
 //==============================================================================
-static int apply_static_IP_configuration(inet_t *inet, const ip_addr_t *ip_address,
-        const ip_addr_t *net_mask, const ip_addr_t *gateway)
+static int apply_static_IP_configuration(inet_t *inet, const ip_addr_t *ip_address, const ip_addr_t *net_mask,
+        const ip_addr_t *gateway)
 {
         int status = EINVAL;
 
-        if (inet && ip_address && net_mask && gateway && !netif_is_up(&inet->netif) &&
-                is_init_done(inet) &&
+        if (inet && ip_address && net_mask && gateway && !netif_is_up(&inet->netif) && is_init_done(inet) &&
                 sys_mutex_lock(inet->access, ACCESS_TIMEOUT) == ESUCC) {
 
                 clear_rx_tx_counters(inet);
@@ -319,6 +318,60 @@ static int apply_static_IP_configuration(inet_t *inet, const ip_addr_t *ip_addre
         }
 
         return status;
+}
+
+//==============================================================================
+/**
+ * @brief  Load DNS list file.
+ * @param  inet         inet instance
+ * @return One of @ref errno value.
+ */
+//==============================================================================
+static int load_dns_file(inet_t *inet)
+{
+        UNUSED_ARG1(inet);
+
+        if (isstrempty(__NETWORK_LWIP_DNS_LIST_PATH__)) {
+                return 0;
+        }
+
+        kfile_t *dns_file;
+        int      err = sys_fopen(__NETWORK_LWIP_DNS_LIST_PATH__, O_RDONLY, 0, &dns_file);
+        if (err) {
+                printk("INET: no such DNS file: '%s'", __NETWORK_LWIP_DNS_LIST_PATH__);
+                return err;
+        }
+
+        char   buf[128] = {0};
+        size_t rdcnt;
+        if (sys_fread(buf, sizeof(buf) - 1, &rdcnt, dns_file) == 0) {
+
+                char *ptr    = buf;
+                u8_t  numdns = 0;
+
+                while (*ptr and (numdns < DNS_MAX_SERVERS)) {
+                        uint a = 0, b = 0, c = 0, d = 0;
+
+                        if (sys_sscanf(ptr, "%u.%u.%u.%u", &a, &b, &c, &d) == 4) {
+                                printk("INET: added DNS: %u.%u.%u.%u\n", a, b, c, d);
+
+                                ip_addr_t dns;
+                                IP_ADDR4(&dns, a, b, c, d);
+                                dns_setserver(numdns++, &dns);
+                        }
+
+                        ptr = strchr(ptr, '\n');
+                        if (ptr == NULL) {
+                                break;
+                        } else {
+                                ptr++;
+                        }
+                };
+        }
+
+        sys_fclose(dns_file);
+
+        return err;
 }
 
 //==============================================================================
@@ -366,8 +419,8 @@ static int DHCP_start_client(inet_t *inet)
 
                 clear_rx_tx_counters(inet);
                 netif_set_down(&inet->netif);
-                netif_set_addr(&inet->netif, const_cast(&ip_addr_any),
-                        const_cast(&ip_addr_any), const_cast(&ip_addr_any));
+                netif_set_addr(&inet->netif, const_cast(&ip_addr_any), const_cast(&ip_addr_any),
+                        const_cast(&ip_addr_any));
                 netif_set_up(&inet->netif);
                 netif_set_link_up(&inet->netif);
 
@@ -407,8 +460,7 @@ static int DHCP_inform_server(inet_t *inet)
 {
         int status = ENONET;
 
-        if (inet && netif_is_up(&inet->netif) &&
-                (DHCP_get_state(inet) == DHCP_STATE_OFF) &&
+        if (inet && netif_is_up(&inet->netif) && (DHCP_get_state(inet) == DHCP_STATE_OFF) &&
                 sys_mutex_lock(inet->access, ACCESS_TIMEOUT) == ESUCC) {
 
                 dhcp_inform(&inet->netif);
@@ -430,8 +482,7 @@ static int DHCP_renew_connection(inet_t *inet)
 {
         int status = ENONET;
 
-        if (inet && netif_is_up(&inet->netif) &&
-                (DHCP_get_state(inet) != DHCP_STATE_OFF) &&
+        if (inet && netif_is_up(&inet->netif) && (DHCP_get_state(inet) != DHCP_STATE_OFF) &&
                 sys_mutex_lock(inet->access, ACCESS_TIMEOUT) == ESUCC) {
 
                 if (dhcp_renew(&inet->netif) == ERR_OK) {
@@ -476,8 +527,7 @@ static err_t netif_configure(struct netif *netif)
         netif->linkoutput = _inetdrv_handle_output;
         netif->mtu        = 1500;
         netif->hwaddr_len = ETHARP_HWADDR_LEN;
-        netif->flags = NETIF_FLAG_ETHERNET | NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP |
-                NETIF_FLAG_IGMP;
+        netif->flags      = NETIF_FLAG_ETHERNET | NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_IGMP;
 
         return ERR_OK;
 }
@@ -513,8 +563,7 @@ int INET_ifinit(void **ctx, const char *if_path)
 
         int ferr = sys_fopen(if_path, O_RDWR, 0, &inet->if_file);
         int merr = sys_mutex_create(KMTX_TYPE_RECURSIVE, &inet->access);
-        int terr = sys_thread_create(network_interface_thread, &attr, inet,
-                &inet->if_thread);
+        int terr = sys_thread_create(network_interface_thread, &attr, inet, &inet->if_thread);
         int qerr = sys_queue_create(LWIP_LOOPBACK_MAX_PBUFS, sizeof(void *), &inet->loq);
 
         if (!ferr && !merr && !terr && !qerr) {
@@ -523,9 +572,8 @@ int INET_ifinit(void **ctx, const char *if_path)
 
                 tcpip_init(NULL, NULL);
 
-                netif_add(&inet->netif, const_cast(&ip_addr_any),
-                        const_cast(&ip_addr_any), const_cast(&ip_addr_any), inet,
-                        netif_configure, tcpip_input);
+                netif_add(&inet->netif, const_cast(&ip_addr_any), const_cast(&ip_addr_any),
+                        const_cast(&ip_addr_any), inet, netif_configure, tcpip_input);
 
                 netif_set_default(&inet->netif);
 
@@ -616,6 +664,8 @@ int INET_ifup(void *ctx, const NETM_INET_config_t *cfg, size_t cfg_size)
                         create_lwIP_addr(&mask, &cfg->mask);
                         create_lwIP_addr(&gateway, &cfg->gateway);
 
+                        load_dns_file(inet);
+
                         err = apply_static_IP_configuration(inet, &addr, &mask, &gateway);
 
                         break;
@@ -653,8 +703,7 @@ int INET_ifdown(void *ctx)
 
         int status = ENONET;
 
-        if (inet && netif_is_up(&inet->netif) &&
-                sys_mutex_lock(inet->access, ACCESS_TIMEOUT) == ESUCC) {
+        if (inet && netif_is_up(&inet->netif) && sys_mutex_lock(inet->access, ACCESS_TIMEOUT) == ESUCC) {
 
                 if ((DHCP_get_state(inet) != DHCP_STATE_OFF)) {
                         if (dhcp_release(&inet->netif) == ERR_OK) {
@@ -740,37 +789,29 @@ int INET_ifstatus(void *ctx, NETM_INET_status_t *status, size_t status_size)
 //==============================================================================
 /**
  * @brief  Function create socket container.
+ * @param  type         socket type
  * @param  prot         protocol
  * @param  inet_sock    inet socket
  * @return One of @ref errno value.
  */
 //==============================================================================
-int INET_socket_create(void *ctx, NETM_protocol_t prot, INET_socket_t *inet_sock)
+int INET_socket_create(void *ctx, NETM_socket_type_t type, u8_t prot, INET_socket_t *inet_sock)
 {
         UNUSED_ARG1(ctx);
 
         int err = EINVAL;
 
-        if (prot >= _NETM_PROTOCOL__COUNT) {
+        if (type >= NETM_SOCKET_TYPE_COUNT) {
                 return err;
         }
 
-        static const enum netconn_type type[] = {
-                [NETM_PROTOCOL__RAW_ICMP] = NETCONN_RAW,
-                [NETM_PROTOCOL__RAW_IGMP] = NETCONN_RAW,
-                [NETM_PROTOCOL__UDP]      = NETCONN_UDP,
-                [NETM_PROTOCOL__TCP]      = NETCONN_TCP,
+        static const enum netconn_type LWIP_TYPE[] = {
+                [NETM_SOCKET_TYPE__RAW]      = NETCONN_RAW,
+                [NETM_SOCKET_TYPE__DATAGRAM] = NETCONN_UDP,
+                [NETM_SOCKET_TYPE__STREAM]   = NETCONN_TCP,
         };
 
-        static const u8_t proto[] = {
-                [NETM_PROTOCOL__RAW_ICMP] = IP_PROTO_ICMP,
-                [NETM_PROTOCOL__RAW_IGMP] = IP_PROTO_IGMP,
-                [NETM_PROTOCOL__UDP]      = 0,
-                [NETM_PROTOCOL__TCP]      = 0,
-        };
-
-        inet_sock->netconn = netconn_new_with_proto_and_callback(type[prot], proto[prot],
-                NULL);
+        inet_sock->netconn = netconn_new_with_proto_and_callback(LWIP_TYPE[type], prot, NULL);
 
         if (inet_sock->netconn) {
                 err = ESUCC;
@@ -817,8 +858,8 @@ int INET_socket_destroy(void *ctx, INET_socket_t *inet_sock)
  * @return One of @ref errno value.
  */
 //==============================================================================
-int INET_socket_connect(void *ctx, INET_socket_t *inet_sock,
-        const NETM_INET_sockaddr_t *addr, size_t addr_size)
+int INET_socket_connect(void *ctx, INET_socket_t *inet_sock, const NETM_INET_sockaddr_t *addr,
+        size_t addr_size)
 {
         UNUSED_ARG1(ctx);
 
@@ -864,8 +905,7 @@ int INET_socket_shutdown(void *ctx, INET_socket_t *inet_sock, NETM_shut_t how)
 {
         UNUSED_ARG1(ctx);
 
-        return err_to_errno(netconn_shutdown(inet_sock->netconn, how & NETM_SHUT__RD,
-                how & NETM_SHUT__WR));
+        return err_to_errno(netconn_shutdown(inet_sock->netconn, how & NETM_SHUT__RD, how & NETM_SHUT__WR));
 }
 
 //==============================================================================
@@ -877,8 +917,7 @@ int INET_socket_shutdown(void *ctx, INET_socket_t *inet_sock, NETM_shut_t how)
  * @return One of @ref errno value.
  */
 //==============================================================================
-int INET_socket_bind(void *ctx, INET_socket_t *inet_sock,
-        const NETM_INET_sockaddr_t *addr, size_t addr_size)
+int INET_socket_bind(void *ctx, INET_socket_t *inet_sock, const NETM_INET_sockaddr_t *addr, size_t addr_size)
 {
         UNUSED_ARG1(ctx);
 
@@ -932,8 +971,8 @@ int INET_socket_accept(void *ctx, INET_socket_t *inet_sock, INET_socket_t *new_i
  * @return One of @ref errno value.
  */
 //==============================================================================
-int INET_socket_recv(void *ctx, INET_socket_t *inet_sock, void *buf, size_t len,
-        NETM_flags_t flags, size_t *recved)
+int INET_socket_recv(void *ctx, INET_socket_t *inet_sock, void *buf, size_t len, NETM_flags_t flags,
+        size_t *recved)
 {
         UNUSED_ARG1(ctx);
 
@@ -943,15 +982,13 @@ int INET_socket_recv(void *ctx, INET_socket_t *inet_sock, void *buf, size_t len,
 
         int err = ESUCC;
         if (inet_sock->netbuf_recv == NULL) {
-                err = err_to_errno(
-                        netconn_recv(inet_sock->netconn, &inet_sock->netbuf_recv));
+                err = err_to_errno(netconn_recv(inet_sock->netconn, &inet_sock->netbuf_recv));
         }
 
         if (!err) {
                 len = min(len, UINT16_MAX);
 
-                u16_t sz = netbuf_copy_partial(inet_sock->netbuf_recv, buf, len,
-                        inet_sock->seek);
+                u16_t sz = netbuf_copy_partial(inet_sock->netbuf_recv, buf, len, inet_sock->seek);
 
                 inet_sock->seek += sz;
                 *recved = sz;
@@ -981,9 +1018,8 @@ int INET_socket_recv(void *ctx, INET_socket_t *inet_sock, void *buf, size_t len,
  * @return One of @ref errno value.
  */
 //==============================================================================
-int INET_socket_recvfrom(void *ctx, INET_socket_t *inet_sock, void *buf, size_t len,
-        NETM_flags_t flags, NETM_INET_sockaddr_t *sockaddr, size_t sockaddr_size,
-        size_t *recved)
+int INET_socket_recvfrom(void *ctx, INET_socket_t *inet_sock, void *buf, size_t len, NETM_flags_t flags,
+        NETM_INET_sockaddr_t *sockaddr, size_t sockaddr_size, size_t *recved)
 {
         UNUSED_ARG2(ctx, flags);
 
@@ -1029,8 +1065,8 @@ int INET_socket_recvfrom(void *ctx, INET_socket_t *inet_sock, void *buf, size_t 
  * @return One of @ref errno value.
  */
 //==============================================================================
-int INET_socket_send(void *ctx, INET_socket_t *inet_sock, const void *buf, size_t len,
-        NETM_flags_t flags, size_t *sent)
+int INET_socket_send(void *ctx, INET_socket_t *inet_sock, const void *buf, size_t len, NETM_flags_t flags,
+        size_t *sent)
 {
         UNUSED_ARG1(ctx);
 
@@ -1050,8 +1086,7 @@ int INET_socket_send(void *ctx, INET_socket_t *inet_sock, const void *buf, size_
                         lwip_flags |= NETCONN_MORE;
                 }
 
-                err = err_to_errno(netconn_write_partly(inet_sock->netconn, buf, len,
-                        lwip_flags, sent));
+                err = err_to_errno(netconn_write_partly(inet_sock->netconn, buf, len, lwip_flags, sent));
 
         } else if (type == NETCONN_UDP) {
 
@@ -1063,11 +1098,9 @@ int INET_socket_send(void *ctx, INET_socket_t *inet_sock, const void *buf, size_
 
                         if (inet_sock->netbuf_send) {
                                 if (flags & NETM_FLAGS__NOCOPY) {
-                                        err = err_to_errno(netbuf_ref(
-                                                inet_sock->netbuf_send, buf, len));
+                                        err = err_to_errno(netbuf_ref(inet_sock->netbuf_send, buf, len));
                                 } else {
-                                        char *data = netbuf_alloc(inet_sock->netbuf_send,
-                                                len);
+                                        char *data = netbuf_alloc(inet_sock->netbuf_send, len);
                                         if (data) {
                                                 memcpy(data, buf, len);
                                                 err = ESUCC;
@@ -1078,8 +1111,7 @@ int INET_socket_send(void *ctx, INET_socket_t *inet_sock, const void *buf, size_
 
                                 if (!err) {
                                         err = err_to_errno(
-                                                netconn_send(inet_sock->netconn,
-                                                        inet_sock->netbuf_send));
+                                                netconn_send(inet_sock->netconn, inet_sock->netbuf_send));
                                 }
 
                                 if (!err) {
@@ -1112,8 +1144,7 @@ int INET_socket_send(void *ctx, INET_socket_t *inet_sock, const void *buf, size_
 
                                 if (!err) {
                                         err = err_to_errno(
-                                                netconn_send(inet_sock->netconn,
-                                                        inet_sock->netbuf_send));
+                                                netconn_send(inet_sock->netconn, inet_sock->netbuf_send));
                                 }
 
                                 if (!err) {
@@ -1147,9 +1178,8 @@ int INET_socket_send(void *ctx, INET_socket_t *inet_sock, const void *buf, size_
  * @return One of @ref errno value.
  */
 //==============================================================================
-int INET_socket_sendto(void *ctx, INET_socket_t *inet_sock, const void *buf, size_t len,
-        NETM_flags_t flags, const NETM_INET_sockaddr_t *to_sockaddr,
-        size_t to_sockaddr_size, size_t *sent)
+int INET_socket_sendto(void *ctx, INET_socket_t *inet_sock, const void *buf, size_t len, NETM_flags_t flags,
+        const NETM_INET_sockaddr_t *to_sockaddr, size_t to_sockaddr_size, size_t *sent)
 {
         UNUSED_ARG1(ctx);
 
@@ -1167,19 +1197,16 @@ int INET_socket_sendto(void *ctx, INET_socket_t *inet_sock, const void *buf, siz
                 NETM_INET_sockaddr_t sockaddr;
 
                 // get the peer if currently connected
-                err = err_to_errno(
-                        netconn_peer(inet_sock->netconn, &lwip_addr, &sockaddr.port));
+                err = err_to_errno(netconn_peer(inet_sock->netconn, &lwip_addr, &sockaddr.port));
 
                 if (!err) {
                         create_addr(&sockaddr.addr, &lwip_addr);
 
                         // connect to new address
-                        err = INET_socket_connect(ctx, inet_sock, to_sockaddr,
-                                sizeof(*to_sockaddr));
+                        err = INET_socket_connect(ctx, inet_sock, to_sockaddr, sizeof(*to_sockaddr));
 
                         if (!err) {
-                                err = INET_socket_send(ctx, inet_sock, buf, len, flags,
-                                        sent);
+                                err = INET_socket_send(ctx, inet_sock, buf, len, flags, sent);
                         }
 
                         // reset the remote address and port number of the conn.
@@ -1207,10 +1234,8 @@ int INET_socket_sendto(void *ctx, INET_socket_t *inet_sock, const void *buf, siz
                                         ip_addr_t lwip_addr;
                                         create_lwIP_addr(&lwip_addr, &to_sockaddr->addr);
 
-                                        err = err_to_errno(
-                                                netconn_sendto(inet_sock->netconn,
-                                                        inet_sock->netbuf_send,
-                                                        &lwip_addr, to_sockaddr->port));
+                                        err = err_to_errno(netconn_sendto(inet_sock->netconn,
+                                                inet_sock->netbuf_send, &lwip_addr, to_sockaddr->port));
                                 }
 
                                 if (!err) {
@@ -1237,8 +1262,7 @@ int INET_socket_sendto(void *ctx, INET_socket_t *inet_sock, const void *buf, siz
  * @return One of @ref errno value.
  */
 //==============================================================================
-int INET_gethostbyname(void *ctx, const char *name, NETM_INET_sockaddr_t *sock_addr,
-        size_t sock_addr_size)
+int INET_gethostbyname(void *ctx, const char *name, NETM_INET_sockaddr_t *sock_addr, size_t sock_addr_size)
 {
         UNUSED_ARG1(ctx);
 
@@ -1336,8 +1360,8 @@ int INET_socket_get_send_timeout(void *ctx, INET_socket_t *inet_sock, uint32_t *
  * @return One of @ref errno value.
  */
 //==============================================================================
-int INET_socket_getaddress(void *ctx, INET_socket_t *inet_sock,
-        NETM_INET_sockaddr_t *sockaddr, size_t sockaddr_size)
+int INET_socket_getaddress(void *ctx, INET_socket_t *inet_sock, NETM_INET_sockaddr_t *sockaddr,
+        size_t sockaddr_size)
 {
         UNUSED_ARG1(ctx);
 
@@ -1346,8 +1370,7 @@ int INET_socket_getaddress(void *ctx, INET_socket_t *inet_sock,
         }
 
         ip_addr_t lwip_addr;
-        int       err = err_to_errno(
-                netconn_getaddr(inet_sock->netconn, &lwip_addr, &sockaddr->port, 0));
+        int       err = err_to_errno(netconn_getaddr(inet_sock->netconn, &lwip_addr, &sockaddr->port, 0));
 
         if (!err) {
                 if (lwip_addr.addr == INET_PSEUDO_LOOPBACK_IP) {
@@ -1407,14 +1430,10 @@ u32_t INET_hton_u32(u32_t value)
 u64_t INET_hton_u64(u64_t value)
 {
 #if _CPUCTL_BYTE_ORDER == _BYTE_ORDER_LITTLE_ENDIAN
-        return ((value & 0x00000000000000FFULL) << 56) |
-                ((value & 0x000000000000FF00ULL) << 40) |
-                ((value & 0x0000000000FF0000ULL) << 24) |
-                ((value & 0x00000000FF000000ULL) << 8) |
-                ((value & 0x000000FF00000000ULL) >> 8) |
-                ((value & 0x0000FF0000000000ULL) >> 24) |
-                ((value & 0x00FF000000000000ULL) >> 40) |
-                ((value & 0xFF00000000000000ULL) >> 56);
+        return ((value & 0x00000000000000FFULL) << 56) | ((value & 0x000000000000FF00ULL) << 40) |
+                ((value & 0x0000000000FF0000ULL) << 24) | ((value & 0x00000000FF000000ULL) << 8) |
+                ((value & 0x000000FF00000000ULL) >> 8) | ((value & 0x0000FF0000000000ULL) >> 24) |
+                ((value & 0x00FF000000000000ULL) >> 40) | ((value & 0xFF00000000000000ULL) >> 56);
 #elif _CPUCTL_BYTE_ORDER == _BYTE_ORDER_BIG_ENDIAN
         return value;
 #else

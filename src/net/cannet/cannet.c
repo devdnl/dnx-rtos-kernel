@@ -527,14 +527,15 @@ int CANNET_ifstatus(void *ctx, NETM_CANNET_status_t *status, size_t status_size)
 //==============================================================================
 /**
  * @brief  Function create socket container.
+ * @param  type         socket type
  * @param  prot         protocol
  * @param  socket       sipc socket (object is already created)
  * @return One of @ref errno value.
  */
 //==============================================================================
-int CANNET_socket_create(void *ctx, NETM_protocol_t prot, CANNET_socket_t *socket)
+int CANNET_socket_create(void *ctx, NETM_socket_type_t type, u8_t prot, CANNET_socket_t *socket)
 {
-        UNUSED_ARG1(ctx);
+        UNUSED_ARG2(ctx, prot);
 
         int qerr  = sys_queue_create(1, sizeof(answer_t), &socket->ansq);
         int rberr = cannetbuf__create(&socket->rx_buf, __NETWORK_CANNET_MAX_SOCKET_BUFFER_LENGTH__);
@@ -542,13 +543,13 @@ int CANNET_socket_create(void *ctx, NETM_protocol_t prot, CANNET_socket_t *socke
         int err   = ENOMEM;
 
         if (!qerr and !rberr and !aberr) {
-                socket->protocol     = prot;
+                socket->type         = type;
                 socket->addr_remote  = UINT16_MAX;
                 socket->port         = UINT8_MAX;
                 socket->recv_timeout = _MAX_DELAY_MS;
                 socket->send_timeout = _MAX_DELAY_MS;
                 socket->shutdown     = 0;
-                socket->connected    = (prot == NETM_PROTOCOL__DATAGRAM);
+                socket->connected    = (type == NETM_SOCKET_TYPE__DATAGRAM);
                 err = 0;
         } else {
                 sys_queue_destroy(socket->ansq);
@@ -723,7 +724,7 @@ int CANNET_socket_bind(void *ctx, CANNET_socket_t *socket, const NETM_CANNET_soc
 
         int err = ESUCC;
 
-        if (socket->protocol == NETM_PROTOCOL__DATAGRAM) {
+        if (socket->type == NETM_SOCKET_TYPE__DATAGRAM) {
                 err = register_socket(cannet, socket);
         }
 
@@ -743,7 +744,7 @@ int CANNET_socket_listen(void *ctx, CANNET_socket_t *socket)
 
         int err = ESUCC;
 
-        if (socket->protocol == NETM_PROTOCOL__STREAM) {
+        if (socket->type == NETM_SOCKET_TYPE__STREAM) {
                 err = register_socket(cannet, socket);
         }
 
@@ -764,7 +765,7 @@ int CANNET_socket_accept(void *ctx, CANNET_socket_t *socket, CANNET_socket_t *ne
 
         int err = ECANCELED;
 
-        if (socket->protocol == NETM_PROTOCOL__DATAGRAM) {
+        if (socket->type == NETM_SOCKET_TYPE__DATAGRAM) {
                 return err;
         }
 
@@ -776,7 +777,7 @@ int CANNET_socket_accept(void *ctx, CANNET_socket_t *socket, CANNET_socket_t *ne
                     and (get_frame_type(&answer.generic.header) == frame_type__connect)
                     and (answer.connect.flags == 0) ) {
 
-                        err = CANNET_socket_create(cannet, socket->protocol, new_socket);
+                        err = CANNET_socket_create(cannet, socket->type, 0, new_socket);
                         if (!err) {
                                 new_socket->addr_remote = answer.addr_src;
                                 new_socket->port = socket->port;
@@ -933,7 +934,7 @@ int CANNET_socket_send(void            *ctx,
                 return EPERM;
         }
 
-        if (socket->protocol != NETM_PROTOCOL__STREAM) {
+        if (socket->type != NETM_SOCKET_TYPE__STREAM) {
                 return ECANCELED;
         }
 
@@ -1036,7 +1037,7 @@ int CANNET_socket_sendto(void                        *ctx,
                 return EPERM;
         }
 
-        if (socket->protocol != NETM_PROTOCOL__DATAGRAM) {
+        if (socket->type != NETM_SOCKET_TYPE__DATAGRAM) {
                 return ECANCELED;
         }
 
@@ -1963,7 +1964,7 @@ static void handle_incoming_frame(cannet_t *cannet, CAN_msg_t *can_frame)
 
 
                 if (socket) {
-                        if (broadcast and (socket->protocol == NETM_PROTOCOL__STREAM)) {
+                        if (broadcast and (socket->type == NETM_SOCKET_TYPE__STREAM)) {
                                 DEBUG("[%u] broadcast is not allowed in stream mode, socket [%u:%u]",
                                       cannet->addr, src_addr, port);
 
@@ -2126,7 +2127,7 @@ static int received_last_frame(cannet_t *cannet, CANNET_socket_t *socket, const 
                         err = EAGAIN;
                 }
 
-                if (socket->protocol == NETM_PROTOCOL__STREAM) {
+                if (socket->type == NETM_SOCKET_TYPE__STREAM) {
                         send_ack_frame(cannet, socket, err);
                 }
 
@@ -2165,7 +2166,7 @@ static int received_single_frame(cannet_t *cannet, CANNET_socket_t *socket, cons
 
         int err = cannetbuf__write(socket->rx_buf, frame->data, len);
 
-        if (socket->protocol == NETM_PROTOCOL__STREAM) {
+        if (socket->type == NETM_SOCKET_TYPE__STREAM) {
                 send_ack_frame(cannet, socket, err);
         }
 

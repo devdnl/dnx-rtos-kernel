@@ -242,17 +242,20 @@ int UDS_ifstatus(void *ctx, NETM_UDS_status_t *status, size_t status_size)
 //==============================================================================
 /**
  * @brief  Function create socket container.
+ * @param  type         socket type
  * @param  prot         protocol
  * @param  socket       uds socket (object is already created)
  * @return One of @ref errno value.
  */
 //==============================================================================
-int UDS_socket_create(void *ctx, NETM_protocol_t prot, UDS_socket_t *socket)
+int UDS_socket_create(void *ctx, NETM_socket_type_t type, u8_t prot, UDS_socket_t *socket)
 {
+        UNUSED_ARG1(prot);
+
         uds_t *uds = ctx;
 
         socket->path         = NULL;
-        socket->protocol     = prot;
+        socket->type         = type;
         socket->recv_timeout = _MAX_DELAY_MS;
         socket->send_timeout = _MAX_DELAY_MS;
         socket->buf          = NULL;
@@ -451,7 +454,7 @@ int UDS_socket_bind(void *ctx, UDS_socket_t *socket, const NETM_UDS_sockaddr_t *
                 sys_mutex_unlock(uds->socket.mutex);
         }
 
-        if (not err and (socket->protocol == NETM_PROTOCOL__DATAGRAM)) {
+        if (not err and (socket->type == NETM_SOCKET_TYPE__DATAGRAM)) {
                 err = buffer_create(uds, socket);
         }
 
@@ -508,11 +511,11 @@ int UDS_socket_accept(void *ctx, UDS_socket_t *socket, UDS_socket_t *new_socket)
                 return EAGAIN;
         }
 
-        if (req_socket->protocol != socket->protocol) {
+        if (req_socket->type != socket->type) {
                 return ECONNABORTED;
         }
 
-        err = UDS_socket_create(uds, socket->protocol, new_socket);
+        err = UDS_socket_create(uds, socket->type, 0, new_socket);
         if (err) {
                 return err;
         }
@@ -559,10 +562,10 @@ int UDS_socket_recv(void *ctx, UDS_socket_t *socket, void *buf, size_t len,
 
         int err = EINVAL;
 
-        if (socket->protocol == NETM_PROTOCOL__STREAM) {
+        if (socket->type == NETM_SOCKET_TYPE__STREAM) {
                 err = buffer_stream_receive(uds, socket, buf, len, recved);
 
-        } else if (socket->protocol == NETM_PROTOCOL__DATAGRAM) {
+        } else if (socket->type == NETM_SOCKET_TYPE__DATAGRAM) {
                 err = buffer_datagram_receive(uds, socket, buf, len, NULL, recved);
         }
 
@@ -602,7 +605,7 @@ int UDS_socket_recvfrom(void *ctx, UDS_socket_t *socket, void *buf, size_t len,
                 return ENONET;
         }
 
-        if (socket->protocol == NETM_PROTOCOL__STREAM) {
+        if (socket->type == NETM_SOCKET_TYPE__STREAM) {
                 return ECANCELED;
         }
 
@@ -654,11 +657,11 @@ int UDS_socket_send(void *ctx, UDS_socket_t *socket, const void *buf, size_t len
 
         int err = EINVAL;
 
-        if (socket->protocol == NETM_PROTOCOL__STREAM) {
+        if (socket->type == NETM_SOCKET_TYPE__STREAM) {
                 err = buffer_stream_send(uds, socket, socket->conn_sock->buf, buf, len,
                         sent);
 
-        } else if (socket->protocol == NETM_PROTOCOL__DATAGRAM) {
+        } else if (socket->type == NETM_SOCKET_TYPE__DATAGRAM) {
                 err = buffer_datagram_send(uds, socket, socket->conn_sock->buf, buf, len,
                         sent);
         }
@@ -698,7 +701,7 @@ int UDS_socket_sendto(void *ctx, UDS_socket_t *socket, const void *buf, size_t l
                 return EINVAL;
         }
 
-        if (socket->protocol == NETM_PROTOCOL__STREAM) {
+        if (socket->type == NETM_SOCKET_TYPE__STREAM) {
                 return ECANCELED;
         }
 
@@ -727,7 +730,7 @@ int UDS_socket_sendto(void *ctx, UDS_socket_t *socket, const void *buf, size_t l
                 return err;
         }
 
-        if (to_socket->protocol != socket->protocol) {
+        if (to_socket->type != socket->type) {
                 return ECONNABORTED;
         }
 
@@ -963,7 +966,7 @@ static int buffer_create(uds_t *uds, UDS_socket_t *socket)
         int err = 0;
 
         if (not socket->buf) {
-                bool   stream    = (socket->protocol == NETM_PROTOCOL__STREAM);
+                bool   stream    = (socket->type == NETM_SOCKET_TYPE__STREAM);
                 size_t items     = stream ? STREAM_BUF_SIZE : MAX_DATAGRAM_BUFFERS;
                 size_t item_size = stream ? 1 : sizeof(datagram_t);
 
@@ -991,10 +994,10 @@ static int buffer_reset(uds_t *uds, UDS_socket_t *socket)
                 return 0;
         }
 
-        if (socket->protocol == NETM_PROTOCOL__STREAM) {
+        if (socket->type == NETM_SOCKET_TYPE__STREAM) {
                 sys_queue_reset(socket->buf);
 
-        } else if (socket->protocol == NETM_PROTOCOL__DATAGRAM) {
+        } else if (socket->type == NETM_SOCKET_TYPE__DATAGRAM) {
                 datagram_t datagram;
                 while (sys_queue_receive(socket->buf, &datagram, 0) == 0) {
 
@@ -1030,7 +1033,7 @@ static int buffer_datagram_receive(uds_t *uds, UDS_socket_t *socket, void *buf,
 
         *recved = 0;
 
-        if (socket->protocol != NETM_PROTOCOL__DATAGRAM) {
+        if (socket->type != NETM_SOCKET_TYPE__DATAGRAM) {
                 return EINVAL;
         }
 
@@ -1085,7 +1088,7 @@ static int buffer_datagram_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buff
 
         *sent = 0;
 
-        if (socket->protocol != NETM_PROTOCOL__DATAGRAM) {
+        if (socket->type != NETM_SOCKET_TYPE__DATAGRAM) {
                 return EINVAL;
         }
 
@@ -1147,7 +1150,7 @@ static int buffer_stream_receive(uds_t *uds, UDS_socket_t *socket, void *buf, si
 
         *recved = 0;
 
-        if (socket->protocol != NETM_PROTOCOL__STREAM) {
+        if (socket->type != NETM_SOCKET_TYPE__STREAM) {
                 return EINVAL;
         }
 
@@ -1203,7 +1206,7 @@ static int buffer_stream_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buffer
 
         *sent = 0;
 
-        if (socket->protocol != NETM_PROTOCOL__STREAM) {
+        if (socket->type != NETM_SOCKET_TYPE__STREAM) {
                 return EINVAL;
         }
 

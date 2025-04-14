@@ -66,7 +66,7 @@ typedef struct CANNET_socket {
         u16_t datagram_source;          // datagram source address, only NET_PROTOCOL__DATAGRAM
         u16_t expected_crc;
         u16_t crc;
-        NETM_protocol_t protocol;
+        NETM_socket_type_t type;
         NETM_shut_t shutdown;
         u8_t port;
         u8_t seq_tx;
@@ -88,7 +88,7 @@ extern int   CANNET_ifdeinit(void*);
 extern int   CANNET_ifup(void*, const NETM_CANNET_config_t*, size_t);
 extern int   CANNET_ifdown(void*);
 extern int   CANNET_ifstatus(void*, NETM_CANNET_status_t*, size_t);
-extern int   CANNET_socket_create(void*, NETM_protocol_t, CANNET_socket_t*);
+extern int   CANNET_socket_create(void*, NETM_socket_type_t, u8_t, CANNET_socket_t*);
 extern int   CANNET_socket_destroy(void*, CANNET_socket_t*);
 extern int   CANNET_socket_connect(void*, CANNET_socket_t*, const NETM_CANNET_sockaddr_t*, size_t);
 extern int   CANNET_socket_disconnect(void*, CANNET_socket_t*);

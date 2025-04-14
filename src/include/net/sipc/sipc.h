@@ -77,7 +77,7 @@ extern int   SIPC_ifdeinit(void*);
 extern int   SIPC_ifup(void*, const NETM_SIPC_config_t*, size_t);
 extern int   SIPC_ifdown(void*);
 extern int   SIPC_ifstatus(void*, NETM_SIPC_status_t*, size_t);
-extern int   SIPC_socket_create(void*, NETM_protocol_t, SIPC_socket_t*);
+extern int   SIPC_socket_create(void*, NETM_socket_type_t, u8_t, SIPC_socket_t*);
 extern int   SIPC_socket_destroy(void*, SIPC_socket_t*);
 extern int   SIPC_socket_connect(void*, SIPC_socket_t*, const NETM_SIPC_sockaddr_t*, size_t);
 extern int   SIPC_socket_disconnect(void*, SIPC_socket_t*);

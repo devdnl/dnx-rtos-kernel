@@ -72,7 +72,7 @@ extern int   INET_ifdeinit(void*);
 extern int   INET_ifup(void*, const NETM_INET_config_t*, size_t);
 extern int   INET_ifdown(void*);
 extern int   INET_ifstatus(void*, NETM_INET_status_t*, size_t);
-extern int   INET_socket_create(void*, NETM_protocol_t, INET_socket_t*);
+extern int   INET_socket_create(void*, NETM_socket_type_t, u8_t, INET_socket_t*);
 extern int   INET_socket_destroy(void*, INET_socket_t*);
 extern int   INET_socket_connect(void*, INET_socket_t*, const NETM_INET_sockaddr_t*, size_t);
 extern int   INET_socket_disconnect(void*, INET_socket_t*);
