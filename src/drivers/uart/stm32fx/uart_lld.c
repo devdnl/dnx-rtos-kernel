@@ -48,6 +48,10 @@
 #define _DMA_DDI_get_stream     _DMA_DDI_get_channel
 typedef DMA_Channel_TypeDef     DMA_Stream_TypeDef;
 #define UART_MEM                NULL
+#ifndef USART_CR1_M0
+#define USART_CR1_M0            USART_CR1_M
+#endif
+
 #elif defined(ARCH_stm32f3)
 #include "stm32f3/stm32f3xx.h"
 #include "stm32f3/lib/stm32f3xx_ll_rcc.h"
@@ -62,6 +66,7 @@ typedef DMA_Channel_TypeDef     DMA_Stream_TypeDef;
 #define _DMA_DDI_get_stream     _DMA_DDI_get_channel
 typedef DMA_Channel_TypeDef     DMA_Stream_TypeDef;
 #define UART_MEM                NULL
+
 #elif defined(ARCH_stm32f4)
 #include "stm32f4/stm32f4xx.h"
 #include "stm32f4/lib/stm32f4xx_rcc.h"
@@ -71,6 +76,10 @@ typedef DMA_Channel_TypeDef     DMA_Stream_TypeDef;
 #define USART_CLKSOURCE_PCLK1   1
 #define USART_CLKSOURCE_PCLK2   2
 #define UART_MEM                NULL
+#ifndef USART_CR1_M0
+#define USART_CR1_M0            USART_CR1_M
+#endif
+
 #elif defined(ARCH_stm32f7)
 #include "stm32f7/stm32f7xx.h"
 #include "stm32f7/lib/stm32f7xx_ll_rcc.h"
@@ -771,9 +780,12 @@ void _UART_LLD__resume_transmit(struct UART_mem *hdl)
 int _UART_LLD__configure(struct UART_mem *hdl, const struct UART_rich_config *config)
 {
         const UART_setup_t *SETUP = &UART[hdl->major];
-        u32_t PCLK = 0;
+
+        /* disable UART */
+        CLEAR_BIT(SETUP->UART->CR1, USART_CR1_UE);
 
         /* set baud */
+        u32_t PCLK = 0;
 #if defined(ARCH_stm32f1) || defined(ARCH_stm32f4)
         LL_RCC_ClocksTypeDef freq;
         LL_RCC_GetSystemClocksFreq(&freq);
@@ -840,11 +852,11 @@ int _UART_LLD__configure(struct UART_mem *hdl, const struct UART_rich_config *co
                 break;
         case UART_PARITY__EVEN:
                 CLEAR_BIT(SETUP->UART->CR1, USART_CR1_PS);
-                SET_BIT(SETUP->UART->CR1, USART_CR1_PCE | USART_CR1_M);
+                SET_BIT(SETUP->UART->CR1, USART_CR1_PCE | USART_CR1_M0);
                 break;
         case UART_PARITY__ODD:
                 SET_BIT(SETUP->UART->CR1, USART_CR1_PS);
-                SET_BIT(SETUP->UART->CR1, USART_CR1_PCE | USART_CR1_M);
+                SET_BIT(SETUP->UART->CR1, USART_CR1_PCE | USART_CR1_M0);
                 break;
         }
 
