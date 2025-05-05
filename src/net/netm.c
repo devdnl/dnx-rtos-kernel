@@ -534,11 +534,16 @@ int _net_ifstatus(const char *netname, NETM_family_t *family, NETM_generic_statu
 
         int err = EINVAL;
 
-        if (netname && family && status && status_size) {
+        if (netname && family) {
                 size_t n   = 0;
                 void  *ctx = get_stack_context(netname, &n);
                 *family    = net_list[n].family;
-                err        = call_proxy_function(net_list[n].family, ctx, status, status_size);
+
+                if (status && status_size) {
+                        err = call_proxy_function(net_list[n].family, ctx, status, status_size);
+                } else {
+                        err = 0;
+                }
         }
 
         return err;

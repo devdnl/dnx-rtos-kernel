@@ -70,6 +70,8 @@ typedef enum {
 typedef struct res_header {
         void              *self;
         struct res_header *next;
+        struct res_header *prev;
+        struct _process   *proc;
         res_type_t         type;
 } res_header_t;
 
