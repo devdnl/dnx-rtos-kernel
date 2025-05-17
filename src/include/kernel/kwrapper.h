@@ -57,10 +57,11 @@ extern "C" {
 #define _KERNEL_VERSION tskKERNEL_VERSION_NUMBER
 
 /** OS BASIC DEFINITIONS */
-#define _THIS_TASK    NULL
+#define _THIS_TASK       NULL
 
-#define _MAX_DELAY_MS ((portMAX_DELAY) - 1000)
-#define _MAX_DELAY_S  (_MAX_DELAY_MS / 1000)
+#define _MAX_DELAY_S     ((portMAX_DELAY - 1000UL) / 1000UL)
+#define _MAX_DELAY_MS    (_MAX_DELAY_S * 1000UL)
+#define _WAIT_FOREVER_MS (_MAX_DELAY_MS + 1)
 
 /** PRIORITIES */
 #define _PRIORITY(prio)    (prio + (configMAX_PRIORITIES / 2))

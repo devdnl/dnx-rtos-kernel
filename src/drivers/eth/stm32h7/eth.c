@@ -147,8 +147,8 @@ API_MOD_INIT(ETH, void **device_handle, u8_t major, u8_t minor, const void *conf
         if (!err) {
                 struct eth *hdl = *device_handle;
 
-                hdl->rx_timeout_ms = _MAX_DELAY_MS;
-                hdl->tx_timeout_ms = _MAX_DELAY_MS;
+                hdl->rx_timeout_ms = _WAIT_FOREVER_MS;
+                hdl->tx_timeout_ms = _WAIT_FOREVER_MS;
 
                 err = sys_semaphore_create(__ETH_RXBUFNB__, 0, &hdl->rx_semaphore);
                 if (!err) {
@@ -222,7 +222,7 @@ API_MOD_RELEASE(ETH, void *device_handle)
         if (not hdl->run) {
                 kmtx_t *mtx = hdl->mutex;
 
-                err = sys_mutex_lock(mtx, _MAX_DELAY_MS);
+                err = sys_mutex_lock(mtx, _WAIT_FOREVER_MS);
                 if (!err) {
 
                         hdl->mutex = NULL;
@@ -485,7 +485,7 @@ API_MOD_STAT(ETH, void *device_handle, struct vfs_dev_stat *device_stat)
 //==============================================================================
 static int eth_start(struct eth *hdl)
 {
-        int err = sys_mutex_lock(hdl->mutex, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(hdl->mutex, _WAIT_FOREVER_MS);
         if (!err) {
                 if (not hdl->run and hdl->configured) {
 

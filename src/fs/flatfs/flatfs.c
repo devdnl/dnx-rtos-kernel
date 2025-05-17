@@ -839,7 +839,7 @@ API_FS_STAT(flatfs, void *fs_handle, const char *path, struct stat *stat)
 {
         flatfs_t *hdl = fs_handle;
 
-        int err = sys_mutex_lock(hdl->mtx, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
         if (err) {
                 return err;
         }
@@ -1116,7 +1116,7 @@ API_FS_OPENDIR(flatfs, void *fs_handle, const char *path, kdir_t *kdir)
                 return 0;
         }
 
-        err = sys_mutex_lock(hdl->mtx, _MAX_DELAY_MS);
+        err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
         if (not err) {
                 err = ENOENT;
 
@@ -1177,7 +1177,7 @@ API_FS_CLOSEDIR(flatfs, void *fs_handle, kdir_t *kdir)
         sys_llist_destroy(dir->last_dirs);
         sys_free(cast(void *, &dir));
 
-        int err = sys_mutex_lock(hdl->mtx, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
         if (not err) {
                 hdl->open_dirs_ctr--;
                 sys_mutex_unlock(hdl->mtx);
@@ -1205,7 +1205,7 @@ API_FS_READDIR(flatfs, void *fs_handle, kdir_t *kdir)
                 dir->seek = kdir->d_seek;
         }
 
-        int err = sys_mutex_lock(hdl->mtx, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
         if (err) {
                 return err;
         }

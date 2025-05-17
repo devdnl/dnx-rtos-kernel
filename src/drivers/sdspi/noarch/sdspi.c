@@ -264,7 +264,7 @@ API_MOD_WRITE(SDSPI,
         int      err = ENOMEDIUM;
 
         if (hdl->size_blocks > 0) {
-                err = sys_mutex_lock(hdl->protect_mtx, _MAX_DELAY_MS);
+                err = sys_mutex_lock(hdl->protect_mtx, _WAIT_FOREVER_MS);
                 if (!err) {
                         u64_t lseek = *fpos;
                         err = card_write(hdl, src, count, lseek, wrcnt);
@@ -303,7 +303,7 @@ API_MOD_READ(SDSPI,
         int      err = ENOMEDIUM;
 
         if (hdl->size_blocks > 0) {
-                err = sys_mutex_lock(hdl->protect_mtx, _MAX_DELAY_MS);
+                err = sys_mutex_lock(hdl->protect_mtx, _WAIT_FOREVER_MS);
                 if (!err) {
                         u64_t lseek = *fpos;
                         err = card_read(hdl, dst, count, lseek, rdcnt);
@@ -338,7 +338,7 @@ API_MOD_IOCTL(SDSPI, void *device_handle, int request, void *arg)
         }
 
         case IOCTL_SDSPI__INITIALIZE_CARD:
-                err = sys_mutex_lock(hdl->protect_mtx, _MAX_DELAY_MS);
+                err = sys_mutex_lock(hdl->protect_mtx, _WAIT_FOREVER_MS);
                 if (!err) {
                         err = card_initialize(hdl);
                         sys_mutex_unlock(hdl->protect_mtx);

@@ -625,7 +625,9 @@ int _semaphore_wait(ksem_t *sem, u32_t blocktime_ms)
                         return ECANCELED;
                 }
 
-                blocktime_ms -= wait;
+                if (blocktime_ms < _WAIT_FOREVER_MS) {
+                        blocktime_ms -= wait;
+                }
 
         } while (blocktime_ms > 0);
 
@@ -827,7 +829,9 @@ int _mutex_lock(kmtx_t *mutex, u32_t blocktime_ms)
                         return ECANCELED;
                 }
 
-                blocktime_ms -= wait;
+                if (blocktime_ms < _WAIT_FOREVER_MS) {
+                        blocktime_ms -= wait;
+                }
 
         } while (blocktime_ms > 0);
 
@@ -1276,7 +1280,9 @@ int _queue_send(kqueue_t *queue, const void *item, u32_t waittime_ms)
                         return ECANCELED;
                 }
 
-                waittime_ms -= wait;
+                if (waittime_ms < _WAIT_FOREVER_MS) {
+                        waittime_ms -= wait;
+                }
 
         } while (waittime_ms > 0);
 
@@ -1344,7 +1350,9 @@ int _queue_receive(kqueue_t *queue, void *item, u32_t waittime_ms)
                         return ECANCELED;
                 }
 
-                waittime_ms -= wait;
+                if (waittime_ms < _WAIT_FOREVER_MS) {
+                        waittime_ms -= wait;
+                }
 
         } while (waittime_ms > 0);
 
@@ -1412,7 +1420,9 @@ int _queue_receive_peek(kqueue_t *queue, void *item, u32_t waittime_ms)
                         return ECANCELED;
                 }
 
-                waittime_ms -= wait;
+                if (waittime_ms < _WAIT_FOREVER_MS) {
+                        waittime_ms -= wait;
+                }
 
         } while (waittime_ms > 0);
 
@@ -1554,9 +1564,12 @@ void _sleep_ms(u32_t milliseconds)
 {
         do {
                 TickType_t wait = min(milliseconds, BLOCK_TIME_MS);
-                vTaskDelay(MS2TICK(wait));
-                milliseconds -= wait;
 
+                vTaskDelay(MS2TICK(wait));
+
+                if (milliseconds < _WAIT_FOREVER_MS) {
+                        milliseconds -= wait;
+                }
         } while ((milliseconds > 0) && !_process_is_kill_requested());
 }
 

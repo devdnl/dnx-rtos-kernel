@@ -53,10 +53,10 @@
   Local symbolic constants/macros
 ==============================================================================*/
 // critical section - mutex wait must set to max possible
-#define ATOMIC(_mtx)                                                                \
-        for (int __ = 0; __ == 0;)                                                  \
-                for (int _e = _mutex_lock(_mtx, _MAX_DELAY_MS); _e == 0 && __ == 0; \
-                        _mutex_unlock(_mtx), __++)                                  \
+#define ATOMIC(_mtx)                                                                   \
+        for (int __ = 0; __ == 0;)                                                     \
+                for (int _e = _mutex_lock(_mtx, _WAIT_FOREVER_MS); _e == 0 && __ == 0; \
+                        _mutex_unlock(_mtx), __++)                                     \
                         for (bool ___ = true; ___; ___ = false)
 
 #define foreach_resource(_v, _l) for (res_header_t *_v = _l; _v; _v = _v->next)

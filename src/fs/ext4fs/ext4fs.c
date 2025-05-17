@@ -35,7 +35,7 @@ Brief   EXT4 file system
   Local macros
 ==============================================================================*/
 #define SECTOR_SIZE     512
-#define LOCK_TIMEOUT    _MAX_DELAY_MS
+#define LOCK_TIMEOUT    _WAIT_FOREVER_MS
 #define SYNC_TIMEOUT    100
 
 /*==============================================================================

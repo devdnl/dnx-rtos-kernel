@@ -121,13 +121,13 @@ void cannetbuf__destroy(cannetbuf_t *cannetbuf)
         if (cannetbuf) {
                 kmtx_t *mtx = cannetbuf->mutex;
 
-                if (sys_mutex_lock(cannetbuf->mutex, _MAX_DELAY_MS)) {
+                if (sys_mutex_lock(cannetbuf->mutex, _WAIT_FOREVER_MS)) {
                         cannetbuf__clear(cannetbuf);
                         cannetbuf->mutex = NULL;
                         sys_mutex_unlock(mtx);
                 }
 
-                if (sys_mutex_lock(mtx, _MAX_DELAY_MS)) {
+                if (sys_mutex_lock(mtx, _WAIT_FOREVER_MS)) {
                         sys_mutex_unlock(mtx);
                 }
 
@@ -154,7 +154,7 @@ int cannetbuf__write(cannetbuf_t *cannetbuf, const u8_t *data, size_t size)
 
         if (cannetbuf && data && size) {
 
-                err = sys_mutex_lock(cannetbuf->mutex, _MAX_DELAY_MS);
+                err = sys_mutex_lock(cannetbuf->mutex, _WAIT_FOREVER_MS);
                 if (!err) {
                         data_chain_t **chain = &cannetbuf->end;
 
@@ -249,7 +249,7 @@ int cannetbuf__read(cannetbuf_t *cannetbuf, u8_t *data, size_t size, size_t *rdc
 
         if (cannetbuf && data && size && rdctr) {
 
-                err = sys_mutex_lock(cannetbuf->mutex, _MAX_DELAY_MS);
+                err = sys_mutex_lock(cannetbuf->mutex, _WAIT_FOREVER_MS);
                 if (!err) {
 
                         *rdctr = 0;
@@ -300,7 +300,7 @@ int cannetbuf__read(cannetbuf_t *cannetbuf, u8_t *data, size_t size, size_t *rdc
 void cannetbuf__clear(cannetbuf_t *cannetbuf)
 {
         if (cannetbuf) {
-                int err = sys_mutex_lock(cannetbuf->mutex, _MAX_DELAY_MS);
+                int err = sys_mutex_lock(cannetbuf->mutex, _WAIT_FOREVER_MS);
                 if (!err) {
                         data_chain_t *chain = cannetbuf->begin;
 
@@ -333,7 +333,7 @@ bool cannetbuf__is_full(cannetbuf_t *cannetbuf)
         bool is_full = false;
 
         if (cannetbuf) {
-                int err = sys_mutex_lock(cannetbuf->mutex, _MAX_DELAY_MS);
+                int err = sys_mutex_lock(cannetbuf->mutex, _WAIT_FOREVER_MS);
                 if (!err) {
                         is_full = cannetbuf->total_size >= cannetbuf->max_capacity;
                         sys_mutex_unlock(cannetbuf->mutex);
@@ -358,7 +358,7 @@ int cannetbuf__get_available(cannetbuf_t *cannetbuf, size_t *available)
         int err = EINVAL;
 
         if (cannetbuf and available) {
-                int err = sys_mutex_lock(cannetbuf->mutex, _MAX_DELAY_MS);
+                int err = sys_mutex_lock(cannetbuf->mutex, _WAIT_FOREVER_MS);
                 if (!err) {
                         *available = cannetbuf->max_capacity - cannetbuf->total_size;
                         sys_mutex_unlock(cannetbuf->mutex);

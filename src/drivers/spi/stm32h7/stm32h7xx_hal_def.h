@@ -55,7 +55,7 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
-#define HAL_MAX_DELAY                   _MAX_DELAY_MS
+#define HAL_MAX_DELAY                   _WAIT_FOREVER_MS
 #define __HAL_UNLOCK(heth)              (heth->Lock = HAL_UNLOCKED)
 #define __HAL_LOCK(heth)                (heth->Lock = HAL_LOCKED)
 

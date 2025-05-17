@@ -243,7 +243,7 @@ API_MOD_WRITE(USBH,
                 return EINVAL;
         }
 
-        int err = sys_mutex_lock(hdl->mtx, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
         if (!err) {
 
                 if (hdl->class_active) {
@@ -351,7 +351,7 @@ API_MOD_READ(USBH,
                 return EINVAL;
         }
 
-        int err = sys_mutex_lock(hdl->mtx, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
         if (!err) {
 
                 if (hdl->class_active) {

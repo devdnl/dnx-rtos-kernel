@@ -154,7 +154,7 @@ static void restore_configuration(inet_t *inet)
 
         netif_set_down(&inet->netif);
 
-        if (sys_mutex_lock(inet->access, _MAX_DELAY_MS) == ESUCC) {
+        if (sys_mutex_lock(inet->access, _WAIT_FOREVER_MS) == ESUCC) {
 
                 while (true) {
                         if (_inetdrv_is_link_connected(inet)) {

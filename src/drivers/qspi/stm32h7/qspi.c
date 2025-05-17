@@ -238,7 +238,7 @@ API_MOD_WRITE(QSPI, void *device_handle, const u8_t *src, size_t count, fpos_t *
 
         count = min(count, (memory_size - *fpos));
 
-        int err = sys_mutex_lock(QSPI.mutex, fattr.non_blocking_wr ? 0 : _MAX_DELAY_MS);
+        int err = sys_mutex_lock(QSPI.mutex, fattr.non_blocking_wr ? 0 : _WAIT_FOREVER_MS);
         if (err) {
                 return err;
         }
@@ -328,7 +328,7 @@ API_MOD_READ(QSPI, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
 
         count = min(count, (memory_size - *fpos));
 
-        int err = sys_mutex_lock(QSPI.mutex, fattr.non_blocking_rd ? 0 : _MAX_DELAY_MS);
+        int err = sys_mutex_lock(QSPI.mutex, fattr.non_blocking_rd ? 0 : _WAIT_FOREVER_MS);
         if (err) {
                 return err;
         }
@@ -368,7 +368,7 @@ API_MOD_IOCTL(QSPI, void *device_handle, int request, void *arg)
 
         switch (request) {
         case IOCTL_QSPI__CONFIGURE:
-                err = sys_mutex_lock(QSPI.mutex, _MAX_DELAY_MS);
+                err = sys_mutex_lock(QSPI.mutex, _WAIT_FOREVER_MS);
                 if (not err) {
                         err = qspi_configure(hdl, arg);
                         sys_mutex_unlock(QSPI.mutex);
@@ -376,7 +376,7 @@ API_MOD_IOCTL(QSPI, void *device_handle, int request, void *arg)
                 break;
 
         case IOCTL_QSPI__COMMAND:
-                err = sys_mutex_lock(QSPI.mutex, _MAX_DELAY_MS);
+                err = sys_mutex_lock(QSPI.mutex, _WAIT_FOREVER_MS);
                 if (not err) {
                         err = qspi_command(hdl, arg);
                         sys_mutex_unlock(QSPI.mutex);
@@ -384,7 +384,7 @@ API_MOD_IOCTL(QSPI, void *device_handle, int request, void *arg)
                 break;
 
         case IOCTL_QSPI__ENTER_MEMORY_MAPPED_MODE:
-                err = sys_mutex_lock(QSPI.mutex, _MAX_DELAY_MS);
+                err = sys_mutex_lock(QSPI.mutex, _WAIT_FOREVER_MS);
                 if (not err) {
                         err = qspi_enter_memory_mapped_mode(hdl, arg);
                         sys_mutex_unlock(QSPI.mutex);
@@ -392,7 +392,7 @@ API_MOD_IOCTL(QSPI, void *device_handle, int request, void *arg)
                 break;
 
         case IOCTL_QSPI__EXIT_MEMORY_MAPPED_MODE:
-                err = sys_mutex_lock(QSPI.mutex, _MAX_DELAY_MS);
+                err = sys_mutex_lock(QSPI.mutex, _WAIT_FOREVER_MS);
                 if (not err) {
                         err = qspi_exit_memory_mapped_mode(hdl);
                         sys_mutex_unlock(QSPI.mutex);
@@ -401,7 +401,7 @@ API_MOD_IOCTL(QSPI, void *device_handle, int request, void *arg)
 
         case IOCTL_QSPI__WAIT_FOR_MEMORY_TO_BE_READY:
                 if (arg) {
-                        err = sys_mutex_lock(QSPI.mutex, _MAX_DELAY_MS);
+                        err = sys_mutex_lock(QSPI.mutex, _WAIT_FOREVER_MS);
                         if (not err) {
                                 err = wait_for_memory_to_be_ready(hdl,
                                         *cast(u32_t *, arg));

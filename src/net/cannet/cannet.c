@@ -546,8 +546,8 @@ int CANNET_socket_create(void *ctx, NETM_socket_type_t type, u8_t prot, CANNET_s
                 socket->type         = type;
                 socket->addr_remote  = UINT16_MAX;
                 socket->port         = UINT8_MAX;
-                socket->recv_timeout = _MAX_DELAY_MS;
-                socket->send_timeout = _MAX_DELAY_MS;
+                socket->recv_timeout = _WAIT_FOREVER_MS;
+                socket->send_timeout = _WAIT_FOREVER_MS;
                 socket->shutdown     = 0;
                 socket->connected    = (type == NETM_SOCKET_TYPE__DATAGRAM);
                 err = 0;

@@ -615,7 +615,7 @@ API_MOD_RELEASE(ENC28J60, void *device_handle)
         if (not hdl->run) {
                 kmtx_t *mtx = hdl->mutex;
 
-                err = sys_mutex_lock(mtx, _MAX_DELAY_MS);
+                err = sys_mutex_lock(mtx, _WAIT_FOREVER_MS);
                 if (!err) {
 
                         hdl->mutex = NULL;
@@ -867,7 +867,7 @@ API_MOD_STAT(ENC28J60, void *device_handle, struct vfs_dev_stat *device_stat)
 //==============================================================================
 static int eth_start(ENC28J60_t *hdl)
 {
-        int err = sys_mutex_lock(hdl->mutex, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(hdl->mutex, _WAIT_FOREVER_MS);
         if (err) {
                 return err;
         }

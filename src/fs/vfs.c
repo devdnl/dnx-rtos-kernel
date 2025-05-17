@@ -182,7 +182,7 @@ int _vfs_mount(const struct vfs_path *src_path, const struct vfs_path *mount_poi
         }
 
         // create new entry
-        err = _mutex_lock(VFS.resource_mtx, _MAX_DELAY_MS);
+        err = _mutex_lock(VFS.resource_mtx, _WAIT_FOREVER_MS);
         if (not err) {
 
                 FS_entry_t *new_fs;
@@ -263,7 +263,7 @@ int _vfs_umount(const struct vfs_path *path)
         char *cwd_path;
         int   err = new_absolute_path(path, ADD_SLASH, &cwd_path);
         if (not err) {
-                err = _mutex_lock(VFS.resource_mtx, _MAX_DELAY_MS);
+                err = _mutex_lock(VFS.resource_mtx, _WAIT_FOREVER_MS);
                 if (not err) {
 
                         int         position;
@@ -308,7 +308,7 @@ int _vfs_getmntentry(int seek, struct mntent *mntent)
         }
 
         FS_entry_t *fs  = NULL;
-        int         err = _mutex_lock(VFS.resource_mtx, _MAX_DELAY_MS);
+        int         err = _mutex_lock(VFS.resource_mtx, _WAIT_FOREVER_MS);
         if (!err) {
                 fs  = sys_llist_at(VFS.mnt_list, seek);
                 err = fs ? ESUCC : ENOENT;
@@ -604,7 +604,7 @@ int _vfs_remove(const struct vfs_path *path)
                 FS_entry_t *mount_fs;
                 FS_entry_t *base_fs;
 
-                err = _mutex_lock(VFS.resource_mtx, _MAX_DELAY_MS);
+                err = _mutex_lock(VFS.resource_mtx, _WAIT_FOREVER_MS);
                 if (!err) {
 
                         err = get_path_FS(cwd_path, PATH_MAX_LEN, NULL, &mount_fs);
@@ -665,7 +665,7 @@ int _vfs_rename(const struct vfs_path *old_name, const struct vfs_path *new_name
                 const char *old_extern_path;
                 const char *new_extern_path;
 
-                err = _mutex_lock(VFS.resource_mtx, _MAX_DELAY_MS);
+                err = _mutex_lock(VFS.resource_mtx, _WAIT_FOREVER_MS);
                 if (!err) {
                         err = get_path_base_FS(cwd_old_name, &old_extern_path, &old_fs);
                         if (!err) {
@@ -1375,7 +1375,7 @@ int _vfs_ferror(kfile_t *file, int *error)
 //==============================================================================
 void _vfs_sync(void)
 {
-        if (_mutex_lock(VFS.resource_mtx, _MAX_DELAY_MS) == ESUCC) {
+        if (_mutex_lock(VFS.resource_mtx, _WAIT_FOREVER_MS) == ESUCC) {
 
                 _llist_foreach(FS_entry_t *, fs, VFS.mnt_list)
                 {
@@ -1565,7 +1565,7 @@ static int get_path_base_FS(const char *path, const char **ext_path, FS_entry_t 
                 path_tail--;
         }
 
-        int err = _mutex_lock(VFS.resource_mtx, _MAX_DELAY_MS);
+        int err = _mutex_lock(VFS.resource_mtx, _WAIT_FOREVER_MS);
         if (!err) {
 
                 while (path_tail >= path) {
