@@ -26,7 +26,7 @@
 
 ==============================================================================*/
 
-// #pragma GCC optimize("Og")
+#pragma GCC optimize("Ofast")
 
 /*==============================================================================
   Include files
@@ -302,7 +302,6 @@ static int syscall_getgid(syscallrq_t *rq);
 static int syscall_getuid(syscallrq_t *rq);
 static int syscall_getmemdetails(syscallrq_t *rq);
 static int syscall_getmodmemusage(syscallrq_t *rq);
-static int syscall_getuptimems(syscallrq_t *rq);
 static int syscall_getavgcpuload(syscallrq_t *rq);
 static int syscall_getplatformname(syscallrq_t *rq);
 static int syscall_getosname(syscallrq_t *rq);
@@ -434,7 +433,7 @@ static const syscallfunc_t syscalltab[] = {
         [SYSCALL_GETUID]             = syscall_getuid,
         [SYSCALL_GETMEMDETAILS]      = syscall_getmemdetails,
         [SYSCALL_GETMODMEMUSAGE]     = syscall_getmodmemusage,
-        [SYSCALL_GETUPTIMEMS]        = syscall_getuptimems,
+        [SYSCALL_GETUPTIMEMS]        = NULL,
         [SYSCALL_GETAVGCPULOAD]      = syscall_getavgcpuload,
         [SYSCALL_GETPLATFORMNAME]    = syscall_getplatformname,
         [SYSCALL_GETOSNAME]          = syscall_getosname,
@@ -483,7 +482,7 @@ static const syscallfunc_t syscalltab[] = {
 /*==============================================================================
   Exported objects
 ==============================================================================*/
-const char *const        dnx_RTOS_version       = "3.6.2";
+const char *const        dnx_RTOS_version       = "3.6.3";
 const char *const        dnx_RTOS_name          = "dnx RTOS";
 const char *const        dnx_RTOS_commit_hash   = COMMIT_HASH;
 const char *const        dnx_RTOS_platform_name = _CPUCTL_PLATFORM_NAME;
@@ -536,6 +535,17 @@ __attribute__((section(".syscall"))) int syscall(syscall_t syscall, va_list args
                 ctx->errno_ref   = &_errno[cpuid];
                 ctx->app_ctx_ref = &_app_ctx[cpuid];
                 err              = 0;
+
+        } else if (syscall == SYSCALL_GETUPTIMEMS) {
+
+                clock_t *uptime_ms = va_arg(args, clock_t *);
+                if (uptime_ms) {
+                        *uptime_ms = _kernel_get_uptime_ms();
+                        err        = 0;
+                } else {
+                        err           = EINVAL;
+                        _errno[cpuid] = err;
+                }
 
         } else if (syscall < _SYSCALL_COUNT) {
                 _process_clean_up_killed_processes();
@@ -2914,27 +2924,6 @@ static int syscall_getmodmemusage(syscallrq_t *rq)
         GETARG(int32_t *, usage);
 
         return _mm_get_module_mem_usage(*module, usage);
-}
-
-//==============================================================================
-/**
- * @brief  This syscall get system uptime in seconds.
- *
- * @param  rq                   syscall request
- *
- * @return One of errno value.
- */
-//==============================================================================
-static int syscall_getuptimems(syscallrq_t *rq)
-{
-        GETARG(clock_t *, uptime_ms);
-
-        if (uptime_ms) {
-                *uptime_ms = _kernel_get_uptime_ms();
-                return 0;
-        } else {
-                return EINVAL;
-        }
 }
 
 //==============================================================================
