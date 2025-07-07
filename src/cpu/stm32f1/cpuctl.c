@@ -134,7 +134,7 @@ const char *_cpuctl_fast_mem[]          = {__CPU_PREFFERED_FAST_RAM__, NULL};
 //==============================================================================
 void _cpuctl_init(void)
 {
-        NVIC_SetVectorTable(0, __CPU_VTOR_TAB_POSITION__);
+        NVIC_SetVectorTable(__CPU_VTOR_TAB_POSITION__, 0);
         NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
 
 #if __CPU_DISABLE_INTER_OF_MCYCLE_INSTR__ == _YES_
