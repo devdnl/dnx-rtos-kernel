@@ -56,9 +56,9 @@ Brief   Daniel Zorychta
 #define MAX_FILE_NAME_LEN     (BLOCK_SIZE - offsetof(blk_file_t, name))
 
 #define foreach_file_node(_hdl, _start_node)                                                    \
-        u32_t  _max_files = _hdl->total_files;                                                  \
-        size_t i          = (_start_node) / 32;                                                 \
-        size_t bit        = (_start_node) % 32;                                                 \
+        u32_t _max_files = _hdl->total_files;                                                   \
+        size_t i = (_start_node) / 32;                                                          \
+        size_t bit = (_start_node) % 32;                                                        \
         for (; i < ARRAY_SIZE(_hdl->bitmap.word); i++, bit = 0)                                 \
                 for (; (bit < ARRAY_ITEM_SIZE(_hdl->bitmap.word) * 8) and (_max_files > 0);     \
                         bit++, _max_files--)                                                    \
@@ -102,17 +102,17 @@ typedef union {
  */
 typedef union {
         struct {
-                u32_t  magic;          // Block magic number: MAGIC_BLOCK_FILE
-                u32_t  crc;            // CRC32 calculated starting from field below up to block end
-                u64_t  ctime;          // time of creation
-                u64_t  mtime;          // time of last modification
-                mode_t mode;           // file mode
-                uid_t  uid;            // user ID of owner
-                gid_t  gid;            // group ID of owner
-                u32_t  size;           // File size in bytes
-                char   name[312];      // file name
-                u32_t  next_data_node; // next data node
-                u32_t  reserved;       // reserved
+                u32_t magic;          // Block magic number: MAGIC_BLOCK_FILE
+                u32_t crc;            // CRC32 calculated starting from field below up to block end
+                u64_t ctime;          // time of creation
+                u64_t mtime;          // time of last modification
+                mode_t mode;          // file mode
+                uid_t uid;            // user ID of owner
+                gid_t gid;            // group ID of owner
+                u32_t size;           // File size in bytes
+                char name[312];       // file name
+                u32_t next_data_node; // next data node
+                u32_t reserved;       // reserved
         };
 
         u8_t block[BLOCK_SIZE];
@@ -151,8 +151,8 @@ typedef struct {
  * Directory handle.
  */
 typedef struct {
-        char    *dir_root;
-        char    *item_name;
+        char *dir_root;
+        char *item_name;
         llist_t *last_dirs;
         uint32_t dir_root_len;
         uint32_t seek;
@@ -162,8 +162,8 @@ typedef struct {
  * Type contains block cache buffer.
  */
 typedef struct {
-        u32_t      node;
-        i32_t      hit;
+        u32_t node;
+        i32_t hit;
         blk_file_t blk;
 } path_index_t;
 
@@ -171,23 +171,23 @@ typedef struct {
  * File system handle.
  */
 typedef struct {
-        kmtx_t      *mtx;
-        kfile_t     *disc;
-        llist_t     *open_files;
-        size_t       open_dirs_ctr;
-        bool         read_only;
-        bool         force_check;
-        bool         noatime;
-        u32_t        total_files;
-        u32_t        total_volume_blocks;
-        u32_t        file_node_blocks;
-        u32_t        last_file_node_blocks;
-        u32_t        bitmap_address_primary;
-        u32_t        bitmap_address_secondary;
-        u32_t        first_file_node_address;
+        kmtx_t *mtx;
+        kfile_t *disc;
+        llist_t *open_files;
+        size_t open_dirs_ctr;
+        bool read_only;
+        bool force_check;
+        bool noatime;
+        u32_t total_files;
+        u32_t total_volume_blocks;
+        u32_t file_node_blocks;
+        u32_t last_file_node_blocks;
+        u32_t bitmap_address_primary;
+        u32_t bitmap_address_secondary;
+        u32_t first_file_node_address;
         blk_bitmap_t bitmap;
-        char         tmp_path[MAX_FILE_NAME_LEN];
-        u8_t         block[2][BLOCK_SIZE];
+        char tmp_path[MAX_FILE_NAME_LEN];
+        u8_t block[2][BLOCK_SIZE];
 
 #if __FLATFS_INDEX_SIZE__ > 0
         path_index_t path_index[__FLATFS_INDEX_SIZE__];
@@ -198,37 +198,37 @@ typedef struct {
  * Readdir specified dir entry
  */
 typedef struct {
-        u64_t  size;   //!< File size in bytes
-        mode_t mode;   //!< File mode (protection, file type)
-        dev_t  dev;    //!< Device address (if file type is driver)
-        char   name[]; //!< File name placeholder
+        u64_t size;  //!< File size in bytes
+        mode_t mode; //!< File mode (protection, file type)
+        dev_t dev;   //!< Device address (if file type is driver)
+        char name[]; //!< File name placeholder
 } readdir_dirent_t;
 
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
 static u32_t calc_crc32(const void *buf, size_t buflen, u32_t init);
-static int   block_read(flatfs_t *hdl, u32_t address, void *dst, size_t blocks);
-static int   block_write(flatfs_t *hdl, u32_t address, const void *src, size_t blocks);
-static int   mount(flatfs_t *hdl);
-static int   check_first_sector_coherency(flatfs_t *hdl);
-static int   check_bitmaps_coherency_and_repair(flatfs_t *hdl);
-static int   check_file_block_coherency(flatfs_t *hdl, const blk_file_t *blk);
+static int block_read(flatfs_t *hdl, u32_t address, void *dst, size_t blocks);
+static int block_write(flatfs_t *hdl, u32_t address, const void *src, size_t blocks);
+static int mount(flatfs_t *hdl);
+static int check_first_sector_coherency(flatfs_t *hdl);
+static int check_bitmaps_coherency_and_repair(flatfs_t *hdl);
+static int check_file_block_coherency(flatfs_t *hdl, const blk_file_t *blk);
 static u32_t node_get_blkaddr(flatfs_t *hdl, u32_t node_num);
-static int   node_find(flatfs_t *hdl, const char *name, size_t name_len, mode_t mode_mask, blk_file_t *blk,
-          u32_t *node_num);
-static int   node_create(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t *blk, u32_t *node_num,
-          time_t time);
-static int   node_remove(flatfs_t *hdl, u32_t node_num);
-static void  set_bitmap_bit(flatfs_t *hdl, u32_t node_num, bool set);
+static int node_find(flatfs_t *hdl, const char *name, size_t name_len, mode_t mode_mask, blk_file_t *blk,
+        u32_t *node_num);
+static int node_create(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t *blk, u32_t *node_num,
+        time_t time);
+static int node_remove(flatfs_t *hdl, u32_t node_num);
+static void set_bitmap_bit(flatfs_t *hdl, u32_t node_num, bool set);
 static u32_t calc_blk_crc(const void *blk);
-static int   file_block_read(flatfs_t *hdl, u32_t node_num, blk_file_t *blk);
-static int   file_block_write(flatfs_t *hdl, u32_t node_num, blk_file_t *blk);
-static void  index_remove(flatfs_t *hdl, u32_t node_num);
-static bool  index_find(flatfs_t *hdl, const char *name, size_t name_len, mode_t mode, blk_file_t *blk,
-         u32_t *node_num);
-static bool  index_get(flatfs_t *hdl, u32_t node_num, blk_file_t *blk);
-static void  index_add(flatfs_t *hdl, u32_t node_num, const blk_file_t *blk);
+static int file_block_read(flatfs_t *hdl, u32_t node_num, blk_file_t *blk);
+static int file_block_write(flatfs_t *hdl, u32_t node_num, blk_file_t *blk);
+static void index_remove(flatfs_t *hdl, u32_t node_num);
+static bool index_find(flatfs_t *hdl, const char *name, size_t name_len, mode_t mode, blk_file_t *blk,
+        u32_t *node_num);
+static bool index_get(flatfs_t *hdl, u32_t node_num, blk_file_t *blk);
+static void index_add(flatfs_t *hdl, u32_t node_num, const blk_file_t *blk);
 
 /*==============================================================================
   Local objects
@@ -299,16 +299,16 @@ API_FS_INIT(flatfs, void **fs_handle, const char *src_path, const char *opts)
         if (!err) {
                 flatfs_t *hdl = *fs_handle;
 
-                hdl->read_only   = sys_stropt_is_flag(opts, "ro");
+                hdl->read_only = sys_stropt_is_flag(opts, "ro");
                 hdl->force_check = sys_stropt_is_flag(opts, "check");
-                hdl->noatime     = sys_stropt_is_flag(opts, "noatime");
+                hdl->noatime = sys_stropt_is_flag(opts, "noatime");
 
                 if (hdl->read_only) {
-                        DBG("mounting read-only");
+                        MSG("mounted read-only");
                 }
 
                 if (hdl->force_check) {
-                        DBG("enable file system force check");
+                        MSG("enabled file system force check");
                 }
 
 #if __FLATFS_INDEX_SIZE__ > 0
@@ -401,7 +401,7 @@ API_FS_OPEN(flatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
         flatfs_t *hdl = fs_handle;
 
         file_t *file;
-        int     err = sys_zalloc(sizeof(file_t), cast(void **, &file));
+        int err = sys_zalloc(sizeof(file_t), cast(void **, &file));
         if (!err) {
                 *fhdl = file;
                 *fpos = 0;
@@ -474,7 +474,7 @@ API_FS_OPEN(flatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
                         if (S_ISREG(blk->mode)) {
                                 if (flags & O_TRUNC) {
 
-                                        blk->size  = 0;
+                                        blk->size = 0;
                                         blk->mtime = mtime;
 
                                         err = file_block_write(hdl, file->node_num, blk);
@@ -570,8 +570,8 @@ API_FS_WRITE(flatfs, void *fs_handle, void *fhdl, const u8_t *src, size_t count,
 {
         UNUSED_ARG1(fattr);
 
-        flatfs_t *hdl  = fs_handle;
-        file_t   *file = fhdl;
+        flatfs_t *hdl = fs_handle;
+        file_t *file = fhdl;
 
         if (hdl->read_only) {
                 return EROFS;
@@ -584,16 +584,16 @@ API_FS_WRITE(flatfs, void *fs_handle, void *fhdl, const u8_t *src, size_t count,
         if (!err) {
 
                 u32_t seek = *fpos;
-                *wrctr     = 0;
+                *wrctr = 0;
 
                 blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
-                err             = file_block_read(hdl, file->node_num, blk);
+                err = file_block_read(hdl, file->node_num, blk);
 
                 if (!err) {
                         // fill by zeros void between seek and file size
                         if (seek > blk->size) {
-                                u32_t zeros         = seek - blk->size;
-                                u32_t wrpos         = blk->size;
+                                u32_t zeros = seek - blk->size;
+                                u32_t wrpos = blk->size;
                                 u32_t block_address = (node_get_blkaddr(hdl, file->node_num) + 1) +
                                         (wrpos / BLOCK_SIZE);
 
@@ -618,30 +618,30 @@ API_FS_WRITE(flatfs, void *fs_handle, void *fhdl, const u8_t *src, size_t count,
                         }
 
                         // write data buffer
-                        u32_t file_blocks    = (file->node_num == (hdl->total_files - 1))
-                                   ? hdl->last_file_node_blocks
-                                   : hdl->file_node_blocks;
-                        u64_t max_file_size  = cast(u64_t, file_blocks - 1) * BLOCK_SIZE;
+                        u32_t file_blocks = (file->node_num == (hdl->total_files - 1))
+                                ? hdl->last_file_node_blocks
+                                : hdl->file_node_blocks;
+                        u64_t max_file_size = cast(u64_t, file_blocks - 1) * BLOCK_SIZE;
                         u32_t bytes_to_write = min(max_file_size - seek, count);
-                        u32_t block_address  = (node_get_blkaddr(hdl, file->node_num) + 1) +
+                        u32_t block_address = (node_get_blkaddr(hdl, file->node_num) + 1) +
                                 (seek / BLOCK_SIZE);
 
                         while (!err and (bytes_to_write > 0)) {
 
-                                u32_t       blocks = 0;
-                                u32_t       bytes  = 0;
-                                const u8_t *buf    = NULL;
+                                u32_t blocks = 0;
+                                u32_t bytes = 0;
+                                const u8_t *buf = NULL;
 
                                 if ((seek % BLOCK_SIZE == 0) and (bytes_to_write >= BLOCK_SIZE)) {
                                         blocks = bytes_to_write / BLOCK_SIZE;
-                                        bytes  = blocks * BLOCK_SIZE;
-                                        buf    = src;
+                                        bytes = blocks * BLOCK_SIZE;
+                                        buf = src;
 
                                 } else {
                                         blocks = 1;
-                                        bytes  = BLOCK_SIZE - (seek % BLOCK_SIZE);
-                                        bytes  = min(bytes, bytes_to_write);
-                                        buf    = hdl->block[1];
+                                        bytes = BLOCK_SIZE - (seek % BLOCK_SIZE);
+                                        bytes = min(bytes, bytes_to_write);
+                                        buf = hdl->block[1];
 
                                         err = block_read(hdl, block_address, hdl->block[1], blocks);
                                         if (!err) {
@@ -665,8 +665,8 @@ API_FS_WRITE(flatfs, void *fs_handle, void *fhdl, const u8_t *src, size_t count,
                         if (*wrctr > 0) {
                                 if ((blk->size < seek) or (not hdl->noatime)) {
                                         blk->mtime = now;
-                                        blk->size  = max(blk->size, seek);
-                                        err        = file_block_write(hdl, file->node_num, blk);
+                                        blk->size = max(blk->size, seek);
+                                        err = file_block_write(hdl, file->node_num, blk);
                                 }
                         }
                 }
@@ -697,17 +697,17 @@ API_FS_READ(flatfs, void *fs_handle, void *fhdl, u8_t *dst, size_t count, fpos_t
 {
         UNUSED_ARG1(fattr);
 
-        flatfs_t *hdl  = fs_handle;
-        file_t   *file = fhdl;
+        flatfs_t *hdl = fs_handle;
+        file_t *file = fhdl;
 
         int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (!err) {
 
                 u32_t seek = *fpos;
-                *rdctr     = 0;
+                *rdctr = 0;
 
                 blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
-                err             = file_block_read(hdl, file->node_num, blk);
+                err = file_block_read(hdl, file->node_num, blk);
                 if (!err and (seek < blk->size)) {
 
                         u32_t bytes_to_read = min(blk->size - seek, count);
@@ -717,19 +717,19 @@ API_FS_READ(flatfs, void *fs_handle, void *fhdl, u8_t *dst, size_t count, fpos_t
                         while (!err and (bytes_to_read > 0)) {
 
                                 u32_t blocks = 0;
-                                u32_t bytes  = 0;
+                                u32_t bytes = 0;
 
                                 if ((seek % BLOCK_SIZE == 0) and (bytes_to_read >= BLOCK_SIZE)) {
 
                                         blocks = bytes_to_read / BLOCK_SIZE;
-                                        bytes  = blocks * BLOCK_SIZE;
+                                        bytes = blocks * BLOCK_SIZE;
 
                                         err = block_read(hdl, block_address, dst, blocks);
 
                                 } else {
                                         blocks = 1;
-                                        bytes  = BLOCK_SIZE - (seek % BLOCK_SIZE);
-                                        bytes  = min(bytes, bytes_to_read);
+                                        bytes = BLOCK_SIZE - (seek % BLOCK_SIZE);
+                                        bytes = min(bytes, bytes_to_read);
 
                                         err = block_read(hdl, block_address, hdl->block[1], blocks);
                                         if (!err) {
@@ -807,15 +807,15 @@ API_FS_FSTAT(flatfs, void *fs_handle, void *fhdl, struct stat *stat)
                 file_t *file = fhdl;
 
                 blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
-                err             = file_block_read(hdl, file->node_num, blk);
+                err = file_block_read(hdl, file->node_num, blk);
                 if (!err) {
                         stat->st_ctime = blk->ctime;
                         stat->st_mtime = blk->mtime;
-                        stat->st_dev   = 0;
-                        stat->st_gid   = blk->gid;
-                        stat->st_uid   = blk->uid;
-                        stat->st_mode  = blk->mode;
-                        stat->st_size  = blk->size;
+                        stat->st_dev = 0;
+                        stat->st_gid = blk->gid;
+                        stat->st_uid = blk->uid;
+                        stat->st_mode = blk->mode;
+                        stat->st_size = blk->size;
                 }
 
                 sys_mutex_unlock(hdl->mtx);
@@ -852,7 +852,7 @@ API_FS_STAT(flatfs, void *fs_handle, const char *path, struct stat *stat)
         blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
 
         u32_t node_num;
-        bool  found = index_find(hdl, path, MAX_FILE_NAME_LEN, FIND_ANY_NODE, blk, &node_num);
+        bool found = index_find(hdl, path, MAX_FILE_NAME_LEN, FIND_ANY_NODE, blk, &node_num);
         if (not found) {
                 found = index_find(hdl, hdl->tmp_path, MAX_FILE_NAME_LEN, FIND_ANY_NODE, blk, &node_num);
         }
@@ -883,11 +883,11 @@ finish:
         if (not err) {
                 stat->st_ctime = blk->ctime;
                 stat->st_mtime = blk->mtime;
-                stat->st_dev   = 0;
-                stat->st_gid   = blk->gid;
-                stat->st_uid   = blk->uid;
-                stat->st_mode  = blk->mode;
-                stat->st_size  = blk->size;
+                stat->st_dev = 0;
+                stat->st_gid = blk->gid;
+                stat->st_uid = blk->uid;
+                stat->st_mode = blk->mode;
+                stat->st_size = blk->size;
         }
 
         sys_mutex_unlock(hdl->mtx);
@@ -909,12 +909,12 @@ API_FS_STATFS(flatfs, void *fs_handle, struct statfs *statfs)
 {
         flatfs_t *hdl = fs_handle;
 
-        statfs->f_bsize  = BLOCK_SIZE;
+        statfs->f_bsize = BLOCK_SIZE;
         statfs->f_blocks = hdl->total_volume_blocks;
-        statfs->f_bfree  = hdl->total_volume_blocks - hdl->total_files - 3; /* FS + 2*BMP */
-        statfs->f_ffree  = hdl->total_files;
-        statfs->f_files  = hdl->total_files;
-        statfs->f_type   = SYS_FS_TYPE__SOLID;
+        statfs->f_bfree = hdl->total_volume_blocks - hdl->total_files - 3; /* FS + 2*BMP */
+        statfs->f_ffree = hdl->total_files;
+        statfs->f_files = hdl->total_files;
+        statfs->f_type = SYS_FS_TYPE__SOLID;
         statfs->f_fsname = "flatfs";
 
         int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
@@ -925,7 +925,7 @@ API_FS_STATFS(flatfs, void *fs_handle, struct statfs *statfs)
                         if (hdl->bitmap.word[i] & (1 << bit)) {
 
                                 blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
-                                err             = file_block_read(hdl, node, blk);
+                                err = file_block_read(hdl, node, blk);
                                 if (!err) {
                                         statfs->f_ffree--;
                                         statfs->f_bfree -= CEILING(blk->size, BLOCK_SIZE);
@@ -967,7 +967,7 @@ API_FS_MKDIR(flatfs, void *fs_handle, const char *path, mode_t mode)
         int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (!err) {
                 blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
-                u32_t       node_num;
+                u32_t node_num;
 
                 /*
                  * Try to open root directory
@@ -1072,12 +1072,12 @@ API_FS_OPENDIR(flatfs, void *fs_handle, const char *path, kdir_t *kdir)
 {
         flatfs_t *hdl = fs_handle;
 
-        kdir->d_hdl   = NULL;
+        kdir->d_hdl = NULL;
         kdir->d_items = 0;
-        kdir->d_seek  = 0;
+        kdir->d_seek = 0;
 
         dir_t *dir;
-        int    err = sys_zalloc(sizeof(*dir), cast(void **, &dir));
+        int err = sys_zalloc(sizeof(*dir), cast(void **, &dir));
         if (err) {
                 return err;
         }
@@ -1108,9 +1108,9 @@ API_FS_OPENDIR(flatfs, void *fs_handle, const char *path, kdir_t *kdir)
         dir->dir_root_len = strlen(dir->dir_root);
 
         if (isstreq(path, "/")) {
-                kdir->d_hdl   = dir;
-                kdir->d_items = 0; // FIXME
-                kdir->d_seek  = 0;
+                kdir->d_hdl = dir;
+                kdir->d_items = 0; // FIXME count number of files
+                kdir->d_seek = 0;
 
                 hdl->open_dirs_ctr++;
                 return 0;
@@ -1125,15 +1125,15 @@ API_FS_OPENDIR(flatfs, void *fs_handle, const char *path, kdir_t *kdir)
                         DBG("diropen() node: %lu", node);
 
                         blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
-                        err             = file_block_read(hdl, node, blk);
+                        err = file_block_read(hdl, node, blk);
                         if (err) {
                                 goto finish;
                         }
 
                         if (strncmp(blk->name, dir->dir_root, dir->dir_root_len) == 0) {
-                                kdir->d_hdl   = dir;
-                                kdir->d_items = 0; // FIXME
-                                kdir->d_seek  = 0;
+                                kdir->d_hdl = dir;
+                                kdir->d_items = 0; // FIXME count number of files
+                                kdir->d_seek = 0;
 
                                 hdl->open_dirs_ctr++;
                                 goto finish;
@@ -1199,7 +1199,7 @@ API_FS_CLOSEDIR(flatfs, void *fs_handle, kdir_t *kdir)
 API_FS_READDIR(flatfs, void *fs_handle, kdir_t *kdir)
 {
         flatfs_t *hdl = fs_handle;
-        dir_t    *dir = kdir->d_hdl;
+        dir_t *dir = kdir->d_hdl;
 
         if (dir->seek != kdir->d_seek) {
                 dir->seek = kdir->d_seek;
@@ -1215,7 +1215,7 @@ API_FS_READDIR(flatfs, void *fs_handle, kdir_t *kdir)
         foreach_used_file_node(hdl, dir->seek)
         {
                 blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
-                err             = file_block_read(hdl, node, blk);
+                err = file_block_read(hdl, node, blk);
                 if (err) {
                         goto finish;
                 }
@@ -1224,14 +1224,14 @@ API_FS_READDIR(flatfs, void *fs_handle, kdir_t *kdir)
 
                 DBG("diropen() node: %lu: '%s'", node, blk->name);
 
-                dir->seek    = node + 1;
+                dir->seek = node + 1;
                 kdir->d_seek = dir->seek;
 
                 char *item_name = blk->name + dir->dir_root_len;
 
                 char *slash = strchr(item_name, '/');
                 if (slash) {
-                        *slash            = '\0';
+                        *slash = '\0';
                         kdir->dirent.mode = S_IFDIR;
                         kdir->dirent.size = 0;
                 } else {
@@ -1301,8 +1301,8 @@ API_FS_REMOVE(flatfs, void *fs_handle, const char *path)
         int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (!err) {
 
-                blk_file_t *file        = cast(blk_file_t *, hdl->block[0]);
-                u32_t       df_node_num = 0;
+                blk_file_t *file = cast(blk_file_t *, hdl->block[0]);
+                u32_t df_node_num = 0;
 
                 sys_strlcpy(hdl->tmp_path, path, sizeof(hdl->tmp_path));
 
@@ -1335,17 +1335,16 @@ API_FS_REMOVE(flatfs, void *fs_handle, const char *path)
                                 foreach_used_file_node(hdl, 0)
                                 {
                                         blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
-                                        err             = file_block_read(hdl, node, blk);
+                                        err = file_block_read(hdl, node, blk);
                                         if (!err) {
                                                 if ((strncmp(blk->name, hdl->tmp_path, dir_name_len) == 0) and
                                                         (strcmp(blk->name, hdl->tmp_path) != 0)) {
 
-                                                        // TEST blokada usuniecia uzywanego pliku
                                                         bool file_open = false;
 
                                                         sys_llist_foreach (file_t *, file, hdl->open_files) {
                                                                 if (file->node_num == node) {
-                                                                        file_open   = true;
+                                                                        file_open = true;
                                                                         remove_node = false;
                                                                         break;
                                                                 }
@@ -1397,7 +1396,7 @@ API_FS_RENAME(flatfs, void *fs_handle, const char *old_name, const char *new_nam
         int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (!err) {
                 blk_file_t *file = cast(blk_file_t *, hdl->block[0]);
-                u32_t       node_num;
+                u32_t node_num;
                 err = node_find(hdl, new_name, MAX_FILE_NAME_LEN, FIND_ANY_NODE, file, &node_num);
 
                 if (err == ENOENT) {
@@ -1442,7 +1441,7 @@ API_FS_CHMOD(flatfs, void *fs_handle, const char *path, mode_t mode)
         int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (!err) {
                 blk_file_t *file = cast(blk_file_t *, hdl->block[0]);
-                u32_t       node;
+                u32_t node;
 
                 err = node_find(hdl, path, MAX_FILE_NAME_LEN, FIND_ANY_NODE, file, &node);
                 if (err) {
@@ -1453,7 +1452,7 @@ API_FS_CHMOD(flatfs, void *fs_handle, const char *path, mode_t mode)
 
                 if (!err) {
                         file->mode = (file->mode & S_IFMT) | (mode & S_IPMT);
-                        err        = file_block_write(hdl, node, file);
+                        err = file_block_write(hdl, node, file);
                 }
 
                 sys_mutex_unlock(hdl->mtx);
@@ -1485,13 +1484,13 @@ API_FS_CHOWN(flatfs, void *fs_handle, const char *path, uid_t owner, gid_t group
         int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (!err) {
                 blk_file_t *file = cast(blk_file_t *, hdl->block[0]);
-                u32_t       node;
+                u32_t node;
 
                 err = node_find(hdl, path, MAX_FILE_NAME_LEN, FIND_ANY_NODE, file, &node);
                 if (!err) {
                         file->uid = owner;
                         file->gid = group;
-                        err       = file_block_write(hdl, node, file);
+                        err = file_block_write(hdl, node, file);
                 }
 
                 sys_mutex_unlock(hdl->mtx);
@@ -1683,12 +1682,12 @@ static int check_first_sector_coherency(flatfs_t *hdl)
                                 (blk->first_file_node_address != blk->bitmap_address_primary) and
                                 (blk->first_file_node_address != blk->bitmap_address_secondary)) {
 
-                                hdl->total_files              = blk->total_files;
-                                hdl->total_volume_blocks      = blk->total_volume_blocks;
-                                hdl->file_node_blocks         = blk->file_node_blocks;
-                                hdl->last_file_node_blocks    = blk->last_file_node_blocks;
-                                hdl->first_file_node_address  = blk->first_file_node_address;
-                                hdl->bitmap_address_primary   = blk->bitmap_address_primary;
+                                hdl->total_files = blk->total_files;
+                                hdl->total_volume_blocks = blk->total_volume_blocks;
+                                hdl->file_node_blocks = blk->file_node_blocks;
+                                hdl->last_file_node_blocks = blk->last_file_node_blocks;
+                                hdl->first_file_node_address = blk->first_file_node_address;
+                                hdl->bitmap_address_primary = blk->bitmap_address_primary;
                                 hdl->bitmap_address_secondary = blk->bitmap_address_secondary;
 
                                 err = ESUCC;
@@ -1720,7 +1719,7 @@ static int check_bitmaps_coherency_and_repair(flatfs_t *hdl)
 {
         blk_bitmap_t *bmp_pri = &hdl->bitmap;
         blk_bitmap_t *bmp_sec = cast(blk_bitmap_t *, hdl->block[0]);
-        blk_file_t   *file    = cast(blk_file_t *, hdl->block[1]);
+        blk_file_t *file = cast(blk_file_t *, hdl->block[1]);
 
         int err = block_read(hdl, hdl->bitmap_address_primary, bmp_pri, 1);
         if (!err) {
@@ -1841,14 +1840,23 @@ finish:
 //==============================================================================
 static int check_file_block_coherency(flatfs_t *hdl, const blk_file_t *blk)
 {
-        if ((blk->magic == MAGIC_BLOCK_FILE) and (blk->crc == calc_blk_crc(blk)) and
-                (blk->size <= ((hdl->file_node_blocks - 1) * BLOCK_SIZE))) {
+        if (blk->magic != MAGIC_BLOCK_FILE) {
+                MSG("file block error: '%.*s'", strnlen(blk->name, sizeof(blk->name)), blk->name);
+                MSG("incorrect magic number of file block");
+                return EILSEQ;
 
-                return ESUCC;
+        } else if (blk->crc != calc_blk_crc(blk)) {
+                MSG("file block error: '%.*s'", strnlen(blk->name, sizeof(blk->name)), blk->name);
+                MSG("incorrect file block CRC");
+                return EILSEQ;
+
+        } else if (blk->size > ((hdl->file_node_blocks - 1) * BLOCK_SIZE)) {
+                MSG("file block error: '%.*s'", strnlen(blk->name, sizeof(blk->name)), blk->name);
+                MSG("file size not coherent with number of used blocks");
+                return EILSEQ;
 
         } else {
-                DBG("incoherent file");
-                return EILSEQ;
+                return ESUCC;
         }
 }
 
@@ -1960,10 +1968,10 @@ static int node_create(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t 
                         blk->magic = MAGIC_BLOCK_FILE;
                         blk->ctime = time;
                         blk->mtime = time;
-                        blk->mode  = mode;
-                        blk->uid   = 0;
-                        blk->gid   = 0;
-                        blk->size  = 0;
+                        blk->mode = mode;
+                        blk->uid = 0;
+                        blk->gid = 0;
+                        blk->size = 0;
                         memset(blk->name, 0, sizeof(blk->name));
                         sys_strlcpy(blk->name, name, MAX_FILE_NAME_LEN);
 
@@ -2208,7 +2216,7 @@ static void index_add(flatfs_t *hdl, u32_t node_num, const blk_file_t *blk)
         /*
          * Find the less used or empty index.
          */
-        i32_t  min_hit   = INT32_MAX;
+        i32_t min_hit = INT32_MAX;
         size_t entry_num = 0;
 
         for (size_t i = 0; i < ARRAY_SIZE(hdl->path_index); i++) {
@@ -2222,13 +2230,13 @@ static void index_add(flatfs_t *hdl, u32_t node_num, const blk_file_t *blk)
 
                 } else if (index->node == UINT32_MAX) {
                         index->hit = INT32_MIN;
-                        min_hit    = INT32_MIN;
-                        entry_num  = i;
+                        min_hit = INT32_MIN;
+                        entry_num = i;
                         break;
 
                 } else {
                         if (index->hit < min_hit) {
-                                min_hit   = index->hit;
+                                min_hit = index->hit;
                                 entry_num = i;
                         }
                 }
@@ -2238,9 +2246,9 @@ static void index_add(flatfs_t *hdl, u32_t node_num, const blk_file_t *blk)
          * Use index slot for new node.
          */
         path_index_t *index = &hdl->path_index[entry_num];
-        index->blk          = *blk;
-        index->hit          = 0;
-        index->node         = node_num;
+        index->blk = *blk;
+        index->hit = 0;
+        index->node = node_num;
 
 #else
         UNUSED_ARG3(hdl, node_num, blk);
