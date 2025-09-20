@@ -316,7 +316,7 @@ API_MOD_WRITE(SND,
                 } else {
                         hdl->next.ptr  = src;
                         hdl->next.size = count;
-                        err = sys_semaphore_wait(hdl->sem, _MAX_DELAY_MS);
+                        err = sys_semaphore_wait(hdl->sem, _WAIT_FOREVER_MS);
                 }
         }
 

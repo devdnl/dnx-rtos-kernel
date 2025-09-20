@@ -319,7 +319,7 @@ API_FS_CLOSE(procfs, void *fs_handle, void *fhdl, bool force)
 
         struct procfs *fsctx = fs_handle;
 
-        int err = sys_mutex_lock(fsctx->resource_mtx, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(fsctx->resource_mtx, _WAIT_FOREVER_MS);
         if (!err) {
                 int pos = sys_llist_find_begin(fsctx->file_list, fhdl);
                 err     = sys_llist_erase(fsctx->file_list, pos) ? ESUCC : ENOENT;
@@ -931,7 +931,7 @@ static int add_file_to_list(struct procfs *hdl, int16_t arg, enum path_content c
                 file->content = content;
                 file->arg     = arg;
 
-                err = sys_mutex_lock(hdl->resource_mtx, _MAX_DELAY_MS);
+                err = sys_mutex_lock(hdl->resource_mtx, _WAIT_FOREVER_MS);
                 if (!err) {
                         if (sys_llist_push_back(hdl->file_list, file)) {
                                 *object = file;

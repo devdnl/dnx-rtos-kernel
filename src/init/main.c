@@ -111,9 +111,7 @@ void low_level_init_0(void)
 
                         void (*call_address)(void) = cast(void*, reboot_address.address);
 
-                        reboot_address.key = 0;
-                        reboot_address.address = 0;
-                        reboot_address.address_validator = 0;
+                        memset(&reboot_address, 0, sizeof(reboot_address));
 
                         call_address();
                 }

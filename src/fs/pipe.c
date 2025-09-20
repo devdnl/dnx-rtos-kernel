@@ -59,8 +59,8 @@ struct pipe {
   Local objects
 ==============================================================================*/
 #if __OS_ENABLE_MKFIFO__ == _YES_
-static const u32_t PIPE_READ_TIMEOUT  = _MAX_DELAY_MS;
-static const u32_t PIPE_WRITE_TIMEOUT = _MAX_DELAY_MS;
+static const u32_t PIPE_READ_TIMEOUT  = _WAIT_FOREVER_MS;
+static const u32_t PIPE_WRITE_TIMEOUT = _WAIT_FOREVER_MS;
 #endif
 
 /*==============================================================================

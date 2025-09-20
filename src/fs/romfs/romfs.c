@@ -257,7 +257,7 @@ API_FS_OPEN(romfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
 
         *fpos = 0;
 
-        int err = sys_mutex_lock(hdl->mtx, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
         if (err) {
                 return err;
         }
@@ -331,7 +331,7 @@ API_FS_CLOSE(romfs, void *fs_handle, void *fhdl, bool force)
 
         romfs_t *hdl = fs_handle;
 
-        int err = sys_mutex_lock(hdl->mtx, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
         if (not err) {
                 sys_free(&fhdl);
 
@@ -388,7 +388,7 @@ API_FS_READ(romfs, void *fs_handle, void *fhdl, u8_t *dst, size_t count, fpos_t 
         romfs_t          *hdl  = fs_handle;
         struct fpkg_file *file = fhdl;
 
-        int err = sys_mutex_lock(hdl->mtx, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
         if (not err) {
 
                 fpkg__fseek(hdl, file, *fpos);
@@ -470,7 +470,7 @@ API_FS_FSTAT(romfs, void *fs_handle, void *fhdl, struct stat *stat)
         romfs_t          *hdl  = fs_handle;
         struct fpkg_file *file = fhdl;
 
-        int err = sys_mutex_lock(hdl->mtx, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
         if (not err) {
 
                 stat->st_ctime = COMPILE_EPOCH_TIME;
@@ -503,7 +503,7 @@ API_FS_STAT(romfs, void *fs_handle, const char *path, struct stat *stat)
 {
         romfs_t *hdl = fs_handle;
 
-        int err = sys_mutex_lock(hdl->mtx, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
         if (err) {
                 return err;
         }
@@ -683,7 +683,7 @@ API_FS_OPENDIR(romfs, void *fs_handle, const char *path, kdir_t *kdir)
 
         dir->dir_root_len = strlen(dir->dir_root);
 
-        err = sys_mutex_lock(hdl->mtx, _MAX_DELAY_MS);
+        err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
         if (not err) {
                 for (size_t i = 0; i < hdl->number_of_files; i++) {
 
@@ -749,7 +749,7 @@ API_FS_CLOSEDIR(romfs, void *fs_handle, kdir_t *kdir)
         sys_free(cast(void *, &dir->item_name));
         sys_free(cast(void *, &dir));
 
-        int err = sys_mutex_lock(hdl->mtx, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
         if (not err) {
                 hdl->open_dirs_ctr--;
                 sys_mutex_unlock(hdl->mtx);
@@ -784,7 +784,7 @@ API_FS_READDIR(romfs, void *fs_handle, kdir_t *kdir)
                 dir->seek = kdir->d_seek;
         }
 
-        int err = sys_mutex_lock(hdl->mtx, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
         if (err) {
                 return err;
         }

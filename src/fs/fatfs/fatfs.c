@@ -159,7 +159,7 @@ API_FS_RELEASE(fatfs, void *fs_handle)
 
                                 hdl->mutex = NULL;
                                 sys_mutex_unlock(mtx);
-                                sys_mutex_lock(mtx, _MAX_DELAY_MS);
+                                sys_mutex_lock(mtx, _WAIT_FOREVER_MS);
                                 sys_mutex_unlock(mtx);
 
                                 sys_fclose(hdl->fsfile);

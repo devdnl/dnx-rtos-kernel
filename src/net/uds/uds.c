@@ -256,8 +256,8 @@ int UDS_socket_create(void *ctx, NETM_socket_type_t type, u8_t prot, UDS_socket_
 
         socket->path         = NULL;
         socket->type         = type;
-        socket->recv_timeout = _MAX_DELAY_MS;
-        socket->send_timeout = _MAX_DELAY_MS;
+        socket->recv_timeout = _WAIT_FOREVER_MS;
+        socket->send_timeout = _WAIT_FOREVER_MS;
         socket->buf          = NULL;
         socket->shutdown     = 0;
         socket->conn_req     = NULL;
@@ -326,7 +326,7 @@ int UDS_socket_connect(void *ctx, UDS_socket_t *socket, const NETM_UDS_sockaddr_
                 return err;
         }
 
-        err = sys_mutex_lock(uds->socket.mutex, _MAX_DELAY_MS);
+        err = sys_mutex_lock(uds->socket.mutex, _WAIT_FOREVER_MS);
         if (not err) {
                 err = ENOENT;
 
@@ -429,7 +429,7 @@ int UDS_socket_bind(void *ctx, UDS_socket_t *socket, const NETM_UDS_sockaddr_t *
                 return EINVAL;
         }
 
-        int err = sys_mutex_lock(uds->socket.mutex, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(uds->socket.mutex, _WAIT_FOREVER_MS);
         if (not err) {
                 sys_llist_foreach (UDS_socket_t *, s, uds->socket.list) {
                         if (s->path and isstreq(s->path, addr->path)) {
@@ -711,7 +711,7 @@ int UDS_socket_sendto(void *ctx, UDS_socket_t *socket, const void *buf, size_t l
 
         UDS_socket_t *to_socket = NULL;
 
-        int err = sys_mutex_lock(uds->socket.mutex, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(uds->socket.mutex, _WAIT_FOREVER_MS);
         if (not err) {
                 err = ENOENT;
 
@@ -907,7 +907,7 @@ u64_t UDS_hton_u64(u64_t value)
 //==============================================================================
 static int socket_register(uds_t *uds, UDS_socket_t *socket)
 {
-        int err = sys_mutex_lock(uds->socket.mutex, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(uds->socket.mutex, _WAIT_FOREVER_MS);
         if (not err) {
 
                 if (sys_llist_push_back(uds->socket.list, socket) != socket) {
@@ -932,7 +932,7 @@ static int socket_register(uds_t *uds, UDS_socket_t *socket)
 //==============================================================================
 static int socket_unregister(uds_t *uds, UDS_socket_t *socket)
 {
-        int err = sys_mutex_lock(uds->socket.mutex, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(uds->socket.mutex, _WAIT_FOREVER_MS);
         if (not err) {
                 err = ENOENT;
 

@@ -3015,7 +3015,7 @@ extern int sys_semaphore_destroy(ksem_t *sem);
         {
                 while (true) {
                         // this task will wait for semaphore signal
-                        sys_semaphore_wait(sem, _MAX_DELAY_MS);
+                        sys_semaphore_wait(sem, _WAIT_FOREVER_MS);
 
                         // ...
                 }
@@ -3104,7 +3104,7 @@ static inline int sys_semaphore_get_value(ksem_t *sem, size_t *value)
         {
                 while (true) {
                         // this task will wait for semaphore signal
-                        sys_semaphore_wait(sem, _MAX_DELAY_MS);
+                        sys_semaphore_wait(sem, _WAIT_FOREVER_MS);
 
                         // ...
                 }
@@ -3196,7 +3196,7 @@ static inline int sys_semaphore_wait_from_ISR(ksem_t *sem, bool *task_woken)
         {
                 while (true) {
                         // this task will wait for semaphore signal
-                        sys_semaphore_wait(sem, _MAX_DELAY_MS);
+                        sys_semaphore_wait(sem, _WAIT_FOREVER_MS);
 
                         // ...
                 }
@@ -3533,7 +3533,7 @@ static inline u32_t sys_flag_get_from_ISR(kflag_t *flag)
         void thread1()
         {
                 // protected access to resource
-                if (sys_mutex_lock(mtx, _MAX_DELAY_MS) == ESUCC) {
+                if (sys_mutex_lock(mtx, _WAIT_FOREVER_MS) == ESUCC) {
                         // write to buffer is allowed
                         resource = ...;
 
@@ -3546,7 +3546,7 @@ static inline u32_t sys_flag_get_from_ISR(kflag_t *flag)
         void thread2()
         {
                 // protected access to resource
-                if (sys_mutex_lock(mtx, _MAX_DELAY_MS) == ESUCC) {
+                if (sys_mutex_lock(mtx, _WAIT_FOREVER_MS) == ESUCC) {
                         // write to buffer is allowed
                         resource = ...;
 
@@ -3606,7 +3606,7 @@ extern int sys_mutex_create(enum kmtx_type type, kmtx_t **mtx);
         void thread1()
         {
                 // protected access to resource
-                if (sys_mutex_lock(mtx, _MAX_DELAY_MS) == ESUCC) {
+                if (sys_mutex_lock(mtx, _WAIT_FOREVER_MS) == ESUCC) {
                         // write to buffer is allowed
                         resource = ...;
 
@@ -3619,7 +3619,7 @@ extern int sys_mutex_create(enum kmtx_type type, kmtx_t **mtx);
         void thread2()
         {
                 // protected access to resource
-                if (sys_mutex_lock(mtx, _MAX_DELAY_MS) == ESUCC) {
+                if (sys_mutex_lock(mtx, _WAIT_FOREVER_MS) == ESUCC) {
                         // write to buffer is allowed
                         resource = ...;
 
@@ -3680,7 +3680,7 @@ extern int sys_mutex_destroy(kmtx_t *mutex);
         void thread1()
         {
                 // protected access to resource
-                if (sys_mutex_lock(mtx, _MAX_DELAY_MS) == ESUCC) {
+                if (sys_mutex_lock(mtx, _WAIT_FOREVER_MS) == ESUCC) {
                         // write to buffer is allowed
                         resource = ...;
 
@@ -3693,7 +3693,7 @@ extern int sys_mutex_destroy(kmtx_t *mutex);
         void thread2()
         {
                 // protected access to resource
-                if (sys_mutex_lock(mtx, _MAX_DELAY_MS) == ESUCC) {
+                if (sys_mutex_lock(mtx, _WAIT_FOREVER_MS) == ESUCC) {
                         // write to buffer is allowed
                         resource = ...;
 
@@ -3836,7 +3836,7 @@ static inline int sys_mutex_trylock(kmtx_t *mutex)
         void thread1()
         {
                 // protected access to resource
-                if (sys_mutex_lock(mtx, _MAX_DELAY_MS) == ESUCC) {
+                if (sys_mutex_lock(mtx, _WAIT_FOREVER_MS) == ESUCC) {
                         // write to buffer is allowed
                         resource = ...;
 
@@ -3849,7 +3849,7 @@ static inline int sys_mutex_trylock(kmtx_t *mutex)
         void thread2()
         {
                 // protected access to resource
-                if (sys_mutex_lock(mtx, _MAX_DELAY_MS) == ESUCC) {
+                if (sys_mutex_lock(mtx, _WAIT_FOREVER_MS) == ESUCC) {
                         // write to buffer is allowed
                         resource = ...;
 

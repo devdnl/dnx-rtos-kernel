@@ -39,7 +39,7 @@
 #define RELEASE_TIMEOUT         1000
 #define OPERATION_TIMEOUT       60000
 #define REQUEST_TIMEOUT         20000
-#define HOST_REQUEST_TIMEOUT    _MAX_DELAY_MS
+#define HOST_REQUEST_TIMEOUT    _WAIT_FOREVER_MS
 
 #define FLAG_REQUEST            (1<<0)
 #define FLAG_RESPONSE           (1<<1)

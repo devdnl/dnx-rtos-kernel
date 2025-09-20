@@ -134,11 +134,11 @@ static bool is_init_done(inet_t *inet)
 //==============================================================================
 static void restore_configuration(inet_t *inet)
 {
-        int       err;
         bool      was_DHCP;
         ip_addr_t ip_addr, gw, netmask;
 
         printk("INET: Link disconnected");
+
         inet->disconnected = true;
 
         if ((DHCP_get_state(inet) != DHCP_STATE_OFF)) {
@@ -154,11 +154,9 @@ static void restore_configuration(inet_t *inet)
 
         netif_set_down(&inet->netif);
 
-        if (sys_mutex_lock(inet->access, _MAX_DELAY_MS) == ESUCC) {
+        if (sys_mutex_lock(inet->access, _WAIT_FOREVER_MS) == ESUCC) {
 
                 while (true) {
-                        _inetdrv_get_MAC(inet, inet->netif.hwaddr);
-
                         if (_inetdrv_is_link_connected(inet)) {
                                 inet->disconnected = false;
                                 printk("INET: Link connected");
@@ -172,17 +170,7 @@ static void restore_configuration(inet_t *inet)
                         }
                 }
 
-                err = sys_ioctl(inet->if_file, IOCTL_ETHIF__STOP);
-                if (err) {
-                        printk("INET: ETH stop fail (%d)", err);
-                }
-
                 _inetdrv_get_MAC(inet, inet->netif.hwaddr);
-
-                err = sys_ioctl(inet->if_file, IOCTL_ETHIF__START);
-                if (err) {
-                        printk("INET: ETH start fail (%d)", err);
-                }
 
                 if (inet->configured) {
                         if (was_DHCP) {
@@ -1299,7 +1287,12 @@ int INET_socket_set_recv_timeout(void *ctx, INET_socket_t *inet_sock, uint32_t t
 {
         UNUSED_ARG1(ctx);
 
+        if (timeout == 0) {
+                timeout = 1;
+        }
+
         netconn_set_recvtimeout(inet_sock->netconn, timeout);
+
         return ESUCC;
 }
 
@@ -1315,7 +1308,12 @@ int INET_socket_set_send_timeout(void *ctx, INET_socket_t *inet_sock, uint32_t t
 {
         UNUSED_ARG1(ctx);
 
+        if (timeout == 0) {
+                timeout = 1;
+        }
+
         netconn_set_sendtimeout(inet_sock->netconn, timeout);
+
         return ESUCC;
 }
 

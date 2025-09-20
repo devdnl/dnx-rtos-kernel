@@ -506,7 +506,7 @@ API_MOD_IOCTL(SDMMC, void *device_handle, int request, void *arg)
 
         switch (request) {
         case IOCTL_SDMMC__INITIALIZE_CARD:
-                err = sys_mutex_lock(hdl->mtx, _MAX_DELAY_MS);
+                err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
                 if (!err) {
                         err = card_initialize(hdl);
                         sys_mutex_unlock(hdl->mtx);

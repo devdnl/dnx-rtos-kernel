@@ -285,6 +285,8 @@ int _kfree(enum _mm_mem mpur, void **mem, ...)
                                 usage                               = &memory_usage[mpur];
                                 err                                 = ESUCC;
                                 (*cast(res_header_t **, mem))->next = NULL;
+                                (*cast(res_header_t **, mem))->prev = NULL;
+                                (*cast(res_header_t **, mem))->proc = NULL;
                                 (*cast(res_header_t **, mem))->self = NULL;
                                 (*cast(res_header_t **, mem))->type = RES_TYPE_UNKNOWN;
                         } else {

@@ -250,7 +250,7 @@ void sys_mtx_lock(sys_mtx_t *mutex)
         LWIP_ASSERT("sys_arch.c: wrong mutex object!", (mutex != NULL));
 
         if (mutex && *mutex) {
-                sys_mutex_lock(*mutex, _MAX_DELAY_MS);
+                sys_mutex_lock(*mutex, _WAIT_FOREVER_MS);
         }
 }
 
@@ -411,7 +411,7 @@ u32_t sys_arch_sem_wait(sys_sem_t *sem, u32_t timeout)
                 if (timeout) {
                         sem_status = sys_semaphore_wait(*sem, timeout);
                 } else {
-                        sem_status = sys_semaphore_wait(*sem, _MAX_DELAY_MS);
+                        sem_status = sys_semaphore_wait(*sem, _WAIT_FOREVER_MS);
                 }
 
                 if (sem_status == ESUCC) {
@@ -519,7 +519,7 @@ void sys_mbox_post(sys_mbox_t *mbox, void *msg)
         LWIP_ASSERT("sys_arch.c: wrong mbox object!", (mbox != NULL));
 
         if (mbox && *mbox) {
-                sys_queue_send(*mbox, &msg, _MAX_DELAY_MS);
+                sys_queue_send(*mbox, &msg, _WAIT_FOREVER_MS);
         }
 }
 
@@ -571,7 +571,7 @@ u32_t sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout)
 
                 if (sys_queue_receive(*mbox,
                                       &(*msg),
-                                      timeout ? timeout : _MAX_DELAY_MS) == ESUCC) {
+                                      timeout ? timeout : _WAIT_FOREVER_MS) == ESUCC) {
 
                         return sys_get_uptime_ms() - start_time;
                 }

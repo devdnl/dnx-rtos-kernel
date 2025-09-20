@@ -195,7 +195,7 @@ static const uint16_t TRANSFER_TYPE_REG[] = {
 
 static const u32_t EP0_STATUS_STAGE_TIMEOUT_ms          = 5;
 static const u32_t EP0_DATA_STAGE_TRANSMIT_TIMEOUT_ms   = 2000;
-static const u32_t EP0_DATA_STAGE_RECEIVE_TIMEOUT_ms    = _MAX_DELAY_MS;
+static const u32_t EP0_DATA_STAGE_RECEIVE_TIMEOUT_ms    = _WAIT_FOREVER_MS;
 static const u32_t EP1_7_DATA_STAGE_TRANSMIT_TIMEOUT_ms = 4500;
 
 /*==============================================================================
@@ -503,7 +503,7 @@ API_MOD_WRITE(USBD,
                                         USB_PMA->EP[hdl->minor].SBF.COUNT_TX = len;
                                         set_ep_tx_status(hdl->minor, USB_EP_STATUS__VALID);
 
-                                        if (sys_semaphore_wait(hdl->tx, _MAX_DELAY_MS) != ESUCC) {
+                                        if (sys_semaphore_wait(hdl->tx, _WAIT_FOREVER_MS) != ESUCC) {
                                                 set_ep_tx_status(hdl->minor, USB_EP_STATUS__NAK);
                                                 break;
                                         } else {
@@ -616,7 +616,7 @@ API_MOD_READ(USBD,
                                         /* wait for OUT token */
                                         set_ep_rx_status(hdl->minor, USB_EP_STATUS__VALID);
 
-                                        if (sys_semaphore_wait(hdl->rx, _MAX_DELAY_MS) != ESUCC) {
+                                        if (sys_semaphore_wait(hdl->rx, _WAIT_FOREVER_MS) != ESUCC) {
                                                 break;
                                         } else {
                                                 if (hdl->read_in_progress == false) {

@@ -214,7 +214,7 @@ static void *get_stack_context(const char *netname, size_t *idx)
 {
         void *ctx = NULL;
 
-        if (sys_mutex_lock(netm_mutex, _MAX_DELAY_MS) == 0) {
+        if (sys_mutex_lock(netm_mutex, _WAIT_FOREVER_MS) == 0) {
 
                 for (size_t n = 0; n < ARRAY_SIZE(net_list); n++) {
 
@@ -247,7 +247,7 @@ static NETM_family_t get_net_family_by_name(const char *netname)
 {
         NETM_family_t family = _NETM_FAMILY__COUNT;
 
-        if (sys_mutex_lock(netm_mutex, _MAX_DELAY_MS) == 0) {
+        if (sys_mutex_lock(netm_mutex, _WAIT_FOREVER_MS) == 0) {
 
                 for (size_t n = 0; n < ARRAY_SIZE(net_list); n++) {
 
@@ -309,7 +309,7 @@ int _net_ifadd(const char *netname, NETM_family_t family, const char *if_path)
                         err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &netm_mutex);
                 }
 
-                err = sys_mutex_lock(netm_mutex, _MAX_DELAY_MS);
+                err = sys_mutex_lock(netm_mutex, _WAIT_FOREVER_MS);
                 if (!err) {
 
                         void *ctx = get_stack_context(netname, NULL);
@@ -370,7 +370,7 @@ int _net_ifrm(const char *netname)
         int err = EINVAL;
 
         if (netname) {
-                err = sys_mutex_lock(netm_mutex, _MAX_DELAY_MS);
+                err = sys_mutex_lock(netm_mutex, _WAIT_FOREVER_MS);
                 if (!err) {
 
                         size_t n   = 0;
@@ -411,7 +411,7 @@ int _net_iflist(char *netname[], size_t netname_len, size_t *count)
 
                 memset(netname, 0, netname_len * sizeof(*netname));
 
-                err = sys_mutex_lock(netm_mutex, _MAX_DELAY_MS);
+                err = sys_mutex_lock(netm_mutex, _WAIT_FOREVER_MS);
                 if (!err) {
 
                         size_t n   = 0;
@@ -534,11 +534,16 @@ int _net_ifstatus(const char *netname, NETM_family_t *family, NETM_generic_statu
 
         int err = EINVAL;
 
-        if (netname && family && status && status_size) {
+        if (netname && family) {
                 size_t n   = 0;
                 void  *ctx = get_stack_context(netname, &n);
                 *family    = net_list[n].family;
-                err        = call_proxy_function(net_list[n].family, ctx, status, status_size);
+
+                if (status && status_size) {
+                        err = call_proxy_function(net_list[n].family, ctx, status, status_size);
+                } else {
+                        err = 0;
+                }
         }
 
         return err;
@@ -662,7 +667,7 @@ int _net_socket_bind(ksocket_t *socket, const NETM_generic_sockaddr_t *addr, siz
         int err = EINVAL;
 
         if (is_socket_valid(socket) && addr && addr_size) {
-                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
                         void *ctx = get_stack_context(socket->netname, NULL);
                         err       = call_proxy_function(socket->family, ctx, socket->ctx, addr, addr_size);
                         sys_mutex_unlock(socket->mutex);
@@ -699,7 +704,7 @@ int _net_socket_listen(ksocket_t *socket)
         int err = EINVAL;
 
         if (is_socket_valid(socket)) {
-                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
                         void *ctx = get_stack_context(socket->netname, NULL);
                         err       = call_proxy_function(socket->family, ctx, socket->ctx);
                         sys_mutex_unlock(socket->mutex);
@@ -784,7 +789,7 @@ int _net_socket_recv(ksocket_t *socket, void *buf, size_t len, NETM_flags_t flag
         int err = EINVAL;
 
         if (is_socket_valid(socket) && buf && len && recved) {
-                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
                         void *ctx = get_stack_context(socket->netname, NULL);
                         err = call_proxy_function(socket->family, ctx, socket->ctx, buf, len, flags, recved);
                         sys_mutex_unlock(socket->mutex);
@@ -828,7 +833,7 @@ int _net_socket_recvfrom(ksocket_t *socket, void *buf, size_t len, NETM_flags_t 
         int err = EINVAL;
 
         if (is_socket_valid(socket) && buf && len && sockaddr && sockaddr_size && recved) {
-                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
                         void *ctx = get_stack_context(socket->netname, NULL);
                         err = call_proxy_function(socket->family, ctx, socket->ctx, buf, len, flags, sockaddr,
                                 sockaddr_size, recved);
@@ -870,7 +875,7 @@ int _net_socket_send(ksocket_t *socket, const void *buf, size_t len, NETM_flags_
         int err = EINVAL;
 
         if (is_socket_valid(socket) && buf && len && sent) {
-                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
                         void *ctx = get_stack_context(socket->netname, NULL);
                         err = call_proxy_function(socket->family, ctx, socket->ctx, buf, len, flags, sent);
                         sys_mutex_unlock(socket->mutex);
@@ -913,7 +918,7 @@ int _net_socket_sendto(ksocket_t *socket, const void *buf, size_t len, NETM_flag
         int err = EINVAL;
 
         if (is_socket_valid(socket) && buf && len && to_addr && to_addr_size && sent) {
-                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
                         void *ctx = get_stack_context(socket->netname, NULL);
                         err = call_proxy_function(socket->family, ctx, socket->ctx, buf, len, flags, to_addr,
                                 to_addr_size, sent);
@@ -952,7 +957,7 @@ int _net_socket_set_recv_timeout(ksocket_t *socket, uint32_t timeout)
         int err = EINVAL;
 
         if (is_socket_valid(socket)) {
-                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
                         void *ctx = get_stack_context(socket->netname, NULL);
                         err       = call_proxy_function(socket->family, ctx, socket->ctx, timeout);
                         sys_mutex_unlock(socket->mutex);
@@ -990,7 +995,7 @@ int _net_socket_set_send_timeout(ksocket_t *socket, uint32_t timeout)
         int err = EINVAL;
 
         if (is_socket_valid(socket)) {
-                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
                         void *ctx = get_stack_context(socket->netname, NULL);
                         err       = call_proxy_function(socket->family, ctx, socket->ctx, timeout);
                         sys_mutex_unlock(socket->mutex);
@@ -1028,7 +1033,7 @@ int _net_socket_get_recv_timeout(ksocket_t *socket, uint32_t *timeout)
         int err = EINVAL;
 
         if (is_socket_valid(socket) && timeout) {
-                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
                         void *ctx = get_stack_context(socket->netname, NULL);
                         err       = call_proxy_function(socket->family, ctx, socket->ctx, timeout);
                         sys_mutex_unlock(socket->mutex);
@@ -1066,7 +1071,7 @@ int _net_socket_get_send_timeout(ksocket_t *socket, uint32_t *timeout)
         int err = EINVAL;
 
         if (is_socket_valid(socket) && timeout) {
-                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
                         void *ctx = get_stack_context(socket->netname, NULL);
                         err       = call_proxy_function(socket->family, ctx, socket->ctx, timeout);
                         sys_mutex_unlock(socket->mutex);
@@ -1105,7 +1110,7 @@ int _net_socket_connect(ksocket_t *socket, const NETM_generic_sockaddr_t *addr, 
         int err = EINVAL;
 
         if (is_socket_valid(socket) && addr && addr_size) {
-                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
                         void *ctx = get_stack_context(socket->netname, NULL);
                         err       = call_proxy_function(socket->family, ctx, socket->ctx, addr, addr_size);
                         sys_mutex_unlock(socket->mutex);
@@ -1142,7 +1147,7 @@ int _net_socket_disconnect(ksocket_t *socket)
         int err = EINVAL;
 
         if (is_socket_valid(socket)) {
-                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
                         void *ctx = get_stack_context(socket->netname, NULL);
                         err       = call_proxy_function(socket->family, ctx, socket->ctx);
                         sys_mutex_unlock(socket->mutex);
@@ -1180,7 +1185,7 @@ int _net_socket_shutdown(ksocket_t *socket, NETM_shut_t how)
         int err = EINVAL;
 
         if (is_socket_valid(socket)) {
-                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
                         void *ctx = get_stack_context(socket->netname, NULL);
                         err       = call_proxy_function(socket->family, ctx, socket->ctx, how);
                         sys_mutex_unlock(socket->mutex);
@@ -1219,7 +1224,7 @@ int _net_socket_getaddress(ksocket_t *socket, NETM_generic_sockaddr_t *sockaddr,
         int err = EINVAL;
 
         if (is_socket_valid(socket) && sockaddr && sockaddr_size) {
-                if ((err = sys_mutex_lock(socket->mutex, _MAX_DELAY_MS)) == 0) {
+                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
                         void *ctx = get_stack_context(socket->netname, NULL);
                         err = call_proxy_function(socket->family, ctx, socket->ctx, sockaddr, sockaddr_size);
                         sys_mutex_unlock(socket->mutex);

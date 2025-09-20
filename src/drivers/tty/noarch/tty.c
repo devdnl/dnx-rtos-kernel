@@ -332,7 +332,7 @@ API_MOD_WRITE(TTY, void *device_handle, const u8_t *src, size_t count, fpos_t *f
 
         tty_t *tty = device_handle;
 
-        int err = sys_mutex_lock(tty->secure_mtx, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(tty->secure_mtx, _WAIT_FOREVER_MS);
         if (!err) {
                 ttybfr_put(tty->screen, cast(const char *, src), count);
                 err = show_fresh_line(tty);
@@ -367,13 +367,13 @@ API_MOD_READ(TTY, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, si
 
         *rdcnt = 0;
 
-        u32_t timeout_ms = fattr.non_blocking_rd ? 0 : _MAX_DELAY_MS;
+        u32_t timeout_ms = fattr.non_blocking_rd ? 0 : _WAIT_FOREVER_MS;
 
         while (count--) {
                 if (fattr.non_blocking_rd) {
-                        if (sys_mutex_lock(tty->secure_mtx, _MAX_DELAY_MS) == ESUCC) {
+                        if (sys_mutex_lock(tty->secure_mtx, _WAIT_FOREVER_MS) == ESUCC) {
                                 const char *str = ttyedit_get_value(tty->editline);
-                                copy_string_to_queue(str, tty->queue_out, false, _MAX_DELAY_MS);
+                                copy_string_to_queue(str, tty->queue_out, false, _WAIT_FOREVER_MS);
                                 ttyedit_clear(tty->editline);
                                 sys_mutex_unlock(tty->secure_mtx);
                         } else {
@@ -448,7 +448,7 @@ API_MOD_IOCTL(TTY, void *device_handle, int request, void *arg)
 
         case IOCTL_TTY__SET_EDITLINE:
                 if (arg) {
-                        err = sys_mutex_lock(tty->secure_mtx, _MAX_DELAY_MS);
+                        err = sys_mutex_lock(tty->secure_mtx, _WAIT_FOREVER_MS);
                         if (err == ESUCC) {
                                 ttyedit_set_value(tty->editline, arg, tty->io->current_tty == tty->minor);
                                 sys_mutex_unlock(tty->secure_mtx);
@@ -513,7 +513,7 @@ API_MOD_FLUSH(TTY, void *device_handle)
 {
         tty_t *tty = device_handle;
 
-        int err = sys_mutex_lock(tty->secure_mtx, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(tty->secure_mtx, _WAIT_FOREVER_MS);
         if (!err) {
                 ttybfr_flush(tty->screen);
                 err = refresh_last_line(tty);
@@ -795,7 +795,7 @@ static int switch_terminal(tty_io_t *io, int term_no)
 
                         vt100_init(io, true);
 
-                        err = sys_mutex_lock(tty->secure_mtx, _MAX_DELAY_MS);
+                        err = sys_mutex_lock(tty->secure_mtx, _WAIT_FOREVER_MS);
                         if (!err) {
                                 size_t      wrcnt;
                                 const char *str;
@@ -829,7 +829,7 @@ static int switch_terminal(tty_io_t *io, int term_no)
 //==============================================================================
 static void handle_new_line(tty_t *tty)
 {
-        if (sys_mutex_lock(tty->secure_mtx, _MAX_DELAY_MS) == ESUCC) {
+        if (sys_mutex_lock(tty->secure_mtx, _WAIT_FOREVER_MS) == ESUCC) {
                 const char *str = ttyedit_get_value(tty->editline);
                 const char *lf  = "\n";
 
@@ -930,7 +930,7 @@ static int refresh_last_line(tty_t *tty)
 
         if (tty->minor == tty->io->current_tty) {
 
-                err = sys_mutex_lock(tty->secure_mtx, _MAX_DELAY_MS);
+                err = sys_mutex_lock(tty->secure_mtx, _WAIT_FOREVER_MS);
                 if (!err) {
                         size_t wrcnt;
 
@@ -964,7 +964,7 @@ static int refresh_last_line(tty_t *tty)
 //==============================================================================
 static int dump_tty_buffer(tty_t *tty, char *dst, size_t *size)
 {
-        int err = sys_mutex_lock(tty->secure_mtx, _MAX_DELAY_MS);
+        int err = sys_mutex_lock(tty->secure_mtx, _WAIT_FOREVER_MS);
         if (!err) {
 
                 dst[0] = '\0';

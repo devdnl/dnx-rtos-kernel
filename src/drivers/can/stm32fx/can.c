@@ -266,8 +266,8 @@ API_MOD_INIT(CAN, void **device_handle, u8_t major, u8_t minor, const void *conf
 
                         hdl->major        = major;
                         hdl->minor        = 0;
-                        hdl->recv_timeout = _MAX_DELAY_MS;
-                        hdl->send_timeout = _MAX_DELAY_MS;
+                        hdl->recv_timeout = _WAIT_FOREVER_MS;
+                        hdl->send_timeout = _WAIT_FOREVER_MS;
                         hdl->mode         = CAN_MODE__INIT;
 
                         err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &hdl->config_mtx);

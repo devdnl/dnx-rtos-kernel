@@ -85,7 +85,8 @@ Brief    External Memory Interface
 #if defined(ARCH_stm32f1)
 #error No FMC implementation!
 #elif defined(ARCH_stm32f4)
-#define FMC_BANK_5_6 FMC_Bank5_6
+#define FMC_Bank1_R          FMC_Bank1
+#define FMC_BANK_5_6         FMC_Bank5_6
 #define FMC_ENABLE()
 #define SDRAM1_ADDRESS       0xC0000000
 #define SDRAM2_ADDRESS       0xD0000000
@@ -105,7 +106,8 @@ Brief    External Memory Interface
 #define FMC_SDTRx_TRP_Pos    (20U)
 #define FMC_SDTRx_TRCD_Pos   (24U)
 #elif defined(ARCH_stm32f7)
-#define FMC_BANK_5_6 FMC_Bank5_6
+#define FMC_Bank1_R          FMC_Bank1
+#define FMC_BANK_5_6         FMC_Bank5_6
 #define FMC_ENABLE()
 #define SDRAM1_ADDRESS       0xC0000000
 #define SDRAM2_ADDRESS       0xD0000000

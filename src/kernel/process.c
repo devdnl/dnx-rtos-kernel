@@ -26,7 +26,7 @@
 
 ==============================================================================*/
 
-// #pragma GCC optimize("Og")
+#pragma GCC optimize("Ofast")
 
 /*==============================================================================
   Include files
@@ -53,10 +53,10 @@
   Local symbolic constants/macros
 ==============================================================================*/
 // critical section - mutex wait must set to max possible
-#define ATOMIC(_mtx)                                                                \
-        for (int __ = 0; __ == 0;)                                                  \
-                for (int _e = _mutex_lock(_mtx, _MAX_DELAY_MS); _e == 0 && __ == 0; \
-                        _mutex_unlock(_mtx), __++)                                  \
+#define ATOMIC(_mtx)                                                                   \
+        for (int __ = 0; __ == 0;)                                                     \
+                for (int _e = _mutex_lock(_mtx, _WAIT_FOREVER_MS); _e == 0 && __ == 0; \
+                        _mutex_unlock(_mtx), __++)                                     \
                         for (bool ___ = true; ___; ___ = false)
 
 #define foreach_resource(_v, _l) for (res_header_t *_v = _l; _v; _v = _v->next)
@@ -137,6 +137,7 @@ static bool           process_mtx_locked;
 static kmtx_t        *kworker_mtx;
 static dchain_t       shared_desctab;
 static appset_table_t appset_base;
+
 /*==============================================================================
   Exported object definitions
 ==============================================================================*/
@@ -1143,12 +1144,17 @@ int _process_register_resource(_process_t *proc, res_header_t *resource)
         if (is_proc_valid(proc)) {
                 kmtx_t *mtx = (proc == _kworker_proc) ? kworker_mtx : process_mtx;
 
+                resource->proc = proc;
+                resource->next = NULL;
+                resource->prev = NULL;
+
                 ATOMIC (mtx) {
                         if (proc->res_list == NULL) {
                                 proc->res_list = resource;
                         } else {
-                                resource->next = proc->res_list;
-                                proc->res_list = resource;
+                                resource->next       = proc->res_list;
+                                proc->res_list->prev = resource;
+                                proc->res_list       = resource;
                         }
 
                         proc->res_list_size++;
@@ -1173,55 +1179,41 @@ int _process_register_resource(_process_t *proc, res_header_t *resource)
 //==============================================================================
 int _process_release_resource(_process_t *proc, res_header_t *resource, res_type_t type)
 {
-        int err = ESRCH;
-
-        if (not is_proc_valid(proc) or (resource->self != resource)) {
-                return err;
+        if (not is_proc_valid(proc)) {
+                return EINVAL;
         }
 
-        err = ENOENT;
+        if ((resource->self != resource) or (resource->type != type)) {
+                return EINVAL;
+        }
 
-        res_header_t *obj_to_destroy = NULL;
+        if (not is_proc_valid(resource->proc) or (resource->proc != proc)) {
+                return ENOENT;
+        }
 
         kmtx_t *mtx = (proc == _kworker_proc) ? kworker_mtx : process_mtx;
 
         ATOMIC (mtx) {
-                res_header_t *prev     = NULL;
-                int           max_deep = proc->res_list_size + 1;
-
-                foreach_resource (curr, proc->res_list) {
-                        if (curr == resource) {
-                                if (curr->type == type) {
-                                        if (proc->res_list == curr) {
-                                                proc->res_list = proc->res_list->next;
-                                        } else {
-                                                prev->next = curr->next;
-                                        }
-
-                                        obj_to_destroy = curr;
-                                        proc->res_list_size--;
-                                } else {
-                                        err = EFAULT;
-                                }
-
-                                break;
-                        } else {
-
-                                prev = curr;
-
-                                if (--max_deep == 0) {
-                                        _assert(max_deep > 0);
-                                        _kernel_panic_report(_KERNEL_PANIC_DESC_CAUSE_INTERNAL_2);
-                                }
-                        }
+                if (resource->prev) {
+                        resource->prev->next = resource->next;
+                        resource->next->prev = resource->prev;
+                } else {
+                        resource->next->prev = NULL;
                 }
+
+                if (proc->res_list == resource) {
+                        proc->res_list = resource->next;
+                }
+
+                resource->next = NULL;
+                resource->prev = NULL;
+
+                proc->res_list_size--;
         }
 
-        if (obj_to_destroy) {
-                err = resource_destroy(obj_to_destroy);
-                if (err) {
-                        _kernel_panic_report(_KERNEL_PANIC_DESC_CAUSE_INTERNAL_3);
-                }
+        int err = resource_destroy(resource);
+        if (err) {
+                _kernel_panic_report(_KERNEL_PANIC_DESC_CAUSE_INTERNAL_1);
         }
 
         return err;
@@ -1861,10 +1853,40 @@ bool _process_is_consistent(bool isr)
                         for (size_t i = 0; sanity_ok and (i < ARRAY_SIZE(chain->resource)); i++) {
                                 if (chain->resource[i]) {
                                         if (not _mm_is_object_in_heap(chain->resource[i])) {
+
                                                 sanity_ok = false;
                                                 if (not isr) {
                                                         _printk("PID %u: descriptor %u "
                                                                 "out of heap!",
+                                                                p->pid, i);
+                                                }
+                                                goto end;
+
+                                        } else if (chain->resource[i]->proc != NULL) {
+                                                sanity_ok = false;
+                                                if (not isr) {
+                                                        _printk("PID %u: descriptor %u "
+                                                                "invalid proc-ref!",
+                                                                p->pid, i);
+                                                }
+                                                goto end;
+
+                                        } else if (chain->resource[i]->next != NULL) {
+
+                                                sanity_ok = false;
+                                                if (not isr) {
+                                                        _printk("PID %u: descriptor %u "
+                                                                "next not NULL!",
+                                                                p->pid, i);
+                                                }
+                                                goto end;
+
+                                        } else if (chain->resource[i]->prev != NULL) {
+
+                                                sanity_ok = false;
+                                                if (not isr) {
+                                                        _printk("PID %u: descriptor %u "
+                                                                "prev not NULL!",
                                                                 p->pid, i);
                                                 }
                                                 goto end;
@@ -1885,9 +1907,10 @@ bool _process_is_consistent(bool isr)
                         goto end;
                 }
 
-                size_t        n   = 0;
-                size_t        m   = p->res_list_size;
-                res_header_t *res = p->res_list;
+                size_t        n    = 0;
+                size_t        m    = p->res_list_size;
+                res_header_t *prev = NULL;
+                res_header_t *res  = p->res_list;
                 while (res && m) {
 
                         sanity_ok = _mm_is_object_in_heap(res) && (res->self == res) &&
@@ -1910,7 +1933,24 @@ bool _process_is_consistent(bool isr)
                                 goto end;
                         }
 
-                        res = res->next;
+                        sanity_ok = res->prev == prev;
+                        if (!sanity_ok) {
+                                if (not isr) {
+                                        _printk("PID %u: invalid prev resource!", p->pid);
+                                }
+                                goto end;
+                        }
+
+                        sanity_ok = is_proc_valid(res->proc);
+                        if (!sanity_ok) {
+                                if (not isr) {
+                                        _printk("PID %u: invalid proc resource!", p->pid);
+                                }
+                                goto end;
+                        }
+
+                        prev = res;
+                        res  = res->next;
                         n++;
                         m--;
                 }
@@ -1949,9 +1989,8 @@ bool _process_is_consistent(bool isr)
                         goto end;
                 }
 
-                sanity_ok = (p->pdata->main != _kworker_process)
-                        ? ((p->flag & PROC_FLAG_KWORKER) == 0)
-                        : true;
+                sanity_ok = (p->pdata->main != _kworker_process) ? ((p->flag & PROC_FLAG_KWORKER) == 0)
+                                                                 : true;
                 if (!sanity_ok) {
                         if (not isr) {
                                 _printk("PID %u: flagged as kworker!", p->pid);
@@ -2134,6 +2173,10 @@ int _process_descriptor_allocate(_process_t *process, int *desc, res_header_t *r
         ATOMIC (process_mtx) {
 
                 dchain_t *chain = NULL;
+
+                res->proc = NULL;
+                res->next = NULL;
+                res->prev = NULL;
 
                 if (shared) {
                         chain = &shared_desctab;

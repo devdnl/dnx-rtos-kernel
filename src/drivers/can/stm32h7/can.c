@@ -173,8 +173,8 @@ API_MOD_INIT(CAN, void **device_handle, u8_t major, u8_t minor, const void *conf
                         CAN_HDL[major] = hdl;
 
                         hdl->major        = major;
-                        hdl->recv_timeout = _MAX_DELAY_MS;
-                        hdl->send_timeout = _MAX_DELAY_MS;
+                        hdl->recv_timeout = _WAIT_FOREVER_MS;
+                        hdl->send_timeout = _WAIT_FOREVER_MS;
                         hdl->mode         = CAN_MODE__INIT;
 
                         err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &hdl->config_mtx);
@@ -1069,7 +1069,7 @@ static int send_msg(CAN_t *hdl, const CAN_msg_t *msg, u32_t timeout_ms)
                                 } else {
                                         dev_dbg(hdl, "aborting message in buffer %lu", i);
                                         if (HAL_FDCAN_AbortTxRequest(&hdl->hfdcan, buffer_index) == HAL_OK) {
-                                                sys_queue_receive(hdl->txrdy_q[i], &erri, _MAX_DELAY_MS);
+                                                sys_queue_receive(hdl->txrdy_q[i], &erri, _WAIT_FOREVER_MS);
                                         }
                                 }
                         }

@@ -116,7 +116,7 @@ int _shm_create(const char *key, size_t size)
         int err = EINVAL;
 
         if (!isstrempty(key) && (size > 0)) {
-                err = _mutex_lock(SHM.mtx, _MAX_DELAY_MS);
+                err = _mutex_lock(SHM.mtx, _WAIT_FOREVER_MS);
                 if (!err) {
                         foreach_region(region, SHM.list) {
                                 if (isstreqn(region->name, key, sizeof(region->name))) {
@@ -160,7 +160,7 @@ int _shm_destroy(const char *key)
         int err = EINVAL;
 
         if (!isstrempty(key)) {
-                err = _mutex_lock(SHM.mtx, _MAX_DELAY_MS);
+                err = _mutex_lock(SHM.mtx, _WAIT_FOREVER_MS);
                 if (!err) {
                         err = ENOENT;
 
@@ -214,7 +214,7 @@ int _shm_attach(const char *key, void **mem, size_t *size, pid_t pid)
 
         if (!isstrempty(key) && mem && size && pid) {
 
-                err = _mutex_lock(SHM.mtx, _MAX_DELAY_MS);
+                err = _mutex_lock(SHM.mtx, _WAIT_FOREVER_MS);
                 if (!err) {
 
                         err = ENOENT;
@@ -255,7 +255,7 @@ int _shm_detach(const char *key, pid_t pid)
 
         if (!isstrempty(key) && pid) {
 
-                err = _mutex_lock(SHM.mtx, _MAX_DELAY_MS);
+                err = _mutex_lock(SHM.mtx, _WAIT_FOREVER_MS);
                 if (!err) {
 
                         err = ENOENT;
@@ -288,7 +288,7 @@ int _shm_detach_anywhere(pid_t pid)
         int err = EINVAL;
 
         if (pid) {
-                err = _mutex_lock(SHM.mtx, _MAX_DELAY_MS);
+                err = _mutex_lock(SHM.mtx, _WAIT_FOREVER_MS);
                 if (!err) {
 
                         foreach_region(region, SHM.list) {
