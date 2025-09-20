@@ -209,9 +209,9 @@ typedef enum {
 
 typedef struct {
         _process_t *client_proc;
-        tid_t       client_thread;
-        syscall_t   syscall_no;
-        va_list     args;
+        tid_t client_thread;
+        syscall_t syscall_no;
+        va_list args;
 } syscallrq_t;
 
 typedef int (*syscallfunc_t)(syscallrq_t *);
@@ -351,141 +351,141 @@ static int syscall_getcpucorecount(syscallrq_t *rq);
 ==============================================================================*/
 /* syscall table */
 static const syscallfunc_t syscalltab[] = {
-        [SYSCALL_GETRUNTIMECTX]      = NULL, // handled directly by syscall function
-        [SYSCALL_MOUNT]              = syscall_mount,
-        [SYSCALL_UMOUNT]             = syscall_umount,
-        [SYSCALL_SHMCREATE]          = syscall_shmcreate,
-        [SYSCALL_SHMATTACH]          = syscall_shmattach,
-        [SYSCALL_SHMDETACH]          = syscall_shmdetach,
-        [SYSCALL_SHMDESTROY]         = syscall_shmdestroy,
-        [SYSCALL_GETMNTENTRY]        = syscall_getmntentry,
-        [SYSCALL_MKNOD]              = syscall_mknod,
-        [SYSCALL_MKFIFO]             = syscall_mkfifo,
-        [SYSCALL_CLOSE]              = syscall_close,
-        [SYSCALL_DIRREAD]            = syscall_dirread,
-        [SYSCALL_REMOVE]             = syscall_remove,
-        [SYSCALL_RENAME]             = syscall_rename,
-        [SYSCALL_CHMOD]              = syscall_chmod,
-        [SYSCALL_CHOWN]              = syscall_chown,
-        [SYSCALL_STATFS]             = syscall_statfs,
-        [SYSCALL_STAT]               = syscall_stat,
-        [SYSCALL_FSTAT]              = syscall_fstat,
-        [SYSCALL_OPEN]               = syscall_open,
-        [SYSCALL_WRITE]              = syscall_write,
-        [SYSCALL_READ]               = syscall_read,
-        [SYSCALL_SEEK64]             = syscall_seek64,
-        [SYSCALL_IOCTL]              = syscall_ioctl,
-        [SYSCALL_FLUSH]              = syscall_flush,
-        [SYSCALL_SYNC]               = syscall_sync,
-        [SYSCALL_GETTIMEOFDAY]       = syscall_gettimeofday,
-        [SYSCALL_SETTIMEOFDAY]       = syscall_settimeofday,
-        [SYSCALL_DRIVERINIT]         = syscall_driverinit,
-        [SYSCALL_DRIVERRELEASE]      = syscall_driverrelease,
-        [SYSCALL_MALLOC]             = syscall_malloc,
-        [SYSCALL_ZALLOC]             = syscall_zalloc,
-        [SYSCALL_FREE]               = syscall_free,
-        [SYSCALL_SYSLOGREAD]         = syscall_syslogread,
-        [SYSCALL_KERNELPANICINFO]    = syscall_kernelpanicinfo,
-        [SYSCALL_PROCESSCREATE]      = syscall_processcreate,
-        [SYSCALL_PROCESSKILL]        = syscall_processkill,
-        [SYSCALL_PROCESSWAIT]        = syscall_processwait,
-        [SYSCALL_PROCESSSTATSEEK]    = syscall_processstatseek,
-        [SYSCALL_PROCESSSTATPID]     = syscall_processstatpid,
-        [SYSCALL_PROCESSGETPID]      = syscall_processgetpid,
-        [SYSCALL_PROCESSGETPRIO]     = syscall_processgetprio,
-        [SYSCALL_PROCESSABORT]       = syscall_processabort,
-        [SYSCALL_PROCESSEXIT]        = syscall_processexit,
-        [SYSCALL_THREADSTAT]         = syscall_threadstat,
-        [SYSCALL_GETCWD]             = syscall_getcwd,
-        [SYSCALL_SETCWD]             = syscall_setcwd,
-        [SYSCALL_THREADCREATE]       = syscall_threadcreate,
-        [SYSCALL_THREADKILL]         = syscall_threadkill,
-        [SYSCALL_SEMAPHOREOPEN]      = syscall_semaphoreopen,
-        [SYSCALL_MUTEXOPEN]          = syscall_mutexopen,
-        [SYSCALL_QUEUEOPEN]          = syscall_queueopen,
-        [SYSCALL_NETADD]             = syscall_netifadd,
-        [SYSCALL_NETRM]              = syscall_netifrm,
-        [SYSCALL_NETIFLIST]          = syscall_netiflist,
-        [SYSCALL_NETIFUP]            = syscall_netifup,
-        [SYSCALL_NETIFDOWN]          = syscall_netifdown,
-        [SYSCALL_NETIFSTATUS]        = syscall_netifstatus,
-        [SYSCALL_NETSOCKETCREATE]    = syscall_netsocketcreate,
-        [SYSCALL_NETBIND]            = syscall_netbind,
-        [SYSCALL_NETLISTEN]          = syscall_netlisten,
-        [SYSCALL_NETACCEPT]          = syscall_netaccept,
-        [SYSCALL_NETRECV]            = syscall_netrecv,
-        [SYSCALL_NETSEND]            = syscall_netsend,
-        [SYSCALL_NETGETHOSTBYNAME]   = syscall_netgethostbyname,
-        [SYSCALL_NETSETRECVTIMEOUT]  = syscall_netsetrecvtimeout,
-        [SYSCALL_NETSETSENDTIMEOUT]  = syscall_netsetsendtimeout,
-        [SYSCALL_NETCONNECT]         = syscall_netconnect,
-        [SYSCALL_NETDISCONNECT]      = syscall_netdisconnect,
-        [SYSCALL_NETSHUTDOWN]        = syscall_netshutdown,
-        [SYSCALL_NETSENDTO]          = syscall_netsendto,
-        [SYSCALL_NETRECVFROM]        = syscall_netrecvfrom,
-        [SYSCALL_NETGETADDRESS]      = syscall_netgetaddress,
-        [SYSCALL_NETHTON16]          = syscall_nethton16,
-        [SYSCALL_NETHTON32]          = syscall_nethton32,
-        [SYSCALL_NETHTON64]          = syscall_nethton64,
-        [SYSCALL_MSLEEP]             = syscall_msleep,
-        [SYSCALL_USLEEP]             = syscall_usleep,
-        [SYSCALL_GETGID]             = syscall_getgid,
-        [SYSCALL_GETUID]             = syscall_getuid,
-        [SYSCALL_GETMEMDETAILS]      = syscall_getmemdetails,
-        [SYSCALL_GETMODMEMUSAGE]     = syscall_getmodmemusage,
-        [SYSCALL_GETUPTIMEMS]        = NULL,
-        [SYSCALL_GETAVGCPULOAD]      = syscall_getavgcpuload,
-        [SYSCALL_GETPLATFORMNAME]    = syscall_getplatformname,
-        [SYSCALL_GETOSNAME]          = syscall_getosname,
-        [SYSCALL_GETOSVER]           = syscall_getosver,
-        [SYSCALL_GETOSCOMMITHASH]    = syscall_getoscommithash,
-        [SYSCALL_GETKERNELNAME]      = syscall_getkernelname,
-        [SYSCALL_GETKERNELVER]       = syscall_getkernelver,
-        [SYSCALL_GETHOSTNAME]        = syscall_gethostname,
-        [SYSCALL_SETHOSTNAME]        = syscall_sethostname,
-        [SYSCALL_GETDRIVERNAME]      = syscall_getdrivername,
-        [SYSCALL_GETDRIVERID]        = syscall_getdriverid,
-        [SYSCALL_GETDRIVERCOUNT]     = syscall_getdrivercount,
+        [SYSCALL_GETRUNTIMECTX] = NULL, // handled directly by syscall function
+        [SYSCALL_MOUNT] = syscall_mount,
+        [SYSCALL_UMOUNT] = syscall_umount,
+        [SYSCALL_SHMCREATE] = syscall_shmcreate,
+        [SYSCALL_SHMATTACH] = syscall_shmattach,
+        [SYSCALL_SHMDETACH] = syscall_shmdetach,
+        [SYSCALL_SHMDESTROY] = syscall_shmdestroy,
+        [SYSCALL_GETMNTENTRY] = syscall_getmntentry,
+        [SYSCALL_MKNOD] = syscall_mknod,
+        [SYSCALL_MKFIFO] = syscall_mkfifo,
+        [SYSCALL_CLOSE] = syscall_close,
+        [SYSCALL_DIRREAD] = syscall_dirread,
+        [SYSCALL_REMOVE] = syscall_remove,
+        [SYSCALL_RENAME] = syscall_rename,
+        [SYSCALL_CHMOD] = syscall_chmod,
+        [SYSCALL_CHOWN] = syscall_chown,
+        [SYSCALL_STATFS] = syscall_statfs,
+        [SYSCALL_STAT] = syscall_stat,
+        [SYSCALL_FSTAT] = syscall_fstat,
+        [SYSCALL_OPEN] = syscall_open,
+        [SYSCALL_WRITE] = syscall_write,
+        [SYSCALL_READ] = syscall_read,
+        [SYSCALL_SEEK64] = syscall_seek64,
+        [SYSCALL_IOCTL] = syscall_ioctl,
+        [SYSCALL_FLUSH] = syscall_flush,
+        [SYSCALL_SYNC] = syscall_sync,
+        [SYSCALL_GETTIMEOFDAY] = syscall_gettimeofday,
+        [SYSCALL_SETTIMEOFDAY] = syscall_settimeofday,
+        [SYSCALL_DRIVERINIT] = syscall_driverinit,
+        [SYSCALL_DRIVERRELEASE] = syscall_driverrelease,
+        [SYSCALL_MALLOC] = syscall_malloc,
+        [SYSCALL_ZALLOC] = syscall_zalloc,
+        [SYSCALL_FREE] = syscall_free,
+        [SYSCALL_SYSLOGREAD] = syscall_syslogread,
+        [SYSCALL_KERNELPANICINFO] = syscall_kernelpanicinfo,
+        [SYSCALL_PROCESSCREATE] = syscall_processcreate,
+        [SYSCALL_PROCESSKILL] = syscall_processkill,
+        [SYSCALL_PROCESSWAIT] = syscall_processwait,
+        [SYSCALL_PROCESSSTATSEEK] = syscall_processstatseek,
+        [SYSCALL_PROCESSSTATPID] = syscall_processstatpid,
+        [SYSCALL_PROCESSGETPID] = syscall_processgetpid,
+        [SYSCALL_PROCESSGETPRIO] = syscall_processgetprio,
+        [SYSCALL_PROCESSABORT] = syscall_processabort,
+        [SYSCALL_PROCESSEXIT] = syscall_processexit,
+        [SYSCALL_THREADSTAT] = syscall_threadstat,
+        [SYSCALL_GETCWD] = syscall_getcwd,
+        [SYSCALL_SETCWD] = syscall_setcwd,
+        [SYSCALL_THREADCREATE] = syscall_threadcreate,
+        [SYSCALL_THREADKILL] = syscall_threadkill,
+        [SYSCALL_SEMAPHOREOPEN] = syscall_semaphoreopen,
+        [SYSCALL_MUTEXOPEN] = syscall_mutexopen,
+        [SYSCALL_QUEUEOPEN] = syscall_queueopen,
+        [SYSCALL_NETADD] = syscall_netifadd,
+        [SYSCALL_NETRM] = syscall_netifrm,
+        [SYSCALL_NETIFLIST] = syscall_netiflist,
+        [SYSCALL_NETIFUP] = syscall_netifup,
+        [SYSCALL_NETIFDOWN] = syscall_netifdown,
+        [SYSCALL_NETIFSTATUS] = syscall_netifstatus,
+        [SYSCALL_NETSOCKETCREATE] = syscall_netsocketcreate,
+        [SYSCALL_NETBIND] = syscall_netbind,
+        [SYSCALL_NETLISTEN] = syscall_netlisten,
+        [SYSCALL_NETACCEPT] = syscall_netaccept,
+        [SYSCALL_NETRECV] = syscall_netrecv,
+        [SYSCALL_NETSEND] = syscall_netsend,
+        [SYSCALL_NETGETHOSTBYNAME] = syscall_netgethostbyname,
+        [SYSCALL_NETSETRECVTIMEOUT] = syscall_netsetrecvtimeout,
+        [SYSCALL_NETSETSENDTIMEOUT] = syscall_netsetsendtimeout,
+        [SYSCALL_NETCONNECT] = syscall_netconnect,
+        [SYSCALL_NETDISCONNECT] = syscall_netdisconnect,
+        [SYSCALL_NETSHUTDOWN] = syscall_netshutdown,
+        [SYSCALL_NETSENDTO] = syscall_netsendto,
+        [SYSCALL_NETRECVFROM] = syscall_netrecvfrom,
+        [SYSCALL_NETGETADDRESS] = syscall_netgetaddress,
+        [SYSCALL_NETHTON16] = syscall_nethton16,
+        [SYSCALL_NETHTON32] = syscall_nethton32,
+        [SYSCALL_NETHTON64] = syscall_nethton64,
+        [SYSCALL_MSLEEP] = syscall_msleep,
+        [SYSCALL_USLEEP] = syscall_usleep,
+        [SYSCALL_GETGID] = syscall_getgid,
+        [SYSCALL_GETUID] = syscall_getuid,
+        [SYSCALL_GETMEMDETAILS] = syscall_getmemdetails,
+        [SYSCALL_GETMODMEMUSAGE] = syscall_getmodmemusage,
+        [SYSCALL_GETUPTIMEMS] = NULL,
+        [SYSCALL_GETAVGCPULOAD] = syscall_getavgcpuload,
+        [SYSCALL_GETPLATFORMNAME] = syscall_getplatformname,
+        [SYSCALL_GETOSNAME] = syscall_getosname,
+        [SYSCALL_GETOSVER] = syscall_getosver,
+        [SYSCALL_GETOSCOMMITHASH] = syscall_getoscommithash,
+        [SYSCALL_GETKERNELNAME] = syscall_getkernelname,
+        [SYSCALL_GETKERNELVER] = syscall_getkernelver,
+        [SYSCALL_GETHOSTNAME] = syscall_gethostname,
+        [SYSCALL_SETHOSTNAME] = syscall_sethostname,
+        [SYSCALL_GETDRIVERNAME] = syscall_getdrivername,
+        [SYSCALL_GETDRIVERID] = syscall_getdriverid,
+        [SYSCALL_GETDRIVERCOUNT] = syscall_getdrivercount,
         [SYSCALL_GETDRIVERINSTANCES] = syscall_getdriverinstances,
-        [SYSCALL_SYSTEMRESTART]      = syscall_systemrestart,
-        [SYSCALL_SYSTEMSHUTDOWN]     = syscall_systemshutdown,
-        [SYSCALL_SYSLOGCLEAR]        = syscall_syslogclear,
-        [SYSCALL_GETACTIVETHREAD]    = syscall_getactivethread,
-        [SYSCALL_THREADEXIT]         = syscall_threadexit,
-        [SYSCALL_SEMAPHOREWAIT]      = syscall_semaphorewait,
-        [SYSCALL_SEMAPHORESIGNAL]    = syscall_semaphoresignal,
-        [SYSCALL_SEMAPHOREGETVALUE]  = syscall_semaphoregetvalue,
-        [SYSCALL_MUTEXLOCK]          = syscall_mutexlock,
-        [SYSCALL_MUTEXUNLOCK]        = syscall_mutexunlock,
-        [SYSCALL_QUEUERESET]         = syscall_queuereset,
-        [SYSCALL_QUEUESEND]          = syscall_queuesend,
-        [SYSCALL_QUEUERECEIVE]       = syscall_queuereceive,
-        [SYSCALL_QUEUERECEIVEPEEK]   = syscall_queuereceviepeek,
-        [SYSCALL_QUEUEITEMSCOUNT]    = syscall_queueitemscount,
-        [SYSCALL_QUEUEFREESPACE]     = syscall_queuefreespace,
-        [SYSCALL_DIRSEEK]            = syscall_dirseek,
-        [SYSCALL_DIRTELL]            = syscall_dirtell,
-        [SYSCALL_SCHEDULERLOCK]      = syscall_schedulerlock,
-        [SYSCALL_SCHEDULERUNLOCK]    = syscall_schedulerunlock,
-        [SYSCALL_THREADJOIN]         = syscall_threadjoin,
-        [SYSCALL_ISHEAPADDR]         = syscall_isheapaddr,
-        [SYSCALL_CACHEFLUSH]         = syscall_cacheflush,
-        [SYSCALL_REBOOTTOADDR]       = syscall_reboottoaddr,
-        [SYSCALL_LOWPOWERMODE]       = syscall_lowpowermode,
-        [SYSCALL_REGISTERAPPSET]     = syscall_registerappset,
-        [SYSCALL_MEMREGIONINFO]      = syscall_memregioninfo,
-        [SYSCALL_PINTHREADTOCORE]    = syscall_pinthreadtocore,
-        [SYSCALL_GETCURRENTCORE]     = syscall_getcurrentcore,
-        [SYSCALL_GETCPUCORECOUNT]    = syscall_getcpucorecount,
+        [SYSCALL_SYSTEMRESTART] = syscall_systemrestart,
+        [SYSCALL_SYSTEMSHUTDOWN] = syscall_systemshutdown,
+        [SYSCALL_SYSLOGCLEAR] = syscall_syslogclear,
+        [SYSCALL_GETACTIVETHREAD] = syscall_getactivethread,
+        [SYSCALL_THREADEXIT] = syscall_threadexit,
+        [SYSCALL_SEMAPHOREWAIT] = syscall_semaphorewait,
+        [SYSCALL_SEMAPHORESIGNAL] = syscall_semaphoresignal,
+        [SYSCALL_SEMAPHOREGETVALUE] = syscall_semaphoregetvalue,
+        [SYSCALL_MUTEXLOCK] = syscall_mutexlock,
+        [SYSCALL_MUTEXUNLOCK] = syscall_mutexunlock,
+        [SYSCALL_QUEUERESET] = syscall_queuereset,
+        [SYSCALL_QUEUESEND] = syscall_queuesend,
+        [SYSCALL_QUEUERECEIVE] = syscall_queuereceive,
+        [SYSCALL_QUEUERECEIVEPEEK] = syscall_queuereceviepeek,
+        [SYSCALL_QUEUEITEMSCOUNT] = syscall_queueitemscount,
+        [SYSCALL_QUEUEFREESPACE] = syscall_queuefreespace,
+        [SYSCALL_DIRSEEK] = syscall_dirseek,
+        [SYSCALL_DIRTELL] = syscall_dirtell,
+        [SYSCALL_SCHEDULERLOCK] = syscall_schedulerlock,
+        [SYSCALL_SCHEDULERUNLOCK] = syscall_schedulerunlock,
+        [SYSCALL_THREADJOIN] = syscall_threadjoin,
+        [SYSCALL_ISHEAPADDR] = syscall_isheapaddr,
+        [SYSCALL_CACHEFLUSH] = syscall_cacheflush,
+        [SYSCALL_REBOOTTOADDR] = syscall_reboottoaddr,
+        [SYSCALL_LOWPOWERMODE] = syscall_lowpowermode,
+        [SYSCALL_REGISTERAPPSET] = syscall_registerappset,
+        [SYSCALL_MEMREGIONINFO] = syscall_memregioninfo,
+        [SYSCALL_PINTHREADTOCORE] = syscall_pinthreadtocore,
+        [SYSCALL_GETCURRENTCORE] = syscall_getcurrentcore,
+        [SYSCALL_GETCPUCORECOUNT] = syscall_getcpucorecount,
 };
 
 /*==============================================================================
   Exported objects
 ==============================================================================*/
-const char *const        dnx_RTOS_version       = "3.6.3";
-const char *const        dnx_RTOS_name          = "dnx RTOS";
-const char *const        dnx_RTOS_commit_hash   = COMMIT_HASH;
-const char *const        dnx_RTOS_platform_name = _CPUCTL_PLATFORM_NAME;
+const char *const dnx_RTOS_version = "3.7.0";
+const char *const dnx_RTOS_name = "dnx RTOS";
+const char *const dnx_RTOS_commit_hash = COMMIT_HASH;
+const char *const dnx_RTOS_platform_name = _CPUCTL_PLATFORM_NAME;
 struct reboot_to_address reboot_address;
 
 /*==============================================================================
@@ -521,7 +521,7 @@ int _syscall_init(void)
 //==============================================================================
 __attribute__((section(".syscall"))) int syscall(syscall_t syscall, va_list args)
 {
-        int  err   = ENOSYS;
+        int err = ENOSYS;
         u8_t cpuid = _cpuctl_get_cpu_id();
 
         if (syscall == SYSCALL_GETRUNTIMECTX) {
@@ -531,19 +531,19 @@ __attribute__((section(".syscall"))) int syscall(syscall_t syscall, va_list args
                  */
 
                 _dnxrtctx_t *ctx = va_arg(args, _dnxrtctx_t *);
-                ctx->global_ref  = &_global[cpuid];
-                ctx->errno_ref   = &_errno[cpuid];
+                ctx->global_ref = &_global[cpuid];
+                ctx->errno_ref = &_errno[cpuid];
                 ctx->app_ctx_ref = &_app_ctx[cpuid];
-                err              = 0;
+                err = 0;
 
         } else if (syscall == SYSCALL_GETUPTIMEMS) {
 
                 clock_t *uptime_ms = va_arg(args, clock_t *);
                 if (uptime_ms) {
                         *uptime_ms = _kernel_get_uptime_ms();
-                        err        = 0;
+                        err = 0;
                 } else {
-                        err           = EINVAL;
+                        err = EINVAL;
                         _errno[cpuid] = err;
                 }
 
@@ -552,7 +552,7 @@ __attribute__((section(".syscall"))) int syscall(syscall_t syscall, va_list args
 
                 syscallrq_t syscallrq = {
                         .syscall_no = syscall,
-                        .args       = args,
+                        .args = args,
                 };
 
                 _task_get_process_container(_THIS_TASK, &syscallrq.client_proc, &syscallrq.client_thread);
@@ -602,11 +602,11 @@ static int syscall_mount(syscallrq_t *rq)
         GETARG(const char *, FS_name);
 
         struct vfs_path src_path;
-        src_path.CWD  = _process_get_CWD(GETPROCESS());
+        src_path.CWD = _process_get_CWD(GETPROCESS());
         src_path.PATH = LOADARG(const char *);
 
         struct vfs_path mount_point;
-        mount_point.CWD  = src_path.CWD;
+        mount_point.CWD = src_path.CWD;
         mount_point.PATH = LOADARG(const char *);
 
         GETARG(const char *, opts);
@@ -626,7 +626,7 @@ static int syscall_mount(syscallrq_t *rq)
 static int syscall_umount(syscallrq_t *rq)
 {
         struct vfs_path mount_point;
-        mount_point.CWD  = _process_get_CWD(GETPROCESS());
+        mount_point.CWD = _process_get_CWD(GETPROCESS());
         mount_point.PATH = LOADARG(const char *);
 
         return _umount(&mount_point);
@@ -667,7 +667,7 @@ static int syscall_mknod(syscallrq_t *rq)
 {
 #if __OS_ENABLE_MKNOD__ == _YES_
         struct vfs_path pathname;
-        pathname.CWD  = _process_get_CWD(GETPROCESS());
+        pathname.CWD = _process_get_CWD(GETPROCESS());
         pathname.PATH = LOADARG(const char *);
         GETARG(const char *, mod_name);
         GETARG(int *, major);
@@ -693,7 +693,7 @@ static int syscall_mkfifo(syscallrq_t *rq)
 {
 #if __OS_ENABLE_MKFIFO__ == _YES_
         struct vfs_path path;
-        path.CWD  = _process_get_CWD(GETPROCESS());
+        path.CWD = _process_get_CWD(GETPROCESS());
         path.PATH = LOADARG(const char *);
         GETARG(mode_t *, mode);
 
@@ -719,7 +719,7 @@ static int syscall_dirread(syscallrq_t *rq)
         GETARG(dirent_t **, dirent);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 if (res->type == RES_TYPE_DIR) {
                         err = _vfs_readdir(res->self, dirent);
@@ -745,7 +745,7 @@ static int syscall_remove(syscallrq_t *rq)
 {
 #if __OS_ENABLE_REMOVE__ == _YES_
         struct vfs_path path;
-        path.CWD  = _process_get_CWD(GETPROCESS());
+        path.CWD = _process_get_CWD(GETPROCESS());
         path.PATH = LOADARG(const char *);
 
         return _vfs_remove(&path);
@@ -768,11 +768,11 @@ static int syscall_rename(syscallrq_t *rq)
 {
 #if __OS_ENABLE_RENAME__ == _YES_
         struct vfs_path oldname;
-        oldname.CWD  = _process_get_CWD(GETPROCESS());
+        oldname.CWD = _process_get_CWD(GETPROCESS());
         oldname.PATH = LOADARG(const char *);
 
         struct vfs_path newname;
-        newname.CWD  = _process_get_CWD(GETPROCESS());
+        newname.CWD = _process_get_CWD(GETPROCESS());
         newname.PATH = LOADARG(const char *);
 
         return _vfs_rename(&oldname, &newname);
@@ -795,7 +795,7 @@ static int syscall_chmod(syscallrq_t *rq)
 {
 #if __OS_ENABLE_CHMOD__ == _YES_
         struct vfs_path path;
-        path.CWD  = _process_get_CWD(GETPROCESS());
+        path.CWD = _process_get_CWD(GETPROCESS());
         path.PATH = LOADARG(const char *);
         GETARG(mode_t *, mode);
 
@@ -819,7 +819,7 @@ static int syscall_chown(syscallrq_t *rq)
 {
 #if __OS_ENABLE_CHOWN__ == _YES_
         struct vfs_path path;
-        path.CWD  = _process_get_CWD(GETPROCESS());
+        path.CWD = _process_get_CWD(GETPROCESS());
         path.PATH = LOADARG(const char *);
         GETARG(uid_t *, owner);
         GETARG(gid_t *, group);
@@ -844,7 +844,7 @@ static int syscall_stat(syscallrq_t *rq)
 {
 #if __OS_ENABLE_FSTAT__ == _YES_
         struct vfs_path path;
-        path.CWD  = _process_get_CWD(GETPROCESS());
+        path.CWD = _process_get_CWD(GETPROCESS());
         path.PATH = LOADARG(const char *);
         GETARG(struct stat *, buf);
 
@@ -871,7 +871,7 @@ static int syscall_fstat(syscallrq_t *rq)
         GETARG(struct stat *, buf);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 if (res->type == RES_TYPE_FILE) {
                         err = _vfs_fstat(cast(kfile_t *, res), buf);
@@ -900,7 +900,7 @@ static int syscall_statfs(syscallrq_t *rq)
 {
 #if __OS_ENABLE_STATFS__ == _YES_
         struct vfs_path path;
-        path.CWD  = _process_get_CWD(GETPROCESS());
+        path.CWD = _process_get_CWD(GETPROCESS());
         path.PATH = LOADARG(const char *);
         GETARG(struct statfs *, buf);
 
@@ -924,7 +924,7 @@ static int syscall_open(syscallrq_t *rq)
 {
         GETARG(int *, fd);
         struct vfs_path path;
-        path.CWD  = _process_get_CWD(GETPROCESS());
+        path.CWD = _process_get_CWD(GETPROCESS());
         path.PATH = LOADARG(const char *);
         GETARG(int *, flags);
         GETARG(mode_t *, mode);
@@ -992,7 +992,7 @@ static int syscall_close(syscallrq_t *rq)
                 res_header_t *res;
                 if (_process_descriptor_get_resource(GETPROCESS(), STDERR_FD, &res) == 0) {
                         const char *msg = "*** Error: descriptor is not valid! ***\n";
-                        size_t      wrcnt;
+                        size_t wrcnt;
                         _vfs_fwrite(msg, strlen(msg), &wrcnt, cast(kfile_t *, res));
                 }
 
@@ -1021,7 +1021,7 @@ static int syscall_write(syscallrq_t *rq)
         GETARG(size_t *, wrctr);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 if (res->type == RES_TYPE_FILE) {
                         err = _vfs_fwrite(buf, *count, wrctr, cast(kfile_t *, res));
@@ -1058,7 +1058,7 @@ static int syscall_read(syscallrq_t *rq)
         GETARG(size_t *, rdctr);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 if (res->type == RES_TYPE_FILE) {
                         err = _vfs_fread(buf, *count, rdctr, cast(kfile_t *, res));
@@ -1094,7 +1094,7 @@ static int syscall_seek64(syscallrq_t *rq)
         GETARG(int *, orgin);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 if (res->type == RES_TYPE_FILE) {
                         err = _vfs_fseek(cast(kfile_t *, res), *lseek, *orgin);
@@ -1125,7 +1125,7 @@ static int syscall_ioctl(syscallrq_t *rq)
         GETARG(va_list *, arg);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 if (res->type == RES_TYPE_FILE) {
                         err = _vfs_vfioctl(cast(kfile_t *, res), *request, *arg);
@@ -1151,7 +1151,7 @@ static int syscall_flush(syscallrq_t *rq)
         GETARG(int *, fd);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 if (res->type == RES_TYPE_FILE) {
                         err = _vfs_fflush(cast(kfile_t *, res));
@@ -1202,7 +1202,7 @@ static int syscall_gettimeofday(syscallrq_t *rq)
 
         if (not err and tz) {
                 tz->tz_minuteswest = (_ltimeoff_sec / 60);
-                tz->tz_dsttime     = 0;
+                tz->tz_dsttime = 0;
         }
 
         return err;
@@ -1303,7 +1303,7 @@ static int syscall_malloc(syscallrq_t *rq)
         }
 
         void *mem = NULL;
-        int   err = _kmalloc(_MM_PROG, *size, pref_ram, _MM_FLAG__DMA, _MM_FLAG__DMA, &mem);
+        int err = _kmalloc(_MM_PROG, *size, pref_ram, _MM_FLAG__DMA, _MM_FLAG__DMA, &mem);
         if (!err) {
                 err = _process_register_resource(GETPROCESS(), mem);
                 if (err) {
@@ -1336,7 +1336,7 @@ static int syscall_zalloc(syscallrq_t *rq)
         }
 
         void *mem = NULL;
-        int   err = _kzalloc(_MM_PROG, *size, pref_ram, _MM_FLAG__DMA, _MM_FLAG__DMA, &mem);
+        int err = _kzalloc(_MM_PROG, *size, pref_ram, _MM_FLAG__DMA, _MM_FLAG__DMA, &mem);
         if (!err) {
                 err = _process_register_resource(GETPROCESS(), mem);
                 if (err) {
@@ -1367,7 +1367,7 @@ static int syscall_free(syscallrq_t *rq)
                 res_header_t *res;
                 if (_process_descriptor_get_resource(GETPROCESS(), STDERR_FD, &res) == 0) {
                         const char *msg = "*** Error: double free or corruption ***\n";
-                        size_t      wrcnt;
+                        size_t wrcnt;
                         _vfs_fwrite(msg, strlen(msg), &wrcnt, cast(kfile_t *, res));
                 }
 
@@ -1455,7 +1455,7 @@ static int syscall_processkill(syscallrq_t *rq)
         GETARG(const pid_t *, pid);
 
         _process_t *proc = NULL;
-        int         err  = _process_get_container(*pid, &proc);
+        int err = _process_get_container(*pid, &proc);
         if (!err) {
                 err = _process_kill(*pid);
                 if (!err) {
@@ -1482,13 +1482,13 @@ static int syscall_processwait(syscallrq_t *rq)
         GETARG(const uint32_t *, timeout);
 
         _process_t *proc = NULL;
-        int         err  = _process_get_container(*pid, &proc);
+        int err = _process_get_container(*pid, &proc);
         if (!err) {
                 kflag_t *flag;
                 err = _process_get_event_flags(proc, &flag);
                 if (!err) {
                         const uint32_t mask = _PROCESS_EXIT_FLAG(0);
-                        err                 = _flag_wait(flag, mask, *timeout);
+                        err = _flag_wait(flag, mask, *timeout);
                         if (!err) {
                                 _process_remove_zombie(proc, status);
                                 _sleep_ms(1); // force scheduler switch
@@ -1724,9 +1724,9 @@ static int syscall_semaphoreopen(syscallrq_t *rq)
         GETARG(int *, fd);
         GETARG(int *, flags);
 
-        int     desc = -1;
-        ksem_t *sem  = NULL;
-        int     err  = _semaphore_create(*cnt_max, *cnt_init, &sem);
+        int desc = -1;
+        ksem_t *sem = NULL;
+        int err = _semaphore_create(*cnt_max, *cnt_init, &sem);
         if (not err) {
                 err = _process_descriptor_allocate(GETPROCESS(), &desc, &sem->header, *flags & O_SHARED);
                 if (err) {
@@ -1754,7 +1754,7 @@ static int syscall_semaphorewait(syscallrq_t *rq)
         GETARG(uint32_t *, timeout);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _semaphore_wait(cast(ksem_t *, res), *timeout);
         }
@@ -1776,7 +1776,7 @@ static int syscall_semaphoresignal(syscallrq_t *rq)
         GETARG(int *, fd);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _semaphore_signal(cast(ksem_t *, res));
         }
@@ -1799,7 +1799,7 @@ static int syscall_semaphoregetvalue(syscallrq_t *rq)
         GETARG(size_t *, value);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _semaphore_get_value(cast(ksem_t *, res), value);
         }
@@ -1822,9 +1822,9 @@ static int syscall_mutexopen(syscallrq_t *rq)
         GETARG(int *, fd);
         GETARG(int *, flags);
 
-        int     desc = -1;
-        kmtx_t *mtx  = NULL;
-        int     err  = _mutex_create(*type, &mtx);
+        int desc = -1;
+        kmtx_t *mtx = NULL;
+        int err = _mutex_create(*type, &mtx);
         if (not err) {
                 err = _process_descriptor_allocate(GETPROCESS(), &desc, &mtx->header, *flags & O_SHARED);
                 if (err) {
@@ -1852,7 +1852,7 @@ static int syscall_mutexlock(syscallrq_t *rq)
         GETARG(uint32_t *, timeout);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _mutex_lock(cast(kmtx_t *, res), *timeout);
         }
@@ -1874,7 +1874,7 @@ static int syscall_mutexunlock(syscallrq_t *rq)
         GETARG(int *, fd);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _mutex_unlock(cast(kmtx_t *, res));
         }
@@ -1898,9 +1898,9 @@ static int syscall_queueopen(syscallrq_t *rq)
         GETARG(int *, fd);
         GETARG(int *, flags);
 
-        int       desc  = -1;
+        int desc = -1;
         kqueue_t *queue = NULL;
-        int       err   = _queue_create(*length, *item_size, &queue);
+        int err = _queue_create(*length, *item_size, &queue);
         if (not err) {
                 err = _process_descriptor_allocate(GETPROCESS(), &desc, &queue->header, *flags & O_SHARED);
                 if (err) {
@@ -1927,7 +1927,7 @@ static int syscall_queuereset(syscallrq_t *rq)
         GETARG(int *, fd);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _queue_reset(cast(kqueue_t *, res));
         }
@@ -1951,7 +1951,7 @@ static int syscall_queuesend(syscallrq_t *rq)
         GETARG(const u32_t *, timeout);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _queue_send(cast(kqueue_t *, res), item, *timeout);
         }
@@ -1975,7 +1975,7 @@ static int syscall_queuereceive(syscallrq_t *rq)
         GETARG(const u32_t *, timeout);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _queue_receive(cast(kqueue_t *, res), item, *timeout);
         }
@@ -1999,7 +1999,7 @@ static int syscall_queuereceviepeek(syscallrq_t *rq)
         GETARG(const u32_t *, timeout);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _queue_receive_peek(cast(kqueue_t *, res), item, *timeout);
         }
@@ -2022,7 +2022,7 @@ static int syscall_queueitemscount(syscallrq_t *rq)
         GETARG(size_t *, count);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _queue_get_number_of_items(cast(kqueue_t *, res), count);
         }
@@ -2045,7 +2045,7 @@ static int syscall_queuefreespace(syscallrq_t *rq)
         GETARG(size_t *, count);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _queue_get_space_available(cast(kqueue_t *, res), count);
         }
@@ -2206,7 +2206,7 @@ static int syscall_netsocketcreate(syscallrq_t *rq)
         GETARG(u8_t *, protocol);
 
         ksocket_t *socket;
-        int        err = _net_socket_create(netname, *type, *protocol, &socket);
+        int err = _net_socket_create(netname, *type, *protocol, &socket);
         if (!err) {
                 err = _process_descriptor_allocate(GETPROCESS(), fd, cast(res_header_t *, socket), false);
                 if (err) {
@@ -2238,7 +2238,7 @@ static int syscall_netbind(syscallrq_t *rq)
         GETARG(const size_t *, addr_size);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _net_socket_bind(res->self, addr, *addr_size);
         }
@@ -2265,7 +2265,7 @@ static int syscall_netlisten(syscallrq_t *rq)
         GETARG(int *, fd);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _net_socket_listen(res->self);
         }
@@ -2293,7 +2293,7 @@ static int syscall_netaccept(syscallrq_t *rq)
         GETARG(int *, new_fd);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 ksocket_t *socknew;
                 err = _net_socket_accept(res->self, &socknew);
@@ -2332,7 +2332,7 @@ static int syscall_netrecv(syscallrq_t *rq)
         GETARG(size_t *, recved);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _net_socket_recv(res->self, buf, *len, *flags, recved);
         }
@@ -2365,7 +2365,7 @@ static int syscall_netrecvfrom(syscallrq_t *rq)
         GETARG(size_t *, recved);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _net_socket_recvfrom(res->self, buf, *len, *flags, sockaddr, *sockaddr_size, recved);
         }
@@ -2396,7 +2396,7 @@ static int syscall_netsend(syscallrq_t *rq)
         GETARG(size_t *, sent);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _net_socket_send(res->self, buf, *len, *flags, sent);
         }
@@ -2429,7 +2429,7 @@ static int syscall_netsendto(syscallrq_t *rq)
         GETARG(size_t *, sent);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _net_socket_sendto(res->self, buf, *len, *flags, to_addr, *to_addr_size, sent);
         }
@@ -2481,7 +2481,7 @@ static int syscall_netsetrecvtimeout(syscallrq_t *rq)
         GETARG(uint32_t *, timeout);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _net_socket_set_recv_timeout(res->self, *timeout);
         }
@@ -2509,7 +2509,7 @@ static int syscall_netsetsendtimeout(syscallrq_t *rq)
         GETARG(uint32_t *, timeout);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _net_socket_set_send_timeout(res->self, *timeout);
         }
@@ -2538,7 +2538,7 @@ static int syscall_netconnect(syscallrq_t *rq)
         GETARG(const size_t *, addr_size);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _net_socket_connect(res->self, addr, *addr_size);
         }
@@ -2565,7 +2565,7 @@ static int syscall_netdisconnect(syscallrq_t *rq)
         GETARG(int *, fd);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _net_socket_disconnect(res->self);
         }
@@ -2593,7 +2593,7 @@ static int syscall_netshutdown(syscallrq_t *rq)
         GETARG(NETM_shut_t *, how);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _net_socket_shutdown(res->self, *how);
         }
@@ -2622,7 +2622,7 @@ static int syscall_netgetaddress(syscallrq_t *rq)
         GETARG(const size_t *, sockaddr_size);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 err = _net_socket_getaddress(res->self, sockaddr, *sockaddr_size);
         }
@@ -2748,7 +2748,7 @@ static int syscall_shmattach(syscallrq_t *rq)
         GETARG(size_t *, size);
 
         pid_t pid = 0;
-        int   err = _process_get_pid(GETPROCESS(), &pid);
+        int err = _process_get_pid(GETPROCESS(), &pid);
         if (!err) {
                 err = _shm_attach(key, mem, size, pid);
         }
@@ -2775,7 +2775,7 @@ static int syscall_shmdetach(syscallrq_t *rq)
         GETARG(const char *, key);
 
         pid_t pid = 0;
-        int   err = _process_get_pid(GETPROCESS(), &pid);
+        int err = _process_get_pid(GETPROCESS(), &pid);
         if (!err) {
                 err = _shm_detach(key, pid);
         }
@@ -3308,7 +3308,7 @@ static int syscall_dirseek(syscallrq_t *rq)
         GETARG(const u32_t *, seek);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 if (res->type == RES_TYPE_DIR) {
                         err = _vfs_seekdir(res->self, *seek);
@@ -3336,7 +3336,7 @@ static int syscall_dirtell(syscallrq_t *rq)
         GETARG(u32_t *, pos);
 
         res_header_t *res;
-        int           err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
         if (!err) {
                 if (res->type == RES_TYPE_DIR) {
                         err = _vfs_telldir(res->self, pos);
@@ -3404,7 +3404,7 @@ static int syscall_threadjoin(syscallrq_t *rq)
                 err = _process_get_event_flags(rq->client_proc, &flag);
                 if (not err) {
                         const u32_t mask = _PROCESS_EXIT_FLAG(*tid);
-                        err              = _flag_wait(flag, mask, *timeout);
+                        err = _flag_wait(flag, mask, *timeout);
                         if (not err) {
                                 if (status) {
                                         err = _process_thread_get_status(GETPROCESS(), *tid, status);
@@ -3469,9 +3469,9 @@ static int syscall_reboottoaddr(syscallrq_t *rq)
 {
         GETARG(const u32_t *, addr);
 
-        reboot_address.address           = *addr;
+        reboot_address.address = *addr;
         reboot_address.address_validator = *addr ^ REBOOT_TO_ADDRESS_VALIDATOR;
-        reboot_address.key               = REBOOT_TO_ADDRESS_KEY;
+        reboot_address.key = REBOOT_TO_ADDRESS_KEY;
 
         _cpuctl_restart_system();
 

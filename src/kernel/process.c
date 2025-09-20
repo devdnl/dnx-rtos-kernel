@@ -137,6 +137,7 @@ static bool           process_mtx_locked;
 static kmtx_t        *kworker_mtx;
 static dchain_t       shared_desctab;
 static appset_table_t appset_base;
+
 /*==============================================================================
   Exported object definitions
 ==============================================================================*/
