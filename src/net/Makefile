@@ -46,14 +46,15 @@ ifeq ($(_ENABLE_NETWORK_), _YES_)
       CSRC_CORE   += net/inet/lwip/api/sockets.c
       CSRC_CORE   += net/inet/lwip/api/tcpip.c
       CSRC_CORE   += net/inet/lwip/netif/ethernet.c
-      CSRC_CORE   += net/inet/lwip/arch/inet_drv.c
-      CSRC_CORE   += net/inet/lwip/arch/inet.c
-      CSRC_CORE   += net/inet/lwip/arch/sys_arch.c
+      CSRC_CORE   += net/inet/arch/inet_drv.c
+      CSRC_CORE   += net/inet/arch/inet.c
+      CSRC_CORE   += net/inet/arch/sys_arch.c
       
       HDRLOC_CORE += net/inet/lwip/include/ipv4
       HDRLOC_CORE += net/inet/lwip/include
-      HDRLOC_CORE += net/inet/lwip/arch
       HDRLOC_CORE += net/inet/lwip/
+      HDRLOC_CORE += net/inet/arch
+      HDRLOC_CORE += net/inet
    endif
    
    ifeq ($(__ENABLE_SIPC_STACK__), _YES_)
