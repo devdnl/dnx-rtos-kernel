@@ -5,7 +5,7 @@
 
 @brief   This driver support Ethernet interface.
 
-@note    Copyright (C) 2020 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2025 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -26,6 +26,8 @@
 
 ==============================================================================*/
 
+#pragma GCC optimize("Os")
+
 /*==============================================================================
   Include files
 ==============================================================================*/
@@ -44,66 +46,70 @@
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define DEBUG                   0
+#define DEBUG               0
 
-#define MUTEX_TIMEOUT           10000
-#define PHY_BSR_LINK_STATUS     (1 << 2)
+#define MUTEX_TIMEOUT       10000
+#define PHY_BSR_LINK_STATUS (1 << 2)
 
 #if defined(ARCH_stm32f1)
-#define AHBxENR                  AHBENR
-#define RCC_AHBxENR_ETHMACRXEN   RCC_AHBENR_ETHMACRXEN
-#define RCC_AHBxENR_ETHMACTXEN   RCC_AHBENR_ETHMACTXEN
-#define RCC_AHBxENR_ETHMACEN     RCC_AHBENR_ETHMACEN
-#define CPU_CACHE_ALIGN          1
+#define AHBxENR                AHBENR
+#define RCC_AHBxENR_ETHMACRXEN RCC_AHBENR_ETHMACRXEN
+#define RCC_AHBxENR_ETHMACTXEN RCC_AHBENR_ETHMACTXEN
+#define RCC_AHBxENR_ETHMACEN   RCC_AHBENR_ETHMACEN
+#define CPU_CACHE_ALIGN        1
 #elif defined(ARCH_stm32f4)
-#define AHBxENR                  AHB1ENR
-#define RCC_AHBxENR_ETHMACRXEN   RCC_AHB1ENR_ETHMACRXEN
-#define RCC_AHBxENR_ETHMACTXEN   RCC_AHB1ENR_ETHMACTXEN
-#define RCC_AHBxENR_ETHMACEN     RCC_AHB1ENR_ETHMACEN
-#define CPU_CACHE_ALIGN          1
+#define AHBxENR                AHB1ENR
+#define RCC_AHBxENR_ETHMACRXEN RCC_AHB1ENR_ETHMACRXEN
+#define RCC_AHBxENR_ETHMACTXEN RCC_AHB1ENR_ETHMACTXEN
+#define RCC_AHBxENR_ETHMACEN   RCC_AHB1ENR_ETHMACEN
+#define CPU_CACHE_ALIGN        1
 #elif defined(ARCH_stm32f7)
-#define AHBxENR                  AHB1ENR
-#define RCC_AHBxENR_ETHMACRXEN   RCC_AHB1ENR_ETHMACRXEN
-#define RCC_AHBxENR_ETHMACTXEN   RCC_AHB1ENR_ETHMACTXEN
-#define RCC_AHBxENR_ETHMACEN     RCC_AHB1ENR_ETHMACEN
-#define CPU_CACHE_ALIGN          32
+#define AHBxENR                AHB1ENR
+#define RCC_AHBxENR_ETHMACRXEN RCC_AHB1ENR_ETHMACRXEN
+#define RCC_AHBxENR_ETHMACTXEN RCC_AHB1ENR_ETHMACTXEN
+#define RCC_AHBxENR_ETHMACEN   RCC_AHB1ENR_ETHMACEN
+#define CPU_CACHE_ALIGN        32
 #endif
 
 #if CPU_CACHE_ALIGN != ETH_CPU_CACHE_ALIGN
 #error "CPU cache alignments are different!"
 #endif
 
-#define DMA_BUFFER_MASK         (CPU_CACHE_ALIGN - 1)
-#define DMA_ALIGN_UP(n)         (((n) + DMA_BUFFER_MASK) & ~DMA_BUFFER_MASK)
-#define DMA_ALIGN_DOWN(n)       ((n) & ~DMA_BUFFER_MASK)
+#define DMA_BUFFER_MASK    (CPU_CACHE_ALIGN - 1)
+#define DMA_ALIGN_UP(n)    (((n) + DMA_BUFFER_MASK) & ~DMA_BUFFER_MASK)
+#define DMA_ALIGN_DOWN(n)  ((n) & ~DMA_BUFFER_MASK)
 
-#define RX_DESC_ARRAY_SIZE      DMA_ALIGN_UP(sizeof(ETH_DMADescTypeDef) * __ETH_RXBUFNB__)
-#define TX_DESC_ARRAY_SIZE      DMA_ALIGN_UP(sizeof(ETH_DMADescTypeDef) * __ETH_TXBUFNB__)
-#define RX_BUF_ARRAY_SIZE       DMA_ALIGN_UP(ETH_RX_BUF_SIZE_ALIGN * __ETH_RXBUFNB__)
-#define TX_BUF_ARRAY_SIZE       DMA_ALIGN_UP(ETH_TX_BUF_SIZE_ALIGN * __ETH_TXBUFNB__)
+#define RX_DESC_ARRAY_SIZE DMA_ALIGN_UP(sizeof(ETH_DMADescTypeDef) * __ETH_RXBUFNB__)
+#define TX_DESC_ARRAY_SIZE DMA_ALIGN_UP(sizeof(ETH_DMADescTypeDef) * __ETH_TXBUFNB__)
+#define RX_BUF_ARRAY_SIZE  DMA_ALIGN_UP(ETH_RX_BUF_SIZE_ALIGN *__ETH_RXBUFNB__)
+#define TX_BUF_ARRAY_SIZE  DMA_ALIGN_UP(ETH_TX_BUF_SIZE_ALIGN *__ETH_TXBUFNB__)
 
-#define DESCS_BUFFS_SIZE        (RX_DESC_ARRAY_SIZE + TX_DESC_ARRAY_SIZE + RX_BUF_ARRAY_SIZE + TX_BUF_ARRAY_SIZE + CPU_CACHE_ALIGN)
+#define DESCS_BUFFS_SIZE \
+        (RX_DESC_ARRAY_SIZE + TX_DESC_ARRAY_SIZE + RX_BUF_ARRAY_SIZE + TX_BUF_ARRAY_SIZE + CPU_CACHE_ALIGN)
 
 /*==============================================================================
   Local object types
 ==============================================================================*/
 struct eth {
-        ksem_t             *rx_semaphore;
-        kmtx_t             *mutex;
+        u8_t major;
+        u8_t minor;
+        ksem_t *rx_semaphore;
+        kmtx_t *mutex;
         ETH_DMADescTypeDef *DMA_rx_desc;
         ETH_DMADescTypeDef *DMA_tx_desc;
-        uint8_t            *rx_buff;
-        uint8_t            *tx_buff;
-        ETH_HandleTypeDef   eth;
-        uint8_t             MAC_addr[6];
-        ETHIF_config_t      config;
-        bool                irq_yield;
-        bool                configured;
-        bool                run;
-        u32_t               rx_timeout_ms;
-        u32_t               tx_timeout_ms;
-        u8_t                descs_and_buffs[DESCS_BUFFS_SIZE];
+        uint8_t *rx_buff;
+        uint8_t *tx_buff;
+        ETH_HandleTypeDef eth;
+        ETHIF_config_t config;
+        bool irq_yield;
+        bool configured;
+        bool run;
+        u32_t rx_timeout_ms;
+        u32_t tx_timeout_ms;
+        u8_t descs_and_buffs[DESCS_BUFFS_SIZE];
+
         struct {
+                bool link_up[2];
                 u32_t rx_packets;
                 u32_t tx_packets;
                 u64_t rx_bytes;
@@ -122,6 +128,8 @@ static int eth_flush(struct eth *hdl);
 static int packet_receive(struct eth *hdl, ETHIF_packet_t *pkt);
 static int packet_send(struct eth *hdl, const ETHIF_packet_t *pkt);
 static void update_dropped_rx_frames(struct eth *hdl);
+static int configure_PHY(struct eth *hdl);
+static void get_phy_status(struct eth *hdl, ETHIF_status_t *status);
 
 /*==============================================================================
   Local objects
@@ -129,6 +137,12 @@ static void update_dropped_rx_frames(struct eth *hdl);
 MODULE_NAME(ETH);
 
 static struct eth *eth;
+
+#if __ETH_DEVICE__ == KSZ9893R
+static const u8_t PHY_ADDR[] = {1, 2};
+#else
+static const u8_t PHY_ADDR[] = {__ETH_PHY_ADDRESS__};
+#endif
 
 /*==============================================================================
   Exported objects
@@ -166,6 +180,9 @@ API_MOD_INIT(ETH, void **device_handle, u8_t major, u8_t minor, const void *conf
         if (!err) {
                 struct eth *hdl = *device_handle;
 
+                hdl->major = major;
+                hdl->minor = minor;
+
                 hdl->rx_timeout_ms = _WAIT_FOREVER_MS;
                 hdl->tx_timeout_ms = _WAIT_FOREVER_MS;
 
@@ -178,27 +195,35 @@ API_MOD_INIT(ETH, void **device_handle, u8_t major, u8_t minor, const void *conf
                                 /*
                                  * Each DMA description is aligned to DMA cache line.
                                  */
-                                hdl->DMA_rx_desc = (void*)DMA_ALIGN_DOWN((u32_t)hdl->descs_and_buffs + CPU_CACHE_ALIGN - 1);
-                                hdl->DMA_tx_desc = (void*)DMA_ALIGN_DOWN((u32_t)hdl->descs_and_buffs + RX_DESC_ARRAY_SIZE + CPU_CACHE_ALIGN - 1);
+                                hdl->DMA_rx_desc = (void *)DMA_ALIGN_DOWN(
+                                        (u32_t)hdl->descs_and_buffs + CPU_CACHE_ALIGN - 1);
+                                hdl->DMA_tx_desc = (void *)DMA_ALIGN_DOWN((u32_t)hdl->descs_and_buffs +
+                                        RX_DESC_ARRAY_SIZE + CPU_CACHE_ALIGN - 1);
 
                                 /*
                                  * Each RX/TX buffer (even for single packet) is aligned to
                                  * DMA cache line.
                                  */
-                                hdl->rx_buff = (void*)DMA_ALIGN_DOWN((u32_t)hdl->DMA_tx_desc + TX_DESC_ARRAY_SIZE + CPU_CACHE_ALIGN - 1);
-                                hdl->tx_buff = (void*)DMA_ALIGN_DOWN((u32_t)hdl->rx_buff + RX_BUF_ARRAY_SIZE + CPU_CACHE_ALIGN - 1);
+                                hdl->rx_buff = (void *)DMA_ALIGN_DOWN(
+                                        (u32_t)hdl->DMA_tx_desc + TX_DESC_ARRAY_SIZE + CPU_CACHE_ALIGN - 1);
+                                hdl->tx_buff = (void *)DMA_ALIGN_DOWN(
+                                        (u32_t)hdl->rx_buff + RX_BUF_ARRAY_SIZE + CPU_CACHE_ALIGN - 1);
 
-                                #if DEBUG
-                                printk("padding             : %u", (u32_t)hdl->DMA_rx_desc - (u32_t)hdl->descs_and_buffs);
-                                printk("hdl->descs_and_buffs: %p %u", hdl->descs_and_buffs, sizeof(hdl->descs_and_buffs));
-                                printk("hdl->DMA_rx_desc    : %p %u", hdl->DMA_rx_desc, RX_DESC_ARRAY_SIZE);
-                                printk("hdl->DMA_tx_desc    : %p %u", hdl->DMA_tx_desc, TX_DESC_ARRAY_SIZE);
-                                printk("hdl->rx_buff        : %p %u", hdl->rx_buff, RX_BUF_ARRAY_SIZE);
-                                printk("hdl->tx_buff        : %p %u", hdl->tx_buff, TX_BUF_ARRAY_SIZE);
-                                #endif
+#if DEBUG
+                                dev_dbg(hdl, "padding             : %u",
+                                        (u32_t)hdl->DMA_rx_desc - (u32_t)hdl->descs_and_buffs);
+                                dev_dbg(hdl, "hdl->descs_and_buffs: %p %u", hdl->descs_and_buffs,
+                                        sizeof(hdl->descs_and_buffs));
+                                dev_dbg(hdl, "hdl->DMA_rx_desc    : %p %u", hdl->DMA_rx_desc,
+                                        RX_DESC_ARRAY_SIZE);
+                                dev_dbg(hdl, "hdl->DMA_tx_desc    : %p %u", hdl->DMA_tx_desc,
+                                        TX_DESC_ARRAY_SIZE);
+                                dev_dbg(hdl, "hdl->rx_buff        : %p %u", hdl->rx_buff, RX_BUF_ARRAY_SIZE);
+                                dev_dbg(hdl, "hdl->tx_buff        : %p %u", hdl->tx_buff, TX_BUF_ARRAY_SIZE);
+#endif
 
                                 if (config) {
-                                        hdl->config = *cast(ETHIF_config_t*,config);
+                                        hdl->config = *cast(ETHIF_config_t *, config);
                                         eth->configured = true;
                                 }
                         }
@@ -245,14 +270,13 @@ API_MOD_RELEASE(ETH, void *device_handle)
                 if (!err) {
 
                         hdl->mutex = NULL;
-                        sys_sleep_ms(MUTEX_TIMEOUT + MUTEX_TIMEOUT/2);
+                        sys_sleep_ms(MUTEX_TIMEOUT + MUTEX_TIMEOUT / 2);
 
                         HAL_ETH_DeInit(&hdl->eth);
                         NVIC_DisableIRQ(ETH_IRQn);
 
-                        CLEAR_BIT(RCC->AHBxENR, RCC_AHBxENR_ETHMACRXEN
-                                              | RCC_AHBxENR_ETHMACTXEN
-                                              | RCC_AHBxENR_ETHMACEN);
+                        CLEAR_BIT(RCC->AHBxENR,
+                                RCC_AHBxENR_ETHMACRXEN | RCC_AHBxENR_ETHMACTXEN | RCC_AHBxENR_ETHMACEN);
 
                         sys_mutex_destroy(mtx);
                         sys_semaphore_destroy(hdl->rx_semaphore);
@@ -312,19 +336,14 @@ API_MOD_CLOSE(ETH, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(ETH,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrctr,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(ETH, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrctr,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fpos, fattr);
 
         struct eth *hdl = device_handle;
 
-        int err  = EPERM;
+        int err = EPERM;
         size_t n = 0;
 
         while (count > 0) {
@@ -332,12 +351,12 @@ API_MOD_WRITE(ETH,
 
                 ETHIF_packet_t pkt;
                 pkt.payload = const_cast(src);
-                pkt.length  = len;
+                pkt.length = len;
                 err = packet_send(hdl, &pkt);
                 if (!err) {
-                        src   += len;
+                        src += len;
                         count -= len;
-                        n     += len;
+                        n += len;
                 } else {
                         break;
                 }
@@ -362,13 +381,8 @@ API_MOD_WRITE(ETH,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(ETH,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdctr,
-             struct vfs_fattr fattr)
+API_MOD_READ(ETH, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdctr,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fpos, fattr);
 
@@ -376,7 +390,7 @@ API_MOD_READ(ETH,
 
         ETHIF_packet_t pkt;
         pkt.payload = dst;
-        pkt.length  = min(count, ETH_MAX_PACKET_SIZE);
+        pkt.length = min(count, ETH_MAX_PACKET_SIZE);
         int err = packet_receive(hdl, &pkt);
         if (!err) {
                 *rdctr = pkt.length;
@@ -405,7 +419,7 @@ API_MOD_IOCTL(ETH, void *device_handle, int request, void *arg)
         switch (request) {
         case IOCTL_ETHIF__CONFIGURE:
                 if (arg) {
-                        hdl->config = *cast(ETHIF_config_t*, arg);
+                        hdl->config = *cast(ETHIF_config_t *, arg);
                         eth->configured = true;
                         err = 0;
                 }
@@ -425,13 +439,13 @@ API_MOD_IOCTL(ETH, void *device_handle, int request, void *arg)
 
         case IOCTL_ETHIF__SET_RX_TIMEOUT:
                 if (arg) {
-                        hdl->rx_timeout_ms = *cast(u32_t*, arg);
+                        hdl->rx_timeout_ms = *cast(u32_t *, arg);
                 }
                 break;
 
         case IOCTL_ETHIF__SET_TX_TIMEOUT:
                 if (arg) {
-                        hdl->tx_timeout_ms = *cast(u32_t*, arg);
+                        hdl->tx_timeout_ms = *cast(u32_t *, arg);
                 }
                 break;
 
@@ -484,11 +498,11 @@ API_MOD_FLUSH(ETH, void *device_handle)
 //==============================================================================
 API_MOD_STAT(ETH, void *device_handle, struct vfs_dev_stat *device_stat)
 {
-        UNUSED_ARG1(device_handle);
+        struct eth *hdl = device_handle;
 
-        device_stat->st_size  = 0;
-        device_stat->st_major = 0;
-        device_stat->st_minor = 0;
+        device_stat->st_size = 0;
+        device_stat->st_major = hdl->major;
+        device_stat->st_minor = hdl->minor;
 
         return ESUCC;
 }
@@ -508,47 +522,42 @@ static int eth_start(struct eth *hdl)
         if (!err) {
                 if (not hdl->run and hdl->configured) {
 
-                        const ETHIF_config_t *conf = &hdl->config;
-
                         HAL_ETH_DeInit(&hdl->eth);
 
-                        memcpy(hdl->MAC_addr, conf->MAC, sizeof(hdl->MAC_addr));
-
                         hdl->eth.Instance = ETH;
-                        hdl->eth.Init.MACAddr = hdl->MAC_addr;
-                        hdl->eth.Init.AutoNegotiation = conf->auto_negotiation ? ETH_AUTONEGOTIATION_ENABLE : ETH_AUTONEGOTIATION_DISABLE;
-                        hdl->eth.Init.Speed = (conf->speed == ETHIF_SPEED__100Mbps) ? ETH_SPEED_100M : ETH_SPEED_10M;
-                        hdl->eth.Init.DuplexMode = (conf->duplex == ETHIF_DUPLEX__FULL) ? ETH_MODE_FULLDUPLEX : ETH_MODE_HALFDUPLEX;
+                        hdl->eth.Init.MACAddr = hdl->config.MAC;
+                        hdl->eth.Init.Speed = (hdl->config.speed == ETHIF_SPEED__100Mbps) ? ETH_SPEED_100M
+                                                                                          : ETH_SPEED_10M;
+                        hdl->eth.Init.DuplexMode = (hdl->config.duplex == ETHIF_DUPLEX__FULL)
+                                ? ETH_MODE_FULLDUPLEX
+                                : ETH_MODE_HALFDUPLEX;
                         hdl->eth.Init.RxMode = ETH_RXINTERRUPT_MODE;
                         hdl->eth.Init.ChecksumMode = ETH_CHECKSUM_BY_HARDWARE;
                         hdl->eth.Init.PhyAddress = __ETH_PHY_ADDRESS__;
 
-                        while (true) {
-                                err = HAL_ETH_Init(&hdl->eth);
+                        err = HAL_ETH_Init(&hdl->eth);
+                        if (!err) {
+                                err = configure_PHY(hdl);
                                 if (!err) {
                                         /* Initialize Tx Descriptors list: Chain Mode */
-                                        HAL_ETH_DMATxDescListInit(&hdl->eth, hdl->DMA_tx_desc,
-                                                                  hdl->tx_buff, __ETH_TXBUFNB__);
+                                        HAL_ETH_DMATxDescListInit(&hdl->eth, hdl->DMA_tx_desc, hdl->tx_buff,
+                                                __ETH_TXBUFNB__);
 
                                         /* Initialize Rx Descriptors list: Chain Mode  */
-                                        HAL_ETH_DMARxDescListInit(&hdl->eth, hdl->DMA_rx_desc,
-                                                                  hdl->rx_buff, __ETH_RXBUFNB__);
+                                        HAL_ETH_DMARxDescListInit(&hdl->eth, hdl->DMA_rx_desc, hdl->rx_buff,
+                                                __ETH_RXBUFNB__);
 
                                         err = HAL_ETH_Start(&hdl->eth);
                                         if (!err) {
                                                 hdl->run = true;
                                         }
-
-                                } else if (err and conf->auto_negotiation) {
-                                        printk("ETH: disabling auto-negotiation");
-                                        hdl->eth.Init.AutoNegotiation = ETH_AUTONEGOTIATION_DISABLE;
-                                        continue;
                                 }
-
-                                break;
                         }
 
-                        printk("ETH: start %s (%d)", err ? "fail" : "success", err);
+                        dev_dbg(hdl, "start %s (%d)", err ? "fail" : "success", err);
+
+                } else if (hdl->run) {
+                        err = ESUCC;
 
                 } else {
                         err = EPERM;
@@ -602,46 +611,17 @@ static int eth_get_info(struct eth *hdl, ETHIF_status_t *status)
 {
         int err = sys_mutex_lock(hdl->mutex, MUTEX_TIMEOUT);
         if (!err) {
-
                 if (hdl->run) {
-                        u32_t reg;
-
-                        if (HAL_ETH_ReadPHYRegister(&hdl->eth, PHY_BSR, &reg) == HAL_OK) {
-
-                                if (reg & PHY_BSR_LINK_STATUS) {
-                                        status->link_status = ETHIF_LINK_STATUS__CONNECTED;
-                                } else {
-                                        status->link_status = ETHIF_LINK_STATUS__DISCONNECTED;
-                                }
-                        } else {
-                                status->link_status = ETHIF_LINK_STATUS__PHY_ERROR;
-                        }
-
-                        if (HAL_ETH_ReadPHYRegister(&hdl->eth, __ETH_PHY_SR__, &reg) == HAL_OK) {
-
-                                if (reg & __ETH_PHY_SPEED_STATUS_BM__) {
-                                        status->speed = ETHIF_SPEED__10Mbps;
-                                } else {
-                                        status->speed = ETHIF_SPEED__100Mbps;
-                                }
-
-                                if (reg & __ETH_PHY_DUPLEX_STATUS_BM__) {
-                                        status->duplex = ETHIF_DUPLEX__FULL;
-                                } else {
-                                        status->duplex = ETHIF_DUPLEX__HALF;
-                                }
-                        } else {
-                                status->link_status = ETHIF_LINK_STATUS__PHY_ERROR;
-                        }
+                        get_phy_status(hdl, status);
                 } else {
                         status->link_status = ETHIF_LINK_STATUS__PHY_ERROR;
                 }
 
-                memcpy(status->MAC, hdl->MAC_addr, sizeof(status->MAC));
+                memcpy(status->MAC, hdl->config.MAC, sizeof(status->MAC));
 
                 status->configured = hdl->configured;
-                status->rx_bytes   = hdl->stats.rx_bytes;
-                status->tx_bytes   = hdl->stats.tx_bytes;
+                status->rx_bytes = hdl->stats.rx_bytes;
+                status->tx_bytes = hdl->stats.tx_bytes;
                 status->rx_packets = hdl->stats.rx_packets;
                 status->tx_packets = hdl->stats.tx_packets;
 
@@ -691,7 +671,7 @@ static int eth_flush(struct eth *hdl)
                         empty_bufs = 0;
 
                         for (int i = 0; i < __ETH_TXBUFNB__; i++) {
-                                if (not (hdl->DMA_tx_desc[i].Status & ETH_DMATXDESC_OWN)) {
+                                if (not(hdl->DMA_tx_desc[i].Status & ETH_DMATXDESC_OWN)) {
                                         empty_bufs++;
                                 }
                         }
@@ -728,9 +708,9 @@ static int packet_send(struct eth *hdl, const ETHIF_packet_t *pkt)
 
                         __IO ETH_DMADescTypeDef *DmaTxDesc = hdl->eth.TxDesc;
 
-                        _cpuctl_invalidate_dcache_by_addr((uint32_t*)DmaTxDesc, sizeof(ETH_DMADescTypeDef));
+                        _cpuctl_invalidate_dcache_by_addr((uint32_t *)DmaTxDesc, sizeof(ETH_DMADescTypeDef));
 
-                        if ((DmaTxDesc->Status & ETH_DMATXDESC_OWN) != (uint32_t) RESET) {
+                        if ((DmaTxDesc->Status & ETH_DMATXDESC_OWN) != (uint32_t)RESET) {
                                 sys_mutex_unlock(hdl->mutex);
 
                                 if (sys_is_time_expired(tref, hdl->tx_timeout_ms)) {
@@ -743,16 +723,17 @@ static int packet_send(struct eth *hdl, const ETHIF_packet_t *pkt)
                         }
 
                         /* Copy the remaining bytes */
-                        uint8_t *buffer = (uint8_t*) (DmaTxDesc->Buffer1Addr);
+                        uint8_t *buffer = (uint8_t *)(DmaTxDesc->Buffer1Addr);
                         memcpy(buffer, pkt->payload, pkt->length);
 
-                        _cpuctl_clean_dcache_by_addr((uint32_t*)buffer, pkt->length);
+                        _cpuctl_clean_dcache_by_addr((uint32_t *)buffer, pkt->length);
 
                         /* Prepare transmit descriptors to give to DMA */
                         err = HAL_ETH_TransmitFrame(&hdl->eth, pkt->length);
 
-                        /* When Transmit Underflow flag is set, clear it and issue a Transmit Poll Demand to resume transmission */
-                        if ((hdl->eth.Instance->DMASR & ETH_DMASR_TUS) != (uint32_t) RESET) {
+                        /* When Transmit Underflow flag is set, clear it and issue a Transmit Poll Demand to
+                         * resume transmission */
+                        if ((hdl->eth.Instance->DMASR & ETH_DMASR_TUS) != (uint32_t)RESET) {
                                 /* Clear TUS ETHERNET DMA flag */
                                 hdl->eth.Instance->DMASR = ETH_DMASR_TUS;
 
@@ -810,11 +791,11 @@ static int packet_receive(struct eth *hdl, ETHIF_packet_t *pkt)
 
                         /* Obtain the size of the packet and put it into the "len" variable. */
                         uint16_t len = hdl->eth.RxFrameInfos.length;
-                        uint8_t *buffer = (uint8_t*)hdl->eth.RxFrameInfos.buffer;
+                        uint8_t *buffer = (uint8_t *)hdl->eth.RxFrameInfos.buffer;
 
                         if (len > 0) {
                                 pkt->length = len;
-                                _cpuctl_invalidate_dcache_by_addr((uint32_t*)buffer, len);
+                                _cpuctl_invalidate_dcache_by_addr((uint32_t *)buffer, len);
                                 memcpy(pkt->payload, buffer, min(pkt->length, len));
                         }
 
@@ -824,15 +805,16 @@ static int packet_receive(struct eth *hdl, ETHIF_packet_t *pkt)
                         /* Set Own bit in Rx descriptors: gives the buffers back to DMA */
                         for (u32_t i = 0; i < hdl->eth.RxFrameInfos.SegCount; i++) {
                                 dmarxdesc->Status |= ETH_DMARXDESC_OWN;
-                                _cpuctl_clean_dcache_by_addr((uint32_t*)dmarxdesc, sizeof(ETH_DMADescTypeDef));
-                                dmarxdesc = (ETH_DMADescTypeDef*)(dmarxdesc->Buffer2NextDescAddr);
+                                _cpuctl_clean_dcache_by_addr((uint32_t *)dmarxdesc,
+                                        sizeof(ETH_DMADescTypeDef));
+                                dmarxdesc = (ETH_DMADescTypeDef *)(dmarxdesc->Buffer2NextDescAddr);
                         }
 
                         /* Clear Segment_Count */
                         hdl->eth.RxFrameInfos.SegCount = 0;
 
                         /* When Rx Buffer unavailable flag is set: clear it and resume reception */
-                        if ((hdl->eth.Instance->DMASR & ETH_DMASR_RBUS) != (uint32_t) RESET) {
+                        if ((hdl->eth.Instance->DMASR & ETH_DMASR_RBUS) != (uint32_t)RESET) {
                                 /* Clear RBUS ETHERNET DMA flag */
                                 hdl->eth.Instance->DMASR = ETH_DMASR_RBUS;
                                 /* Resume DMA reception */
@@ -851,6 +833,212 @@ static int packet_receive(struct eth *hdl, ETHIF_packet_t *pkt)
         }
 
         return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Ethenet auto-negotiation.
+ *
+ * @param  hdl          device handle
+ * @param  phy_address  PHY address
+ * @param  duplex       negotiated duplex
+ * @param  speed        negotiated speed
+ *
+ * @return One of errno value (errno.h)
+ */
+//==============================================================================
+static int autonegotiate_connection(struct eth *hdl, u8_t phy_address, enum ETHIF_duplex *duplex,
+        enum ETHIF_speed *speed)
+{
+        int err;
+        uint32_t phyreg;
+        clock_t tref = sys_get_uptime_ms();
+
+        /* Wait for linked status */
+        do {
+                err = HAL_ETH_ReadPHYRegister(&hdl->eth, phy_address, PHY_BSR, &phyreg);
+                if (err) {
+                        dev_dbg(hdl, "PHY%u auto-negotiation IO error.", phy_address);
+                        return EIO;
+
+                } else if (sys_is_time_expired(tref, 1000)) {
+                        dev_dbg(hdl, "PHY%u auto-negotiation error, no link.", phy_address);
+                        return ETIME;
+
+                } else {
+                        sys_sleep_ms(50);
+                }
+
+        } while (((phyreg & PHY_LINKED_STATUS) != PHY_LINKED_STATUS));
+
+        dev_dbg(hdl, "PHY%u auto-negotiation in progress...", phy_address);
+
+        /* Enable Auto-Negotiation */
+        err = HAL_ETH_WritePHYRegister(&hdl->eth, phy_address, PHY_BCR, PHY_AUTONEGOTIATION);
+        if (err) {
+                dev_dbg(hdl, "PHY%u auto-negotiation IO error.", phy_address);
+                return EIO;
+        }
+
+        /* Wait until the auto-negotiation will be completed */
+        tref = sys_get_uptime_ms();
+        do {
+                err = HAL_ETH_ReadPHYRegister(&hdl->eth, phy_address, PHY_BSR, &phyreg);
+                if (err) {
+                        dev_dbg(hdl, "PHY%u auto-negotiation IO error.", phy_address);
+                        return EIO;
+
+                } else if (sys_is_time_expired(tref, 1000)) {
+                        dev_dbg(hdl, "PHY%u auto-negotiation timeout.", phy_address);
+                        return ETIME;
+                }
+
+        } while (((phyreg & PHY_AUTONEGO_COMPLETE) != PHY_AUTONEGO_COMPLETE));
+
+        /* Read the result of the auto-negotiation */
+        err = HAL_ETH_ReadPHYRegister(&hdl->eth, phy_address, PHY_SR, &phyreg);
+        if (err) {
+                dev_dbg(hdl, "PHY%u auto-negotiation IO error.", phy_address);
+                return EIO;
+        }
+
+        /* Configure the MAC with the Duplex Mode fixed by the auto-negotiation process */
+        *duplex = (phyreg & PHY_DUPLEX_STATUS) ? ETHIF_DUPLEX__FULL : ETHIF_DUPLEX__HALF;
+        *speed = (phyreg & PHY_SPEED_STATUS) ? ETHIF_SPEED__10Mbps : ETHIF_SPEED__100Mbps;
+
+        dev_dbg(hdl, "PHY%u auto-negotiated parameters: %d Mbps/%s Duplex.", phy_address,
+                (speed == ETHIF_SPEED__10Mbps) ? 10 : 100, (duplex == ETHIF_DUPLEX__HALF) ? "Half" : "Full");
+
+        return ESUCC;
+}
+
+//==============================================================================
+/**
+ * @brief  PHY configuration.
+ *
+ * @param  hdl          driver handle
+ *
+ * @return On success 0 is returned.
+ */
+//==============================================================================
+static int configure_PHY(struct eth *hdl)
+{
+        enum ETHIF_speed speed = hdl->config.speed;
+        enum ETHIF_duplex duplex = hdl->config.duplex;
+
+        int err = 0;
+
+        for (size_t i = 0; i < ARRAY_SIZE(PHY_ADDR); i++) {
+                err = HAL_ETH_WritePHYRegister(&hdl->eth, PHY_ADDR[i], PHY_BCR, PHY_RESET);
+                if (err) {
+                        return EIO;
+                }
+        }
+
+        sys_sleep_ms(PHY_RESET_DELAY);
+
+        if (hdl->config.auto_negotiation) {
+                for (size_t i = 0; i < ARRAY_SIZE(PHY_ADDR); i++) {
+#if __ETH_DEVICE__ == KSZ9893R
+                        /*
+                         * NOTE: In case of KSZ9893R PHY the RMII/MII speed is set according
+                         * to configuration. It not depends on autonegotiation state.
+                         */
+                        enum ETHIF_speed speed;
+                        enum ETHIF_duplex duplex;
+#endif
+                        err = autonegotiate_connection(hdl, PHY_ADDR[i], &duplex, &speed);
+                        if (err) {
+                                err = HAL_ETH_WritePHYRegister(&eth->eth, PHY_ADDR[i], PHY_BCR,
+                                        (hdl->config.speed << 13) | (hdl->config.duplex << 8));
+                        }
+                }
+        } else {
+                for (size_t i = 0; i < ARRAY_SIZE(PHY_ADDR); i++) {
+                        err = HAL_ETH_WritePHYRegister(&eth->eth, PHY_ADDR[i], PHY_BCR,
+                                (speed << 13) | (duplex << 8));
+                }
+        }
+
+        sys_sleep_ms(PHY_CONFIG_DELAY);
+
+        if (not err) {
+                hdl->eth.Init.Speed = (speed == ETHIF_SPEED__100Mbps) ? ETH_SPEED_100M : ETH_SPEED_10M;
+                hdl->eth.Init.DuplexMode = (duplex == ETHIF_DUPLEX__FULL) ? ETH_MODE_FULLDUPLEX
+                                                                    : ETH_MODE_HALFDUPLEX;
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  PHY status.
+ *
+ * @param  hdl          driver handle
+ * @param  status       status
+ *
+ * @return On success 0 is returned.
+ */
+//==============================================================================
+static void get_phy_status(struct eth *hdl, ETHIF_status_t *status)
+{
+        enum ETHIF_duplex duplex;
+        enum ETHIF_speed speed;
+
+        for (size_t i = 0; i < ARRAY_SIZE(PHY_ADDR); i++) {
+
+                uint32_t bsr;
+                int err = HAL_ETH_ReadPHYRegister(&hdl->eth, PHY_ADDR[i], PHY_BSR, &bsr);
+                if (not err) {
+                        bool linked = (bsr & PHY_BSR_LINK_STATUS);
+
+                        if (linked and not hdl->stats.link_up[i]) {
+                                dev_dbg(hdl, "PHY%u link connected.", PHY_ADDR[i]);
+
+                                if (hdl->config.auto_negotiation) {
+                                        autonegotiate_connection(hdl, PHY_ADDR[i], &duplex, &speed);
+                                }
+
+                        } else if (not linked and hdl->stats.link_up[i]) {
+                                dev_dbg(hdl, "PHY%u link disconnected.", PHY_ADDR[i]);
+                        }
+
+                        hdl->stats.link_up[i] = linked;
+                        status->link_status = linked ? ETHIF_LINK_STATUS__CONNECTED
+                                                     : ETHIF_LINK_STATUS__DISCONNECTED;
+                } else {
+                        hdl->stats.link_up[i] = false;
+                        status->link_status = ETHIF_LINK_STATUS__PHY_ERROR;
+                }
+
+                if (not err and (ARRAY_SIZE(PHY_ADDR) == 1)) {
+                        uint32_t sr;
+                        err = HAL_ETH_ReadPHYRegister(&hdl->eth, PHY_ADDR[i], __ETH_PHY_SR__, &sr);
+                        if (not err) {
+                                if (sr & __ETH_PHY_SPEED_STATUS_BM__) {
+                                        status->speed = ETHIF_SPEED__10Mbps;
+                                } else {
+                                        status->speed = ETHIF_SPEED__100Mbps;
+                                }
+
+                                if (sr & __ETH_PHY_DUPLEX_STATUS_BM__) {
+                                        status->duplex = ETHIF_DUPLEX__FULL;
+                                } else {
+                                        status->duplex = ETHIF_DUPLEX__HALF;
+                                }
+                        } else {
+                                hdl->stats.link_up[i] = false;
+                                status->link_status = ETHIF_LINK_STATUS__PHY_ERROR;
+                        }
+                }
+        }
+
+#if __ETH_DEVICE__ == KSZ9893R
+        status->link_status = ETHIF_LINK_STATUS__CONNECTED;
+        status->speed = hdl->config.speed;
+        status->duplex = hdl->config.duplex;
+#endif
 }
 
 //==============================================================================

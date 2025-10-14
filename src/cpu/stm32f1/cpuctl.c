@@ -5,7 +5,7 @@
 
 @brief   This file support CPU control
 
-@note    Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2025 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -97,7 +97,7 @@ typedef struct {
   Local function prototypes
 ==============================================================================*/
 static void calculate_ticks_per_us(void);
-void        get_registers_from_stack(uint32_t *stack_address);
+void get_registers_from_stack(uint32_t *stack_address, int cause);
 
 /*==============================================================================
   Local object definitions
@@ -115,8 +115,8 @@ static volatile reg_dump_t reg_dump __attribute__((section(".noinit")));
   External object definitions
 ==============================================================================*/
 const char *_cpuctl_preferred_APP_RAM[] = {__CPU_PREFFERED_APP_RAM__, NULL};
-const char *_cpuctl_preferred_FS_RAM[]  = {__CPU_PREFFERED_FS_RAM__, NULL};
-const char *_cpuctl_fast_mem[]          = {__CPU_PREFFERED_FAST_RAM__, NULL};
+const char *_cpuctl_preferred_FS_RAM[] = {__CPU_PREFFERED_FS_RAM__, NULL};
+const char *_cpuctl_fast_mem[] = {__CPU_PREFFERED_FAST_RAM__, NULL};
 
 /*==============================================================================
   Function definitions
@@ -218,7 +218,7 @@ void _cpuctl_init_CPU_load_counter(void)
 
 //==============================================================================
 /**
- * @brief  Function return valut that was counted from last call of this function.
+ * @brief  Function return value that was counted from last call of this function.
  *         This function must reset timer after read. Function is called from
  *         IRQs.
  *
@@ -231,8 +231,8 @@ void _cpuctl_init_CPU_load_counter(void)
 u32_t _cpuctl_get_CPU_load_counter_delta(void)
 {
         static uint32_t last;
-        bool            ovf = SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk;
-        u32_t           now = SysTick->VAL;
+        bool ovf = SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk;
+        u32_t now = SysTick->VAL;
 
         u32_t delta;
         if (ovf) {
@@ -449,22 +449,22 @@ static void calculate_ticks_per_us(void)
 //==============================================================================
 void _cpuctl_print_exception(void)
 {
-        printk("R0   : %08xh", reg_dump.R0);
-        printk("R1   : %08xh", reg_dump.R1);
-        printk("R2   : %08xh", reg_dump.R2);
-        printk("R3   : %08xh", reg_dump.R3);
-        printk("R12  : %08xh", reg_dump.R12);
-        printk("LR   : %08xh", reg_dump.LR);
-        printk("PC   : %08xh", reg_dump.PC);
-        printk("PSR  : %08xh", reg_dump.PSR);
-        printk("MFSR : %08xh", reg_dump.MFSR);
-        printk("BFSR : %08xh", reg_dump.BFSR);
-        printk("UFSR : %08xh", reg_dump.UFSR);
-        printk("HFSR : %08xh", reg_dump.HFSR);
-        printk("DFSR : %08xh", reg_dump.DFSR);
-        printk("BFAR : %08xh", reg_dump.BFAR);
-        printk("AFSR : %08xh", reg_dump.AFSR);
-        printk("MFAR : %08xh", reg_dump.MFAR);
+        printk("R0   : %08Xh", reg_dump.R0);
+        printk("R1   : %08Xh", reg_dump.R1);
+        printk("R2   : %08Xh", reg_dump.R2);
+        printk("R3   : %08Xh", reg_dump.R3);
+        printk("R12  : %08Xh", reg_dump.R12);
+        printk("LR   : %08Xh", reg_dump.LR);
+        printk("PC   : %08Xh", reg_dump.PC);
+        printk("PSR  : %08Xh", reg_dump.PSR);
+        printk("MFSR : %08Xh", reg_dump.MFSR);
+        printk("BFSR : %08Xh", reg_dump.BFSR);
+        printk("UFSR : %08Xh", reg_dump.UFSR);
+        printk("HFSR : %08Xh", reg_dump.HFSR);
+        printk("DFSR : %08Xh", reg_dump.DFSR);
+        printk("BFAR : %08Xh", reg_dump.BFAR);
+        printk("AFSR : %08Xh", reg_dump.AFSR);
+        printk("MFAR : %08Xh", reg_dump.MFAR);
 }
 
 //==============================================================================
@@ -491,7 +491,7 @@ void HardFault_Handler(void)
                        "ite eq                       \n"
                        "mrseq r0, msp                \n"
                        "mrsne r0, psp                \n"
-                       "ldr r1, [r0, #24]            \n"
+                       "movs r1, #0                  \n" // _KERNEL_PANIC_DESC_CAUSE_SEGFAULT
                        "b get_registers_from_stack   \n");
 
         // return to infinite loop instead of broken code
@@ -510,7 +510,21 @@ void HardFault_Handler(void)
 //==============================================================================
 void MemManage_Handler(void)
 {
-        _kernel_panic_report_from_ISR(_KERNEL_PANIC_DESC_CAUSE_CPUFAULT);
+        // remember registers
+        __asm volatile("tst lr, #4                   \n"
+                       "ite eq                       \n"
+                       "mrseq r0, msp                \n"
+                       "mrsne r0, psp                \n"
+                       "movs r1, #2                  \n" // _KERNEL_PANIC_DESC_CAUSE_CPUFAULT_1
+                       "b get_registers_from_stack   \n");
+
+        // return to infinite loop instead of broken code
+        __asm volatile("tst lr, #4                   \n"
+                       "ite EQ                       \n"
+                       "mrseq r0, msp                \n"
+                       "mrsne r0, psp                \n"
+                       "ldr r1, =_task_infinite_loop \n"
+                       "str r1, [r0, #24]            \n");
 }
 
 //==============================================================================
@@ -520,7 +534,21 @@ void MemManage_Handler(void)
 //==============================================================================
 void BusFault_Handler(void)
 {
-        _kernel_panic_report_from_ISR(_KERNEL_PANIC_DESC_CAUSE_CPUFAULT);
+        // remember registers
+        __asm volatile("tst lr, #4                   \n"
+                       "ite eq                       \n"
+                       "mrseq r0, msp                \n"
+                       "mrsne r0, psp                \n"
+                       "movs r1, #3                  \n" // _KERNEL_PANIC_DESC_CAUSE_CPUFAULT_2
+                       "b get_registers_from_stack   \n");
+
+        // return to infinite loop instead of broken code
+        __asm volatile("tst lr, #4                   \n"
+                       "ite EQ                       \n"
+                       "mrseq r0, msp                \n"
+                       "mrsne r0, psp                \n"
+                       "ldr r1, =_task_infinite_loop \n"
+                       "str r1, [r0, #24]            \n");
 }
 
 //==============================================================================
@@ -530,7 +558,21 @@ void BusFault_Handler(void)
 //==============================================================================
 void UsageFault_Handler(void)
 {
-        _kernel_panic_report_from_ISR(_KERNEL_PANIC_DESC_CAUSE_CPUFAULT);
+        // remember registers
+        __asm volatile("tst lr, #4                   \n"
+                       "ite eq                       \n"
+                       "mrseq r0, msp                \n"
+                       "mrsne r0, psp                \n"
+                       "movs r1, #4                  \n" // _KERNEL_PANIC_DESC_CAUSE_CPUFAULT_3
+                       "b get_registers_from_stack   \n");
+
+        // return to infinite loop instead of broken code
+        __asm volatile("tst lr, #4                   \n"
+                       "ite EQ                       \n"
+                       "mrseq r0, msp                \n"
+                       "mrsne r0, psp                \n"
+                       "ldr r1, =_task_infinite_loop \n"
+                       "str r1, [r0, #24]            \n");
 }
 
 //==============================================================================
@@ -540,16 +582,16 @@ void UsageFault_Handler(void)
  * @param  stack_address        stack address
  */
 //==============================================================================
-void get_registers_from_stack(uint32_t *stack_address)
+void get_registers_from_stack(uint32_t *stack_address, int cause)
 {
-        reg_dump.R0   = stack_address[0];
-        reg_dump.R1   = stack_address[1];
-        reg_dump.R2   = stack_address[2];
-        reg_dump.R3   = stack_address[3];
-        reg_dump.R12  = stack_address[4];
-        reg_dump.LR   = stack_address[5];
-        reg_dump.PC   = stack_address[6];
-        reg_dump.PSR  = stack_address[7];
+        reg_dump.R0 = stack_address[0];
+        reg_dump.R1 = stack_address[1];
+        reg_dump.R2 = stack_address[2];
+        reg_dump.R3 = stack_address[3];
+        reg_dump.R12 = stack_address[4];
+        reg_dump.LR = stack_address[5];
+        reg_dump.PC = stack_address[6];
+        reg_dump.PSR = stack_address[7];
         reg_dump.MFSR = NVIC_MFSR;
         reg_dump.BFSR = NVIC_BFSR;
         reg_dump.UFSR = NVIC_UFSR;
@@ -559,7 +601,7 @@ void get_registers_from_stack(uint32_t *stack_address)
         reg_dump.AFSR = NVIC_AFSR;
         reg_dump.MFAR = NVIC_MFAR;
 
-        _kernel_panic_report_from_ISR(_KERNEL_PANIC_DESC_CAUSE_SEGFAULT);
+        _kernel_panic_report_from_ISR(cause);
 }
 
 /*==============================================================================

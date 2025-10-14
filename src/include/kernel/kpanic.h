@@ -50,25 +50,28 @@ extern "C" {
   Exported object types
 ==============================================================================*/
 enum _kernel_panic_desc_cause {
-        _KERNEL_PANIC_DESC_CAUSE_SEGFAULT   = 0,
-        _KERNEL_PANIC_DESC_CAUSE_STACKOVF   = 1,
-        _KERNEL_PANIC_DESC_CAUSE_CPUFAULT   = 2,
-        _KERNEL_PANIC_DESC_CAUSE_INTERNAL_1 = 3,
-        _KERNEL_PANIC_DESC_CAUSE_INTERNAL_2 = 4,
-        _KERNEL_PANIC_DESC_CAUSE_INTERNAL_3 = 5,
-        _KERNEL_PANIC_DESC_CAUSE_INTERNAL_4 = 6,
-        _KERNEL_PANIC_DESC_CAUSE_UNKNOWN    = 8
+        _KERNEL_PANIC_DESC_CAUSE_SEGFAULT = 0,
+        _KERNEL_PANIC_DESC_CAUSE_STACKOVF = 1,
+        _KERNEL_PANIC_DESC_CAUSE_CPUFAULT_1 = 2,
+        _KERNEL_PANIC_DESC_CAUSE_CPUFAULT_2 = 3,
+        _KERNEL_PANIC_DESC_CAUSE_CPUFAULT_3 = 4,
+        _KERNEL_PANIC_DESC_CAUSE_CPUFAULT_4 = 5,
+        _KERNEL_PANIC_DESC_CAUSE_INTERNAL_1 = 6,
+        _KERNEL_PANIC_DESC_CAUSE_INTERNAL_2 = 7,
+        _KERNEL_PANIC_DESC_CAUSE_INTERNAL_3 = 8,
+        _KERNEL_PANIC_DESC_CAUSE_INTERNAL_4 = 9,
+        _KERNEL_PANIC_DESC_CAUSE_UNKNOWN = 10,
 };
 
 struct _kernel_panic_info {
         const char *cause_str;
-        char        name[64];
-        u32_t       flags;
-        int         cause;
-        pid_t       pid;
-        tid_t       tid;
-        u8_t        syscall;
-        u8_t        core;
+        char name[64];
+        u32_t flags;
+        int cause;
+        pid_t pid;
+        tid_t tid;
+        u8_t syscall;
+        u8_t core;
 };
 
 /*==============================================================================
@@ -78,7 +81,7 @@ struct _kernel_panic_info {
 /*==============================================================================
   Exported functions
 ==============================================================================*/
-extern int  _kernel_panic_init(void);
+extern int _kernel_panic_init(void);
 extern bool _kernel_panic_info(struct _kernel_panic_info *);
 extern void _kernel_panic_report(enum _kernel_panic_desc_cause);
 extern void _kernel_panic_report_from_ISR(enum _kernel_panic_desc_cause);

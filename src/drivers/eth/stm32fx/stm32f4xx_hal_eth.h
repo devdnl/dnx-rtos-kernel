@@ -369,11 +369,6 @@ typedef enum
 
 typedef struct
 {
-  uint32_t             AutoNegotiation;           /*!< Selects or not the AutoNegotiation mode for the external PHY
-                                                           The AutoNegotiation allows an automatic setting of the Speed (10/100Mbps)
-                                                           and the mode (half/full-duplex).
-                                                           This parameter can be a value of @ref ETH_AutoNegotiation */
-
   uint32_t             Speed;                     /*!< Sets the Ethernet speed: 10/100 Mbps.
                                                            This parameter can be a value of @ref ETH_Speed */
 
@@ -2150,8 +2145,8 @@ HAL_StatusTypeDef HAL_ETH_UnRegisterCallback(ETH_HandleTypeDef *heth, HAL_ETH_Ca
 HAL_StatusTypeDef HAL_ETH_TransmitFrame(ETH_HandleTypeDef *heth, uint32_t FrameLength);
 HAL_StatusTypeDef HAL_ETH_GetReceivedFrame(ETH_HandleTypeDef *heth);
 /* Communication with PHY functions*/
-HAL_StatusTypeDef HAL_ETH_ReadPHYRegister(ETH_HandleTypeDef *heth, uint16_t PHYReg, uint32_t *RegValue);
-HAL_StatusTypeDef HAL_ETH_WritePHYRegister(ETH_HandleTypeDef *heth, uint16_t PHYReg, uint32_t RegValue);
+HAL_StatusTypeDef HAL_ETH_ReadPHYRegister(ETH_HandleTypeDef *heth, uint32_t PHYAddr, uint16_t PHYReg, uint32_t *RegValue);
+HAL_StatusTypeDef HAL_ETH_WritePHYRegister(ETH_HandleTypeDef *heth, uint32_t PHYAddr, uint16_t PHYReg, uint32_t RegValue);
 /* Non-Blocking mode: Interrupt */
 HAL_StatusTypeDef HAL_ETH_GetReceivedFrame_IT(ETH_HandleTypeDef *heth);
 void HAL_ETH_IRQHandler(ETH_HandleTypeDef *heth);

@@ -150,27 +150,27 @@ enum ETHIF_duplex {
  * Type represent ethernet status.
  */
 typedef struct {
-        enum ETHIF_state       state;
+        enum ETHIF_state state;
         enum ETHIF_link_status link_status;
-        enum ETHIF_speed       speed;
-        enum ETHIF_duplex      duplex;
-        bool                   configured;
-        u8_t                   MAC[6];
-        u64_t                  rx_packets;
-        u64_t                  tx_packets;
-        u64_t                  rx_bytes;
-        u64_t                  tx_bytes;
-        u32_t                  rx_dropped_frames;
+        enum ETHIF_speed speed;
+        enum ETHIF_duplex duplex;
+        bool configured;
+        u8_t MAC[6];
+        u64_t rx_packets;
+        u64_t tx_packets;
+        u64_t rx_bytes;
+        u64_t tx_bytes;
+        u32_t rx_dropped_frames;
 } ETHIF_status_t;
 
 /**
  * Type used for Ethernet interface configuration.
  */
 typedef struct {
-        u8_t              MAC[6];
-        enum ETHIF_speed  speed;
+        u8_t MAC[6];
+        enum ETHIF_speed speed;
         enum ETHIF_duplex duplex;
-        bool              auto_negotiation;
+        bool auto_negotiation;
 } ETHIF_config_t;
 
 /*==============================================================================

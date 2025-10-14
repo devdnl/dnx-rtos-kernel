@@ -56,13 +56,13 @@ typedef struct {
         uint32_t CRC32;  /* CRC32 */
 
         struct {
-                char                          name[64];
-                u32_t                         flags;
+                char name[64];
+                u32_t flags;
                 enum _kernel_panic_desc_cause cause;
-                pid_t                         pid;
-                tid_t                         tid;
-                u8_t                          syscall;
-                u8_t                          core;
+                pid_t pid;
+                tid_t tid;
+                u8_t syscall;
+                u8_t core;
         } content;
 } kernel_panic_desc;
 
@@ -77,20 +77,22 @@ static void app_crash_handler(void *arg);
   Local objects
 ==============================================================================*/
 static kernel_panic_desc kpanic_desc __attribute__((section(".noinit")));
-static u32_t             kpanic_ctr;
-static _process_t       *kpanic_trap_proc;
-static task_t           *kpanic_app_crash_task;
+static u32_t kpanic_ctr;
+static _process_t *kpanic_trap_proc;
+static task_t *kpanic_app_crash_task;
 
 static const char *CAUSE[] = {
-        "SEGFAULT",
-        "STACKOVF",
-        "CPUFAULT",
-        "INTERNAL1",
-        "INTERNAL2",
-        "INTERNAL3",
-        "INTERNAL4",
-        "PANICLOOP",
-        "UNKNOWN",
+        [_KERNEL_PANIC_DESC_CAUSE_SEGFAULT] = "SEGFAULT",
+        [_KERNEL_PANIC_DESC_CAUSE_STACKOVF] = "STACKOVF",
+        [_KERNEL_PANIC_DESC_CAUSE_CPUFAULT_1] = "CPUFAULT1",
+        [_KERNEL_PANIC_DESC_CAUSE_CPUFAULT_2] = "CPUFAULT2",
+        [_KERNEL_PANIC_DESC_CAUSE_CPUFAULT_3] = "CPUFAULT3",
+        [_KERNEL_PANIC_DESC_CAUSE_CPUFAULT_4] = "CPUFAULT4",
+        [_KERNEL_PANIC_DESC_CAUSE_INTERNAL_1] = "INTERNAL1",
+        [_KERNEL_PANIC_DESC_CAUSE_INTERNAL_2] = "INTERNAL2",
+        [_KERNEL_PANIC_DESC_CAUSE_INTERNAL_3] = "INTERNAL3",
+        [_KERNEL_PANIC_DESC_CAUSE_INTERNAL_4] = "INTERNAL4",
+        [_KERNEL_PANIC_DESC_CAUSE_UNKNOWN] = "UNKNOWN",
 };
 
 /*==============================================================================
@@ -136,7 +138,7 @@ bool _kernel_panic_info(struct _kernel_panic_info *info)
 
         if (occurred) {
                 u32_t CRC = calc_crc32(&kpanic_desc.content, sizeof(kpanic_desc.content));
-                occurred  = (CRC == kpanic_desc.CRC32);
+                occurred = (CRC == kpanic_desc.CRC32);
         }
 
         if (occurred) {
@@ -144,15 +146,15 @@ bool _kernel_panic_info(struct _kernel_panic_info *info)
                 const char *panic_type;
 
                 if ((kpanic_desc.content.flags & _KERNEL_PANIC_FLAG__KERNEL_PANIC) ||
-                        (kpanic_desc.content.cause >= _KERNEL_PANIC_DESC_CAUSE_CPUFAULT)) {
+                        (kpanic_desc.content.cause >= _KERNEL_PANIC_DESC_CAUSE_CPUFAULT_1)) {
                         panic_type = "KERNEL PANIC";
                 } else {
                         panic_type = "APP CRASH";
                 }
 
-                printk("%s: '%s' [%u:%d:%d,%s,%s,%u]",
-                        panic_type, kpanic_desc.content.name, kpanic_desc.content.core,
-                        kpanic_desc.content.pid, kpanic_desc.content.tid, CAUSE[kpanic_desc.content.cause],
+                printk("%s: '%s' [%u:%d:%d,%s,%s,%u]", panic_type, kpanic_desc.content.name,
+                        kpanic_desc.content.core, kpanic_desc.content.pid, kpanic_desc.content.tid,
+                        CAUSE[kpanic_desc.content.cause],
                         (kpanic_desc.content.flags & _KERNEL_PANIC_FLAG__KERNEL_SPACE) ? "KRN" : "USR",
                         kpanic_desc.content.syscall);
 
@@ -166,15 +168,15 @@ bool _kernel_panic_info(struct _kernel_panic_info *info)
 
                         sys_strlcpy(info->name, kpanic_desc.content.name, sizeof(info->name));
 
-                        info->flags   = kpanic_desc.content.flags;
-                        info->pid     = kpanic_desc.content.pid;
-                        info->tid     = kpanic_desc.content.tid;
+                        info->flags = kpanic_desc.content.flags;
+                        info->pid = kpanic_desc.content.pid;
+                        info->tid = kpanic_desc.content.tid;
                         info->syscall = kpanic_desc.content.syscall;
-                        info->core    = kpanic_desc.content.core;
+                        info->core = kpanic_desc.content.core;
                 }
 
                 kpanic_desc.valid1 = 0;
-                kpanic_desc.CRC32  = 0;
+                kpanic_desc.CRC32 = 0;
         }
 
         return occurred;
@@ -261,10 +263,10 @@ static void catch_process(enum _kernel_panic_desc_cause suggested_cause, bool is
 static void report_kernel_panic(_process_t *proc, enum _kernel_panic_desc_cause cause, bool isr)
 {
         kpanic_desc.content.cause = cause;
-        kpanic_desc.valid1        = _KERNEL_PANIC_DESC_VALID1;
+        kpanic_desc.valid1 = _KERNEL_PANIC_DESC_VALID1;
 
         kpanic_desc.content.flags = (++kpanic_ctr >= PANIC_LOOP_COUNT) ? _KERNEL_PANIC_FLAG__PANIC_LOOP : 0;
-        kpanic_desc.content.core  = _cpuctl_get_cpu_id();
+        kpanic_desc.content.core = _cpuctl_get_cpu_id();
 
         if (_process_get_pid(proc, &kpanic_desc.content.pid) == 0) {
 
@@ -284,8 +286,8 @@ static void report_kernel_panic(_process_t *proc, enum _kernel_panic_desc_cause 
 
                 sys_snprintf(kpanic_desc.content.name, sizeof(kpanic_desc.content.name), "<task> %p", task);
 
-                kpanic_desc.content.pid     = 0;
-                kpanic_desc.content.tid     = 0;
+                kpanic_desc.content.pid = 0;
+                kpanic_desc.content.tid = 0;
                 kpanic_desc.content.syscall = 0xFF;
                 kpanic_desc.content.flags |= _KERNEL_PANIC_FLAG__KERNEL_SPACE;
         }
@@ -322,11 +324,13 @@ static void app_crash_handler(void *arg)
                         (kpanic_desc.content.flags & _KERNEL_PANIC_FLAG__KERNEL_SPACE) ? "KRN" : "USR",
                         kpanic_desc.content.syscall);
 
+                _cpuctl_print_exception();
+
                 _process_kill(kpanic_desc.content.pid);
 
                 kpanic_desc.CRC32 = 0;
-                kpanic_trap_proc  = NULL;
-                kpanic_ctr        = 0;
+                kpanic_trap_proc = NULL;
+                kpanic_ctr = 0;
         }
 }
 
