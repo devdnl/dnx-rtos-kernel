@@ -39,6 +39,7 @@ Brief    Network management.
 #include "lwip/prot/dhcp.h"
 #include "lwip/tcpip.h"
 #include "lwip/dns.h"
+#include "lwip/tcp.h"
 #include "netif/etharp.h"
 
 /*==============================================================================
@@ -802,6 +803,11 @@ int INET_socket_create(void *ctx, NETM_socket_type_t type, u8_t prot, INET_socke
         inet_sock->netconn = netconn_new_with_proto_and_callback(LWIP_TYPE[type], prot, NULL);
 
         if (inet_sock->netconn) {
+
+                if (type == NETM_SOCKET_TYPE__STREAM) {
+                        tcp_nagle_disable(inet_sock->netconn->pcb.tcp);
+                }
+
                 err = ESUCC;
         } else {
                 err = ENOMEM;
