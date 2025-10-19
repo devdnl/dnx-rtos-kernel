@@ -79,12 +79,18 @@ extern int _inetdrv_get_MAC(inet_t *inet, u8_t MAC[6]);
 /*==============================================================================
   Local objects
 ==============================================================================*/
-static bool initialized;
+static bool tcp_initialized;
 static const u32_t ACCESS_TIMEOUT = 10000;
 static const u32_t DHCP_TIMEOUT = 5000;
 static const u32_t INIT_TIMEOUT = 5000;
 static const u32_t INPUT_TIMEOUT = 1000;
 static const u32_t LINK_POLL_TIME = 250;
+
+static const _thread_attr_t if_thread_attr = {
+        .priority = _PRIORITY_NORMAL,
+        .stack_depth = _STACK_DEPTH_LOW,
+        .detached = true,
+};
 
 /*==============================================================================
   Exported objects
@@ -531,8 +537,9 @@ static err_t netif_configure(struct netif *netif)
 //==============================================================================
 int INET_ifinit(void **ctx, const char *if_path)
 {
-        if (initialized) {
-                return EADDRINUSE;
+        if (not tcp_initialized) {
+                tcpip_init(NULL, NULL);
+                tcp_initialized = true;
         }
 
         int err = zalloc(sizeof(inet_t), ctx);
@@ -542,57 +549,36 @@ int INET_ifinit(void **ctx, const char *if_path)
 
         inet_t *inet = *ctx;
 
-        static const _thread_attr_t attr = {
-                .priority = _PRIORITY_NORMAL,
-                .stack_depth = _STACK_DEPTH_LOW,
-                .detached = true,
-        };
+        err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &inet->access);
+        if (err) {
+                INET_ifdeinit(inet);
+                return err;
+        }
+
+        err = sys_fopen(if_path, O_RDWR, 0, &inet->if_file);
+        if (err) {
+                INET_ifdeinit(inet);
+                return err;
+        }
 
         inet->thread_run = true;
 
-        int ferr = sys_fopen(if_path, O_RDWR, 0, &inet->if_file);
-        int merr = sys_mutex_create(KMTX_TYPE_RECURSIVE, &inet->access);
-        int terr = sys_thread_create(network_interface_thread, &attr, inet, &inet->if_thread);
-        int qerr = sys_queue_create(LWIP_LOOPBACK_MAX_PBUFS, sizeof(void *), &inet->loq);
-
-        if (!ferr && !merr && !terr && !qerr) {
-
-                printk("INET (%s): thread ID: %u", if_path, inet->if_thread);
-
-                tcpip_init(NULL, NULL);
-
-                netif_add(&inet->netif, const_cast(&ip_addr_any), const_cast(&ip_addr_any),
-                        const_cast(&ip_addr_any), inet, netif_configure, tcpip_input);
-
-                netif_set_default(&inet->netif);
-
-                initialized = true;
-
-                err = ESUCC;
-
-        } else {
-                inet->thread_run = false;
-
-                if (!merr) {
-                        sys_mutex_destroy(inet->access);
-                }
-
-                if (!terr) {
-                        sys_thread_destroy(inet->if_thread);
-                }
-
-                if (!ferr) {
-                        sys_fclose(inet->if_file);
-                }
-
-                if (!qerr) {
-                        sys_queue_destroy(inet->loq);
-                }
-
-                zfree((void *)&inet);
+        err = sys_thread_create(network_interface_thread, &if_thread_attr, inet, &inet->if_thread);
+        if (err) {
+                INET_ifdeinit(inet);
+                return err;
         }
 
-        return err;
+        printk("INET (%s): thread ID: %u", if_path, inet->if_thread);
+
+        netif_add(&inet->netif, const_cast(&ip_addr_any), const_cast(&ip_addr_any), const_cast(&ip_addr_any),
+                inet, netif_configure, tcpip_input);
+
+        if (netif_default == NULL) {
+                netif_set_default(&inet->netif);
+        }
+
+        return 0;
 }
 
 //==============================================================================
@@ -606,12 +592,9 @@ int INET_ifdeinit(void *ctx)
 {
         inet_t *inet = ctx;
 
-        inet->thread_run = false;
-
-        sys_msleep(1000);
-
-        if (inet->access) {
-                sys_mutex_destroy(inet->access);
+        if (inet->thread_run) {
+                inet->thread_run = false;
+                sys_msleep(1000);
         }
 
         if (inet->if_thread) {
@@ -622,7 +605,15 @@ int INET_ifdeinit(void *ctx)
                 sys_fclose(inet->if_file);
         }
 
-        return zfree((void *)&inet);
+        if (inet->access) {
+                sys_mutex_destroy(inet->access);
+        }
+
+        if (inet->netif.name[0] != 0) {
+                netif_remove(&inet->netif);
+        }
+
+        return zfree(&ctx);
 }
 
 //==============================================================================
@@ -863,11 +854,7 @@ int INET_socket_connect(void *ctx, INET_socket_t *inet_sock, const NETM_INET_soc
 
         ip_addr_t IP;
 
-        if (addr->addr == NETM_INET_IPv4_LOOPBACK) {
-                IP.addr = INET_PSEUDO_LOOPBACK_IP;
-        } else {
-                create_lwIP_addr(&IP, &addr->addr);
-        }
+        create_lwIP_addr(&IP, &addr->addr);
 
         return err_to_errno(netconn_connect(inet_sock->netconn, &IP, addr->port));
 }
@@ -1035,11 +1022,7 @@ int INET_socket_recvfrom(void *ctx, INET_socket_t *inet_sock, void *buf, size_t 
                         ip_addr_t *fromaddr = netbuf_fromaddr(netbuf);
                         sockaddr->port = netbuf_fromport(netbuf);
 
-                        if (fromaddr->addr == INET_PSEUDO_LOOPBACK_IP) {
-                                sockaddr->addr = NETM_INET_IPv4_LOOPBACK;
-                        } else {
-                                create_addr(&sockaddr->addr, fromaddr);
-                        }
+                        create_addr(&sockaddr->addr, fromaddr);
 
                         netbuf_delete(netbuf);
                 }
@@ -1391,11 +1374,7 @@ int INET_socket_getaddress(void *ctx, INET_socket_t *inet_sock, NETM_INET_sockad
         int err = err_to_errno(netconn_getaddr(inet_sock->netconn, &lwip_addr, &sockaddr->port, 0));
 
         if (!err) {
-                if (lwip_addr.addr == INET_PSEUDO_LOOPBACK_IP) {
-                        sockaddr->addr = NETM_INET_IPv4_LOOPBACK;
-                } else {
-                        create_addr(&sockaddr->addr, &lwip_addr);
-                }
+                create_addr(&sockaddr->addr, &lwip_addr);
         }
 
         return err;

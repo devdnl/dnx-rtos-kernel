@@ -95,7 +95,7 @@ void _inetdrv_handle_input(inet_t *inet, u32_t timeout)
         while (inet->thread_run) {
                 ETHIF_packet_t pkt;
                 pkt.payload = inet->frame;
-                pkt.length  = sizeof(inet->frame);
+                pkt.length = sizeof(inet->frame);
 
                 struct pbuf *p;
 
@@ -116,19 +116,11 @@ void _inetdrv_handle_input(inet_t *inet, u32_t timeout)
                         } else {
                                 LWIP_DEBUGF(INET_DEBUG, ("_inetdrv_handle_input: pbuf allocate error\n"));
                         }
+                }
 
-                } else if (sys_queue_receive(inet->loq, &p, 0) == 0) {
-
-                        if (inet->netif.input(p, &inet->netif) != ERR_OK) {
-                                pbuf_free(p);
-                        }
-
-                } else {
-                        if (sys_get_uptime_ms() - tref >= timeout) {
-                                LWIP_DEBUGF(INET_DEBUG, ("_inetdrv_handle_input: packet receive timeout\n"));
-                                break;
-
-                        }
+                if (sys_get_uptime_ms() - tref >= timeout) {
+                        LWIP_DEBUGF(INET_DEBUG, ("_inetdrv_handle_input: packet receive timeout\n"));
+                        break;
                 }
         }
 }
@@ -155,51 +147,22 @@ void _inetdrv_handle_input(inet_t *inet, u32_t timeout)
 //==============================================================================
 err_t _inetdrv_handle_output(struct netif *netif, struct pbuf *p)
 {
-      inet_t *inet = netif->state;
+        inet_t *inet = netif->state;
 
-      LWIP_DEBUGF(INET_DEBUG, ("_inetdrv_handle_output: packet size %d\n", p->tot_len));
+        LWIP_DEBUGF(INET_DEBUG, ("_inetdrv_handle_output: packet size %d\n", p->tot_len));
 
-      struct eth_hdr *ethhdr = p->payload;
-      struct ip_hdr  *iphdr  = (struct ip_hdr*)(&ethhdr[1]);
+        ETHIF_packet_t pkt;
+        pkt.payload = p->payload;
+        pkt.length = p->len;
 
-      if ((ntohs(ethhdr->type) == ETHTYPE_IP) and (iphdr->dest.addr == INET_PSEUDO_LOOPBACK_IP)) {
-
-              struct pbuf *p_lo = pbuf_clone(PBUF_RAW, PBUF_RAM, p);
-              if (p_lo) {
-                      struct eth_hdr *ethhdr = p_lo->payload;
-                      struct ip_hdr  *iphdr  = (struct ip_hdr*)(&ethhdr[1]);
-
-                      ethhdr->dest = ethhdr->src;
-                      iphdr->dest.addr = iphdr->src.addr;
-                      iphdr->src.addr  = INET_PSEUDO_LOOPBACK_IP;
-                      IPH_CHKSUM_SET(iphdr, 0);
-
-                      IF__NETIF_CHECKSUM_ENABLED(netif, NETIF_CHECKSUM_GEN_IP) {
-                              IPH_CHKSUM_SET(iphdr, inet_chksum(iphdr, IP_HLEN));
-                      }
-
-                      return (sys_queue_send(inet->loq, &p_lo, 0) == 0) ? ERR_OK : ERR_IF;
-
-              } else {
-                      LWIP_DEBUGF(INET_DEBUG, ("_inetdrv_handle_output: pbuf allocate error\n"));
-                      return ERR_MEM;
-              }
-
-      } else {
-
-              ETHIF_packet_t pkt;
-              pkt.payload = p->payload;
-              pkt.length  = p->len;
-
-              if (sys_ioctl(inet->if_file, IOCTL_ETHIF__SEND_PACKET, &pkt) == 0) {
-                      inet->tx_packets++;
-                      inet->tx_bytes += pkt.length;
-                      return ERR_OK;
-              } else {
-                      LWIP_DEBUGF(LWIP_DBG_LEVEL_SERIOUS, ("_inetdrv_handle_output: packet send error\n"));
-                      return ERR_IF;
-              }
-      }
+        if (sys_ioctl(inet->if_file, IOCTL_ETHIF__SEND_PACKET, &pkt) == 0) {
+                inet->tx_packets++;
+                inet->tx_bytes += pkt.length;
+                return ERR_OK;
+        } else {
+                LWIP_DEBUGF(LWIP_DBG_LEVEL_SERIOUS, ("_inetdrv_handle_output: packet send error\n"));
+                return ERR_IF;
+        }
 }
 
 //==============================================================================
@@ -242,7 +205,6 @@ int _inetdrv_get_MAC(inet_t *inet, u8_t MAC[6])
         int err = sys_ioctl(inet->if_file, IOCTL_ETHIF__GET_STATUS, &status);
         if (!err) {
                 memcpy(MAC, status.MAC, sizeof(status.MAC));
-                return 0;
         }
 
         return err;

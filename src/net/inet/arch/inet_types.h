@@ -51,26 +51,24 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
-#define INET_PSEUDO_LOOPBACK_IP 0xFF000080
 
 /*==============================================================================
   Exported object types
 ==============================================================================*/
 typedef struct {
-        kmtx_t       *access;
-        kfile_t      *if_file;
-        tid_t        if_thread;
+        kmtx_t *access;
+        kfile_t *if_file;
+        tid_t if_thread;
         struct netif netif;
-        uint         rx_packets;
-        uint         tx_packets;
-        uint         rx_bytes;
-        uint         tx_bytes;
-        bool         ready:1;
-        bool         disconnected:1;
-        bool         configured:1;
-        bool         thread_run:1;
-        u8_t         frame[1524];
-        kqueue_t    *loq;
+        uint rx_packets;
+        uint tx_packets;
+        uint rx_bytes;
+        uint tx_bytes;
+        bool ready;
+        bool disconnected;
+        bool configured;
+        bool thread_run;
+        u8_t frame[1524];
 } inet_t;
 
 /*==============================================================================
