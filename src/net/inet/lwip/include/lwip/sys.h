@@ -48,7 +48,7 @@ extern "C" {
 /* For a totally minimal and standalone system, we provide null
    definitions of the sys_ functions. */
 typedef u8_t sys_sem_t;
-typedef u8_t sys_mtx_t;
+typedef u8_t sys_mutex_t;
 typedef u8_t sys_mbox_t;
 
 #define sys_sem_new(s, c) ERR_OK
@@ -60,12 +60,12 @@ typedef u8_t sys_mbox_t;
 #define sys_sem_valid_val(s) 0
 #define sys_sem_set_invalid(s)
 #define sys_sem_set_invalid_val(s)
-#define sys_mtx_new(mu) ERR_OK
-#define sys_mtx_lock(mu)
-#define sys_mtx_unlock(mu)
-#define sys_mtx_free(mu)
-#define sys_mtx_valid(mu) 0
-#define sys_mtx_set_invalid(mu)
+#define sys_mutex_new(mu) ERR_OK
+#define sys_mutex_lock(mu)
+#define sys_mutex_unlock(mu)
+#define sys_mutex_free(mu)
+#define sys_mutex_valid(mu) 0
+#define sys_mutex_set_invalid(mu)
 #define sys_mbox_new(m, s) ERR_OK
 #define sys_mbox_fetch(m,d)
 #define sys_mbox_tryfetch(m,d)
@@ -110,13 +110,13 @@ typedef void (*lwip_thread_fn)(void *arg);
 
 #if LWIP_COMPAT_MUTEX
 /* for old ports that don't have mutexes: define them to binary semaphores */
-#define sys_mtx_t                   sys_sem_t
-#define sys_mtx_new(mutex)          sys_sem_new(mutex, 1)
-#define sys_mtx_lock(mutex)         sys_sem_wait(mutex)
-#define sys_mtx_unlock(mutex)       sys_sem_signal(mutex)
-#define sys_mtx_free(mutex)         sys_sem_free(mutex)
-#define sys_mtx_valid(mutex)        sys_sem_valid(mutex)
-#define sys_mtx_set_invalid(mutex)  sys_sem_set_invalid(mutex)
+#define sys_mutex_t                   sys_sem_t
+#define sys_mutex_new(mutex)          sys_sem_new(mutex, 1)
+#define sys_mutex_lock(mutex)         sys_sem_wait(mutex)
+#define sys_mutex_unlock(mutex)       sys_sem_signal(mutex)
+#define sys_mutex_free(mutex)         sys_sem_free(mutex)
+#define sys_mutex_valid(mutex)        sys_sem_valid(mutex)
+#define sys_mutex_set_invalid(mutex)  sys_sem_set_invalid(mutex)
 
 #else /* LWIP_COMPAT_MUTEX */
 
@@ -134,26 +134,26 @@ typedef void (*lwip_thread_fn)(void *arg);
  * @param mutex pointer to the mutex to create
  * @return ERR_OK if successful, another err_t otherwise
  */
-err_t sys_mtx_new(sys_mtx_t *mutex);
+err_t sys_mutex_new(sys_mutex_t *mutex);
 /**
  * @ingroup sys_mutex
  * Blocks the thread until the mutex can be grabbed.
  * @param mutex the mutex to lock
  */
-void sys_mtx_lock(sys_mtx_t *mutex);
+void sys_mutex_lock(sys_mutex_t *mutex);
 /**
  * @ingroup sys_mutex
- * Releases the mutex previously locked through 'sys_mtx_lock()'.
+ * Releases the mutex previously locked through 'sys_mutex_lock()'.
  * @param mutex the mutex to unlock
  */
-void sys_mtx_unlock(sys_mtx_t *mutex);
+void sys_mutex_unlock(sys_mutex_t *mutex);
 /**
  * @ingroup sys_mutex
  * Deallocates a mutex.
  * @param mutex the mutex to delete
  */
-void sys_mtx_free(sys_mtx_t *mutex);
-#ifndef sys_mtx_valid
+void sys_mutex_free(sys_mutex_t *mutex);
+#ifndef sys_mutex_valid
 /**
  * @ingroup sys_mutex
  * Returns 1 if the mutes is valid, 0 if it is not valid.
@@ -161,17 +161,17 @@ void sys_mtx_free(sys_mtx_t *mutex);
  * When directly using OS structures, implementing this may be more complex.
  * This may also be a define, in which case the function is not prototyped.
  */
-int sys_mtx_valid(sys_mtx_t *mutex);
+int sys_mutex_valid(sys_mutex_t *mutex);
 #endif
-#ifndef sys_mtx_set_invalid
+#ifndef sys_mutex_set_invalid
 /**
  * @ingroup sys_mutex
- * Invalidate a mutex so that sys_mtx_valid() returns 0.
+ * Invalidate a mutex so that sys_mutex_valid() returns 0.
  * ATTENTION: This does NOT mean that the mutex shall be deallocated:
- * sys_mtx_free() is always called before calling this function!
+ * sys_mutex_free() is always called before calling this function!
  * This may also be a define, in which case the function is not prototyped.
  */
-void sys_mtx_set_invalid(sys_mtx_t *mutex);
+void sys_mutex_set_invalid(sys_mutex_t *mutex);
 #endif
 #endif /* LWIP_COMPAT_MUTEX */
 
@@ -422,6 +422,16 @@ sys_thread_t sys_thread_new(const char *name, lwip_thread_fn thread, void *arg, 
 #endif /* NO_SYS */
 
 /**
+ * @ingroup lwip_opts_lock
+ * Called as first thing in the lwIP TCPIP thread. Can be used in conjunction
+ * with @ref LWIP_ASSERT_CORE_LOCKED to check core locking.
+ * @see @ref multithreading
+ */
+#if !defined LWIP_MARK_TCPIP_THREAD || defined __DOXYGEN__
+#define LWIP_MARK_TCPIP_THREAD()
+#endif
+
+/**
  * @ingroup sys_misc
  * sys_init() must be called before anything else.
  * Initialize the sys_arch layer.
@@ -433,6 +443,11 @@ void sys_init(void);
  * Ticks/jiffies since power up.
  */
 u32_t sys_jiffies(void);
+#endif
+
+#ifdef LWIP_FUZZ_SYS_NOW
+/* This offset should be added to the time 'sys_now()' returns */
+extern u32_t sys_now_offset;
 #endif
 
 /**

@@ -387,7 +387,7 @@ static struct mem *ram_end;
 
 /** concurrent access protection */
 #if !NO_SYS
-static sys_mtx_t mem_mutex;
+static sys_mutex_t mem_mutex;
 #endif
 
 #if LWIP_ALLOW_MEM_FREE_FROM_OTHER_CONTEXT
@@ -407,8 +407,8 @@ static volatile u8_t mem_free_count;
 
 /* Protect the heap only by using a mutex */
 #define LWIP_MEM_FREE_DECL_PROTECT()
-#define LWIP_MEM_FREE_PROTECT()    sys_mtx_lock(&mem_mutex)
-#define LWIP_MEM_FREE_UNPROTECT()  sys_mtx_unlock(&mem_mutex)
+#define LWIP_MEM_FREE_PROTECT()    sys_mutex_lock(&mem_mutex)
+#define LWIP_MEM_FREE_UNPROTECT()  sys_mutex_unlock(&mem_mutex)
 /* mem_malloc is protected using mutex AND LWIP_MEM_ALLOC_PROTECT */
 #define LWIP_MEM_ALLOC_DECL_PROTECT()
 #define LWIP_MEM_ALLOC_PROTECT()
@@ -539,7 +539,7 @@ mem_init(void)
 
   MEM_STATS_AVAIL(avail, MEM_SIZE_ALIGNED);
 
-  if (sys_mtx_new(&mem_mutex) != ERR_OK) {
+  if (sys_mutex_new(&mem_mutex) != ERR_OK) {
     LWIP_ASSERT("failed to create mem_mutex", 0);
   }
 }
@@ -688,7 +688,7 @@ mem_free(void *rmem)
 /**
  * Shrink memory returned by mem_malloc().
  *
- * @param rmem pointer to memory allocated by mem_malloc the is to be shrinked
+ * @param rmem pointer to memory allocated by mem_malloc the is to be shrunk
  * @param new_size required size after shrinking (needs to be smaller than or
  *                equal to the previous size)
  * @return for compatibility reasons: is always == rmem, at the moment
@@ -757,7 +757,7 @@ mem_trim(void *rmem, mem_size_t new_size)
     LWIP_ASSERT("invalid next ptr", mem->next != MEM_SIZE_ALIGNED);
     /* remember the old next pointer */
     next = mem2->next;
-    /* create new struct mem which is moved directly after the shrinked mem */
+    /* create new struct mem which is moved directly after the shrunk mem */
     ptr2 = (mem_size_t)(ptr + SIZEOF_STRUCT_MEM + newsize);
     if (lfree == mem2) {
       lfree = ptr_to_mem(ptr2);
@@ -856,7 +856,7 @@ mem_malloc(mem_size_t size_in)
   }
 
   /* protect the heap from concurrent access */
-  sys_mtx_lock(&mem_mutex);
+  sys_mutex_lock(&mem_mutex);
   LWIP_MEM_ALLOC_PROTECT();
 #if LWIP_ALLOW_MEM_FREE_FROM_OTHER_CONTEXT
   /* run as long as a mem_free disturbed mem_malloc or mem_trim */
@@ -949,7 +949,7 @@ mem_malloc_adjust_lfree:
           LWIP_ASSERT("mem_malloc: !lfree->used", ((lfree == ram_end) || (!lfree->used)));
         }
         LWIP_MEM_ALLOC_UNPROTECT();
-        sys_mtx_unlock(&mem_mutex);
+        sys_mutex_unlock(&mem_mutex);
         LWIP_ASSERT("mem_malloc: allocated memory not above ram_end.",
                     (mem_ptr_t)mem + SIZEOF_STRUCT_MEM + size <= (mem_ptr_t)ram_end);
         LWIP_ASSERT("mem_malloc: allocated memory properly aligned.",
@@ -970,7 +970,7 @@ mem_malloc_adjust_lfree:
 #endif /* LWIP_ALLOW_MEM_FREE_FROM_OTHER_CONTEXT */
   MEM_STATS_INC(err);
   LWIP_MEM_ALLOC_UNPROTECT();
-  sys_mtx_unlock(&mem_mutex);
+  sys_mutex_unlock(&mem_mutex);
   LWIP_DEBUGF(MEM_DEBUG | LWIP_DBG_LEVEL_SERIOUS, ("mem_malloc: could not allocate %"S16_F" bytes\n", (s16_t)size));
   return NULL;
 }

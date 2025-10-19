@@ -35,6 +35,7 @@ Brief    Network management.
 #include "lwip/api.h"
 #include "lwip/dhcp.h"
 #include "lwip/ip_addr.h"
+#include "lwip/init.h"
 #include "lwip/netif.h"
 #include "lwip/prot/dhcp.h"
 #include "lwip/tcpip.h"
@@ -45,6 +46,9 @@ Brief    Network management.
 /*==============================================================================
   Local macros
 ==============================================================================*/
+#undef sys_mutex_lock
+#undef sys_mutex_unlock
+
 #define MAXIMUM_SAFE_UDP_PAYLOAD 1024
 
 #define zalloc(_size, _pptr)     _kzalloc(_MM_NET, _size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, _pptr)
@@ -538,6 +542,8 @@ static err_t netif_configure(struct netif *netif)
 int INET_ifinit(void **ctx, const char *if_path)
 {
         if (not tcp_initialized) {
+                printk("TCP/IP stack: lwIP v%u.%u.%u", LWIP_VERSION_MAJOR, LWIP_VERSION_MINOR,
+                        LWIP_VERSION_REVISION);
                 tcpip_init(NULL, NULL);
                 tcp_initialized = true;
         }

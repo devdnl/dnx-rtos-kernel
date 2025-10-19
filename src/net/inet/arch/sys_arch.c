@@ -34,10 +34,36 @@
 #include "sys_arch.h"
 #include "lwip/err.h"
 #include "lwip/sys.h"
+#include "lwip/ip_addr.h"
 
 /*==============================================================================
   Local macros
 ==============================================================================*/
+#undef sys_init
+#undef sys_thread_new
+#undef sys_arch_protect
+#undef sys_arch_unprotect
+#undef sys_now
+#undef sys_mutex_new
+#undef sys_mutex_lock
+#undef sys_mutex_unlock
+#undef sys_mutex_free
+#undef sys_mutex_valid
+#undef sys_mutex_set_invalid
+#undef sys_sem_new
+#undef sys_sem_free
+#undef sys_sem_signal
+#undef sys_arch_sem_wait
+#undef sys_sem_valid
+#undef sys_sem_set_invalid
+#undef sys_mbox_new
+#undef sys_mbox_free
+#undef sys_mbox_post
+#undef sys_mbox_trypost
+#undef sys_arch_mbox_fetch
+#undef sys_arch_mbox_tryfetch
+#undef sys_mbox_valid
+#undef sys_mbox_set_invalid
 
 /*==============================================================================
   Local object types
@@ -80,7 +106,7 @@ static bool rand_initiated;
 static int lwip_thread_wrapper(void *arg)
 {
         lwip_thread_param_t param = *cast(lwip_thread_param_t*, arg);
-        sys_free(arg);
+        lwip_sys_free(arg);
 
         param.func(param.arg);
 
@@ -94,7 +120,7 @@ static int lwip_thread_wrapper(void *arg)
  * @return None
  */
 //==============================================================================
-void sys_init(void)
+void lwip_sys_init(void)
 {
 }
 
@@ -111,7 +137,7 @@ void sys_init(void)
  * @return thread object
  */
 //==============================================================================
-sys_thread_t sys_thread_new(const char *name, lwip_thread_fn thread, void *arg, int stacksize, int prio)
+sys_thread_t lwip_sys_thread_new(const char *name, lwip_thread_fn thread, void *arg, int stacksize, int prio)
 {
         LWIP_ASSERT("sys_arch.c: wrong task name!", (name != NULL));
         LWIP_ASSERT("sys_arch.c: wrong thread pointer!", (thread != NULL));
@@ -127,13 +153,13 @@ sys_thread_t sys_thread_new(const char *name, lwip_thread_fn thread, void *arg, 
 
         sys_thread_t thr = 0;
 
-        lwip_thread_param_t *param = sys_malloc(sizeof(*param));
+        lwip_thread_param_t *param = lwip_sys_malloc(sizeof(*param));
         if (param) {
                 param->func = thread;
                 param->arg  = arg;
 
                 if (sys_thread_create(lwip_thread_wrapper, &attr, param, &thr) != ESUCC) {
-                        sys_free(param);
+                        lwip_sys_free(param);
                         thr = -1;
                 } else {
                         printk("%s: thread ID %u", name, thr);
@@ -161,7 +187,7 @@ sys_thread_t sys_thread_new(const char *name, lwip_thread_fn thread, void *arg, 
  * @return Protect level (not used)
  */
 //==============================================================================
-sys_prot_t sys_arch_protect()
+sys_prot_t lwip_sys_arch_protect()
 {
         sys_critical_section_begin();
         return 1;
@@ -181,7 +207,7 @@ sys_prot_t sys_arch_protect()
  * @return None
  */
 //==============================================================================
-void sys_arch_unprotect(sys_prot_t lev)
+void lwip_sys_arch_unprotect(sys_prot_t lev)
 {
         (void) lev;
         sys_critical_section_end();
@@ -201,7 +227,7 @@ void sys_arch_unprotect(sys_prot_t lev)
  * @return time in milliseconds
  */
 //==============================================================================
-u32_t sys_now()
+u32_t lwip_sys_now()
 {
         return sys_get_uptime_ms();
 }
@@ -223,7 +249,7 @@ u32_t sys_now()
  * @return ERR_OK if successful, another err_t otherwise
  */
 //==============================================================================
-err_t sys_mtx_new(sys_mtx_t *mutex)
+err_t lwip_sys_mutex_new(sys_mutex_t *mutex)
 {
         LWIP_ASSERT("sys_arch.c: wrong mutex object!", (mutex != NULL));
 
@@ -245,7 +271,7 @@ err_t sys_mtx_new(sys_mtx_t *mutex)
  * @param mutex the mutex to lock
  */
 //==============================================================================
-void sys_mtx_lock(sys_mtx_t *mutex)
+void lwip_sys_mutex_lock(sys_mutex_t *mutex)
 {
         LWIP_ASSERT("sys_arch.c: wrong mutex object!", (mutex != NULL));
 
@@ -257,11 +283,11 @@ void sys_mtx_lock(sys_mtx_t *mutex)
 //==============================================================================
 /**
  * @ingroup sys_mutex
- * Releases the mutex previously locked through 'sys_mtx_lock()'.
+ * Releases the mutex previously locked through 'sys_mutex_lock()'.
  * @param mutex the mutex to unlock
  */
 //==============================================================================
-void sys_mtx_unlock(sys_mtx_t *mutex)
+void lwip_sys_mutex_unlock(sys_mutex_t *mutex)
 {
         LWIP_ASSERT("sys_arch.c: wrong mutex object!", (mutex != NULL));
 
@@ -277,7 +303,7 @@ void sys_mtx_unlock(sys_mtx_t *mutex)
  * @param mutex the mutex to delete
  */
 //==============================================================================
-void sys_mtx_free(sys_mtx_t *mutex)
+void lwip_sys_mutex_free(sys_mutex_t *mutex)
 {
         LWIP_ASSERT("sys_arch.c: wrong mutex object!", (mutex != NULL));
 
@@ -286,7 +312,7 @@ void sys_mtx_free(sys_mtx_t *mutex)
         }
 }
 
-#ifndef sys_mtx_valid
+#ifndef sys_mutex_valid
 //==============================================================================
 /**
  * @ingroup sys_mutex
@@ -296,7 +322,7 @@ void sys_mtx_free(sys_mtx_t *mutex)
  * This may also be a define, in which case the function is not prototyped.
  */
 //==============================================================================
-int sys_mtx_valid(sys_mtx_t *mutex)
+int lwip_sys_mutex_valid(sys_mutex_t *mutex)
 {
         LWIP_ASSERT("sys_arch.c: wrong mutex object!", (mutex != NULL));
 
@@ -308,17 +334,17 @@ int sys_mtx_valid(sys_mtx_t *mutex)
 }
 #endif
 
-#ifndef sys_mtx_set_invalid
+#ifndef sys_mutex_set_invalid
 //==============================================================================
 /**
  * @ingroup sys_mutex
- * Invalidate a mutex so that sys_mtx_valid() returns 0.
+ * Invalidate a mutex so that sys_mutex_valid() returns 0.
  * ATTENTION: This does NOT mean that the mutex shall be deallocated:
- * sys_mtx_free() is always called before calling this function!
+ * sys_mutex_free() is always called before calling this function!
  * This may also be a define, in which case the function is not prototyped.
  */
 //==============================================================================
-void sys_mtx_set_invalid(sys_mtx_t *mutex)
+void lwip_sys_mutex_set_invalid(sys_mutex_t *mutex)
 {
         LWIP_ASSERT("sys_arch.c: wrong mutex object!", (mutex != NULL));
 
@@ -339,7 +365,7 @@ void sys_mtx_set_invalid(sys_mtx_t *mutex)
  * @return ERR_OK if successful, another err_t otherwise
  */
 //==============================================================================
-err_t sys_sem_new(sys_sem_t *sem, u8_t count)
+err_t lwip_sys_sem_new(sys_sem_t *sem, u8_t count)
 {
         LWIP_ASSERT("sys_arch.c: wrong semaphore object!", (sem != NULL));
 
@@ -363,7 +389,7 @@ err_t sys_sem_new(sys_sem_t *sem, u8_t count)
  * @return None
  */
 //==============================================================================
-void sys_sem_free(sys_sem_t *sem)
+void lwip_sys_sem_free(sys_sem_t *sem)
 {
         LWIP_ASSERT("sys_arch.c: wrong semaphore object!", (sem != NULL));
 
@@ -381,7 +407,7 @@ void sys_sem_free(sys_sem_t *sem)
  * @return None
  */
 //==============================================================================
-void sys_sem_signal(sys_sem_t *sem)
+void lwip_sys_sem_signal(sys_sem_t *sem)
 {
         LWIP_ASSERT("sys_arch.c: wrong semaphore object!", (sem != NULL));
 
@@ -400,7 +426,7 @@ void sys_sem_signal(sys_sem_t *sem)
  * @return time (in milliseconds) waited for the semaphore or SYS_ARCH_TIMEOUT on timeout
  */
 //==============================================================================
-u32_t sys_arch_sem_wait(sys_sem_t *sem, u32_t timeout)
+u32_t lwip_sys_arch_sem_wait(sys_sem_t *sem, u32_t timeout)
 {
         LWIP_ASSERT("sys_arch.c: wrong semaphore object!", (sem != NULL));
 
@@ -431,7 +457,7 @@ u32_t sys_arch_sem_wait(sys_sem_t *sem, u32_t timeout)
  * @return 1 for valid, 0 for invalid
  */
 //==============================================================================
-int sys_sem_valid(sys_sem_t *sem)
+int lwip_sys_sem_valid(sys_sem_t *sem)
 {
         LWIP_ASSERT("sys_arch.c: wrong semaphore object!", (sem != NULL));
 
@@ -451,7 +477,7 @@ int sys_sem_valid(sys_sem_t *sem)
  * @return None
  */
 //==============================================================================
-void sys_sem_set_invalid(sys_sem_t *sem)
+void lwip_sys_sem_set_invalid(sys_sem_t *sem)
 {
         LWIP_ASSERT("sys_arch.c: wrong semaphore object!", (sem != NULL));
 
@@ -470,7 +496,7 @@ void sys_sem_set_invalid(sys_sem_t *sem)
  * @return ERR_OK if successful, another err_t otherwise
  */
 //==============================================================================
-err_t sys_mbox_new(sys_mbox_t *mbox, int size)
+err_t lwip_sys_mbox_new(sys_mbox_t *mbox, int size)
 {
         LWIP_ASSERT("sys_arch.c: wrong mbox object!", (mbox != NULL));
 
@@ -494,7 +520,7 @@ err_t sys_mbox_new(sys_mbox_t *mbox, int size)
  * @return None
  */
 //==============================================================================
-void sys_mbox_free(sys_mbox_t *mbox)
+void lwip_sys_mbox_free(sys_mbox_t *mbox)
 {
         LWIP_ASSERT("sys_arch.c: wrong mbox object!", (mbox != NULL));
 
@@ -514,7 +540,7 @@ void sys_mbox_free(sys_mbox_t *mbox)
  * @return None
  */
 //==============================================================================
-void sys_mbox_post(sys_mbox_t *mbox, void *msg)
+void lwip_sys_mbox_post(sys_mbox_t *mbox, void *msg)
 {
         LWIP_ASSERT("sys_arch.c: wrong mbox object!", (mbox != NULL));
 
@@ -533,7 +559,7 @@ void sys_mbox_post(sys_mbox_t *mbox, void *msg)
  * @return ERR_MEM if this one is full, else, ERR_OK if the "msg" is posted
  */
 //==============================================================================
-err_t sys_mbox_trypost(sys_mbox_t *mbox, void *msg)
+err_t lwip_sys_mbox_trypost(sys_mbox_t *mbox, void *msg)
 {
         LWIP_ASSERT("sys_arch.c: wrong mbox object!", (mbox != NULL));
 
@@ -561,7 +587,7 @@ err_t sys_mbox_trypost(sys_mbox_t *mbox, void *msg)
  *         The returned time has to be accurate to prevent timer jitter!
  */
 //==============================================================================
-u32_t sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout)
+u32_t lwip_sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout)
 {
         LWIP_ASSERT("sys_arch.c: wrong mbox object!", (mbox != NULL));
         LWIP_ASSERT("sys_arch.c: wrong mbox message destination!", (msg != NULL));
@@ -591,7 +617,7 @@ u32_t sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout)
  *         or SYS_MBOX_EMPTY if the mailbox is empty
  */
 //==============================================================================
-u32_t sys_arch_mbox_tryfetch(sys_mbox_t *mbox, void **msg)
+u32_t lwip_sys_arch_mbox_tryfetch(sys_mbox_t *mbox, void **msg)
 {
         LWIP_ASSERT("sys_arch.c: wrong mbox object!", (mbox != NULL));
         LWIP_ASSERT("sys_arch.c: wrong mbox message destination!", (msg != NULL));
@@ -614,7 +640,7 @@ u32_t sys_arch_mbox_tryfetch(sys_mbox_t *mbox, void **msg)
  * @return 1 for valid, 0 for invalid
  */
 //==============================================================================
-int sys_mbox_valid(sys_mbox_t *mbox)
+int lwip_sys_mbox_valid(sys_mbox_t *mbox)
 {
         LWIP_ASSERT("sys_arch.c: wrong mbox object!", (mbox != NULL));
 
@@ -634,7 +660,7 @@ int sys_mbox_valid(sys_mbox_t *mbox)
  * @return None
  */
 //==============================================================================
-void sys_mbox_set_invalid(sys_mbox_t *mbox)
+void lwip_sys_mbox_set_invalid(sys_mbox_t *mbox)
 {
         LWIP_ASSERT("sys_arch.c: wrong mbox object!", (mbox != NULL));
 
@@ -650,7 +676,7 @@ void sys_mbox_set_invalid(sys_mbox_t *mbox)
  * @param  mem          memory block to free
  */
 //==============================================================================
-void sys_free(void *mem)
+void lwip_sys_free(void *mem)
 {
         _kfree(_MM_NET, &mem);
 }
@@ -664,7 +690,7 @@ void sys_free(void *mem)
  * @return Memory pointer.
  */
 //==============================================================================
-void *sys_malloc(size_t blksz)
+void *lwip_sys_malloc(size_t blksz)
 {
         void *mem = NULL;
 
@@ -685,7 +711,7 @@ void *sys_malloc(size_t blksz)
  * @return Memory pointer.
  */
 //==============================================================================
-void *sys_calloc(size_t n, size_t blksz)
+void *lwip_sys_calloc(size_t n, size_t blksz)
 {
         void *mem = NULL;
 
@@ -703,7 +729,7 @@ void *sys_calloc(size_t n, size_t blksz)
  * @return Random number.
  */
 //==============================================================================
-int sys_rand(void)
+int lwip_sys_rand(void)
 {
         if  (not rand_initiated) {
                 srand(sys_get_uptime_ms());
@@ -711,6 +737,15 @@ int sys_rand(void)
         }
 
         return rand();
+}
+
+
+u32_t lwip_sys_hook_tcp_isn(void *local_ip, u16_t local_port, void *remote_ip, u16_t remote_port)
+{
+        ip_addr_t *loc_ip = local_ip;
+        ip_addr_t *rem_ip = remote_ip;
+
+        return (loc_ip->addr + local_port + rem_ip->addr + remote_port) ^ lwip_sys_rand();
 }
 
 /*==============================================================================

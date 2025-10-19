@@ -51,12 +51,12 @@ extern "C" {
 
 #if LWIP_TCPIP_CORE_LOCKING
 /** The global semaphore to lock the stack. */
-extern sys_mtx_t lock_tcpip_core;
+extern sys_mutex_t lock_tcpip_core;
 #if !defined LOCK_TCPIP_CORE || defined __DOXYGEN__
 /** Lock lwIP core mutex (needs @ref LWIP_TCPIP_CORE_LOCKING 1) */
-#define LOCK_TCPIP_CORE()     sys_mtx_lock(&lock_tcpip_core)
+#define LOCK_TCPIP_CORE()     sys_mutex_lock(&lock_tcpip_core)
 /** Unlock lwIP core mutex (needs @ref LWIP_TCPIP_CORE_LOCKING 1) */
-#define UNLOCK_TCPIP_CORE()   sys_mtx_unlock(&lock_tcpip_core)
+#define UNLOCK_TCPIP_CORE()   sys_mutex_unlock(&lock_tcpip_core)
 #endif /* LOCK_TCPIP_CORE */
 #else /* LWIP_TCPIP_CORE_LOCKING */
 #define LOCK_TCPIP_CORE()
@@ -81,6 +81,7 @@ err_t  tcpip_input(struct pbuf *p, struct netif *inp);
 
 err_t  tcpip_try_callback(tcpip_callback_fn function, void *ctx);
 err_t  tcpip_callback(tcpip_callback_fn function, void *ctx);
+err_t  tcpip_callback_wait(tcpip_callback_fn function, void *ctx);
 /**  @ingroup lwip_os
  * @deprecated use tcpip_try_callback() or tcpip_callback() instead
  */

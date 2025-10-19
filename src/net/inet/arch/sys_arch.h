@@ -41,17 +41,17 @@ extern "C" {
 /*==============================================================================
   Exported macros
 =============================================================================*/
-#define SYS_MBOX_NULL                   NULL
-#define SYS_SEM_NULL                    NULL
+#define SYS_MBOX_NULL NULL
+#define SYS_SEM_NULL  NULL
 
 /*==============================================================================
   Exported object types
 ==============================================================================*/
-typedef tid_t            sys_thread_t;
-typedef int              sys_prot_t;
-typedef kmtx_t           *sys_mtx_t;
-typedef ksem_t           *sys_sem_t;
-typedef kqueue_t         *sys_mbox_t;
+typedef tid_t sys_thread_t;
+typedef int sys_prot_t;
+typedef kmtx_t *sys_mutex_t;
+typedef ksem_t *sys_sem_t;
+typedef kqueue_t *sys_mbox_t;
 
 /*==============================================================================
   Exported objects
@@ -60,10 +60,17 @@ typedef kqueue_t         *sys_mbox_t;
 /*==============================================================================
   Exported functions
 ==============================================================================*/
-extern void sys_free(void *mem);
-extern void *sys_malloc(size_t blksz);
-extern void *sys_calloc(size_t n, size_t blksz);
-extern int sys_rand(void);
+extern void lwip_sys_free(void *mem);
+extern void *lwip_sys_malloc(size_t blksz);
+extern void *lwip_sys_calloc(size_t n, size_t blksz);
+extern int lwip_sys_rand(void);
+extern int lwip_sys_sem_valid(sys_sem_t *sem);
+extern void lwip_sys_sem_set_invalid(sys_sem_t *sem);
+extern int lwip_sys_mbox_valid(sys_mbox_t *mbox);
+extern u32_t lwip_sys_arch_mbox_tryfetch(sys_mbox_t *mbox, void **msg);
+extern int lwip_sys_mbox_valid(sys_mbox_t *mbox);
+extern void lwip_sys_mbox_set_invalid(sys_mbox_t *mbox);
+extern u32_t lwip_sys_hook_tcp_isn(void *local_ip, u16_t local_port, void *remote_ip, u16_t remote_port);
 
 /*==============================================================================
   Exported inline functions

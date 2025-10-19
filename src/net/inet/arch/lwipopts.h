@@ -60,11 +60,38 @@
 
 #define MEM_LIBC_MALLOC 1
 
+#define LWIP_HOOK_TCP_ISN lwip_sys_hook_tcp_isn
 
-#define mem_clib_free sys_free
-#define mem_clib_malloc sys_malloc
-#define mem_clib_calloc sys_calloc
-#define LWIP_RAND sys_rand
+#define mem_clib_free lwip_sys_free
+#define mem_clib_malloc lwip_sys_malloc
+#define mem_clib_calloc lwip_sys_calloc
+#define LWIP_RAND lwip_sys_rand
+
+#define sys_init lwip_sys_init
+#define sys_thread_new lwip_sys_thread_new
+#define sys_arch_protect lwip_sys_arch_protect
+#define sys_arch_unprotect lwip_sys_arch_unprotect
+#define sys_now lwip_sys_now
+#define sys_mutex_new lwip_sys_mutex_new
+#define sys_mutex_lock lwip_sys_mutex_lock
+#define sys_mutex_unlock lwip_sys_mutex_unlock
+#define sys_mutex_free lwip_sys_mutex_free
+#define sys_mutex_valid lwip_sys_mutex_valid
+#define sys_mutex_set_invalid lwip_sys_mutex_set_invalid
+#define sys_sem_new lwip_sys_sem_new
+#define sys_sem_free lwip_sys_sem_free
+#define sys_sem_signal lwip_sys_sem_signal
+#define sys_arch_sem_wait lwip_sys_arch_sem_wait
+#define sys_sem_valid lwip_sys_sem_valid
+#define sys_sem_set_invalid lwip_sys_sem_set_invalid
+#define sys_mbox_new lwip_sys_mbox_new
+#define sys_mbox_free lwip_sys_mbox_free
+#define sys_mbox_post lwip_sys_mbox_post
+#define sys_mbox_trypost lwip_sys_mbox_trypost
+#define sys_arch_mbox_fetch lwip_sys_arch_mbox_fetch
+#define sys_arch_mbox_tryfetch lwip_sys_arch_mbox_tryfetch
+#define sys_mbox_valid lwip_sys_mbox_valid
+#define sys_mbox_set_invalid lwip_sys_mbox_set_invalid
 
 // additional errno values
 #define ENOBUFS        EFAULT
@@ -459,12 +486,6 @@
 #define MEMP_NUM_IGMP_GROUP             __NETWORK_MEMP_NUM_IGMP_GROUP__
 
 /**
- * The number of sys timeouts used by the core stack (not apps)
- * The default number of timeouts is calculated here for all enabled modules.
- */
-#define LWIP_NUM_SYS_TIMEOUT_INTERNAL   (LWIP_TCP + IP_REASSEMBLY + LWIP_ARP + (2*LWIP_DHCP) + LWIP_AUTOIP + LWIP_IGMP + LWIP_DNS + PPP_NUM_TIMEOUTS + (LWIP_IPV6 * (1 + LWIP_IPV6_REASS + LWIP_IPV6_MLD)))
-
-/**
  * MEMP_NUM_SYS_TIMEOUT: the number of simultaneously active timeouts.
  * The default number of timeouts is calculated here for all enabled modules.
  * The formula expects settings to be either '0' or '1'.
@@ -595,6 +616,18 @@
  * that returns 1 to accept a packet or 0 to drop a packet.
  */
 #define ETHARP_SUPPORT_VLAN             __NETWORK_ETHARP_SUPPORT_VLAN__
+
+/**
+ * LWIP_VLAN_PCP==1: Enable outgoing VLAN taggning of frames on a per-PCB basis
+ * for QoS purposes. With this feature enabled, each PCB has a new variable:
+ * "netif_hints.tci" (Tag Control Identifier).
+ * The TCI contains three fields: VID, CFI and PCP.
+ * - VID is the VLAN ID, which should be set to zero.
+ * - The "CFI" bit is used to enable or disable VLAN tags for the PCB.
+ * - PCP (Priority Code Point) is a 3 bit field used for Ethernet level QoS.
+ * See pcb_tci_*() functions to get/set/clear this.
+ */
+#define LWIP_VLAN_PCP                   0
 
 /** LWIP_ETHERNET==1: enable ethernet support even though ARP might be disabled
  */
@@ -799,9 +832,9 @@
 #endif /* !LWIP_IPV4 */
 
 /**
- * DHCP_DOES_ARP_CHECK==1: Do an ARP check on the offered address.
+ * LWIP_DHCP_DOES_ACD_CHECK==1: Perform address conflict detection on the dhcp address.
  */
-#define DHCP_DOES_ARP_CHECK             (LWIP_DHCP && LWIP_ARP)
+#define LWIP_DHCP_DOES_ACD_CHECK        0
 
 /**
  * LWIP_DHCP_BOOTP_FILE==1: Store offered_si_addr and boot_file_name.
@@ -826,6 +859,12 @@
  * (up to the maximum limit defined here).
  */
 #define LWIP_DHCP_MAX_DNS_SERVERS       DNS_MAX_SERVERS
+
+/** LWIP_DHCP_DISCOVER_ADD_HOSTNAME: Set to 1 to include hostname opt in discover packets.
+ * If the hostname is not set in the DISCOVER packet, then some servers might issue an OFFER with hostname
+ * configured and consequently reject the REQUEST with any other hostname.
+ */
+#define LWIP_DHCP_DISCOVER_ADD_HOSTNAME 1
 /**
  * @}
  */
@@ -864,6 +903,29 @@
  * when DHCP overrides AutoIP.
  */
 #define LWIP_DHCP_AUTOIP_COOP_TRIES     __NETWORK_LWIP_DHCP_AUTOIP_COOP_TRIES__
+/**
+ * @}
+ */
+
+/*
+   ------------------------------------
+   ----------- ACD options ------------
+   ------------------------------------
+*/
+/**
+ * @defgroup lwip_opts_acd ACD
+ * @ingroup lwip_opts_ipv4
+ * @{
+ */
+ /**
+  * LWIP_ACD==1: Enable ACD module. ACD module is needed when using AUTOIP.
+  */
+#define LWIP_ACD                     (LWIP_AUTOIP || LWIP_DHCP_DOES_ACD_CHECK)
+#if !LWIP_IPV4
+/* disable ACD when IPv4 is disabled */
+#undef LWIP_ACD
+#define LWIP_ACD                     0
+#endif /* !LWIP_IPV4 */
 /**
  * @}
  */
@@ -980,7 +1042,9 @@
  *                                    DNS_LOCAL_HOSTLIST_ELEM("host_ip6", IPADDR6_INIT_HOST(123, 234, 345, 456)}
  *
  *  Instead, you can also use an external function:
- *  \#define DNS_LOOKUP_LOCAL_EXTERN(x) extern err_t my_lookup_function(const char *name, ip_addr_t *addr, u8_t dns_addrtype)
+ *  \#define DNS_LOOKUP_LOCAL_EXTERN(name, namelen, addr, dns_addrtype) my_lookup_function(name, namelen, addr, dns_addrtype)
+ *  with function signature:
+ *  extern err_t my_lookup_function(const char *name, size_t namelen, ip_addr_t *addr, u8_t dns_addrtype)
  *  that looks up the IP address and returns ERR_OK if found (LWIP_DNS_ADDRTYPE_xxx is passed in dns_addrtype).
  */
 #define DNS_LOCAL_HOSTLIST              0
@@ -1118,6 +1182,13 @@
  */
 #define TCP_CALCULATE_EFF_SEND_MSS      __NETWORK_TCP_CALCULATE_EFF_SEND_MSS__
 
+/**
+ * LWIP_TCP_RTO_TIME: Initial TCP retransmission timeout (ms).
+ * This defaults to 3 seconds as traditionally defined in the TCP protocol.
+ * For improving timely recovery on faster networks, this value could
+ * be lowered down to 1 second (RFC 6298)
+ */
+#define LWIP_TCP_RTO_TIME               3000
 
 /**
  * TCP_SND_BUF: TCP sender buffer space (bytes).
@@ -1306,13 +1377,13 @@
  * link level header. The default is 14, the standard value for
  * Ethernet.
  */
-#if !defined PBUF_LINK_HLEN || defined __DOXYGEN__
-#if defined LWIP_HOOK_VLAN_SET && !defined __DOXYGEN__
-#define PBUF_LINK_HLEN                  (18 + ETH_PAD_SIZE)
-#else /* LWIP_HOOK_VLAN_SET */
-#define PBUF_LINK_HLEN                  (14 + ETH_PAD_SIZE)
-#endif /* LWIP_HOOK_VLAN_SET */
-#endif
+ #if !defined PBUF_LINK_HLEN || defined __DOXYGEN__
+#if (defined LWIP_HOOK_VLAN_SET || LWIP_VLAN_PCP) && !defined __DOXYGEN__
+ #define PBUF_LINK_HLEN                  (18 + ETH_PAD_SIZE)
+#else /* LWIP_HOOK_VLAN_SET || LWIP_VLAN_PCP */
+ #define PBUF_LINK_HLEN                  (14 + ETH_PAD_SIZE)
+#endif /* LWIP_HOOK_VLAN_SET || LWIP_VLAN_PCP */
+ #endif
 
 /**
  * PBUF_LINK_ENCAPSULATION_HLEN: the number of bytes that should be allocated
@@ -1325,13 +1396,22 @@
  * designed to accommodate single full size TCP frame in one pbuf, including
  * TCP_MSS, IP header, and link header.
  */
-#define PBUF_POOL_BUFSIZE               LWIP_MEM_ALIGN_SIZE(TCP_MSS+40+PBUF_LINK_ENCAPSULATION_HLEN+PBUF_LINK_HLEN)
+#define PBUF_POOL_BUFSIZE               LWIP_MEM_ALIGN_SIZE(TCP_MSS+PBUF_IP_HLEN+PBUF_TRANSPORT_HLEN+PBUF_LINK_ENCAPSULATION_HLEN+PBUF_LINK_HLEN)
 
 /**
  * LWIP_PBUF_REF_T: Refcount type in pbuf.
  * Default width of u8_t can be increased if 255 refs are not enough for you.
  */
 #define LWIP_PBUF_REF_T                 u8_t
+
+
+/**
+ * LWIP_PBUF_CUSTOM_DATA: Store private data on pbufs (e.g. timestamps)
+ * This extends struct pbuf so user can store custom data on every pbuf.
+ */
+#if !defined LWIP_PBUF_CUSTOM_DATA || defined __DOXYGEN__
+#define LWIP_PBUF_CUSTOM_DATA
+#endif
 /**
  * @}
  */
@@ -1628,11 +1708,8 @@
 
 /** LWIP_NETCONN_FULLDUPLEX==1: Enable code that allows reading from one thread,
  * writing from a 2nd thread and closing from a 3rd thread at the same time.
- * ATTENTION: This is currently really alpha! Some requirements:
- * - LWIP_NETCONN_SEM_PER_THREAD==1 is required to use one socket/netconn from
- *   multiple threads at once
- * - sys_mbox_free() has to unblock receive tasks waiting on recvmbox/acceptmbox
- *   and prevent a task pending on this during/after deletion
+ * LWIP_NETCONN_SEM_PER_THREAD==1 is required to use one socket/netconn from
+ * multiple threads at once!
  */
 #define LWIP_NETCONN_FULLDUPLEX         0
 /**
@@ -1677,6 +1754,16 @@
  * library (sharing select will need more work though).
  */
 #define LWIP_SOCKET_OFFSET              0
+
+
+/**
+ * LWIP_SOCKET_EXTERNAL_HEADERS==1: Use external headers instead of sockets.h
+ * and inet.h. In this case, user must provide its own headers by setting the
+ * values for LWIP_SOCKET_EXTERNAL_HEADER_SOCKETS_H and
+ * LWIP_SOCKET_EXTERNAL_HEADER_INET_H to appropriate include file names and the
+ * whole content of the default sockets.h and inet.h is skipped.
+ */
+#define LWIP_SOCKET_EXTERNAL_HEADERS    0
 
 /**
  * LWIP_TCP_KEEPALIVE==1: Enable TCP_KEEPIDLE, TCP_KEEPINTVL and TCP_KEEPCNT
@@ -2047,7 +2134,7 @@
  * LWIP_IPV6_SEND_ROUTER_SOLICIT==1: Send router solicitation messages during
  * network startup.
  */
-#define LWIP_IPV6_SEND_ROUTER_SOLICIT   1
+#define LWIP_IPV6_SEND_ROUTER_SOLICIT   LWIP_IPV6
 
 /**
  * LWIP_IPV6_AUTOCONFIG==1: Enable stateless address autoconfiguration as per RFC 4862.
@@ -2083,9 +2170,11 @@
 
 /**
  * LWIP_ICMP6_DATASIZE: bytes from original packet to send back in
- * ICMPv6 error messages.
+ * ICMPv6 error messages (0 = default of IP6_MIN_MTU_LENGTH)
+ * ATTENTION: RFC4443 section 2.4 says IP6_MIN_MTU_LENGTH is a MUST,
+ * so override this only if you absolutely have to!
  */
-#define LWIP_ICMP6_DATASIZE             8
+#define LWIP_ICMP6_DATASIZE             0
 
 /**
  * LWIP_ICMP6_HL: default hop limit for ICMPv6 messages
@@ -2289,16 +2378,16 @@
  * the standardized ISN generation algorithm from RFC 6528 (see contrib/adons/tcp_isn),
  * or any other desired algorithm as a replacement.
  * Called from tcp_connect() and tcp_listen_input() when an ISN is needed for
- * a new TCP connection, if TCP support (@ref LWIP_TCP) is enabled.\n
+ * a new TCP connection, if TCP support (@ref LWIP_TCP) is enabled.<br>
  * Signature:\code{.c}
  * u32_t my_hook_tcp_isn(const ip_addr_t* local_ip, u16_t local_port, const ip_addr_t* remote_ip, u16_t remote_port);
  * \endcode
- * - it may be necessary to use "struct ip_addr" (ip4_addr, ip6_addr) instead of "ip_addr_t" in function declarations\n
+ * - it may be necessary to use "struct ip_addr" (ip4_addr, ip6_addr) instead of "ip_addr_t" in function declarations<br>
  * Arguments:
  * - local_ip: pointer to the local IP address of the connection
  * - local_port: local port number of the connection (host-byte order)
  * - remote_ip: pointer to the remote IP address of the connection
- * - remote_port: remote port number of the connection (host-byte order)\n
+ * - remote_port: remote port number of the connection (host-byte order)<br>
  * Return value:
  * - the 32-bit Initial Sequence Number to use for the new TCP connection.
  */
@@ -2324,7 +2413,7 @@
  *         the first 'opt1len' bytes and the rest starts at 'opt2'. opt2len can
  *         be simply calculated: 'opt2len = optlen - opt1len;'
  * - p: input packet, p->payload points to application data (that's why tcp hdr
- *      and options are passed in seperately)
+ *      and options are passed in separately)
  * Return value:
  * - ERR_OK: continue input of this packet as normal
  * - != ERR_OK: drop this packet for input (don't continue input processing)
@@ -2557,16 +2646,16 @@
  * LWIP_HOOK_VLAN_SET:
  * Hook can be used to set prio_vid field of vlan_hdr. If you need to store data
  * on per-netif basis to implement this callback, see @ref netif_cd.
- * Called from ethernet_output() if VLAN support (@ref ETHARP_SUPPORT_VLAN) is enabled.\n
+ * Called from ethernet_output() if VLAN support (@ref ETHARP_SUPPORT_VLAN) is enabled.<br>
  * Signature:\code{.c}
- *   s32_t my_hook_vlan_set(struct netif* netif, struct pbuf* pbuf, const struct eth_addr* src, const struct eth_addr* dst, u16_t eth_type);\n
+ *   s32_t my_hook_vlan_set(struct netif* netif, struct pbuf* pbuf, const struct eth_addr* src, const struct eth_addr* dst, u16_t eth_type);
  * \endcode
  * Arguments:
  * - netif: struct netif that the packet will be sent through
  * - p: struct pbuf packet to be sent
  * - src: source eth address
  * - dst: destination eth address
- * - eth_type: ethernet type to packet to be sent\n
+ * - eth_type: ethernet type to packet to be sent<br>
  *
  *
  * Return values:

@@ -28,6 +28,7 @@ ifeq ($(_ENABLE_NETWORK_), _YES_)
       CSRC_CORE   += net/inet/lwip/core/tcp_out.c
       CSRC_CORE   += net/inet/lwip/core/timeouts.c
       CSRC_CORE   += net/inet/lwip/core/udp.c
+      CSRC_CORE   += net/inet/lwip/core/ipv4/acd.c
       CSRC_CORE   += net/inet/lwip/core/ipv4/autoip.c
       CSRC_CORE   += net/inet/lwip/core/ipv4/dhcp.c
       CSRC_CORE   += net/inet/lwip/core/ipv4/etharp.c
