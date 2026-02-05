@@ -42,13 +42,11 @@
   Local symbolic constants/macros
 ==============================================================================*/
 /** CALCULATIONS */
-#define _CEILING(x, y) (((x) + (y)-1) / (y))
+#define _CEILING(x, y) (((x) + (y) - 1) / (y))
 
-#define MS2TICK(ms)                                                       \
-        (((ms) <= (1000 / (configTICK_RATE_HZ))                           \
-                         ? 1                                              \
-                         : _CEILING((ms), (1000 / (configTICK_RATE_HZ)))) \
-                + 1)
+#define MS2TICK(ms)                                                   \
+        (((ms) <= (1000 / (configTICK_RATE_HZ)) ? ((ms) == 0 ? 0 : 1) \
+                                                : (_CEILING((ms), (1000 / (configTICK_RATE_HZ)))) + 1))
 
 #define BLOCK_TIME_MS 250
 
@@ -81,8 +79,8 @@ extern u64_t _tick_counter;
 //==============================================================================
 static bool is_semaphore_valid(ksem_t *sem)
 {
-        return _mm_is_object_in_heap(sem) && (sem->header.self == sem)
-                && (sem->header.type == RES_TYPE_SEMAPHORE) && sem->object;
+        return _mm_is_object_in_heap(sem) && (sem->header.self == sem) &&
+                (sem->header.type == RES_TYPE_SEMAPHORE) && sem->object;
 }
 
 //==============================================================================
@@ -94,8 +92,8 @@ static bool is_semaphore_valid(ksem_t *sem)
 //==============================================================================
 static bool is_mutex_valid(kmtx_t *mtx)
 {
-        return _mm_is_object_in_heap(mtx) && (mtx->header.self == mtx)
-                && (mtx->header.type == RES_TYPE_MUTEX) && mtx->object;
+        return _mm_is_object_in_heap(mtx) && (mtx->header.self == mtx) &&
+                (mtx->header.type == RES_TYPE_MUTEX) && mtx->object;
 }
 
 //==============================================================================
@@ -107,8 +105,8 @@ static bool is_mutex_valid(kmtx_t *mtx)
 //==============================================================================
 static bool is_spinlock_valid(kspinlock_t *spinlock)
 {
-        return _mm_is_object_in_heap(spinlock) && (spinlock->header.self == spinlock)
-                && (spinlock->header.type == RES_TYPE_SPINLOCK);
+        return _mm_is_object_in_heap(spinlock) && (spinlock->header.self == spinlock) &&
+                (spinlock->header.type == RES_TYPE_SPINLOCK);
 }
 
 //==============================================================================
@@ -120,8 +118,8 @@ static bool is_spinlock_valid(kspinlock_t *spinlock)
 //==============================================================================
 static bool is_queue_valid(kqueue_t *queue)
 {
-        return _mm_is_object_in_heap(queue) && (queue->header.self == queue)
-                && (queue->header.type == RES_TYPE_QUEUE) && queue->object;
+        return _mm_is_object_in_heap(queue) && (queue->header.self == queue) &&
+                (queue->header.type == RES_TYPE_QUEUE) && queue->object;
 }
 
 //==============================================================================
@@ -133,8 +131,8 @@ static bool is_queue_valid(kqueue_t *queue)
 //==============================================================================
 static bool is_flag_valid(kflag_t *flag)
 {
-        return _mm_is_object_in_heap(flag) && (flag->header.self == flag)
-                && (flag->header.type == RES_TYPE_FLAG) && flag->object;
+        return _mm_is_object_in_heap(flag) && (flag->header.self == flag) &&
+                (flag->header.type == RES_TYPE_FLAG) && flag->object;
 }
 
 //==============================================================================
@@ -253,14 +251,13 @@ task_t *_kernel_get_idle_task_handle(void)
  * @return On of errno value.
  */
 //==============================================================================
-int _task_create(task_func_t func, const char *name, const size_t stack_depth, void *argv,
-        task_t **task)
+int _task_create(task_func_t func, const char *name, const size_t stack_depth, void *argv, task_t **task)
 {
         int err = EINVAL;
 
         if (func && name && stack_depth) {
-                int         scheduler_status = xTaskGetSchedulerState();
-                UBaseType_t parent_priority  = _PRIORITY(0);
+                int scheduler_status = xTaskGetSchedulerState();
+                UBaseType_t parent_priority = _PRIORITY(0);
 
                 if (scheduler_status != taskSCHEDULER_NOT_STARTED) {
                         parent_priority = uxTaskPriorityGet(_THIS_TASK);
@@ -275,8 +272,7 @@ int _task_create(task_func_t func, const char *name, const size_t stack_depth, v
                         : parent_priority;
 
                 TaskHandle_t tsk = NULL;
-                if (xTaskCreate(func, name, stack_depth, argv, child_priority, &tsk)
-                        == pdPASS) {
+                if (xTaskCreate(func, name, stack_depth, argv, child_priority, &tsk) == pdPASS) {
 
                         if (task) {
                                 *task = tsk;
@@ -520,7 +516,7 @@ void *_task_get_storage_pointer(task_t *taskhdl, u8_t index)
 //==============================================================================
 void _task_pin_core(task_t *taskhdl, u32_t core_mask)
 {
-#if ( ( configNUMBER_OF_CORES > 1 ) && ( configUSE_CORE_AFFINITY == 1 ) )
+#if ((configNUMBER_OF_CORES > 1) && (configUSE_CORE_AFFINITY == 1))
         vTaskCoreAffinitySet(taskhdl, core_mask);
 #else
         UNUSED_ARG2(taskhdl, core_mask);
@@ -543,14 +539,12 @@ int _semaphore_create(size_t cnt_max, size_t cnt_init, ksem_t **sem)
         int err = EINVAL;
 
         if (cnt_max > 0 && sem) {
-                err = _kzalloc(_MM_KRN, sizeof(ksem_t), _cpuctl_fast_mem, 0, 0,
-                        cast(void **, sem));
+                err = _kzalloc(_MM_KRN, sizeof(ksem_t), _cpuctl_fast_mem, 0, 0, cast(void **, sem));
                 if (err == ESUCC) {
 
                         if (cnt_max == 1) {
 
-                                (*sem)->object
-                                        = xSemaphoreCreateBinaryStatic(&(*sem)->buffer);
+                                (*sem)->object = xSemaphoreCreateBinaryStatic(&(*sem)->buffer);
                                 if ((*sem)->object) {
                                         if (cnt_init) {
                                                 xSemaphoreGive((*sem)->object);
@@ -559,8 +553,8 @@ int _semaphore_create(size_t cnt_max, size_t cnt_init, ksem_t **sem)
                                         }
                                 }
                         } else {
-                                (*sem)->object = xSemaphoreCreateCountingStatic(cnt_max,
-                                        cnt_init, &(*sem)->buffer);
+                                (*sem)->object = xSemaphoreCreateCountingStatic(cnt_max, cnt_init,
+                                        &(*sem)->buffer);
                         }
 
                         if ((*sem)->object) {
@@ -692,7 +686,7 @@ int _semaphore_wait_from_ISR(ksem_t *sem, bool *task_woken)
 {
         if (is_semaphore_valid(sem)) {
                 BaseType_t woken = 0;
-                int        ret   = xSemaphoreTakeFromISR(sem->object, &woken);
+                int ret = xSemaphoreTakeFromISR(sem->object, &woken);
 
                 if (task_woken) {
                         *task_woken = (bool)woken;
@@ -719,7 +713,7 @@ int _semaphore_signal_from_ISR(ksem_t *sem, bool *task_woken)
 {
         if (is_semaphore_valid(sem)) {
                 BaseType_t woken = 0;
-                int        ret   = xSemaphoreGiveFromISR(sem->object, &woken);
+                int ret = xSemaphoreGiveFromISR(sem->object, &woken);
 
                 if (task_woken) {
                         *task_woken = (bool)woken;
@@ -746,16 +740,13 @@ int _mutex_create(enum kmtx_type type, kmtx_t **mtx)
         int err = EINVAL;
 
         if (type <= KMTX_TYPE_NORMAL && mtx) {
-                err = _kzalloc(_MM_KRN, sizeof(kmtx_t), _cpuctl_fast_mem, 0, 0,
-                        cast(void **, mtx));
+                err = _kzalloc(_MM_KRN, sizeof(kmtx_t), _cpuctl_fast_mem, 0, 0, cast(void **, mtx));
                 if (err == ESUCC) {
                         if (type == KMTX_TYPE_RECURSIVE) {
-                                (*mtx)->object = xSemaphoreCreateRecursiveMutexStatic(
-                                        &(*mtx)->buffer);
+                                (*mtx)->object = xSemaphoreCreateRecursiveMutexStatic(&(*mtx)->buffer);
                                 (*mtx)->recursive = true;
                         } else {
-                                (*mtx)->object
-                                        = xSemaphoreCreateMutexStatic(&(*mtx)->buffer);
+                                (*mtx)->object = xSemaphoreCreateMutexStatic(&(*mtx)->buffer);
                                 (*mtx)->recursive = false;
                         }
 
@@ -880,7 +871,7 @@ int _mutex_unlock_from_ISR(kmtx_t *mutex, bool *task_woken)
 {
         if (task_woken && is_mutex_valid(mutex)) {
                 BaseType_t woken = 0;
-                bool       ret   = xSemaphoreGiveFromISR(mutex->object, &woken);
+                bool ret = xSemaphoreGiveFromISR(mutex->object, &woken);
 
                 if (task_woken) {
                         *task_woken = (bool)woken;
@@ -909,12 +900,11 @@ int _spinlock_create(u32_t loop_delay_ms, kspinlock_t **spinlock)
         int err = EINVAL;
 
         if (spinlock) {
-                err = _kzalloc(_MM_KRN, sizeof(kspinlock_t), _cpuctl_fast_mem, 0, 0,
-                        cast(void **, spinlock));
+                err = _kzalloc(_MM_KRN, sizeof(kspinlock_t), _cpuctl_fast_mem, 0, 0, cast(void **, spinlock));
                 if (not err) {
                         (*spinlock)->loop_delay_ms = loop_delay_ms;
-                        (*spinlock)->header.self   = *spinlock;
-                        (*spinlock)->header.type   = RES_TYPE_SPINLOCK;
+                        (*spinlock)->header.self = *spinlock;
+                        (*spinlock)->header.type = RES_TYPE_SPINLOCK;
                 }
         }
 
@@ -933,10 +923,10 @@ int _spinlock_create(u32_t loop_delay_ms, kspinlock_t **spinlock)
 int _spinlock_destroy(kspinlock_t *spinlock)
 {
         if (is_spinlock_valid(spinlock)) {
-                spinlock->header.self   = NULL;
-                spinlock->header.type   = RES_TYPE_UNKNOWN;
+                spinlock->header.self = NULL;
+                spinlock->header.type = RES_TYPE_UNKNOWN;
                 spinlock->loop_delay_ms = 0;
-                spinlock->task_lock     = false;
+                spinlock->task_lock = false;
                 return _kfree(_MM_KRN, cast(void **, &spinlock));
         } else {
                 printk("Invalid spinlock object @ %p", spinlock);
@@ -956,7 +946,7 @@ int _spinlock_destroy(kspinlock_t *spinlock)
 int _spinlock_lock(kspinlock_t *spinlock, u32_t blocktime_ms)
 {
         task_t *this_task = _task_get_handle();
-        clock_t endtime   = _kernel_get_uptime_ms() + blocktime_ms;
+        clock_t endtime = _kernel_get_uptime_ms() + blocktime_ms;
 
         while (_kernel_get_uptime_ms() < endtime) {
 
@@ -1026,8 +1016,7 @@ int _flag_create(kflag_t **flag)
         int err = EINVAL;
 
         if (flag) {
-                err = _kzalloc(_MM_KRN, sizeof(kflag_t), _cpuctl_fast_mem, 0, 0,
-                        cast(void **, flag));
+                err = _kzalloc(_MM_KRN, sizeof(kflag_t), _cpuctl_fast_mem, 0, 0, cast(void **, flag));
                 if (err == ESUCC) {
                         (*flag)->object = xEventGroupCreateStatic(&(*flag)->buffer);
 
@@ -1187,8 +1176,8 @@ int _queue_create(size_t length, size_t item_size, kqueue_t **queue)
         int err = EINVAL;
 
         if (length && item_size && queue) {
-                err = _kzalloc(_MM_KRN, sizeof(kqueue_t) + (length * item_size),
-                        _cpuctl_fast_mem, 0, 0, cast(void **, queue));
+                err = _kzalloc(_MM_KRN, sizeof(kqueue_t) + (length * item_size), _cpuctl_fast_mem, 0, 0,
+                        cast(void **, queue));
                 if (err == ESUCC) {
                         (*queue)->object = xQueueCreateStatic(length, item_size,
                                 cast(uint8_t *, &(*queue)[1]), &(*queue)->buffer);
@@ -1307,7 +1296,7 @@ int _queue_send_from_ISR(kqueue_t *queue, const void *item, bool *task_woken)
 {
         if (is_queue_valid(queue) && item) {
                 BaseType_t woken = 0;
-                int        ret   = xQueueSendFromISR(queue->object, item, &woken);
+                int ret = xQueueSendFromISR(queue->object, item, &woken);
 
                 if (task_woken) {
                         *task_woken = (bool)woken;
@@ -1377,7 +1366,7 @@ int _queue_receive_from_ISR(kqueue_t *queue, void *item, bool *task_woken)
 {
         if (is_queue_valid(queue) && item) {
                 BaseType_t woken = 0;
-                BaseType_t ret   = xQueueReceiveFromISR(queue->object, item, &woken);
+                BaseType_t ret = xQueueReceiveFromISR(queue->object, item, &woken);
 
                 if (task_woken) {
                         *task_woken = (bool)woken;
@@ -1445,7 +1434,7 @@ int _queue_get_number_of_items(kqueue_t *queue, size_t *items)
 {
         if (is_queue_valid(queue) && items) {
                 UBaseType_t nomsg = uxQueueMessagesWaiting(queue->object);
-                *items            = nomsg;
+                *items = nomsg;
                 return ESUCC;
         } else {
                 printk("Invalid queue object @ %p", queue);
@@ -1467,7 +1456,7 @@ int _queue_get_number_of_items_from_ISR(kqueue_t *queue, size_t *items)
 {
         if (is_queue_valid(queue) && items) {
                 UBaseType_t nomsg = uxQueueMessagesWaitingFromISR(queue->object);
-                *items            = nomsg;
+                *items = nomsg;
                 return ESUCC;
         } else {
                 printk("Invalid queue object @ %p", queue);
@@ -1489,7 +1478,7 @@ int _queue_get_space_available(kqueue_t *queue, size_t *items)
 {
         if (is_queue_valid(queue) && items) {
                 UBaseType_t nomsg = uxQueueSpacesAvailable(queue->object);
-                *items            = nomsg;
+                *items = nomsg;
                 return ESUCC;
         } else {
                 printk("Invalid queue object @ %p", queue);
