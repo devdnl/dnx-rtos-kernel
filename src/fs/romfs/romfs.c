@@ -77,6 +77,7 @@ typedef struct {
 } container_header_t;
 
 typedef struct {
+        time_t   mount_timestamp;
         kfile_t *file;
         kmtx_t  *mtx;
         uint32_t prng_seed;
@@ -174,6 +175,8 @@ API_FS_INIT(romfs, void **fs_handle, const char *src_path, const char *opts)
         }
 
         romfs_t *hdl = *fs_handle;
+
+        sys_gettime(&hdl->mount_timestamp);
 
         hdl->exec_reg_files = sys_stropt_get_bool(opts, "exec", __ROMFS_CFG_EXEC_FILES__);
 
@@ -473,8 +476,8 @@ API_FS_FSTAT(romfs, void *fs_handle, void *fhdl, struct stat *stat)
         int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
         if (not err) {
 
-                stat->st_ctime = COMPILE_EPOCH_TIME;
-                stat->st_mtime = COMPILE_EPOCH_TIME;
+                stat->st_ctime = hdl->mount_timestamp;
+                stat->st_mtime = hdl->mount_timestamp;
                 stat->st_dev   = 0;
                 stat->st_size  = file->size;
                 stat->st_gid   = 0;
@@ -508,8 +511,8 @@ API_FS_STAT(romfs, void *fs_handle, const char *path, struct stat *stat)
                 return err;
         }
 
-        stat->st_ctime = COMPILE_EPOCH_TIME;
-        stat->st_mtime = COMPILE_EPOCH_TIME;
+        stat->st_ctime = hdl->mount_timestamp;
+        stat->st_mtime = hdl->mount_timestamp;
         stat->st_dev   = 0;
         stat->st_gid   = 0;
         stat->st_uid   = 0;

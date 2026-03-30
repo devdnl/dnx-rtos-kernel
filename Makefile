@@ -37,6 +37,7 @@ include $(CONFIG)
 ####################################################################################################
 # project name
 PROJECT = $(__PROJECT_NAME__)
+COPTS =
 
 #---------------------------------------------------------------------------------------------------
 # DEFAULT COMPILER FLAGS
@@ -78,7 +79,6 @@ CFLAGS   = -c \
            -include ./build/defs.h \
            -I./build \
            -I$(CONFIG_DIR) \
-           -DCOMPILE_EPOCH_TIME=$(shell $(DATE) "+%s") \
            $(CPUCONFIG_CFLAGS)
 
 CXXFLAGS = -c \
@@ -104,7 +104,6 @@ CXXFLAGS = -c \
            -Werror=stringop-overflow \
            -Werror=overflow \
            -include $(CONFIG) \
-           -DCOMPILE_EPOCH_TIME=$(shell $(DATE) "+%s") \
            -include ./build/defs.h \
            -I./build \
            -I$(CONFIG_DIR) \
@@ -171,8 +170,8 @@ SIZEOF     = /usr/bin/stat -c %s
 MKDEP      = /usr/bin/makedepend
 WC         = /usr/bin/wc
 PYTHON3    = /usr/bin/python3
-CC         = $(TOOLCHAIN)gcc
-CXX        = $(TOOLCHAIN)g++
+CC         = $(COPTS) $(TOOLCHAIN)gcc
+CXX        = $(COPTS) $(TOOLCHAIN)g++
 LD         = $(TOOLCHAIN)g++
 AS         = $(TOOLCHAIN)gcc -x assembler-with-cpp
 AR         = $(TOOLCHAIN)ar

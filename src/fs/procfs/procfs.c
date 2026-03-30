@@ -48,6 +48,7 @@
   Local types, enums definitions
 ==============================================================================*/
 struct procfs {
+        time_t   mount_timestamp;
         llist_t *file_list;
         kmtx_t  *resource_mtx;
         char    *offset_path;
@@ -115,6 +116,8 @@ API_FS_INIT(procfs, void **fs_handle, const char *src_path, const char *opts)
         int err = sys_zalloc(sizeof(struct procfs), fs_handle);
         if (err == ESUCC) {
                 struct procfs *procfs = *fs_handle;
+
+                sys_gettime(&procfs->mount_timestamp);
 
                 err = sys_llist_create(sys_llist_functor_cmp_pointers, NULL,
                         &procfs->file_list);
@@ -433,14 +436,14 @@ API_FS_FLUSH(procfs, void *fs_handle, void *fhdl)
 //==============================================================================
 API_FS_FSTAT(procfs, void *fs_handle, void *fhdl, struct stat *stat)
 {
-        UNUSED_ARG1(fs_handle);
+        struct procfs *fsctx = fs_handle;
 
         struct file_info *file = fhdl;
 
         stat->st_dev   = 0;
         stat->st_mode  = S_IRUSR | S_IRGRP | S_IROTH;
-        stat->st_mtime = COMPILE_EPOCH_TIME;
-        stat->st_ctime = COMPILE_EPOCH_TIME;
+        stat->st_mtime = fsctx->mount_timestamp;
+        stat->st_ctime = fsctx->mount_timestamp;
         stat->st_size  = 0;
         stat->st_gid   = 0;
         stat->st_uid   = 0;
