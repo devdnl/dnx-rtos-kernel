@@ -52,6 +52,7 @@
 #include "net/netm.h"
 #include "mm/shm.h"
 #include "lib/misc.h"
+#include <build/defs.h>
 
 /*==============================================================================
   Local macros
@@ -482,7 +483,7 @@ static const syscallfunc_t syscalltab[] = {
 /*==============================================================================
   Exported objects
 ==============================================================================*/
-const char *const dnx_RTOS_version = "3.7.2";
+const char *const dnx_RTOS_version = "3.7.3";
 const char *const dnx_RTOS_name = "dnx RTOS";
 const char *const dnx_RTOS_commit_hash = COMMIT_HASH;
 const char *const dnx_RTOS_platform_name = _CPUCTL_PLATFORM_NAME;

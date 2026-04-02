@@ -37,19 +37,19 @@ include $(CONFIG)
 ####################################################################################################
 # project name
 PROJECT = $(__PROJECT_NAME__)
-CC_WRAPPER =
 
 #---------------------------------------------------------------------------------------------------
 # DEFAULT COMPILER FLAGS
 #---------------------------------------------------------------------------------------------------
 TOOLCHAIN = $(__PROJECT_TOOLCHAIN__)
+CC_WRAPPER = 
 
-AFLAGS   = -c \
+AFLAGS   = -c -MMD -MP \
            -g \
            -ggdb3 \
            $(CPUCONFIG_AFLAGS)
 
-CFLAGS   = -c \
+CFLAGS   = -c -MMD -MP \
            -g \
            -ggdb3  \
            -Os \
@@ -74,14 +74,14 @@ CFLAGS   = -c \
            -Werror=switch \
            -Werror=stringop-overflow \
            -Werror=overflow \
+           -Werror=array-bounds \
            -Wno-enum-conversion \
            -include $(CONFIG) \
-           -include ./build/defs.h \
            -I./build \
            -I$(CONFIG_DIR) \
            $(CPUCONFIG_CFLAGS)
 
-CXXFLAGS = -c \
+CXXFLAGS = -c -MMD -MP \
            -g \
            -ggdb3 \
            -Os \
@@ -103,8 +103,8 @@ CXXFLAGS = -c \
            -Werror=switch \
            -Werror=stringop-overflow \
            -Werror=overflow \
+           -Werror=array-bounds \
            -include $(CONFIG) \
-           -include ./build/defs.h \
            -I./build \
            -I$(CONFIG_DIR) \
            $(CPUCONFIG_CXXFLAGS)
@@ -167,7 +167,7 @@ CAT        = /bin/cat
 GREP       = /bin/grep
 UNAME      = /bin/uname -s
 SIZEOF     = /usr/bin/stat -c %s
-MKDEP      = /usr/bin/makedepend
+RSYNC      = /usr/bin/rsync
 WC         = /usr/bin/wc
 PYTHON3    = /usr/bin/python3
 CC         = $(CC_WRAPPER) $(TOOLCHAIN)gcc
@@ -267,6 +267,8 @@ OBJECTS_CSRC           = $(OBJECTS_CSRC_PROGRAMS) $(OBJECTS_CSRC_LIB) $(OBJECTS_
 OBJECTS_CXXSRC         = $(OBJECTS_CXXSRC_PROGRAMS) $(OBJECTS_CXXSRC_LIB) $(OBJECTS_CXXSRC_CORE) $(OBJECTS_CXXSRC_NOARCH) $(OBJECTS_CXXSRC_ARCH)
 OBJECTS_ALL            = $(OBJECTS_ASRC) $(OBJECTS_CSRC) $(OBJECTS_CXXSRC)
 
+.DELETE_ON_ERROR:
+
 ####################################################################################################
 # targets
 ####################################################################################################
@@ -276,7 +278,7 @@ all : generate apply_git_hooks
 	@$(MAKE) -s -j 1 -f$(THIS_MAKEFILE) build_start
 
 .PHONY : build_start
-build_start : dependencies buildobjects buildarchive linkobjects hex status
+build_start : buildobjects buildarchive linkobjects hex status
 
 ####################################################################################################
 # help
@@ -374,16 +376,26 @@ generate :
 
 	@$(ECHO) "Adding file systems to the project..."
 	@$(MKDIR) $(GEN_FS_DIR)
-	@$(SHELL) $(ADDFS) ./$(SYS_FS_LOC) $(GEN_FS_DIR)
+	@$(MKDIR) $(GEN_FS_DIR)-tmp
+	@$(SHELL) $(ADDFS) ./$(SYS_FS_LOC) $(GEN_FS_DIR)-tmp
+	@$(RSYNC) -a --ignore-existing $(GEN_FS_DIR)-tmp/ $(GEN_FS_DIR)/ >/dev/null
+	@$(RSYNC) -c --existing $(GEN_FS_DIR)-tmp/ $(GEN_FS_DIR)/ >/dev/null
 
 	@$(ECHO) "Adding drivers to the project..."
 	@$(MKDIR) $(GEN_DRIVERS_DIR)
-	@$(SHELL) $(ADDDRIVERS) ./$(SYS_DRV_LOC) ./$(GEN_DRIVERS_DIR) $(TARGET) $(CONFIG_DIR)
+	@$(MKDIR) $(GEN_DRIVERS_DIR)-tmp
+	@$(SHELL) $(ADDDRIVERS) ./$(SYS_DRV_LOC) ./$(GEN_DRIVERS_DIR)-tmp $(TARGET) $(CONFIG_DIR)
+	@$(RSYNC) -a --ignore-existing $(GEN_DRIVERS_DIR)-tmp/ $(GEN_DRIVERS_DIR)/ >/dev/null
+	@$(RSYNC) -c --existing $(GEN_DRIVERS_DIR)-tmp/ $(GEN_DRIVERS_DIR)/ >/dev/null
 
 	@$(ECHO) "Obtaining git hash..."
-	@$(ECHO) "#include \"../$(CONFIG)\"" > build/defs.h
-	@$(ECHO) "#define COMMIT_HASH \"$(shell git rev-parse --short HEAD 2>/dev/null)"\" >> build/defs.h
-	@$(ECHO) "#define BRANCH_NAME \"$(shell git symbolic-ref --short HEAD 2>/dev/null)"\" >> build/defs.h
+	@$(MKDIR) $(TARGET_DIR_NAME)/build
+	@$(MKDIR) $(TARGET_DIR_NAME)/build-tmp
+	@$(ECHO) "#include \"../$(CONFIG)\"" > $(TARGET_DIR_NAME)/build-tmp/defs.h
+	@$(ECHO) "#define COMMIT_HASH \"$(shell git rev-parse --short HEAD 2>/dev/null)"\" >> $(TARGET_DIR_NAME)/build-tmp/defs.h
+	@$(ECHO) "#define BRANCH_NAME \"$(shell git symbolic-ref --short HEAD 2>/dev/null)"\" >> $(TARGET_DIR_NAME)/build-tmp/defs.h
+	@$(RSYNC) -a --ignore-existing $(TARGET_DIR_NAME)/build-tmp/ $(TARGET_DIR_NAME)/build/ >/dev/null
+	@$(RSYNC) -c --existing $(TARGET_DIR_NAME)/build-tmp/ $(TARGET_DIR_NAME)/build/ >/dev/null
 
 ####################################################################################################
 # Start all generators
@@ -399,23 +411,6 @@ rungens :
 .PHONY : apply_git_hooks
 apply_git_hooks :
 	@$(GIT_HOOKS)
-
-####################################################################################################
-# makes dependences
-####################################################################################################
-.PHONY : dependencies
-dependencies :
-	@$(ECHO) "Creating dependencies for '$(TARGET)' target..."
-	@$(MKDIR) $(TARGET_PATH)
-	@$(RM) $(TARGET_PATH)/*.*
-	@$(ECHO) "" > $(TARGET_PATH)/$(DEP_FILE_NAME)
-	@$(MKDEP)    -f $(TARGET_PATH)/$(DEP_FILE_NAME) -p $(OBJ_PATH)/ -o .$(OBJ_EXT) $(SEARCHPATH_TARGET) -Y -- $(CFLAGS_$(TARGET)) -- $(CSRC) $(CXXSRC) >/dev/null 2>&1
-	@$(MKDEP) -a -f $(TARGET_PATH)/$(DEP_FILE_NAME) -p $(OBJ_PATH)/ -o .$(OBJ_EXT) $(SEARCHPATH_CORE) -Y -- $(CFLAGS_$(TARGET)) -- $(CSRC) $(CXXSRC) >/dev/null 2>&1
-	@$(MKDEP) -a -f $(TARGET_PATH)/$(DEP_FILE_NAME) -p $(OBJ_PATH)/ -o .$(OBJ_EXT) $(SEARCHPATH_NOARCH) -Y -- $(CFLAGS_$(TARGET)) -- $(CSRC) $(CXXSRC) >/dev/null 2>&1
-	@$(MKDEP) -a -f $(TARGET_PATH)/$(DEP_FILE_NAME) -p $(OBJ_PATH)/ -o .$(OBJ_EXT) $(SEARCHPATH_ARCH) -Y -- $(CFLAGS_$(TARGET)) -- $(CSRC) $(CXXSRC) >/dev/null 2>&1
-	@$(ECHO) "$(foreach var,$(CSRC),\n$(OBJ_PATH)/$(var:.$(C_EXT)=.$(OBJ_EXT)) : $(var))" >> $(TARGET_PATH)/$(DEP_FILE_NAME)
-	@$(ECHO) "$(foreach var,$(CXXSRC),\n$(OBJ_PATH)/$(var:.$(CXX_EXT)=.$(OBJ_EXT)) : $(var))" >> $(TARGET_PATH)/$(DEP_FILE_NAME)
-	@$(ECHO) "$(foreach var,$(ASRC),\n$(OBJ_PATH)/$(var:.$(AS_EXT)=.$(OBJ_EXT)) : $(var))" >> $(TARGET_PATH)/$(DEP_FILE_NAME)
 
 ####################################################################################################
 # linking rules
@@ -524,4 +519,4 @@ doc:
 ####################################################################################################
 # include all dependencies
 ####################################################################################################
--include $(TARGET_PATH)/$(DEP_FILE_NAME)
+-include $(OBJECTS_ALL:.o=.d)
