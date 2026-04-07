@@ -169,7 +169,7 @@ UNAME      = /bin/uname -s
 SIZEOF     = /usr/bin/stat -c %s
 WC         = /usr/bin/wc
 PYTHON3    = /usr/bin/python3
-SYNCDIR    = $(PYTHON3) ./tools/syncdir.py
+CODECHECK  = cppcheck
 CC         = $(CC_WRAPPER) $(TOOLCHAIN)gcc
 CXX        = $(CC_WRAPPER) $(TOOLCHAIN)g++
 LD         = $(TOOLCHAIN)g++
@@ -178,16 +178,16 @@ AR         = $(TOOLCHAIN)ar
 OBJCOPY    = $(TOOLCHAIN)objcopy
 OBJDUMP    = $(TOOLCHAIN)objdump
 SIZE       = $(TOOLCHAIN)size
-CONFIGTOOL = ./tools/configtool.sh
-CODECHECK  = cppcheck
-ADDFS      = ./$(SYS_FS_LOC)/addfs.sh
-ADDDRIVERS = ./$(SYS_DRV_LOC)/adddriver.sh
-FLASH_CPU  = ./tools/flash.sh
-RESET_CPU  = ./tools/reset.sh
-GIT_HOOKS  = ./tools/apply_git_hooks.sh
-DOXYGEN    = ./tools/doxygen.sh
-RELEASEPKG = ./tools/releasepkg.sh
-RUNGENS    = ./tools/rungens.sh
+SYNCDIR    = $(PYTHON3) ./tools/syncdir.py
+CONFIGTOOL = $(SHELL) ./tools/configtool.sh
+ADDFS      = $(SHELL) ./$(SYS_FS_LOC)/addfs.sh
+ADDDRIVERS = $(SHELL) ./$(SYS_DRV_LOC)/adddriver.sh
+FLASH_CPU  = $(SHELL) ./tools/flash.sh
+RESET_CPU  = $(SHELL) ./tools/reset.sh
+GIT_HOOKS  = $(SHELL) ./tools/apply_git_hooks.sh
+DOXYGEN    = $(SHELL) ./tools/doxygen.sh
+RELEASEPKG = $(SHELL) ./tools/releasepkg.sh
+RUNGENS    = $(SHELL) ./tools/rungens.sh
 
 #---------------------------------------------------------------------------------------------------
 # MAKEFILE CORE (do not edit)
@@ -355,8 +355,6 @@ hex :
 	#@$(ECHO) 'Creating objects size list...'
 	#@$(SIZE) -B -t --common $(TARGET_PATH)/$(PROJECT).a > $(TARGET_PATH)/$(PROJECT).size
 
-	@$(ECHO) "dnx RTOS image size: $$($(SIZEOF) $(TARGET_PATH)/$(PROJECT).bin) bytes\n"
-
 ####################################################################################################
 # show compile status
 ####################################################################################################
@@ -380,13 +378,13 @@ generate :
 	@$(ECHO) "Adding file systems to the project..."
 	@$(MKDIR) $(GEN_FS_DIR)
 	@$(MKDIR) $(GEN_FS_DIR)-tmp
-	@$(SHELL) $(ADDFS) ./$(SYS_FS_LOC) $(GEN_FS_DIR)-tmp
+	@$(ADDFS) ./$(SYS_FS_LOC) $(GEN_FS_DIR)-tmp
 	@$(SYNCDIR) $(GEN_FS_DIR)-tmp/ $(GEN_FS_DIR)/
 
 	@$(ECHO) "Adding drivers to the project..."
 	@$(MKDIR) $(GEN_DRIVERS_DIR)
 	@$(MKDIR) $(GEN_DRIVERS_DIR)-tmp
-	@$(SHELL) $(ADDDRIVERS) ./$(SYS_DRV_LOC) ./$(GEN_DRIVERS_DIR)-tmp $(TARGET) $(CONFIG_DIR)
+	@$(ADDDRIVERS) ./$(SYS_DRV_LOC) ./$(GEN_DRIVERS_DIR)-tmp $(TARGET) $(CONFIG_DIR)
 	@$(SYNCDIR) $(GEN_DRIVERS_DIR)-tmp/ $(GEN_DRIVERS_DIR)/
 
 	@$(ECHO) "Obtaining git hash..."
@@ -489,7 +487,7 @@ reset:
 ####################################################################################################
 .PHONY : release
 release: clean
-	@$(SHELL) $(RELEASEPKG)
+	@$(RELEASEPKG)
 
 ####################################################################################################
 # target used to Doxygen documentation
