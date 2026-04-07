@@ -182,8 +182,6 @@ SYNCDIR    = $(PYTHON3) ./tools/syncdir.py
 CONFIGTOOL = $(SHELL) ./tools/configtool.sh
 ADDFS      = $(SHELL) ./$(SYS_FS_LOC)/addfs.sh
 ADDDRIVERS = $(SHELL) ./$(SYS_DRV_LOC)/adddriver.sh
-FLASH_CPU  = $(SHELL) ./tools/flash.sh
-RESET_CPU  = $(SHELL) ./tools/reset.sh
 GIT_HOOKS  = $(SHELL) ./tools/apply_git_hooks.sh
 DOXYGEN    = $(SHELL) ./tools/doxygen.sh
 RELEASEPKG = $(SHELL) ./tools/releasepkg.sh
@@ -464,23 +462,6 @@ $(OBJ_PATH)/%.$(OBJ_EXT) : %.$(AS_EXT) $(THIS_MAKEFILE)
 clean :
 	@$(ECHO) "Deleting all build files..."
 	-@$(RM) -r $(TARGET_DIR_NAME) ./doc/doxygen/html/ ./doc/doxygen/latex
-
-####################################################################################################
-# flash target CPU by using ./tools/flash.sh script
-####################################################################################################
-.PHONY : flash
-flash:
-	@$(FLASH_CPU)
-
-.PHONY : install
-install : flash
-
-####################################################################################################
-# reset target CPU by using ./tools/flash.sh script
-####################################################################################################
-.PHONY : reset
-reset:
-	@$(RESET_CPU)
 
 ####################################################################################################
 # target used to create Release archive
