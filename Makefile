@@ -167,9 +167,9 @@ CAT        = /bin/cat
 GREP       = /bin/grep
 UNAME      = /bin/uname -s
 SIZEOF     = /usr/bin/stat -c %s
-RSYNC      = /usr/bin/rsync
 WC         = /usr/bin/wc
 PYTHON3    = /usr/bin/python3
+SYNCDIR    = $(PYTHON3) ./tools/syncdir.py
 CC         = $(CC_WRAPPER) $(TOOLCHAIN)gcc
 CXX        = $(CC_WRAPPER) $(TOOLCHAIN)g++
 LD         = $(TOOLCHAIN)g++
@@ -193,7 +193,8 @@ RUNGENS    = ./tools/rungens.sh
 # MAKEFILE CORE (do not edit)
 #---------------------------------------------------------------------------------------------------
 # defines VALUES
-EMPTY =
+EMPTY :=
+SPACE := $(EMPTY) $(EMPTY)
 
 # defines this makefile name
 THIS_MAKEFILE = $(firstword $(MAKEFILE_LIST))
@@ -278,7 +279,7 @@ all : generate apply_git_hooks
 	@$(MAKE) -s -j 1 -f$(THIS_MAKEFILE) build_start
 
 .PHONY : build_start
-build_start : buildobjects buildarchive linkobjects hex status
+build_start : buildobjects linkobjects hex status
 
 ####################################################################################################
 # help
@@ -345,14 +346,16 @@ hex :
 	@$(ECHO) 'Creating binary image...'
 	@$(OBJCOPY) $(TARGET_PATH)/$(PROJECT).elf -O binary $(TARGET_PATH)/$(PROJECT).bin
 
-	@$(ECHO) 'Creating memory dump...'
-	@$(OBJDUMP) -x --syms $(TARGET_PATH)/$(PROJECT).elf > $(TARGET_PATH)/$(PROJECT).dmp
+	#@$(ECHO) 'Creating memory dump...'
+	#@$(OBJDUMP) -x --syms $(TARGET_PATH)/$(PROJECT).elf > $(TARGET_PATH)/$(PROJECT).dmp
 
 	#@$(ECHO) 'Creating extended listing....'
 	#@$(OBJDUMP) -S $(TARGET_PATH)/$(PROJECT).elf > $(TARGET_PATH)/$(PROJECT).lst
 
-	@$(ECHO) 'Creating objects size list...'
-	@$(SIZE) -B -t --common $(TARGET_PATH)/$(PROJECT).a > $(TARGET_PATH)/$(PROJECT).size
+	#@$(ECHO) 'Creating objects size list...'
+	#@$(SIZE) -B -t --common $(TARGET_PATH)/$(PROJECT).a > $(TARGET_PATH)/$(PROJECT).size
+
+	@$(ECHO) "dnx RTOS image size: $$($(SIZEOF) $(TARGET_PATH)/$(PROJECT).bin) bytes\n"
 
 ####################################################################################################
 # show compile status
@@ -378,15 +381,13 @@ generate :
 	@$(MKDIR) $(GEN_FS_DIR)
 	@$(MKDIR) $(GEN_FS_DIR)-tmp
 	@$(SHELL) $(ADDFS) ./$(SYS_FS_LOC) $(GEN_FS_DIR)-tmp
-	@$(RSYNC) -a --ignore-existing $(GEN_FS_DIR)-tmp/ $(GEN_FS_DIR)/ >/dev/null
-	@$(RSYNC) -c --existing $(GEN_FS_DIR)-tmp/ $(GEN_FS_DIR)/ >/dev/null
+	@$(SYNCDIR) $(GEN_FS_DIR)-tmp/ $(GEN_FS_DIR)/
 
 	@$(ECHO) "Adding drivers to the project..."
 	@$(MKDIR) $(GEN_DRIVERS_DIR)
 	@$(MKDIR) $(GEN_DRIVERS_DIR)-tmp
 	@$(SHELL) $(ADDDRIVERS) ./$(SYS_DRV_LOC) ./$(GEN_DRIVERS_DIR)-tmp $(TARGET) $(CONFIG_DIR)
-	@$(RSYNC) -a --ignore-existing $(GEN_DRIVERS_DIR)-tmp/ $(GEN_DRIVERS_DIR)/ >/dev/null
-	@$(RSYNC) -c --existing $(GEN_DRIVERS_DIR)-tmp/ $(GEN_DRIVERS_DIR)/ >/dev/null
+	@$(SYNCDIR) $(GEN_DRIVERS_DIR)-tmp/ $(GEN_DRIVERS_DIR)/
 
 	@$(ECHO) "Obtaining git hash..."
 	@$(MKDIR) $(TARGET_DIR_NAME)/build
@@ -394,8 +395,8 @@ generate :
 	@$(ECHO) "#include \"../$(CONFIG)\"" > $(TARGET_DIR_NAME)/build-tmp/defs.h
 	@$(ECHO) "#define COMMIT_HASH \"$(shell git rev-parse --short HEAD 2>/dev/null)"\" >> $(TARGET_DIR_NAME)/build-tmp/defs.h
 	@$(ECHO) "#define BRANCH_NAME \"$(shell git symbolic-ref --short HEAD 2>/dev/null)"\" >> $(TARGET_DIR_NAME)/build-tmp/defs.h
-	@$(RSYNC) -a --ignore-existing $(TARGET_DIR_NAME)/build-tmp/ $(TARGET_DIR_NAME)/build/ >/dev/null
-	@$(RSYNC) -c --existing $(TARGET_DIR_NAME)/build-tmp/ $(TARGET_DIR_NAME)/build/ >/dev/null
+	@$(ECHO) "#define COMPILE_EPOCH_TIME $(shell $(DATE) "+%s")" > $(TARGET_DIR_NAME)/build-tmp/vars.h
+	@$(SYNCDIR) $(TARGET_DIR_NAME)/build-tmp/ $(TARGET_DIR_NAME)/build/
 
 ####################################################################################################
 # Start all generators
@@ -415,24 +416,14 @@ apply_git_hooks :
 ####################################################################################################
 # linking rules
 ####################################################################################################
-.PHONY : linkobjects
-linkobjects :
-	@$(ECHO) "Linking..."
-	@$(LD) $(TARGET_PATH)/$(PROJECT).a $(LFLAGS) -o $(TARGET_PATH)/$(PROJECT).elf
-	@#$(LD) $(OBJECTS_ALL) $(LFLAGS) -o $(TARGET_PATH)/$(PROJECT).elf
+$(TARGET_PATH)/objects.list : $(OBJECTS_ALL)
+	$(file >$@)
+	$(foreach f,$(OBJECTS_ALL),$(file >>$@,$(f)))
 
-####################################################################################################
-# create objects archive
-####################################################################################################
-buildarchive :
-	@$(ECHO) "Archiving..."
-	@$(AR) rTPcs $(TARGET_PATH)/$(PROJECT).a $(OBJECTS_ASRC)
-	@$(AR) rTPcs $(TARGET_PATH)/$(PROJECT).a $(OBJECTS_CSRC_CORE)
-	@$(AR) rTPcs $(TARGET_PATH)/$(PROJECT).a $(OBJECTS_CSRC_NOARCH)
-	@$(AR) rTPcs $(TARGET_PATH)/$(PROJECT).a $(OBJECTS_CSRC_ARCH)
-	@$(AR) rTPcs $(TARGET_PATH)/$(PROJECT).a $(OBJECTS_CXXSRC_CORE)
-	@$(AR) rTPcs $(TARGET_PATH)/$(PROJECT).a $(OBJECTS_CXXSRC_NOARCH)
-	@$(AR) rTPcs $(TARGET_PATH)/$(PROJECT).a $(OBJECTS_CXXSRC_ARCH)
+.PHONY : linkobjects
+linkobjects : $(TARGET_PATH)/objects.list
+	@$(ECHO) "Linking..."
+	@$(LD) @$(TARGET_PATH)/objects.list $(LFLAGS) -o $(TARGET_PATH)/$(PROJECT).elf
 
 ####################################################################################################
 # build objects
@@ -467,15 +458,6 @@ $(OBJ_PATH)/%.$(OBJ_EXT) : %.$(AS_EXT) $(THIS_MAKEFILE)
 	@$(ECHO) "Compiling: $<"
 	@$(MKDIR) $(dir $@)
 	@$(AS) $(AFLAGS) $(SEARCHPATH) $< -o $@
-
-####################################################################################################
-# clean target
-####################################################################################################
-.PHONY : cleantarget
-cleantarget :
-	@$(ECHO) "Cleaning target..."
-	-@$(RM) -r $(OBJ_PATH) $(LST_PATH)
-	-@$(RM) $(TARGET_DIR_NAME)/*.*
 
 ####################################################################################################
 # clean all targets
