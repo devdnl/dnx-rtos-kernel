@@ -26,6 +26,9 @@ Brief    STM32F3xx family vectors.
 ==============================================================================*/
 #include "config.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wattributes"
+
 /** define weak assign to the default function */
 #define WEAK_DEFAULT __attribute__ ((interrupt, weak, alias("__Default_Handler")))
 
@@ -258,6 +261,8 @@ void (*const vectors[256])(void) __attribute__ ((section(".vectors"))) =
         __Reserved_83_IRQHandler,               // 83:Reserved
         SPI4_IRQHandler,                        // 84:SPI4 global Interrupt
 };
+
+#pragma GCC diagnostic pop
 
 /***************************************************************************************************
 END OF FILE

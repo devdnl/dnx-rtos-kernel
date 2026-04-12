@@ -31,6 +31,7 @@ Brief   ROM File System (FPKG container)
   Include files
 ==============================================================================*/
 #include "fs/fs.h"
+#include <build/vars.h>
 
 /*==============================================================================
   Local macros
@@ -57,7 +58,7 @@ typedef struct {
         uint32_t file_crc32;
         uint32_t content_prng_seed;
         uint32_t flags;
-        uint8_t  file_name_file_data[];
+        uint8_t file_name_file_data[];
 } file_descriptor_t;
 
 typedef struct {
@@ -77,16 +78,15 @@ typedef struct {
 } container_header_t;
 
 typedef struct {
-        time_t   mount_timestamp;
         kfile_t *file;
-        kmtx_t  *mtx;
+        kmtx_t *mtx;
         uint32_t prng_seed;
         uint32_t number_of_files;
         uint32_t flags;
         uint32_t open_files_ctr;
         uint32_t open_dirs_ctr;
-        char     tmp[512];
-        bool     exec_reg_files;
+        char tmp[512];
+        bool exec_reg_files;
 } romfs_t;
 
 struct fpkg_file {
@@ -98,8 +98,8 @@ struct fpkg_file {
 };
 
 struct fpkg_dir {
-        char    *dir_root;
-        char    *item_name;
+        char *dir_root;
+        char *item_name;
         uint32_t dir_root_len;
         uint32_t seek;
 };
@@ -125,18 +125,16 @@ static bool is_file_entry_valid(const file_entry_t *file_entry);
 
 static bool is_file_descriptor_valid(const file_descriptor_t *file_desc);
 
-static bool is_file_descriptor_name_valid(const file_descriptor_t *file_desc,
-        const char                                                *name);
+static bool is_file_descriptor_name_valid(const file_descriptor_t *file_desc, const char *name);
 
 static int read_container_header(romfs_t *hdl, container_header_t *hdr);
 
 static int read_file_entry(romfs_t *hdl, uint16_t n, file_entry_t *entry);
 
-static int read_file_descriptor(romfs_t *hdl, file_entry_t *entry,
-        file_descriptor_t *desc);
+static int read_file_descriptor(romfs_t *hdl, file_entry_t *entry, file_descriptor_t *desc);
 
-static int read_file_descriptor_name(romfs_t *hdl, file_entry_t *entry,
-        file_descriptor_t *desc, char *buf, size_t buf_len);
+static int read_file_descriptor_name(romfs_t *hdl, file_entry_t *entry, file_descriptor_t *desc, char *buf,
+        size_t buf_len);
 
 static uint32_t calc_CRC32(const void *buf, uint32_t buflen, uint32_t init);
 
@@ -176,8 +174,6 @@ API_FS_INIT(romfs, void **fs_handle, const char *src_path, const char *opts)
 
         romfs_t *hdl = *fs_handle;
 
-        sys_gettime(&hdl->mount_timestamp);
-
         hdl->exec_reg_files = sys_stropt_get_bool(opts, "exec", __ROMFS_CFG_EXEC_FILES__);
 
         err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &hdl->mtx);
@@ -207,9 +203,9 @@ API_FS_INIT(romfs, void **fs_handle, const char *src_path, const char *opts)
                 return err;
         }
 
-        hdl->prng_seed       = header.prng_seed;
+        hdl->prng_seed = header.prng_seed;
         hdl->number_of_files = header.number_of_files;
-        hdl->flags           = header.flags;
+        hdl->flags = header.flags;
 
         return err;
 }
@@ -249,8 +245,7 @@ API_FS_RELEASE(romfs, void *fs_handle)
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_FS_OPEN(romfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
-        u32_t flags)
+API_FS_OPEN(romfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path, u32_t flags)
 {
         romfs_t *hdl = fs_handle;
 
@@ -279,8 +274,7 @@ API_FS_OPEN(romfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
                         break;
                 }
 
-                err = read_file_descriptor_name(hdl, &entry, &desc, hdl->tmp,
-                        sizeof(hdl->tmp));
+                err = read_file_descriptor_name(hdl, &entry, &desc, hdl->tmp, sizeof(hdl->tmp));
                 if (err) {
                         break;
                 }
@@ -293,13 +287,13 @@ API_FS_OPEN(romfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
                                 break;
                         }
 
-                        file->content_offset = entry.file_descriptor_address +
-                                sizeof(desc) + desc.file_name_len;
+                        file->content_offset = entry.file_descriptor_address + sizeof(desc) +
+                                desc.file_name_len;
 
                         file->content_prng_seed = desc.content_prng_seed;
-                        file->current_seed      = desc.content_prng_seed;
-                        file->size              = desc.file_size;
-                        file->seek              = 0;
+                        file->current_seed = desc.content_prng_seed;
+                        file->size = desc.file_size;
+                        file->seek = 0;
 
                         hdl->open_files_ctr++;
 
@@ -361,8 +355,8 @@ API_FS_CLOSE(romfs, void *fs_handle, void *fhdl, bool force)
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_FS_WRITE(romfs, void *fs_handle, void *fhdl, const u8_t *src, size_t count,
-        fpos_t *fpos, size_t *wrcnt, struct vfs_fattr fattr)
+API_FS_WRITE(romfs, void *fs_handle, void *fhdl, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG7(fs_handle, fhdl, src, count, fpos, wrcnt, fattr);
         return EROFS;
@@ -383,12 +377,12 @@ API_FS_WRITE(romfs, void *fs_handle, void *fhdl, const u8_t *src, size_t count,
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_FS_READ(romfs, void *fs_handle, void *fhdl, u8_t *dst, size_t count, fpos_t *fpos,
-        size_t *rdcnt, struct vfs_fattr fattr)
+API_FS_READ(romfs, void *fs_handle, void *fhdl, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
-        romfs_t          *hdl  = fs_handle;
+        romfs_t *hdl = fs_handle;
         struct fpkg_file *file = fhdl;
 
         int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
@@ -396,8 +390,7 @@ API_FS_READ(romfs, void *fs_handle, void *fhdl, u8_t *dst, size_t count, fpos_t 
 
                 fpkg__fseek(hdl, file, *fpos);
 
-                err = sys_fseek(hdl->file, file->content_offset + file->seek,
-                        VFS_SEEK_SET);
+                err = sys_fseek(hdl->file, file->content_offset + file->seek, VFS_SEEK_SET);
 
                 if (not err) {
                         size_t len = min((file->size - file->seek), count);
@@ -470,20 +463,19 @@ API_FS_FLUSH(romfs, void *fs_handle, void *fhdl)
 //==============================================================================
 API_FS_FSTAT(romfs, void *fs_handle, void *fhdl, struct stat *stat)
 {
-        romfs_t          *hdl  = fs_handle;
+        romfs_t *hdl = fs_handle;
         struct fpkg_file *file = fhdl;
 
         int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
         if (not err) {
 
-                stat->st_ctime = hdl->mount_timestamp;
-                stat->st_mtime = hdl->mount_timestamp;
-                stat->st_dev   = 0;
-                stat->st_size  = file->size;
-                stat->st_gid   = 0;
-                stat->st_uid   = 0;
-                stat->st_mode  = S_IRUSR | S_IRGRP | S_IROTH |
-                        (S_IXUSR * hdl->exec_reg_files) | S_IFREG;
+                stat->st_ctime = COMPILE_EPOCH_TIME;
+                stat->st_mtime = COMPILE_EPOCH_TIME;
+                stat->st_dev = 0;
+                stat->st_size = file->size;
+                stat->st_gid = 0;
+                stat->st_uid = 0;
+                stat->st_mode = S_IRUSR | S_IRGRP | S_IROTH | (S_IXUSR * hdl->exec_reg_files) | S_IFREG;
 
                 sys_mutex_unlock(hdl->mtx);
         }
@@ -511,13 +503,13 @@ API_FS_STAT(romfs, void *fs_handle, const char *path, struct stat *stat)
                 return err;
         }
 
-        stat->st_ctime = hdl->mount_timestamp;
-        stat->st_mtime = hdl->mount_timestamp;
-        stat->st_dev   = 0;
-        stat->st_gid   = 0;
-        stat->st_uid   = 0;
-        stat->st_size  = 0;
-        stat->st_mode  = S_IRUSR | S_IRGRP | S_IROTH;
+        stat->st_ctime = COMPILE_EPOCH_TIME;
+        stat->st_mtime = COMPILE_EPOCH_TIME;
+        stat->st_dev = 0;
+        stat->st_gid = 0;
+        stat->st_uid = 0;
+        stat->st_size = 0;
+        stat->st_mode = S_IRUSR | S_IRGRP | S_IROTH;
 
         for (size_t i = 0; i < hdl->number_of_files; i++) {
 
@@ -533,8 +525,7 @@ API_FS_STAT(romfs, void *fs_handle, const char *path, struct stat *stat)
                         break;
                 }
 
-                err = read_file_descriptor_name(hdl, &entry, &desc, hdl->tmp,
-                        sizeof(hdl->tmp));
+                err = read_file_descriptor_name(hdl, &entry, &desc, hdl->tmp, sizeof(hdl->tmp));
                 if (err) {
                         break;
                 }
@@ -548,8 +539,7 @@ API_FS_STAT(romfs, void *fs_handle, const char *path, struct stat *stat)
 
                         break;
 
-                } else if ((strncmp(hdl->tmp, path, path_len) == 0) and
-                        (hdl->tmp[path_len] == '/')) {
+                } else if ((strncmp(hdl->tmp, path, path_len) == 0) and(hdl->tmp[path_len] == '/')) {
 
                         stat->st_mode |= S_IFDIR;
 
@@ -580,14 +570,14 @@ API_FS_STATFS(romfs, void *fs_handle, struct statfs *statfs)
         romfs_t *hdl = fs_handle;
 
         struct stat statbuf;
-        int         err = sys_fstat(hdl->file, &statbuf);
+        int err = sys_fstat(hdl->file, &statbuf);
         if (not err) {
-                statfs->f_bsize  = 1;
+                statfs->f_bsize = 1;
                 statfs->f_blocks = statbuf.st_size;
-                statfs->f_bfree  = 0;
-                statfs->f_ffree  = 0;
-                statfs->f_files  = hdl->number_of_files;
-                statfs->f_type   = SYS_FS_TYPE__SOLID;
+                statfs->f_bfree = 0;
+                statfs->f_ffree = 0;
+                statfs->f_files = hdl->number_of_files;
+                statfs->f_type = SYS_FS_TYPE__SOLID;
                 statfs->f_fsname = "romfs";
         }
 
@@ -661,7 +651,7 @@ API_FS_OPENDIR(romfs, void *fs_handle, const char *path, kdir_t *kdir)
         romfs_t *hdl = fs_handle;
 
         struct fpkg_dir *dir;
-        int              err = sys_zalloc(sizeof(*dir), cast(void **, &dir));
+        int err = sys_zalloc(sizeof(*dir), cast(void **, &dir));
         if (err) {
                 return err;
         }
@@ -702,16 +692,15 @@ API_FS_OPENDIR(romfs, void *fs_handle, const char *path, kdir_t *kdir)
                                 break;
                         }
 
-                        err = read_file_descriptor_name(hdl, &entry, &desc, hdl->tmp,
-                                sizeof(hdl->tmp));
+                        err = read_file_descriptor_name(hdl, &entry, &desc, hdl->tmp, sizeof(hdl->tmp));
                         if (err) {
                                 break;
                         }
 
                         if (strncmp(hdl->tmp, dir->dir_root, dir->dir_root_len) == 0) {
-                                kdir->d_hdl   = dir;
+                                kdir->d_hdl = dir;
                                 kdir->d_items = 0; // FIXME
-                                kdir->d_seek  = 0;
+                                kdir->d_seek = 0;
 
                                 hdl->open_dirs_ctr++;
                                 break;
@@ -745,7 +734,7 @@ error:
 //==============================================================================
 API_FS_CLOSEDIR(romfs, void *fs_handle, kdir_t *kdir)
 {
-        romfs_t         *hdl = fs_handle;
+        romfs_t *hdl = fs_handle;
         struct fpkg_dir *dir = kdir->d_hdl;
 
         sys_free(cast(void *, &dir->dir_root));
@@ -773,7 +762,7 @@ API_FS_CLOSEDIR(romfs, void *fs_handle, kdir_t *kdir)
 //==============================================================================
 API_FS_READDIR(romfs, void *fs_handle, kdir_t *kdir)
 {
-        romfs_t         *hdl = fs_handle;
+        romfs_t *hdl = fs_handle;
         struct fpkg_dir *dir = kdir->d_hdl;
 
         if (dir->seek != kdir->d_seek) {
@@ -811,8 +800,7 @@ API_FS_READDIR(romfs, void *fs_handle, kdir_t *kdir)
                         break;
                 }
 
-                err = read_file_descriptor_name(hdl, &entry, &desc, hdl->tmp,
-                        sizeof(hdl->tmp));
+                err = read_file_descriptor_name(hdl, &entry, &desc, hdl->tmp, sizeof(hdl->tmp));
                 if (err) {
                         break;
                 }
@@ -821,7 +809,7 @@ API_FS_READDIR(romfs, void *fs_handle, kdir_t *kdir)
 
                 char *slash = strchr(item_name, '/');
                 if (slash) {
-                        *slash            = '\0';
+                        *slash = '\0';
                         kdir->dirent.mode = S_IFDIR;
                         kdir->dirent.size = 0;
                 } else {
@@ -829,8 +817,8 @@ API_FS_READDIR(romfs, void *fs_handle, kdir_t *kdir)
                         kdir->dirent.size = desc.file_size;
                 }
 
-                if ((strncmp(hdl->tmp, dir->dir_root, strlen(dir->dir_root)) == 0) and
-                        (strcmp(dir->item_name, item_name) != 0)) {
+                if ((strncmp(hdl->tmp, dir->dir_root, strlen(dir->dir_root)) == 0)
+                                and(strcmp(dir->item_name, item_name) != 0)) {
 
                         err = sys_free(cast(void *, &dir->item_name));
                         if (err) {
@@ -952,7 +940,7 @@ API_FS_SYNC(romfs, void *fs_handle)
 static void fpkg__fseek(romfs_t *hdl, struct fpkg_file *file, uint32_t seek)
 {
         uint32_t old_seek = file->seek;
-        file->seek        = seek;
+        file->seek = seek;
 
         if (seek > file->size) {
                 file->seek = file->size;
@@ -966,7 +954,7 @@ static void fpkg__fseek(romfs_t *hdl, struct fpkg_file *file, uint32_t seek)
 
                 } else {
                         file->current_seed = file->content_prng_seed;
-                        n                  = file->seek;
+                        n = file->seek;
                 }
 
                 while (n > 0) {
@@ -999,7 +987,7 @@ static uint32_t calc_CRC32(const void *buf, uint32_t buflen, uint32_t init)
 
                 for (int shift = 7; shift >= 0; shift--) {
                         uint32_t mask = -(crc & 1);
-                        crc           = (crc >> 1) ^ (0xEDB88320 & mask);
+                        crc = (crc >> 1) ^ (0xEDB88320 & mask);
                 }
         }
 
@@ -1060,7 +1048,7 @@ static void xcrypt(void *buf, uint32_t buflen, uint32_t *seed)
 static int read_file(void *buf, size_t len, kfile_t *file)
 {
         size_t rdcnt;
-        int    err = sys_fread(buf, len, &rdcnt, file);
+        int err = sys_fread(buf, len, &rdcnt, file);
         if (err) {
                 return err;
         }
@@ -1130,8 +1118,7 @@ static int read_container_header(romfs_t *hdl, container_header_t *hdr)
 //==============================================================================
 static int read_file_entry(romfs_t *hdl, uint16_t n, file_entry_t *entry)
 {
-        int32_t entry_address = sizeof(container_header_t) +
-                (sizeof(file_entry_t) * hdl->number_of_files) -
+        int32_t entry_address = sizeof(container_header_t) + (sizeof(file_entry_t) * hdl->number_of_files) -
                 (sizeof(file_entry_t) * n);
 
         int err = sys_fseek(hdl->file, -entry_address, VFS_SEEK_END);
@@ -1165,8 +1152,7 @@ static int read_file_entry(romfs_t *hdl, uint16_t n, file_entry_t *entry)
  * @return On success 0 is returned.
  */
 //==============================================================================
-static int read_file_descriptor(romfs_t *hdl, file_entry_t *entry,
-        file_descriptor_t *desc)
+static int read_file_descriptor(romfs_t *hdl, file_entry_t *entry, file_descriptor_t *desc)
 {
         int err = sys_fseek(hdl->file, entry->file_descriptor_address, VFS_SEEK_SET);
         if (err) {
@@ -1199,8 +1185,8 @@ static int read_file_descriptor(romfs_t *hdl, file_entry_t *entry,
  * @return On success 0 is returned.
  */
 //==============================================================================
-static int read_file_descriptor_name(romfs_t *hdl, file_entry_t *entry,
-        file_descriptor_t *desc, char *buf, size_t buf_len)
+static int read_file_descriptor_name(romfs_t *hdl, file_entry_t *entry, file_descriptor_t *desc, char *buf,
+        size_t buf_len)
 {
         if (buf_len < 2) {
                 return EINVAL;
@@ -1212,8 +1198,8 @@ static int read_file_descriptor_name(romfs_t *hdl, file_entry_t *entry,
 
         size_t name_len = 0;
 
-        int err = sys_fseek(hdl->file,
-                entry->file_descriptor_address + sizeof(file_descriptor_t), VFS_SEEK_SET);
+        int err = sys_fseek(hdl->file, entry->file_descriptor_address + sizeof(file_descriptor_t),
+                VFS_SEEK_SET);
         if (err) {
                 return err;
         }
@@ -1255,7 +1241,7 @@ static int file_validity_check(romfs_t *hdl, bool full_check)
 
         while (full_check) {
                 uint32_t size = 0;
-                uint32_t crc  = ~FPKG_CRC32_INIT;
+                uint32_t crc = ~FPKG_CRC32_INIT;
 
                 err = sys_fseek(hdl->file, 0, VFS_SEEK_END);
                 if (err) {
@@ -1313,9 +1299,9 @@ static int file_validity_check(romfs_t *hdl, bool full_check)
                         break;
                 }
 
-                hdl->prng_seed       = header.prng_seed;
+                hdl->prng_seed = header.prng_seed;
                 hdl->number_of_files = header.number_of_files;
-                hdl->flags           = header.flags;
+                hdl->flags = header.flags;
 
                 for (uint16_t i = 0; i < header.number_of_files; i++) {
 
@@ -1342,8 +1328,7 @@ static int file_validity_check(romfs_t *hdl, bool full_check)
                         }
 
                         char *buf_name = cast(typeof(buf_name), buf);
-                        err = read_file_descriptor_name(hdl, &file_entry, &file_desc,
-                                buf_name, buflen);
+                        err = read_file_descriptor_name(hdl, &file_entry, &file_desc, buf_name, buflen);
                         if (err) {
                                 break;
                         }
@@ -1374,8 +1359,7 @@ static bool is_container_header_valid(const container_header_t *hdr)
         bool valid = false;
 
         uint32_t crc = calc_CRC32(&hdr->prng_seed,
-                sizeof(*hdr) - offsetof(container_header_t, prng_seed) -
-                        sizeof(hdr->file_crc32),
+                sizeof(*hdr) - offsetof(container_header_t, prng_seed) - sizeof(hdr->file_crc32),
                 FPKG_CRC32_INIT);
 
         if ((hdr->magic == CONTAINER_HEADER_MAGIC) && (hdr->crc32 == crc)) {
@@ -1402,11 +1386,10 @@ static bool is_container_header_valid(const container_header_t *hdr)
 static bool is_file_entry_valid(const file_entry_t *file_entry)
 {
         uint32_t crc = calc_CRC32(&file_entry->file_descriptor_address,
-                sizeof(*file_entry) - offsetof(file_entry_t, file_descriptor_address),
-                FPKG_CRC32_INIT);
+                sizeof(*file_entry) - offsetof(file_entry_t, file_descriptor_address), FPKG_CRC32_INIT);
 
-        return ((file_entry->magic == FILE_ENTRY_MAGIC) and (file_entry->crc32 == crc) and
-                (file_entry->file_descriptor_address < cast(uintptr_t, file_entry)));
+        return ((file_entry->magic == FILE_ENTRY_MAGIC) and(file_entry->crc32 == crc)
+                        and(file_entry->file_descriptor_address < cast(uintptr_t, file_entry)));
 }
 
 //==============================================================================
@@ -1424,11 +1407,9 @@ static bool is_file_entry_valid(const file_entry_t *file_entry)
 static bool is_file_descriptor_valid(const file_descriptor_t *file_desc)
 {
         uint32_t crc = calc_CRC32(&file_desc->file_name_len,
-                sizeof(*file_desc) - offsetof(file_descriptor_t, file_name_len),
-                FPKG_CRC32_INIT);
+                sizeof(*file_desc) - offsetof(file_descriptor_t, file_name_len), FPKG_CRC32_INIT);
 
-        return ((file_desc->magic == FILE_DESCRIPTOR_MAGIC) and
-                (file_desc->crc32 == crc));
+        return ((file_desc->magic == FILE_DESCRIPTOR_MAGIC) and(file_desc->crc32 == crc));
 }
 
 //==============================================================================
@@ -1443,8 +1424,7 @@ static bool is_file_descriptor_valid(const file_descriptor_t *file_desc)
  * @return True if valid, otherwise false.
  */
 //==============================================================================
-static bool is_file_descriptor_name_valid(const file_descriptor_t *file_desc,
-        const char                                                *name)
+static bool is_file_descriptor_name_valid(const file_descriptor_t *file_desc, const char *name)
 {
         uint32_t crc = calc_CRC32(name, file_desc->file_name_len, FPKG_CRC32_INIT);
 

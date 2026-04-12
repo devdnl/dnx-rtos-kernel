@@ -26,6 +26,9 @@ Brief    STM32F1xx family vectors.
 ==============================================================================*/
 #include "config.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wattributes"
+
 /** define weak assign to the default function */
 #define WEAK_DEFAULT __attribute__ ((interrupt, weak, alias("__Default_Handler")))
 
@@ -782,6 +785,8 @@ void (*const vectors[256])(void) __attribute__ ((section(".vectors"))) =
    OTG_FS_IRQHandler                        /* USB OTG FS global Interrupt                        */
 #endif /* STM32F10X_CL */
 };
+
+#pragma GCC diagnostic pop
 
 /***************************************************************************************************
 END OF FILE

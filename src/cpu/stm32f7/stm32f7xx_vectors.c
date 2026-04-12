@@ -26,6 +26,9 @@ Brief    STM32F7xx family vectors.
 ==============================================================================*/
 #include "config.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wattributes"
+
 /** define weak assign to the default function */
 #define WEAK_DEFAULT __attribute__ ((interrupt, weak, alias("__Default_Handler")))
 
@@ -308,6 +311,8 @@ void (*const vectors[256])(void) __attribute__ ((section(".vectors"))) =
         JPEG_IRQHandler,                        // 108:JPEG global Interrupt
         MDIOS_IRQHandler,                       // 109:MDIO Slave global Interrupt
 };
+
+#pragma GCC diagnostic pop
 
 /***************************************************************************************************
 END OF FILE

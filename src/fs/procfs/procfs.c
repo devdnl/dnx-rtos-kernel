@@ -30,6 +30,7 @@
   Include files
 ==============================================================================*/
 #include "fs/fs.h"
+#include <build/vars.h>
 
 /*==============================================================================
   Local symbolic constants/macros
@@ -48,10 +49,9 @@
   Local types, enums definitions
 ==============================================================================*/
 struct procfs {
-        time_t   mount_timestamp;
         llist_t *file_list;
-        kmtx_t  *resource_mtx;
-        char    *offset_path;
+        kmtx_t *resource_mtx;
+        char *offset_path;
 };
 
 enum path_content {
@@ -64,26 +64,23 @@ enum path_content {
 
 struct file_info {
         enum path_content content;
-        int16_t           arg;
+        int16_t arg;
 };
 
 struct dir_info {
         const char *dir_name;
-        char        name[32];
+        char name[32];
 };
 
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static int    procfs_readdir_root(struct procfs *hdl, kdir_t *dir);
-static int    procfs_readdir_pid(struct procfs *hdl, kdir_t *dir);
-static int    procfs_readdir_bin(struct procfs *hdl, kdir_t *dir);
-static int    add_file_to_list(struct procfs *hdl, int16_t arg, enum path_content content,
-           void **object);
-static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size,
-        i32_t seek);
-static void   buf_snprintf(u8_t *buf, size_t *size, size_t *clen, i32_t *seek,
-          const char *fmt, ...);
+static int procfs_readdir_root(struct procfs *hdl, kdir_t *dir);
+static int procfs_readdir_pid(struct procfs *hdl, kdir_t *dir);
+static int procfs_readdir_bin(struct procfs *hdl, kdir_t *dir);
+static int add_file_to_list(struct procfs *hdl, int16_t arg, enum path_content content, void **object);
+static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size, i32_t seek);
+static void buf_snprintf(u8_t *buf, size_t *size, size_t *clen, i32_t *seek, const char *fmt, ...);
 static size_t get_file_size(struct file_info *file);
 
 /*==============================================================================
@@ -117,10 +114,7 @@ API_FS_INIT(procfs, void **fs_handle, const char *src_path, const char *opts)
         if (err == ESUCC) {
                 struct procfs *procfs = *fs_handle;
 
-                sys_gettime(&procfs->mount_timestamp);
-
-                err = sys_llist_create(sys_llist_functor_cmp_pointers, NULL,
-                        &procfs->file_list);
+                err = sys_llist_create(sys_llist_functor_cmp_pointers, NULL, &procfs->file_list);
                 if (err != ESUCC) {
                         goto finish;
                 }
@@ -139,8 +133,7 @@ API_FS_INIT(procfs, void **fs_handle, const char *src_path, const char *opts)
                                 goto finish;
                         }
 
-                        err = sys_zalloc(strsize(opts),
-                                cast(void *, &procfs->offset_path));
+                        err = sys_zalloc(strsize(opts), cast(void *, &procfs->offset_path));
                         if (err) {
                                 goto finish;
                         } else {
@@ -218,8 +211,7 @@ API_FS_RELEASE(procfs, void *fs_handle)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_FS_OPEN(procfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
-        u32_t flags)
+API_FS_OPEN(procfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path, u32_t flags)
 {
         struct procfs *hdl = fs_handle;
 
@@ -235,8 +227,7 @@ API_FS_OPEN(procfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
         char *opath = const_cast(path);
 
         if (hdl->offset_path) {
-                err = sys_malloc(strlen(hdl->offset_path) + strsize(path),
-                        cast(void *, &opath));
+                err = sys_malloc(strlen(hdl->offset_path) + strsize(path), cast(void *, &opath));
 
                 if (!err) {
                         strcpy(opath, hdl->offset_path);
@@ -277,14 +268,11 @@ API_FS_OPEN(procfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
         } else if (isstreqn(mpath, PATH_ROOT_BIN "/", strlen(PATH_ROOT_BIN) + 1)) {
                 mpath += strlen(PATH_ROOT_BIN) + 1;
 
-                for (const appset_table_t *appset = sys_get_program_table(); appset;
-                        appset                    = appset->next) {
+                for (const appset_table_t *appset = sys_get_program_table(); appset; appset = appset->next) {
 
                         for (size_t i = 0; i < appset->table->number_of_programs; i++) {
-                                if (isstreq(mpath,
-                                            appset->table->program_entry[i].name)) {
-                                        err = add_file_to_list(hdl, i, FILE_CONTENT_BIN,
-                                                fhdl);
+                                if (isstreq(mpath, appset->table->program_entry[i].name)) {
+                                        err = add_file_to_list(hdl, i, FILE_CONTENT_BIN, fhdl);
                                         break;
                                 }
                         }
@@ -325,7 +313,7 @@ API_FS_CLOSE(procfs, void *fs_handle, void *fhdl, bool force)
         int err = sys_mutex_lock(fsctx->resource_mtx, _WAIT_FOREVER_MS);
         if (!err) {
                 int pos = sys_llist_find_begin(fsctx->file_list, fhdl);
-                err     = sys_llist_erase(fsctx->file_list, pos) ? ESUCC : ENOENT;
+                err = sys_llist_erase(fsctx->file_list, pos) ? ESUCC : ENOENT;
 
                 sys_mutex_unlock(fsctx->resource_mtx);
         }
@@ -348,8 +336,8 @@ API_FS_CLOSE(procfs, void *fs_handle, void *fhdl, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_FS_WRITE(procfs, void *fs_handle, void *fhdl, const u8_t *src, size_t count,
-        fpos_t *fpos, size_t *wrcnt, struct vfs_fattr fattr)
+API_FS_WRITE(procfs, void *fs_handle, void *fhdl, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG7(fs_handle, fhdl, src, count, wrcnt, fpos, fattr);
 
@@ -371,17 +359,17 @@ API_FS_WRITE(procfs, void *fs_handle, void *fhdl, const u8_t *src, size_t count,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_FS_READ(procfs, void *fs_handle, void *fhdl, u8_t *dst, size_t count, fpos_t *fpos,
-        size_t *rdcnt, struct vfs_fattr fattr)
+API_FS_READ(procfs, void *fs_handle, void *fhdl, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fs_handle, fattr);
 
         struct file_info *file = fhdl;
-        int               err  = ENOENT;
+        int err = ENOENT;
 
         if (file && file->content < _FILE_CONTENT_COUNT) {
                 *rdcnt = get_file_content(file, dst, count, *fpos);
-                err    = 0;
+                err = 0;
         }
 
         return err;
@@ -436,17 +424,17 @@ API_FS_FLUSH(procfs, void *fs_handle, void *fhdl)
 //==============================================================================
 API_FS_FSTAT(procfs, void *fs_handle, void *fhdl, struct stat *stat)
 {
-        struct procfs *fsctx = fs_handle;
+        UNUSED_ARG1(fs_handle);
 
         struct file_info *file = fhdl;
 
-        stat->st_dev   = 0;
-        stat->st_mode  = S_IRUSR | S_IRGRP | S_IROTH;
-        stat->st_mtime = fsctx->mount_timestamp;
-        stat->st_ctime = fsctx->mount_timestamp;
-        stat->st_size  = 0;
-        stat->st_gid   = 0;
-        stat->st_uid   = 0;
+        stat->st_dev = 0;
+        stat->st_mode = S_IRUSR | S_IRGRP | S_IROTH;
+        stat->st_mtime = COMPILE_EPOCH_TIME;
+        stat->st_ctime = COMPILE_EPOCH_TIME;
+        stat->st_size = 0;
+        stat->st_gid = 0;
+        stat->st_uid = 0;
 
         int err = EINVAL;
 
@@ -456,8 +444,7 @@ API_FS_FSTAT(procfs, void *fs_handle, void *fhdl, struct stat *stat)
                         stat->st_size = get_file_size(file);
                         stat->st_mode |= S_IFREG;
 
-                        if ((file->content == FILE_CONTENT_PID) ||
-                                (file->content == FILE_CONTENT_CPUINFO)) {
+                        if ((file->content == FILE_CONTENT_PID) || (file->content == FILE_CONTENT_CPUINFO)) {
 
                                 time_t t = 0;
                                 sys_gettime(&t);
@@ -493,7 +480,7 @@ API_FS_FSTAT(procfs, void *fs_handle, void *fhdl, struct stat *stat)
 //==============================================================================
 API_FS_STAT(procfs, void *fs_handle, const char *path, struct stat *stat)
 {
-        void  *fhdl = NULL;
+        void *fhdl = NULL;
         fpos_t fpos = 0;
 
         int err = _procfs_open(fs_handle, &fhdl, &fpos, path, O_RDONLY);
@@ -573,14 +560,13 @@ API_FS_MKNOD(procfs, void *fs_handle, const char *path, const dev_t dev)
 API_FS_OPENDIR(procfs, void *fs_handle, const char *path, kdir_t *dir)
 {
         struct procfs *hdl = fs_handle;
-        int            err;
+        int err;
 
         // create path with offset
         char *opath = const_cast(path);
 
         if (hdl->offset_path) {
-                err = sys_malloc(strlen(hdl->offset_path) + strsize(path),
-                        cast(void *, &opath));
+                err = sys_malloc(strlen(hdl->offset_path) + strsize(path), cast(void *, &opath));
 
                 if (!err) {
                         strcpy(opath, hdl->offset_path);
@@ -598,18 +584,18 @@ API_FS_OPENDIR(procfs, void *fs_handle, const char *path, kdir_t *dir)
 
                 if (isstreq(opath, PATH_ROOT)) {
                         dirinfo->dir_name = PATH_ROOT;
-                        dir->d_items      = 3;
+                        dir->d_items = 3;
 
                 } else if (isstreq(opath, PATH_ROOT_PID "/")) {
                         dirinfo->dir_name = PATH_ROOT_PID;
-                        dir->d_items      = sys_process_get_count();
+                        dir->d_items = sys_process_get_count();
 
                 } else if (isstreq(opath, PATH_ROOT_BIN "/")) {
                         dirinfo->dir_name = PATH_ROOT_BIN;
-                        dir->d_items      = 0;
+                        dir->d_items = 0;
 
-                        for (const appset_table_t *appset = sys_get_program_table();
-                                appset; appset            = appset->next) {
+                        for (const appset_table_t *appset = sys_get_program_table(); appset;
+                                appset = appset->next) {
 
                                 dir->d_items += appset->table->number_of_programs;
                         }
@@ -764,11 +750,11 @@ API_FS_STATFS(procfs, void *fs_handle, struct statfs *statfs)
 {
         UNUSED_ARG1(fs_handle);
 
-        statfs->f_bfree  = 0;
+        statfs->f_bfree = 0;
         statfs->f_blocks = 0;
-        statfs->f_ffree  = 0;
-        statfs->f_files  = 0;
-        statfs->f_type   = SYS_FS_TYPE__SYS;
+        statfs->f_ffree = 0;
+        statfs->f_files = 0;
+        statfs->f_type = SYS_FS_TYPE__SYS;
         statfs->f_fsname = "procfs";
 
         return ESUCC;
@@ -806,25 +792,25 @@ static int procfs_readdir_root(struct procfs *hdl, kdir_t *dir)
 
         int err = ESUCC;
 
-        dir->dirent.dev  = 0;
+        dir->dirent.dev = 0;
         dir->dirent.size = 0;
 
         switch (dir->d_seek++) {
         case 0:
                 dir->dirent.d_name = "bin";
-                dir->dirent.mode   = S_IRUSR | S_IRGRP | S_IROTH | S_IFDIR;
+                dir->dirent.mode = S_IRUSR | S_IRGRP | S_IROTH | S_IFDIR;
                 break;
 
         case 1:
                 dir->dirent.d_name = "pid";
-                dir->dirent.mode   = S_IRUSR | S_IRGRP | S_IROTH | S_IFDIR;
+                dir->dirent.mode = S_IRUSR | S_IRGRP | S_IROTH | S_IFDIR;
                 break;
 
         case 2: {
                 struct file_info file = {.content = FILE_CONTENT_CPUINFO, .arg = 0};
-                dir->dirent.d_name    = "cpuinfo";
-                dir->dirent.mode      = S_IRUSR | S_IRGRP | S_IROTH | S_IFREG;
-                dir->dirent.size      = get_file_size(&file);
+                dir->dirent.d_name = "cpuinfo";
+                dir->dirent.mode = S_IRUSR | S_IRGRP | S_IROTH | S_IFREG;
+                dir->dirent.size = get_file_size(&file);
                 break;
         }
 
@@ -851,7 +837,7 @@ static int procfs_readdir_pid(struct procfs *hdl, kdir_t *dir)
         UNUSED_ARG1(hdl);
 
         _process_stat_t stat;
-        int             err = sys_process_get_stat_seek(dir->d_seek++, &stat);
+        int err = sys_process_get_stat_seek(dir->d_seek++, &stat);
         if (!err) {
 
                 struct dir_info *dirinfo = dir->d_hdl;
@@ -859,11 +845,11 @@ static int procfs_readdir_pid(struct procfs *hdl, kdir_t *dir)
                 sys_snprintf(dirinfo->name, sizeof(dirinfo->name), "%u", stat.pid);
 
                 dir->dirent.d_name = dirinfo->name;
-                dir->dirent.mode   = S_IRUSR | S_IRGRP | S_IROTH | S_IFREG;
-                dir->dirent.dev    = 0;
+                dir->dirent.mode = S_IRUSR | S_IRGRP | S_IROTH | S_IFREG;
+                dir->dirent.dev = 0;
 
                 struct file_info file = {.arg = stat.pid, .content = FILE_CONTENT_PID};
-                dir->dirent.size      = get_file_size(&file);
+                dir->dirent.size = get_file_size(&file);
         }
 
         return err;
@@ -887,16 +873,14 @@ static int procfs_readdir_bin(struct procfs *hdl, kdir_t *dir)
 
         size_t seek = dir->d_seek;
 
-        for (const appset_table_t *appset = sys_get_program_table(); appset;
-                appset                    = appset->next) {
+        for (const appset_table_t *appset = sys_get_program_table(); appset; appset = appset->next) {
 
                 if (seek < appset->table->number_of_programs) {
                         dir->dirent.d_name = appset->table->program_entry[seek].name;
-                        dir->dirent.mode   = S_IRUSR | S_IRGRP | S_IROTH | S_IXUSR |
-                                S_IFPROG;
+                        dir->dirent.mode = S_IRUSR | S_IRGRP | S_IROTH | S_IXUSR | S_IFPROG;
 
                         struct file_info file = {
-                                .arg     = seek,
+                                .arg = seek,
                                 .content = FILE_CONTENT_BIN,
                         };
                         dir->dirent.size = get_file_size(&file);
@@ -925,14 +909,13 @@ static int procfs_readdir_bin(struct procfs *hdl, kdir_t *dir)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-static int add_file_to_list(struct procfs *hdl, int16_t arg, enum path_content content,
-        void **object)
+static int add_file_to_list(struct procfs *hdl, int16_t arg, enum path_content content, void **object)
 {
         struct file_info *file;
         int err = sys_zalloc(sizeof(struct file_info), cast(void **, &file));
         if (!err) {
                 file->content = content;
-                file->arg     = arg;
+                file->arg = arg;
 
                 err = sys_mutex_lock(hdl->resource_mtx, _WAIT_FOREVER_MS);
                 if (!err) {
@@ -976,8 +959,7 @@ static size_t get_file_size(struct file_info *file)
  * @return number of bytes written to buffer
  */
 //==============================================================================
-static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size,
-        i32_t seek)
+static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size, i32_t seek)
 {
         size_t clen = 0;
 
@@ -987,70 +969,61 @@ static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size,
                 if (sys_process_get_stat_pid(file->arg, &stat) == ESUCC) {
 
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek, "Name: %s\n",
-                                        stat.name);
+                                buf_snprintf(buff, &size, &clen, &seek, "Name: %s\n", stat.name);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek, "PID: %d\n",
-                                        stat.pid);
+                                buf_snprintf(buff, &size, &clen, &seek, "PID: %d\n", stat.pid);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek,
-                                        "Memory usage: %d bytes\n", stat.memory_usage);
+                                buf_snprintf(buff, &size, &clen, &seek, "Memory usage: %d bytes\n",
+                                        stat.memory_usage);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek,
-                                        "Memory Block Count: %d\n",
+                                buf_snprintf(buff, &size, &clen, &seek, "Memory Block Count: %d\n",
                                         stat.memory_block_count);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek,
-                                        "Open Files: %d\n", stat.files_count);
+                                buf_snprintf(buff, &size, &clen, &seek, "Open Files: %d\n", stat.files_count);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek, "Open Dirs: %d\n",
-                                        stat.dir_count);
+                                buf_snprintf(buff, &size, &clen, &seek, "Open Dirs: %d\n", stat.dir_count);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek,
-                                        "Open Mutexes: %d\n", stat.mutexes_count);
+                                buf_snprintf(buff, &size, &clen, &seek, "Open Mutexes: %d\n",
+                                        stat.mutexes_count);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek,
-                                        "Open Semaphores: %d\n", stat.semaphores_count);
+                                buf_snprintf(buff, &size, &clen, &seek, "Open Semaphores: %d\n",
+                                        stat.semaphores_count);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek,
-                                        "Open Queues: %d\n", stat.queue_count);
+                                buf_snprintf(buff, &size, &clen, &seek, "Open Queues: %d\n",
+                                        stat.queue_count);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek,
-                                        "Open Sockets: %d\n", stat.socket_count);
+                                buf_snprintf(buff, &size, &clen, &seek, "Open Sockets: %d\n",
+                                        stat.socket_count);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek, "Threads: %d\n",
-                                        stat.threads_count);
+                                buf_snprintf(buff, &size, &clen, &seek, "Threads: %d\n", stat.threads_count);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek,
-                                        "CPU Load: %d.%d%%\n", stat.CPU_load / 10,
-                                        stat.CPU_load % 10);
+                                buf_snprintf(buff, &size, &clen, &seek, "CPU Load: %d.%d%%\n",
+                                        stat.CPU_load / 10, stat.CPU_load % 10);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek,
-                                        "Stack Size: %d\n", stat.stack_size);
+                                buf_snprintf(buff, &size, &clen, &seek, "Stack Size: %d\n", stat.stack_size);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek,
-                                        "Stack Usage: %d\n", stat.stack_max_usage);
+                                buf_snprintf(buff, &size, &clen, &seek, "Stack Usage: %d\n",
+                                        stat.stack_max_usage);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek, "Priority: %d\n",
-                                        stat.priority);
+                                buf_snprintf(buff, &size, &clen, &seek, "Priority: %d\n", stat.priority);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek,
-                                        "Syscalls/s: %u\n", stat.syscalls_per_sec);
+                                buf_snprintf(buff, &size, &clen, &seek, "Syscalls/s: %u\n",
+                                        stat.syscalls_per_sec);
                         }
                 }
                 break;
@@ -1069,13 +1042,11 @@ static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size,
                         CLK_info_t clkinf;
                         clkinf.iterator = 0;
 
-                        while (size > 0 &&
-                                sys_ioctl(pll, IOCTL_CLK__GET_CLK_INFO, &clkinf) ==
-                                        ESUCC &&
+                        while (size > 0 && sys_ioctl(pll, IOCTL_CLK__GET_CLK_INFO, &clkinf) == ESUCC &&
                                 clkinf.name) {
 
-                                buf_snprintf(buff, &size, &clen, &seek, "%16s: %d Hz\n",
-                                        clkinf.name, cast(int, clkinf.freq_Hz));
+                                buf_snprintf(buff, &size, &clen, &seek, "%16s: %d Hz\n", clkinf.name,
+                                        cast(int, clkinf.freq_Hz));
                         }
 
                         sys_fclose(pll);
@@ -1089,8 +1060,7 @@ static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size,
         case FILE_CONTENT_BIN: {
                 size_t n = file->arg;
 
-                for (const appset_table_t *appset = sys_get_program_table(); appset;
-                        appset                    = appset->next) {
+                for (const appset_table_t *appset = sys_get_program_table(); appset; appset = appset->next) {
 
                         if (n < appset->table->number_of_programs) {
 
@@ -1125,8 +1095,7 @@ static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size,
  * @param  ...          printf() arguments
  */
 //==============================================================================
-static void buf_snprintf(u8_t *buf, size_t *size, size_t *clen, i32_t *seek,
-        const char *fmt, ...)
+static void buf_snprintf(u8_t *buf, size_t *size, size_t *clen, i32_t *seek, const char *fmt, ...)
 {
         char line[128];
 

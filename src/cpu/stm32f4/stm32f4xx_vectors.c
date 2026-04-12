@@ -26,6 +26,9 @@ Brief    STM32F4xx family vectors.
 ==============================================================================*/
 #include "config.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wattributes"
+
 /** define weak assign to the default function */
 #define WEAK_DEFAULT __attribute__ ((interrupt, weak, alias("__Default_Handler")))
 
@@ -314,6 +317,8 @@ void (*const vectors[256])(void) __attribute__ ((section(".vectors"))) =
         DFSDM2_FLT2_IRQn,                       // 100:DFSDM2_FLT2_IRQn
         DFSDM2_FLT3_IRQn,                       // 101:DFSDM2_FLT3_IRQn
 };
+
+#pragma GCC diagnostic pop
 
 /***************************************************************************************************
 END OF FILE

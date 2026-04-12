@@ -1508,7 +1508,7 @@ void SDMMC1_IRQHandler(void)
                 }
         }
 
-        sys_thread_yield_from_ISR(&sdmmc[SDMMC_1]->irq_yield);
+        sys_thread_yield_from_ISR(sdmmc[SDMMC_1]->irq_yield);
 }
 #endif
 
@@ -1532,7 +1532,7 @@ void SDMMC2_IRQHandler(void)
                 }
         }
 
-        sys_thread_yield_from_ISR(&sdmmc[SDMMC_2]->irq_yield);
+        sys_thread_yield_from_ISR(sdmmc[SDMMC_2]->irq_yield);
 }
 #endif
 

@@ -1184,7 +1184,7 @@ void QUADSPI_OCTOSPI1_IRQHandler(void)
 {
         HAL_QSPI_IRQHandler(&QSPI.hqspi);
 
-        sys_thread_yield_from_ISR(&QSPI.irq_yield);
+        sys_thread_yield_from_ISR(QSPI.irq_yield);
 }
 
 /*==============================================================================

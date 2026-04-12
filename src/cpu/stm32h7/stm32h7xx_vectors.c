@@ -26,6 +26,9 @@ Brief    STM32F7xx family vectors.
 ==============================================================================*/
 #include "config.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wattributes"
+
 /** define weak assign to the default function */
 #define WEAK_DEFAULT __attribute__ ((interrupt, weak, alias("__Default_Handler")))
 
@@ -414,6 +417,8 @@ void (*const vectors[256])(void) __attribute__ ((section(".vectors"))) =
         TIM23_IRQHandler,                       // 161:TIM23 global interrupt
         TIM24_IRQHandler,                       // 162:TIM24 global interrupt
 };
+
+#pragma GCC diagnostic pop
 
 /***************************************************************************************************
 END OF FILE

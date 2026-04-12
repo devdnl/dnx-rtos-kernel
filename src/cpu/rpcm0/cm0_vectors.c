@@ -26,6 +26,9 @@ Brief    RPCM0 vectors.
 ==============================================================================*/
 #include "config.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wattributes"
+
 /** define weak assign to the default function */
 #define WEAK_DEFAULT __attribute__((interrupt, weak, alias("__Default_Handler")))
 
@@ -142,6 +145,8 @@ void (*const vectors[256])(void) __attribute__((section(".vectors"))) = {
         I2C1_IRQ_IRQHandler,      /* 24 I2C1_IRQ */
         RTC_IRQ_IRQHandler,       /* 25 RTC_IRQ */
 };
+
+#pragma GCC diagnostic pop
 
 /*==============================================================================
 END OF FILE

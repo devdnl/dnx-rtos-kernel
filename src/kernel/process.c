@@ -1237,7 +1237,7 @@ int _process_thread_create(_process_t *proc, thread_func_t func, const _thread_a
 {
         int err = EINVAL;
 
-        if (!is_proc_valid(proc) || !proc->taskdata || !func) {
+        if (!is_proc_valid(proc) || !func) {
                 return err;
         }
 
