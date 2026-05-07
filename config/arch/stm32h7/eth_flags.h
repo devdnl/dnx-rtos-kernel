@@ -37,26 +37,18 @@
 #define _ETH_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > ETH",
-               function() this:LoadFile("arch/arch_flags.h") end)
-++*/
-
-
-
-/*--
-this:AddExtraWidget("Label", "LabelGeneral", "General", -1, "bold")
-this:AddExtraWidget("Void", "VoidGeneral")
+this:SetTitle("Home > Microcontroller > ETH", "The ETH module configuration.")
 ++*/
 
 /*--
 this:AddWidget("Spinbox", 3, 256, "Number of RX buffers")
-this:SetToolTip("Each buffer is 1524 B long.")
+this:SetToolTip("Each buffer is 1524 bytes long.")
 --*/
 #define __ETH_RXBUFNB__ 10
 
 /*--
 this:AddWidget("Spinbox", 2, 256, "Number of Tx buffers")
-this:SetToolTip("Each buffer is 1524 B long.")
+this:SetToolTip("Each buffer is 1524 bytes long.")
 --*/
 #define __ETH_TXBUFNB__ 10
 
@@ -67,10 +59,6 @@ this:SetToolTip("Each buffer is 1524 B long.")
 #define KSZ9893R 4
 
 /*--
-this:AddExtraWidget("Label", "LabelPHY", "\nPHY", -1, "bold")
-this:AddExtraWidget("Void", "VoidPHY")
-++*/
-/*--
 this:AddWidget("Combobox", "Device")
 this:AddItem("DP83848", "DP83848")
 this:AddItem("LAN8700", "LAN8700")
@@ -79,7 +67,7 @@ this:AddItem("LAN8742A", "LAN8742A")
 this:AddItem("KSZ9893R", "KSZ9893R")
 this:SetEvent("clicked",
     function()
-        local dev    = this:GetFlagValue("__ETH_DEVICE__")
+        local dev = this:GetFlagValue("__ETH_DEVICE__")
         local DEVICE = {}
         DEVICE["DP83848"]  = {SR = "16", SPEED_BM = "0x0002", DUPLEX_BM = "0x0004"}
         DEVICE["LAN8700"]  = {SR = "31", SPEED_BM = "0x0004", DUPLEX_BM = "0x0010"}
@@ -92,6 +80,7 @@ this:SetEvent("clicked",
         this:SetFlagValue("__ETH_PHY_DUPLEX_STATUS_BM__", DEVICE[dev].DUPLEX_BM)
     end
 )
+
 --*/
 #define __ETH_DEVICE__ LAN8742A
 

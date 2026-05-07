@@ -37,15 +37,9 @@
 #define _OS_FLAGS_H_
 
 /*--
-# this:SetLayout("TitledGridBack", 2, "Home > Operating System",
-#                function() this:LoadFile("config.h") end)
+# this:SetTitle("Home > Operating System", "Operating system settings.")
 ++*/
 
-
-/*--
-this:AddExtraWidget("Label", "LabelStack", "Stack configuration", -1, "bold")
-this:AddExtraWidget("Void", "VoidStack")
-++*/
 /*--
 this:AddWidget("Spinbox", 48, 8192, "Minimal size of task stack [levels]")
 this:SetToolTip("This value determines the lowest possible stack size that can be assigned for the task. "..
@@ -65,11 +59,6 @@ this:SetToolTip("This value determines the size of stack that is used by interru
 --*/
 #define __OS_IRQ_STACK_DEPTH__ 16
 
-
-/*--
-this:AddExtraWidget("Label", "LabelTask", "\nTask management", -1, "bold")
-this:AddExtraWidget("Void", "VoidTask")
-++*/
 /*--
 this:AddWidget("Spinbox", 10, 1000, "Context switch frequency [Hz]")
 this:SetToolTip("Context switch frequency has influence to system response for events.\n"..
@@ -85,122 +74,149 @@ this:SetToolTip("Number of threads that can be started by process.")
 #define __OS_PROCESS_MAX_THREADS__ 16
 
 /*--
-this:AddExtraWidget("Label", "LabelFeatures", "\nSystem features (advanced)", -1, "bold")
-this:AddExtraWidget("Void", "VoidFeatures")
-++*/
-/*--
-this:AddWidget("Checkbox", "Sleep on idle")
+this:AddWidget("Combobox", "Sleep on idle")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 this:SetToolTip("If this option is selected then system is halted in the idle task (CPU goes to sleep mode). This option can prevent debugging.")
 --*/
 #define __OS_SLEEP_ON_IDLE__ _NO_
 
 /*--
-this:AddWidget("Checkbox", "Color terminal")
+this:AddWidget("Combobox", "Color terminal")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 this:SetToolTip("If this function is selected then terminal output can be colorized by using VT100 commands.")
 --*/
 #define __OS_COLOR_TERMINAL_ENABLE__ _YES_
 
 /*--
-this:AddWidget("Checkbox", "Measure CPU load")
+this:AddWidget("Combobox", "Measure CPU load")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 this:SetToolTip("This function enables CPU load measurement.")
 --*/
 #define __OS_MONITOR_CPU_LOAD__ _YES_
 
 /*--
-this:AddWidget("Checkbox", "Time management functions")
+this:AddWidget("Combobox", "Time management functions")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 this:SetToolTip("This function enables time management (RTC).")
 --*/
 #define __OS_ENABLE_TIMEMAN__ _YES_
 
 /*--
-this:AddWidget("Checkbox", "mkdir() function")
+this:AddWidget("Combobox", "Enable mkdir() function")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 this:SetToolTip("This option enables mkdir() function.")
 --*/
 #define __OS_ENABLE_MKDIR__ _YES_
 
 /*--
-this:AddWidget("Checkbox", "getcwd() function")
+this:AddWidget("Combobox", "Enable getcwd() function")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 this:SetToolTip("This function is used to read current working directory.")
 --*/
 #define __OS_ENABLE_GETCWD__ _YES_
 
 /*--
-this:AddWidget("Checkbox", "mkfifo() function")
+this:AddWidget("Combobox", "Enable mkfifo() function")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 this:SetToolTip("This function is used to create pipe file.")
 --*/
 #define __OS_ENABLE_MKFIFO__ _YES_
 
 /*--
-this:AddWidget("Checkbox", "remove() function")
+this:AddWidget("Combobox", "Enable remove() function")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 this:SetToolTip("This function enables file remove functionality.")
 --*/
 #define __OS_ENABLE_REMOVE__ _YES_
 
 /*--
-this:AddWidget("Checkbox", "rename() function")
+this:AddWidget("Combobox", "Enable rename() function")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 this:SetToolTip("This function enables file rename functionality.")
 --*/
 #define __OS_ENABLE_RENAME__ _NO_
 
 /*--
-this:AddWidget("Checkbox", "chmod() function")
+this:AddWidget("Combobox", "Enable chmod() function")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 this:SetToolTip("This function enables changing of file mode.")
 --*/
 #define __OS_ENABLE_CHMOD__ _NO_
 
 /*--
-this:AddWidget("Checkbox", "chown() function")
+this:AddWidget("Combobox", "Enable chown() function")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 this:SetToolTip("This function enables changing of file owner.")
 --*/
 #define __OS_ENABLE_CHOWN__ _NO_
 
 /*--
-this:AddWidget("Checkbox", "statfs() and getmntentry() functions")
+this:AddWidget("Combobox", "Enable statfs() and getmntentry() functions")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 this:SetToolTip("This option enables reading of file system statistics.")
 --*/
 #define __OS_ENABLE_STATFS__ _YES_
 
 /*--
-this:AddWidget("Checkbox", "mknod() function")
+this:AddWidget("Combobox", "Enable mknod() function")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 this:SetToolTip("This option enables creating of device files.")
 --*/
 #define __OS_ENABLE_MKNOD__ _YES_
 
 /*--
-this:AddWidget("Checkbox", "stat() and fstat() functions")
+this:AddWidget("Combobox", "Enable stat() and fstat() functions")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 this:SetToolTip("This option enables getting statistics of file.")
 --*/
 #define __OS_ENABLE_FSTAT__ _YES_
 
 /*--
-this:AddWidget("Checkbox", "System assert")
+this:AddWidget("Combobox", "Enable System assert")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 this:SetToolTip("This option enables assert system assert function. Use only for debug purposes!")
 --*/
 #define __OS_ENABLE_SYS_ASSERT__ _NO_
 
 /*--
-this:AddWidget("Checkbox", "IPC Shared memory")
+this:AddWidget("Combobox", "Enable IPC Shared memory")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 this:SetToolTip("This option enables IPC shared memory.")
 --*/
 #define __OS_ENABLE_SHARED_MEMORY__ _NO_
 
 /*--
-this:AddWidget("Checkbox", "System log function")
+this:AddWidget("Combobox", "Enable System log function")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 this:SetToolTip("If this function is selected then system messages can be send to the terminal or file.")
 --*/
 #define __OS_SYSTEM_MSG_ENABLE__ _YES_
 
 /*--
-this:AddWidget("Checkbox", "Execute scripts")
+this:AddWidget("Combobox", "Execute scripts")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 this:SetToolTip("If this option is enabled then system is able to run scripts with shebang (#!).")
 --*/
 #define __OS_SYSTEM_SHEBANG_ENABLE__ _NO_
 
-/*--
---this:AddExtraWidget("Void", "VoidOption") -- uncomment if number of upper widgets is odd
---this:AddExtraWidget("Label", "LabelSizes", "\nMemory parameters", -1, "bold")
---this:AddExtraWidget("Void", "VoidSizes")
-++*/
 /*--
 this:AddWidget("Spinbox", 8, 1024, "Length of stream buffer [bytes]")
 this:SetToolTip("This value determines a size of buffer used in the particular streams.")
@@ -220,7 +236,6 @@ this:SetToolTip("The allocation block size is a minimal memory block that can be
 #define __HEAP_BLOCK_SIZE__ 4
 
 /*--
---this:AddExtraWidget("Void", "VoidOption")
 this:AddWidget("Spinbox", 1, 250, "System log columns")
 this:SetToolTip("This option determine how many characters in row can be stored. " ..
                 "Option is active when system log function is enabled.")
@@ -228,7 +243,7 @@ this:SetToolTip("This option determine how many characters in row can be stored.
 #define __OS_SYSTEM_MSG_COLS__ 64
 
 /*--
-this:AddWidget("Spinbox", 1, 65536, "System log size")
+this:AddWidget("Spinbox", 1, 65536, "System log size [bytes]")
 this:SetToolTip("This option determine how many bytes are reserved for log buffer. " ..
                 "Option is active when system log function is enabled.")
 --*/
@@ -273,11 +288,6 @@ this:SetToolTip("Enable/Disable block overflow check of heap memory.")
 --*/
 #define __OS_HEAP_OVERFLOW_CHECK__ _NO_
 
-
-/*--
-this:AddExtraWidget("Label", "LabelMisc", "\nMiscellaneous", -1, "bold")
-this:AddExtraWidget("Void", "VoidMisc")
-++*/
 /*--
 this:AddWidget("Editline", true, "Host name")
 this:SetToolTip("This string configures host name in the e.g. network.")

@@ -36,8 +36,7 @@ Brief   Timer driven AB encoder
 #define _TIMENC_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > TIMENC",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > TIMENC", "The TIMENC module configuration.")
 ++*/
 
 /*--

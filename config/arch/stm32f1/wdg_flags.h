@@ -1,27 +1,25 @@
 /*==============================================================================
-@file    wdg_flags.h
+File     wdg_flags.h
 
-@author  Daniel Zorychta
+Author   Daniel Zorychta
 
-@brief   WDG module configuration flags.
+Brief    Watchdog driver configuration.
 
-@note    Copyright (C) 2014 Daniel Zorychta <daniel.zorychta@gmail.com>
+         Copyright (C) 2014 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
-         the Free Software Foundation and modified by the dnx RTOS exception.
+         the  Free Software  Foundation;  either version 2 of the License, or
+         any later version.
 
-         NOTE: The modification  to the GPL is  included to allow you to
-               distribute a combined work that includes dnx RTOS without
-               being obliged to provide the source  code for proprietary
-               components outside of the dnx RTOS.
-
-         The dnx RTOS  is  distributed  in the hope  that  it will be useful,
-         but WITHOUT  ANY  WARRANTY;  without  even  the implied  warranty of
+         This  program  is  distributed  in the hope that  it will be useful,
+         but  WITHOUT  ANY  WARRANTY;  without  even  the implied warranty of
          MERCHANTABILITY  or  FITNESS  FOR  A  PARTICULAR  PURPOSE.  See  the
          GNU General Public License for more details.
 
-         Full license text is available on the following file: doc/license.txt.
+         You  should  have received a copy  of the GNU General Public License
+         along  with  this  program;  if not,  write  to  the  Free  Software
+         Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
 ==============================================================================*/
@@ -37,8 +35,7 @@
 #define _WDG_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > WDG",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > WDG", "The WDG module configuration.")
 
 -- timeout to register
 local T2R     = {}
@@ -120,7 +117,7 @@ this:SetEvent("clicked", "ComboboxTimeout",
     end
 )
 
--- set timout selection widget according to selected divider and reload value
+-- set timeout selection widget according to selected divider and reload value
 local DIV    = this:GetFlagValue("__WDG_CLK_DIVIDER__")
 local RELOAD = this:GetFlagValue("__WDG_RELOAD_VALUE__")
 local time   = this:GetTime(DIV, RELOAD)

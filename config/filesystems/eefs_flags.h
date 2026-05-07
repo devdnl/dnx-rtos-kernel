@@ -35,14 +35,13 @@
 #define _EEFS_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > File Systems > eefs",
-               function() this:LoadFile("filesystems/filesystems_flags.h") end)
+this:SetTitle("Home > File Systems > eefs", "The eefs file system configuartion.")
 ++*/
 
 /*--
 this:AddWidget("Combobox", "Enable file system debug")
-this:AddItem("Disable", "_NO_")
 this:AddItem("Enable", "_YES_")
+this:AddItem("Disable", "_NO_")
 --*/
 #define __EEFS_LOG_ENABLE__ _NO_
 

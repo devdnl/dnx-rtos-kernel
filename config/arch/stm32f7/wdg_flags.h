@@ -35,8 +35,7 @@ Brief    Watchdog driver configuration.
 #define _WDG_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > WDG",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > WDG", "The WDG module configuration.")
 
 -- timeout to register
 local T2R     = {}

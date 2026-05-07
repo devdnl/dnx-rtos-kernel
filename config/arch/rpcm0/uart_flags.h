@@ -37,9 +37,7 @@
 #define _UART_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > UART",
-               function() this:LoadFile("arch/arch_flags.h") end)
-
+this:SetTitle("Home > Microcontroller > UART", "The UART module configuration.")
 
 this.PortExist = function(this, devNo)
     local UART_PER = {}
@@ -50,11 +48,7 @@ end
 ++*/
 
 /*--
-this:AddExtraWidget("Label", "LabelDefaults", "Defaults", -1, "bold")
-this:AddExtraWidget("Void", "VoidDefaults")
-++*/
-/*--
-this:AddWidget("Combobox", "Parity bit")
+this:AddWidget("Combobox", "Default Parity bit")
 this:AddItem("Off", "UART_PARITY__OFF")
 this:AddItem("Odd", "UART_PARITY__ODD")
 this:AddItem("Even", "UART_PARITY__EVEN")
@@ -62,28 +56,28 @@ this:AddItem("Even", "UART_PARITY__EVEN")
 #define __UART_DEFAULT_PARITY__ UART_PARITY__OFF
 
 /*--
-this:AddWidget("Combobox", "Stop bit")
+this:AddWidget("Combobox", "Default Stop bit")
 this:AddItem("1", "UART_STOP_BIT__1")
 this:AddItem("2", "UART_STOP_BIT__2")
 --*/
 #define __UART_DEFAULT_STOP_BITS__ UART_STOP_BIT__1
 
 /*--
-this:AddWidget("Combobox", "Tx line enable")
+this:AddWidget("Combobox", "Default Tx line enable")
 this:AddItem("No", "_NO_")
 this:AddItem("Yes", "_YES_")
 --*/
 #define __UART_DEFAULT_TX_ENABLE__ _YES_
 
 /*--
-this:AddWidget("Combobox", "Rx line enable")
+this:AddWidget("Combobox", "Default Rx line enable")
 this:AddItem("No", "_NO_")
 this:AddItem("Yes", "_YES_")
 --*/
 #define __UART_DEFAULT_RX_ENABLE__ _YES_
 
 /*--
-this:AddWidget("Textbox", "Baud [bps]")
+this:AddWidget("Editline", false, "Default Baud [bps]")
 this:AddItem("110", "")
 this:AddItem("150", "")
 this:AddItem("300", "")
@@ -105,32 +99,25 @@ this:AddItem("4000000", "")
 #define __UART_DEFAULT_BAUD__ 115200
 
 
-
-
 /*--
 if this:PortExist(1) then
-this:AddExtraWidget("Label", "LabelIRQDMA1", "\nUART1 IRQ and DMA configuration", -1, "bold")
-this:AddExtraWidget("Void", "VoidIRQDMA1")
-end
-++*/
-/*--
-if this:PortExist(1) then
-this:AddWidget("Spinbox", 16, 65536, "Rx buffer length [B]")
+    this:AddExtraWidget("Label", "UART0_GAP", "")
+    this:AddWidget("Spinbox", 16, 65536, "UART0 Rx buffer length [B]")
 end
 --*/
 #define __UART_MAJOR0_RX_BUFFER_LEN__ 128
 
 /*--
 if this:PortExist(1) then
-this:AddWidget("Spinbox", 16, 65536, "Tx buffer length [B]")
+    this:AddWidget("Spinbox", 16, 65536, "UART0 Tx buffer length [B]")
 end
 --*/
 #define __UART_MAJOR0_TX_BUFFER_LEN__ 128
 
 /*--
 if this:PortExist(1) then
-this:AddWidget("Combobox", "IRQ priority")
-uC.AddPriorityItems(this, false)
+    this:AddWidget("Combobox", "UART0 IRQ priority")
+    uC.AddPriorityItems(this, false)
 end
 --*/
 #define __UART_UART0_IRQ_PRIORITY__ __CPU_DEFAULT_IRQ_PRIORITY__
@@ -139,28 +126,23 @@ end
 
 /*--
 if this:PortExist(2) then
-this:AddExtraWidget("Label", "LabelIRQDMA2", "\nUART2 IRQ and DMA configuration", -1, "bold")
-this:AddExtraWidget("Void", "VoidIRQDMA2")
-end
-++*/
-/*--
-if this:PortExist(2) then
-this:AddWidget("Spinbox", 16, 65536, "Rx buffer length [B]")
+    this:AddExtraWidget("Label", "UART1_GAP", "")
+    this:AddWidget("Spinbox", 16, 65536, "UART1 Rx buffer length [B]")
 end
 --*/
 #define __UART_MAJOR1_RX_BUFFER_LEN__ 128
 
 /*--
 if this:PortExist(2) then
-this:AddWidget("Spinbox", 16, 65536, "Tx buffer length [B]")
+    this:AddWidget("Spinbox", 16, 65536, "UART1 Tx buffer length [B]")
 end
 --*/
 #define __UART_MAJOR1_TX_BUFFER_LEN__ 128
 
 /*--
 if this:PortExist(2) then
-this:AddWidget("Combobox", "IRQ priority")
-uC.AddPriorityItems(this, false)
+    this:AddWidget("Combobox", "UART1 IRQ priority")
+    uC.AddPriorityItems(this, false)
 end
 --*/
 #define __UART_UART1_IRQ_PRIORITY__ __CPU_DEFAULT_IRQ_PRIORITY__

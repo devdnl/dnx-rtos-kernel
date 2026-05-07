@@ -36,13 +36,13 @@ Brief   CAN driver
 #define _CAN_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > CAN",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > CAN", "The CAN module configuration.")
 ++*/
 
 /*--
-this:AddWidget("Checkbox", "Debug freeze")
-this:AddExtraWidget("Void", "LabelVoid1")
+this:AddWidget("Combobox", "Debug freeze")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 --*/
 #define __CAN_CFG_DEBUG_FREEZE__ _YES_
 

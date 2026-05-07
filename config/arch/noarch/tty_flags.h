@@ -37,22 +37,21 @@
 #define _TTY_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > TTY",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > TTY", "The TTY module configuration.")
 ++*/
 
 /*--
-this:AddWidget("Spinbox", 20, 200, "Number of terminal columns")
+this:AddWidget("Spinbox", 20, 300, "Number of terminal columns")
 --*/
 #define __TTY_TERM_COLS__ 80
 
 /*--
-this:AddWidget("Spinbox", 1, 80, "Number of terminal rows")
+this:AddWidget("Spinbox", 1, 1000, "Number of terminal rows")
 --*/
 #define __TTY_TERM_ROWS__ 24
 
 /*--
-this:AddWidget("Spinbox", 20, 200, "Output stream length (prompt length)")
+this:AddWidget("Spinbox", 20, 4096, "Output stream length (prompt length)")
 --*/
 #define __TTY_OUT_STREAM_LEN__ 80
 

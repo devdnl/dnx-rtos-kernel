@@ -36,8 +36,7 @@ Brief   LCD-TFT Display Controller module
 #define _LTDC_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > LTDC",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > LTDC", "The LTDC module configuration.")
 ++*/
 /*--
 this:AddWidget("Spinbox", 1, 4096, "Active width")
@@ -101,7 +100,7 @@ this:AddItem("Active high", "LTDC_DEPOLARITY_AH")
 #define __LTDC_DEPOLARITY__ LTDC_DEPOLARITY_AL
 
 /*--
-this:AddWidget("Combobox", "DE polarity")
+this:AddWidget("Combobox", "PCLK polarity")
 this:AddItem("Input pixel clock", "LTDC_PCPOLARITY_IPC")
 this:AddItem("Inverted input pixel clock", "LTDC_PCPOLARITY_IIPC")
 --*/

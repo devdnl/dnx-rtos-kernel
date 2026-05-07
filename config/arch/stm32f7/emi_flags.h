@@ -35,51 +35,38 @@ Brief    External Memory Interface
 #define _EMI_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > EMI",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > EMI", "The EMI module configuration.")
 ++*/
 
 //------------------------------------------------------------------------------
 // BANK 1
 //------------------------------------------------------------------------------
 /*--
-this:AddExtraWidget("Label", "LABEL_BANK1", "Bank 1 (NOR/PSRAM)", -1, "bold")
-this:AddExtraWidget("Void", "Void_BANK1")
 ++*/
 
 //------------------------------------------------------------------------------
 // BANK 2
 //------------------------------------------------------------------------------
 /*--
-this:AddExtraWidget("Label", "LABEL_BANK2", "Bank 2 (NAND)", -1, "bold")
-this:AddExtraWidget("Void", "Void_BANK2")
 ++*/
 
 //------------------------------------------------------------------------------
 // BANK 3
 //------------------------------------------------------------------------------
 /*--
-this:AddExtraWidget("Label", "LABEL_BANK3", "Bank 3 (NAND)", -1, "bold")
-this:AddExtraWidget("Void", "Void_BANK3")
 ++*/
 
 //------------------------------------------------------------------------------
 // BANK 4
 //------------------------------------------------------------------------------
 /*--
-this:AddExtraWidget("Label", "LABEL_BANK4", "Bank 4 (PC Card)", -1, "bold")
-this:AddExtraWidget("Void", "Void_BANK4")
 ++*/
 
 //------------------------------------------------------------------------------
 // BANK 5 & 6
 //------------------------------------------------------------------------------
 /*--
-this:AddExtraWidget("Label", "LABEL_BANK5", "\nBank 5, 6 (SDRAM)", -1, "bold")
-this:AddExtraWidget("Label", "Void_BANK5_6", "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t", -1, "bold")
-++*/
-/*--
-this:AddWidget("Combobox", "Read pipe delay")
+this:AddWidget("Combobox", "SDRAM: Read pipe delay")
 this:AddItem("No delay", "0")
 this:AddItem("1 HCLK delay", "1")
 this:AddItem("2 HCLK delay", "2")
@@ -87,14 +74,14 @@ this:AddItem("2 HCLK delay", "2")
 #define __EMI_SDRAM_RPIPE__ 0
 
 /*--
-this:AddWidget("Combobox", "Burst read mode")
+this:AddWidget("Combobox", "SDRAM: Burst read mode")
 this:AddItem("Disable", "0")
 this:AddItem("Enable", "1")
 --*/
 #define __EMI_SDRAM_RBURST__ 1
 
 /*--
-this:AddWidget("Combobox", "SDRAM clock period")
+this:AddWidget("Combobox", "SDRAM: SDRAM clock period")
 this:AddItem("SDCLK disabled", "0")
 this:AddItem("2 x HCLK periods", "2")
 this:AddItem("3 x HCLK periods", "3")
@@ -102,74 +89,69 @@ this:AddItem("3 x HCLK periods", "3")
 #define __EMI_SDRAM_SDCLK__ 2
 
 /*--
-this:AddWidget("Spinbox", 1, 16, "Row precharge delay (tRP)")
+this:AddWidget("Spinbox", 1, 16, "SDRAM: Row precharge delay (tRP)")
 --*/
 #define __EMI_SDRAM_TRP__ 2
 
 /*--
-this:AddWidget("Spinbox", 1, 16, "Row cycle delay (tRC)")
+this:AddWidget("Spinbox", 1, 16, "SDRAM: Row cycle delay (tRC)")
 --*/
 #define __EMI_SDRAM_TRC__ 7
 
 /*--
-this:AddWidget("Spinbox", 1, 3, "CAS Latency (CAS)")
+this:AddWidget("Spinbox", 1, 3, "SDRAM: CAS Latency (CAS)")
 --*/
 #define __EMI_SDRAM_CAS__ 3
 
 /*--
-this:AddWidget("Spinbox", 1, 16, "Self refresh time (tRAS)")
+this:AddWidget("Spinbox", 1, 16, "SDRAM: Self refresh time (tRAS)")
 --*/
 #define __EMI_SDRAM_TRAS__ 4
 
 /*--
-this:AddWidget("Spinbox", 1, 16, "Exit Self-refresh delay (tXSR)")
+this:AddWidget("Spinbox", 1, 16, "SDRAM: Exit Self-refresh delay (tXSR)")
 --*/
 #define __EMI_SDRAM_TXSR__ 7
 
 /*--
-this:AddWidget("Spinbox", 1, 16, "Write Recovery Time (tWR)")
+this:AddWidget("Spinbox", 1, 16, "SDRAM: Write Recovery Time (tWR)")
 --*/
 #define __EMI_SDRAM_TWR__ 2
 
 /*--
-this:AddWidget("Spinbox", 1, 16, "Load to Active delay (tMRD)")
+this:AddWidget("Spinbox", 1, 16, "SDRAM: Load to Active delay (tMRD)")
 this:SetToolTip("Define the delay between a Load Mode Register command and an "..
                 "Active or Refresh command.")
 --*/
 #define __EMI_SDRAM_TMRD__ 2
 
 /*--
-this:AddWidget("Spinbox", 1, 15, "Number of Auto-refresh")
+this:AddWidget("Spinbox", 1, 15, "SDRAM: Number of Auto-refresh")
 --*/
 #define __EMI_SDRAM_NRFS__ 8
 
 /*--
-this:AddWidget("Spinbox", 1, 128, "Refresh rate [ms]")
+this:AddWidget("Spinbox", 1, 128, "SDRAM: Refresh rate [ms]")
 --*/
 #define __EMI_SDRAM_REFRESH_RATE_MS__ 64
 
 //------------------------------------------------------------------------------
 /*--
-this:AddExtraWidget("Label", "LABEL_SDRAM1", "\nSDRAM 1", -1, "bold")
-this:AddExtraWidget("Void", "Void_SDRAM1")
-++*/
-/*--
-this:AddWidget("Combobox", "Memory bank")
+this:AddWidget("Combobox", "SDRAM1: Memory bank")
 this:AddItem("Disable", "0")
 this:AddItem("Enable", "1")
-this:SetEvent("clicked", function() this:SDRAMEn(1) end)
 --*/
 #define __EMI_SDRAM_1_ENABLE__ 0
 
 /*--
-this:AddWidget("Combobox", "Number of internal banks")
+this:AddWidget("Combobox", "SDRAM1: Number of internal banks")
 this:AddItem("2 internal banks", "0")
 this:AddItem("4 internal banks", "1")
 --*/
 #define __EMI_SDRAM_1_NB__ 1
 
 /*--
-this:AddWidget("Combobox", "Data bus width")
+this:AddWidget("Combobox", "SDRAM1: Data bus width")
 this:AddItem("8 bits", "0")
 this:AddItem("16 bits", "1")
 this:AddItem("32 bits", "2")
@@ -177,7 +159,7 @@ this:AddItem("32 bits", "2")
 #define __EMI_SDRAM_1_MWID__ 1
 
 /*--
-this:AddWidget("Combobox", "Number of row address bits")
+this:AddWidget("Combobox", "SDRAM1: Number of row address bits")
 this:AddItem("11 bits", "0")
 this:AddItem("12 bits", "1")
 this:AddItem("13 bits", "2")
@@ -185,7 +167,7 @@ this:AddItem("13 bits", "2")
 #define __EMI_SDRAM_1_NR__ 1
 
 /*--
-this:AddWidget("Combobox", "Number of column address bits")
+this:AddWidget("Combobox", "SDRAM1: Number of column address bits")
 this:AddItem("8 bits", "0")
 this:AddItem("9 bits", "1")
 this:AddItem("10 bits", "2")
@@ -194,38 +176,33 @@ this:AddItem("11 bits", "3")
 #define __EMI_SDRAM_1_NC__ 0
 
 /*--
-this:AddWidget("Spinbox", 1, 16, "Row to column delay (tRCD)")
+this:AddWidget("Spinbox", 1, 16, "SDRAM1: Row to column delay (tRCD)")
 --*/
 #define __EMI_SDRAM_1_TRCD__ 2
 
 /*--
-this:AddWidget("Editline", true, "Memory regions")
+this:AddWidget("Editline", true, "SDRAM1: Memory regions")
 this:SetToolTip("Edit memory regions: [HEAP|NOHEAP]=<NAME>:<ADDRESS>:<SIZE>,... Example: HEAP=SDRAM:0xC0000000:8388608")
 --*/
 #define __EMI_SDRAM_1_REGIONS__ "HEAP=SDRAM:0xC0000000:8388608"
 
 //------------------------------------------------------------------------------
 /*--
-this:AddExtraWidget("Label", "LABEL_SDRAM2", "\nSDRAM 2", -1, "bold")
-this:AddExtraWidget("Void", "Void_SDRAM2")
-++*/
-/*--
-this:AddWidget("Combobox", "Memory bank")
+this:AddWidget("Combobox", "SDRAM2: Memory bank")
 this:AddItem("Disable", "0")
 this:AddItem("Enable", "1")
-this:SetEvent("clicked", function() this:SDRAMEn(2) end)
 --*/
 #define __EMI_SDRAM_2_ENABLE__ 1
 
 /*--
-this:AddWidget("Combobox", "Number of internal banks")
+this:AddWidget("Combobox", "SDRAM2: Number of internal banks")
 this:AddItem("2 internal banks", "0")
 this:AddItem("4 internal banks", "1")
 --*/
 #define __EMI_SDRAM_2_NB__ 1
 
 /*--
-this:AddWidget("Combobox", "Data bus width")
+this:AddWidget("Combobox", "SDRAM2: Data bus width")
 this:AddItem("8 bits", "0")
 this:AddItem("16 bits", "1")
 this:AddItem("32 bits", "2")
@@ -233,7 +210,7 @@ this:AddItem("32 bits", "2")
 #define __EMI_SDRAM_2_MWID__ 2
 
 /*--
-this:AddWidget("Combobox", "Number of row address bits")
+this:AddWidget("Combobox", "SDRAM2: Number of row address bits")
 this:AddItem("11 bits", "0")
 this:AddItem("12 bits", "1")
 this:AddItem("13 bits", "2")
@@ -241,7 +218,7 @@ this:AddItem("13 bits", "2")
 #define __EMI_SDRAM_2_NR__ 1
 
 /*--
-this:AddWidget("Combobox", "Number of column address bits")
+this:AddWidget("Combobox", "SDRAM2: Number of column address bits")
 this:AddItem("8 bits", "0")
 this:AddItem("9 bits", "1")
 this:AddItem("10 bits", "2")
@@ -250,38 +227,15 @@ this:AddItem("11 bits", "3")
 #define __EMI_SDRAM_2_NC__ 1
 
 /*--
-this:AddWidget("Spinbox", 1, 16, "Row to column delay (tRCD)")
+this:AddWidget("Spinbox", 1, 16, "SDRAM2: Row to column delay (tRCD)")
 --*/
 #define __EMI_SDRAM_2_TRCD__ 2
 
 /*--
-this:AddWidget("Editline", true, "Memory regions")
+this:AddWidget("Editline", true, "SDRAM2: Memory regions")
 this:SetToolTip("Edit memory regions: [HEAP|NOHEAP]=<NAME>:<ADDRESS>:<SIZE>,... Example: HEAP=SDRAM:0xC0000000:8388608")
 --*/
 #define __EMI_SDRAM_2_REGIONS__ "HEAP=SDRAM:0xD0000000:8388608"
-
-
-//------------------------------------------------------------------------------
-// FUNCTIONS
-//------------------------------------------------------------------------------
-/*--
-this.SDRAMEn = function(self, SDRAM)
-    local en = false
-    if this:GetFlagValue("__EMI_SDRAM_"..SDRAM.."_ENABLE__") ~= "0" then
-        en = true
-    end
-
-    this:Enable(en, "__EMI_SDRAM_"..SDRAM.."_NB__")
-    this:Enable(en, "__EMI_SDRAM_"..SDRAM.."_MWID__")
-    this:Enable(en, "__EMI_SDRAM_"..SDRAM.."_NR__")
-    this:Enable(en, "__EMI_SDRAM_"..SDRAM.."_NC__")
-    this:Enable(en, "__EMI_SDRAM_"..SDRAM.."_TRCD__")
-    this:Enable(en, "__EMI_SDRAM_"..SDRAM.."_REGIONS__")
-end
-
-this:SDRAMEn(1)
-this:SDRAMEn(2)
-++*/
 
 #endif /* _EMI_FLAGS_H_ */
 /*==============================================================================

@@ -63,7 +63,7 @@ include $(CONFIG_DIR)/network/network_flags.h
 
 #/*--
 # this:SetKeyRegExp("__.*__")
-# this:SetLayout("TitledGridBack", 2, "Home")
+# this:SetTitle("Home", "dnx RTOS configuration menu.")
 #++*/
 
 #/*--
@@ -81,33 +81,11 @@ include $(CONFIG_DIR)/network/network_flags.h
 #++*/
 
 #/*--
-# this:AddExtraWidget("Label", "LabelProject", "Project", -1, "bold")
-# this:AddExtraWidget("Hyperlink", "HL_Project", "Configure")
-# this:SetEvent("clicked", "HL_Project", function() this:LoadFile("project/project_flags.h") end)
-#++*/
-
-#/*--
-# this:AddExtraWidget("Label", "LabelOS", "Operating System  ", -1, "bold")
-# this:AddExtraWidget("Hyperlink", "HL_OS", "Configure")
-# this:SetEvent("clicked", "HL_OS", function() this:LoadFile("os/os_flags.h") end)
-#++*/
-
-#/*--
-# this:AddExtraWidget("Label", "LabelFS", "File Systems", -1, "bold")
-# this:AddExtraWidget("Hyperlink", "HL_FS", "Configure")
-# this:SetEvent("clicked", "HL_FS", function() this:LoadFile("filesystems/filesystems_flags.h") end)
-#++*/
-
-#/*--
-# this:AddExtraWidget("Label", "LabelNet", "Network", -1, "bold")
-# this:AddExtraWidget("Hyperlink", "HL_Net", "Configure")
-# this:SetEvent("clicked", "HL_Net", function() this:LoadFile("network/network_flags.h") end)
-#++*/
-
-#/*--
-# this:AddExtraWidget("Label", "LabelArch", "Microcontroller", -1, "bold")
-# this:AddExtraWidget("Hyperlink", "HL_Arch", "Configure")
-# this:SetEvent("clicked", "HL_Arch", function() this:LoadFile("arch/arch_flags.h") end)
+# this:AddExtraWidget("Submenu", "HL_Project", "Project", "project/project_flags.h")
+# this:AddExtraWidget("Submenu", "HL_OS", "Operating System", "os/os_flags.h")
+# this:AddExtraWidget("Submenu", "HL_FS", "File Systems", "filesystems/filesystems_flags.h")
+# this:AddExtraWidget("Submenu", "HL_Net", "Network", "network/network_flags.h")
+# this:AddExtraWidget("Submenu", "HL_Arch", "Microcontroller", "arch/arch_flags.h")
 #++*/
 
 #endif /* _CONFIG_CONFIG_H_ */

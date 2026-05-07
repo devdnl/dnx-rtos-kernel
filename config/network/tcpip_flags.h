@@ -37,15 +37,7 @@
 #define _LWIP_FLAGS_H
 
 /*--
-this.backFile = "network/tcpip_flags.h"
-this:SetLayout("TitledGridBack", 2, "Home > Network > TCP/IP Stack",
-               function() this:LoadFile("network/network_flags.h") end)
-
-this.GoBackWidget = function(this, name)
-    this:AddExtraWidget("Hyperlink", "Hl"..name, "Back")
-    this:SetEvent("clicked", "Hl"..name,
-        function() this:LoadFile(this.backFile) end)
-end
+this:SetTitle("Home > Network > TCP/IP Stack", "The TCP/IP stack configuration.")
 
 this.AddDebugItems = function(this)
     this:AddItem("Off", "LWIP_DBG_OFF")
@@ -53,19 +45,15 @@ this.AddDebugItems = function(this)
 end
 ++*/
 
-/*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "LabelMEMP", "Memory options", -1, "bold")
-this:GoBackWidget("MEMP")
-++*/
 /*--
 this:AddWidget("Combobox", "MEMP_OVERFLOW_CHECK")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Each element when it is freed (1)", "1")
 this:AddItem("Each element in every pool every time (2)", "2")
-this:SetToolTip("MEMP_OVERFLOW_CHECK: memp overflow protection\n"..
-                "reserves a configurable amount of bytes before\n"..
-                "and after each memp element in every pool and\n"..
-                "fills it with a prominent default value.\n"..
+this:SetToolTip("MEMP_OVERFLOW_CHECK: memp overflow protection "..
+                "reserves a configurable amount of bytes before "..
+                "and after each memp element in every pool and "..
+                "fills it with a prominent default value. "..
                 "- 0: no checking\n"..
                 "- 1: checks each element when it is freed\n"..
                 "- 2: checks each element in every pool every time memp_malloc() or memp_free() is called (useful but slow!).")
@@ -75,7 +63,7 @@ this:SetToolTip("MEMP_OVERFLOW_CHECK: memp overflow protection\n"..
 this:AddWidget("Combobox", "MEMP_SANITY_CHECK")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("MEMP_SANITY_CHECK = 1: run a sanity check after each memp_free()\n"..
+this:SetToolTip("MEMP_SANITY_CHECK = 1: run a sanity check after each memp_free() "..
                 "to make sure that the linked list of heap elements is not corrupted.")
 --*/
 #define __NETWORK_MEMP_SANITY_CHECK__ 0
@@ -84,8 +72,8 @@ this:AddWidget("Combobox", "MEM_OVERFLOW_CHECK")
 this:AddItem("No checking (0)", "0")
 this:AddItem("Check each element (1)", "1")
 this:AddItem("Check all heap elements (2)", "2")
-this:SetToolTip("MEM_OVERFLOW_CHECK: mem overflow protection reserves a configurable\n"..
-                "amount of bytes before and after each heap allocation chunk and fills\n"..
+this:SetToolTip("MEM_OVERFLOW_CHECK: mem overflow protection reserves a configurable "..
+                "amount of bytes before and after each heap allocation chunk and fills "..
                 "it with a prominent default value.\n"..
                 "- 0: no checking\n"..
                 "- 1: each element\n"..
@@ -96,7 +84,7 @@ this:SetToolTip("MEM_OVERFLOW_CHECK: mem overflow protection reserves a configur
 this:AddWidget("Combobox", "MEM_SANITY_CHECK")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("MEM_SANITY_CHECK==1: run a sanity check after each mem_free() to make\n"..
+this:SetToolTip("MEM_SANITY_CHECK==1: run a sanity check after each mem_free() to make "..
                 "sure that the linked list of heap elements is not corrupted.")
 --*/
 #define __NETWORK_MEM_SANITY_CHECK__ 0
@@ -104,18 +92,18 @@ this:SetToolTip("MEM_SANITY_CHECK==1: run a sanity check after each mem_free() t
 this:AddWidget("Combobox", "MEM_USE_POOLS")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("MEM_USE_POOLS==1: Use an alternative to malloc() by allocating from a set\n"..
-                "of memory pools of various sizes. When mem_malloc is called, an element of\n"..
-                "the smallest pool that can provide the length needed is returned.\n"..
-                "To use this, MEMP_USE_CUSTOM_POOLS also has to be enabled.\n")
+this:SetToolTip("MEM_USE_POOLS==1: Use an alternative to malloc() by allocating from a set "..
+                "of memory pools of various sizes. When mem_malloc is called, an element of "..
+                "the smallest pool that can provide the length needed is returned. "..
+                "To use this, MEMP_USE_CUSTOM_POOLS also has to be enabled.")
 --*/
 #define __NETWORK_MEM_USE_POOLS__ 0
 /*--
 this:AddWidget("Combobox", "MEM_USE_POOLS_TRY_BIGGER_POOL")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("MEM_USE_POOLS_TRY_BIGGER_POOL==1: if one malloc-pool is empty, try the next\n"..
-                "bigger pool - WARNING: THIS MIGHT WASTE MEMORY but it can make a system more\n"..
+this:SetToolTip("MEM_USE_POOLS_TRY_BIGGER_POOL==1: if one malloc-pool is empty, try the next "..
+                "bigger pool - WARNING: THIS MIGHT WASTE MEMORY but it can make a system more "..
                 "reliable.")
 --*/
 #define __NETWORK_MEM_USE_POOLS_TRY_BIGGER_POOL__ 0
@@ -123,22 +111,17 @@ this:SetToolTip("MEM_USE_POOLS_TRY_BIGGER_POOL==1: if one malloc-pool is empty, 
 this:AddWidget("Combobox", "MEMP_USE_CUSTOM_POOLS")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("MEMP_USE_CUSTOM_POOLS==1: whether to include a user file lwippools.h\n"..
-                "that defines additional pools beyond the \"standard\" ones required\n"..
-                "by lwIP. If you set this to 1, you must have lwippools.h in your\n"..
+this:SetToolTip("MEMP_USE_CUSTOM_POOLS==1: whether to include a user file lwippools.h "..
+                "that defines additional pools beyond the \"standard\" ones required "..
+                "by lwIP. If you set this to 1, you must have lwippools.h in your "..
                 "include path somewhere.")
 --*/
 #define __NETWORK_MEMP_USE_CUSTOM_POOLS__ 0
 
-
-/*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "LabelMEMPNUM", "\nInternal memory pool sizes", -1, "bold")
-this:GoBackWidget("MEMPNUM")
-++*/
 /*--
 this:AddWidget("Spinbox", 10, 2048, "MEMP_NUM_PBUF")
-this:SetToolTip("MEMP_NUM_PBUF: the number of memp struct pbufs. If the application\n"..
-                "sends a lot of data out of ROM (or other static memory), this\n"..
+this:SetToolTip("MEMP_NUM_PBUF: the number of memp struct pbufs. If the application "..
+                "sends a lot of data out of ROM (or other static memory), this "..
                 "should be set high.")
 --*/
 #define __NETWORK_MEMP_NUM_PBUF__ 48
@@ -149,7 +132,7 @@ this:SetToolTip("MEMP_NUM_RAW_PCB: Number of raw connection PCBs")
 #define __NETWORK_MEMP_NUM_RAW_PCB__ 32
 /*--
 this:AddWidget("Spinbox", 0, 100, "MEMP_NUM_UDP_PCB")
-this:SetToolTip("MEMP_NUM_UDP_PCB: the number of UDP protocol control blocks.\nOne per active UDP \"connection\".")
+this:SetToolTip("MEMP_NUM_UDP_PCB: the number of UDP protocol control blocks. One per active UDP \"connection\".")
 --*/
 #define __NETWORK_MEMP_NUM_UDP_PCB__ 16
 /*--
@@ -169,26 +152,26 @@ this:SetToolTip("MEMP_NUM_TCP_SEG: the number of simultaneously queued TCP segme
 #define __NETWORK_MEMP_NUM_TCP_SEG__ 48
 /*--
 this:AddWidget("Spinbox", 0, 100, "MEMP_NUM_REASSDATA")
-this:SetToolTip("MEMP_NUM_REASSDATA: the number of IP packets simultaneously\nqueued for reassembly (whole packets, not fragments!)")
+this:SetToolTip("MEMP_NUM_REASSDATA: the number of IP packets simultaneously queued for reassembly (whole packets, not fragments!)")
 --*/
 #define __NETWORK_MEMP_NUM_REASSDATA__ 32
 /*--
 this:AddWidget("Spinbox", 0, 100, "MEMP_NUM_FRAG_PBUF")
-this:SetToolTip("MEMP_NUM_FRAG_PBUF: the number of IP fragments\nsimultaneously sent (fragments, not whole packets!).\n"..
-                "This is only used with IP_FRAG_USES_STATIC_BUF==0\nand LWIP_NETIF_TX_SINGLE_PBUF==0 and only has\nto be > 1 with DMA-enabled MACs "..
+this:SetToolTip("MEMP_NUM_FRAG_PBUF: the number of IP fragments simultaneously sent (fragments, not whole        packets!).\n"..
+                "This is only used with IP_FRAG_USES_STATIC_BUF==0 and LWIP_NETIF_TX_SINGLE_PBUF==0 and only has to be > 1 with DMA-enabled MACs "..
                 "where the packet is not yet sent when\nnetif->output returns.")
 --*/
 #define __NETWORK_MEMP_NUM_FRAG_PBUF__ 32
 /*--
 this:AddWidget("Spinbox", 0, 100, "MEMP_NUM_ARP_QUEUE")
-this:SetToolTip("MEMP_NUM_ARP_QUEUE: the number of simulateously\nqueued outgoing packets (pbufs) that are waiting\n"..
+this:SetToolTip("MEMP_NUM_ARP_QUEUE: the number of simulateously queued outgoing packets (pbufs) that are waiting "..
                 "for an ARP request (to resolve their destination\naddress) to finish. (requires the ARP_QUEUEING option)")
 --*/
 #define __NETWORK_MEMP_NUM_ARP_QUEUE__ 30
 /*--
 this:AddWidget("Spinbox", 0, 100, "MEMP_NUM_IGMP_GROUP")
-this:SetToolTip("MEMP_NUM_IGMP_GROUP: The number of multicast\ngroups whose network interfaces\n"..
-                "can be members at the same time (one per\nnetif - allsystems group -, plus one\n"..
+this:SetToolTip("MEMP_NUM_IGMP_GROUP: The number of multicast groups whose network interfaces "..
+                "can be members at the same time (one per netif - allsystems group -, plus one "..
                 "per netif membership). (requires the LWIP_IGMP option)")
 --*/
 #define __NETWORK_MEMP_NUM_IGMP_GROUP__ 8
@@ -209,12 +192,12 @@ this:SetToolTip("MEMP_NUM_SELECT_CB: the number of struct lwip_select_cb.")
 #define __NETWORK_MEMP_NUM_SELECT_CB__ 4
 /*--
 this:AddWidget("Spinbox", 1, 100, "MEMP_NUM_TCPIP_MSG_API")
-this:SetToolTip("MEMP_NUM_TCPIP_MSG_API: the number of struct\ntcpip_msg, which are used for callback/timeout API communication.")
+this:SetToolTip("MEMP_NUM_TCPIP_MSG_API: the number of struct tcpip_msg, which are used for callback/timeout API communication.")
 --*/
 #define __NETWORK_MEMP_NUM_TCPIP_MSG_API__ 32
 /*--
 this:AddWidget("Spinbox", 1, 100, "MEMP_NUM_TCPIP_MSG_INPKT")
-this:SetToolTip("MEMP_NUM_TCPIP_MSG_INPKT: the number of struct\ntcpip_msg, which are used for incoming packets.")
+this:SetToolTip("MEMP_NUM_TCPIP_MSG_INPKT: the number of struct tcpip_msg, which are used for incoming packets.")
 --*/
 #define __NETWORK_MEMP_NUM_TCPIP_MSG_INPKT__ 32
 /*--
@@ -233,11 +216,6 @@ this:SetToolTip("PBUF_POOL_SIZE: the number of buffers in the pbuf pool.")
 --*/
 #define __NETWORK_PBUF_POOL_SIZE__ 64
 
-
-/*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "LabelARP", "\nARP options", -1, "bold")
-this:GoBackWidget("ARP")
-++*/
 /*--
 this:AddWidget("Combobox", "LWIP_ARP")
 this:AddItem("Disable (0)", "0")
@@ -259,11 +237,11 @@ this:SetToolTip("The time an ARP entry stays valid after its last update (second
 this:AddWidget("Combobox", "ARP_QUEUEING")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("ARP_QUEUEING==1: Multiple outgoing packets are\nqueued during hardware address\n"..
-                "resolution. By default, only the most recent\npacket is queued per IP address.\n"..
-                "This is sufficient for most protocols and\nmainly reduces TCP connection\n"..
-                "startup time. Set this to 1 if you know\nyour application sends more than one\n"..
-                "packet in a row to an IP address that\nis not in the ARP cache.")
+this:SetToolTip("ARP_QUEUEING==1: Multiple outgoing packets are queued during hardware address "..
+                "resolution. By default, only the most recent packet is queued per IP address. "..
+                "This is sufficient for most protocols and mainly reduces TCP connection "..
+                "startup time. Set this to 1 if you know your application sends more than one "..
+                "packet in a row to an IP address that is not in the ARP cache.")
 --*/
 #define __NETWORK_ARP_QUEUEING__ 0
 /*--
@@ -275,36 +253,31 @@ this:SetToolTip("The maximum number of packets which may be queued.")
 this:AddWidget("Combobox", "ETHARP_SUPPORT_VLAN")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("ETHARP_SUPPORT_VLAN==1: support receiving\nethernet packets with VLAN header.\n"..
-                "Additionally, you can define ETHARP_VLAN_CHECK\nto an u16_t VLAN ID to check.\n"..
-                "If ETHARP_VLAN_CHECK is defined, only\nVLAN-traffic for this VLAN is accepted.\n"..
-                "If ETHARP_VLAN_CHECK is not defined,\nall traffic is accepted.\n"..
-                "Alternatively, define a function/define\nETHARP_VLAN_CHECK_FN(eth_hdr, vlan)\n"..
-                "that returns 1 to accept a packet or\n0 to drop a packet.")
+this:SetToolTip("ETHARP_SUPPORT_VLAN==1: support receiving ethernet packets with VLAN header. "..
+                "Additionally, you can define ETHARP_VLAN_CHECK to an u16_t VLAN ID to check. "..
+                "If ETHARP_VLAN_CHECK is defined, only VLAN-traffic for this VLAN is accepted. "..
+                "If ETHARP_VLAN_CHECK is not defined, all traffic is accepted. "..
+                "Alternatively, define a function/define ETHARP_VLAN_CHECK_FN(eth_hdr, vlan) "..
+                "that returns 1 to accept a packet or 0 to drop a packet.")
 --*/
 #define __NETWORK_ETHARP_SUPPORT_VLAN__ 0
 /*--
 this:AddWidget("Spinbox", 0, 4, "ETH_PAD_SIZE")
-this:SetToolTip("ETH_PAD_SIZE: number of bytes added before\nthe ethernet header to ensure\n"..
-                "alignment of payload after that header.\nSince the header is 14 bytes long,\n"..
-                "without this padding e.g. addresses in\nthe IP header will not be aligned\n"..
-                "on a 32-bit boundary, so setting this to\n2 can speed up 32-bit-platforms.")
+this:SetToolTip("ETH_PAD_SIZE: number of bytes added before the ethernet header to ensure "..
+                "alignment of payload after that header. Since the header is 14 bytes long, "..
+                "without this padding e.g. addresses in the IP header will not be aligned "..
+                "on a 32-bit boundary, so setting this to 2 can speed up 32-bit-platforms.")
 --*/
 #define __NETWORK_ETH_PAD_SIZE__ 0
 /*--
 this:AddWidget("Combobox", "ETHARP_SUPPORT_STATIC_ENTRIES")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("ETHARP_SUPPORT_STATIC_ENTRIES==1: enable\ncode to support static ARP table\n"..
-                "entries (using etharp_add_static_entry/\netharp_remove_static_entry).")
+this:SetToolTip("ETHARP_SUPPORT_STATIC_ENTRIES==1: enable code to support static ARP table "..
+                "entries (using etharp_add_static_entry/ etharp_remove_static_entry).")
 --*/
 #define __NETWORK_ETHARP_SUPPORT_STATIC_ENTRIES__ 0
 
-
-/*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "LabelIP", "\nIP options", -1, "bold")
-this:GoBackWidget("IP")
-++*/
 /*--
 this:AddWidget("Combobox", "LWIP_IPV4")
 this:AddItem("Disable (0)", "0")
@@ -316,24 +289,24 @@ this:SetToolTip("LWIP_IPV4==1: Enable IPv4.")
 this:AddWidget("Combobox", "IP_FORWARD")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("IP_FORWARD==1: Enables the ability to\nforward IP packets across network\n"..
-                "interfaces. If you are going to run\nlwIP on a device with only one network interface,\ndefine this to 0.")
+this:SetToolTip("IP_FORWARD==1: Enables the ability to forward IP packets across network "..
+                "interfaces. If you are going to run lwIP on a device with only one network interface, define this to 0.")
 --*/
 #define __NETWORK_IP_FORWARD__ 1
 /*--
 this:AddWidget("Combobox", "IP_REASSEMBLY")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("IP_REASSEMBLY==1: Reassemble incoming\nfragmented IP packets. Note that\n"..
-                "this option does not affect outgoing\npacket sizes, which can be controlled via IP_FRAG.")
+this:SetToolTip("IP_REASSEMBLY==1: Reassemble incoming fragmented IP packets. Note that "..
+                "this option does not affect outgoing packet sizes, which can be controlled via IP_FRAG.")
 --*/
 #define __NETWORK_IP_REASSEMBLY__ 1
 /*--
 this:AddWidget("Combobox", "IP_FRAG")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("IP_FRAG==1: Fragment outgoing IP packets\nif their size exceeds MTU. Note\n"..
-                "that this option does not affect incoming\npacket sizes, which can be controlled via IP_REASSEMBLY.")
+this:SetToolTip("IP_FRAG==1: Fragment outgoing IP packets if their size exceeds MTU. Note "..
+                "that this option does not affect incoming packet sizes, which can be controlled via IP_REASSEMBLY.")
 --*/
 #define __NETWORK_IP_FRAG__ 1
 /*--
@@ -347,17 +320,17 @@ this:SetToolTip("IP_OPTIONS_ALLOWED: Defines the behavior for IP options.\n"..
 #define __NETWORK_IP_OPTIONS_ALLOWED__ 1
 /*--
 this:AddWidget("Spinbox", 1, 60, "IP_REASS_MAXAGE")
-this:SetToolTip("IP_REASS_MAXAGE: Maximum time (in\nmultiples of IP_TMR_INTERVAL - so seconds, normally)\n"..
-                "a fragmented IP packet waits for all\nfragments to arrive. If not all fragments arrived\n"..
+this:SetToolTip("IP_REASS_MAXAGE: Maximum time (in multiples of IP_TMR_INTERVAL - so seconds, normally) "..
+                "a fragmented IP packet waits for all fragments to arrive. If not all fragments arrived "..
                 "in this time, the whole packet is discarded.")
 --*/
 #define __NETWORK_IP_REASS_MAXAGE__ 15
 /*--
 this:AddWidget("Spinbox", 1, 100, "IP_REASS_MAX_PBUFS")
-this:SetToolTip("IP_REASS_MAX_PBUFS: Total maximum\namount of pbufs waiting to be reassembled.\n"..
-                "Since the received pbufs are enqueued,\nbe sure to configure\n"..
-                "PBUF_POOL_SIZE > IP_REASS_MAX_PBUFS\nso that the stack is still able to receive\n"..
-                "packets even if the maximum amount\nof fragments is enqueued for reassembly!")
+this:SetToolTip("IP_REASS_MAX_PBUFS: Total maximum amount of pbufs waiting to be reassembled. "..
+                "Since the received pbufs are enqueued, be sure to configure "..
+                "PBUF_POOL_SIZE > IP_REASS_MAX_PBUFS so that the stack is still able to receive "..
+                "packets even if the maximum amount of fragments is enqueued for reassembly!")
 --*/
 #define __NETWORK_IP_REASS_MAX_PBUFS__ 48
 /*--
@@ -369,16 +342,16 @@ this:SetToolTip("IP_DEFAULT_TTL: Default value for Time-To-Live used by transpor
 this:AddWidget("Combobox", "IP_SOF_BROADCAST")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("IP_SOF_BROADCAST=1: Use the SOF_BROADCAST\nfield to enable broadcast\n"..
-                "filter per pcb on udp and raw send\noperations. To enable broadcast filter\n"..
-                "on recv operations, you also have\nto set IP_SOF_BROADCAST_RECV=1.")
+this:SetToolTip("IP_SOF_BROADCAST=1: Use the SOF_BROADCAST field to enable broadcast "..
+                "filter per pcb on udp and raw send operations. To enable broadcast filter "..
+                "on recv operations, you also have to set IP_SOF_BROADCAST_RECV=1.")
 --*/
 #define __NETWORK_IP_SOF_BROADCAST__ 0
 /*--
 this:AddWidget("Combobox", "IP_SOF_BROADCAST_RECV")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("IP_SOF_BROADCAST_RECV (requires IP_SOF_BROADCAST=1)\nenable the broadcast filter on recv operations.")
+this:SetToolTip("IP_SOF_BROADCAST_RECV (requires IP_SOF_BROADCAST=1) enable the broadcast filter on recv operations.")
 --*/
 #define __NETWORK_IP_SOF_BROADCAST_RECV__ 0
 /*--
@@ -392,16 +365,11 @@ this:SetToolTip("IP_FORWARD_ALLOW_TX_ON_RX_NETIF==1: allow\nip_forward() to send
 --*/
 #define __NETWORK_IP_FORWARD_ALLOW_TX_ON_RX_NETIF__ 0
 
-
-/*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "LabelICMP", "\nICMP options", -1, "bold")
-this:GoBackWidget("ICMP")
-++*/
 /*--
 this:AddWidget("Combobox", "LWIP_ICMP")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("LWIP_ICMP==1: Enable ICMP module inside the IP stack.\nBe careful, disable that make your product non-compliant to RFC1122.")
+this:SetToolTip("LWIP_ICMP==1: Enable ICMP module inside the IP stack. Be careful, disable that make your product non-compliant to RFC1122.")
 --*/
 #define __NETWORK_LWIP_ICMP__ 1
 /*--
@@ -424,11 +392,6 @@ this:SetToolTip("LWIP_MULTICAST_PING==1: respond to multicast pings (default is 
 --*/
 #define __NETWORK_LWIP_MULTICAST_PING__ 0
 
-
-/*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "LabelDHCP", "\nDHCP options", -1, "bold")
-this:GoBackWidget("DHCP")
-++*/
 /*--
 this:AddWidget("Combobox", "LWIP_DHCP")
 this:AddItem("Disable (0)", "0")
@@ -456,11 +419,6 @@ this:SetToolTip("The maximum of NTP servers requested.")
 --*/
 #define __NETWORK_LWIP_DHCP_MAX_NTP_SERVERS__ 1
 
-
-/*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "LabelAUTOIP", "\nAUTOIP options", -1, "bold")
-this:GoBackWidget("AUTOIP")
-++*/
 /*--
 this:AddWidget("Combobox", "LWIP_AUTOIP")
 this:AddItem("Disable (0)", "0")
@@ -472,7 +430,7 @@ this:SetToolTip("LWIP_AUTOIP==1: Enable AUTOIP module.")
 this:AddWidget("Combobox", "LWIP_DHCP_AUTOIP_COOP")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("LWIP_DHCP_AUTOIP_COOP==1: Allow DHCP and AUTOIP\nto be both enabled on the same interface at the same time.")
+this:SetToolTip("LWIP_DHCP_AUTOIP_COOP==1: Allow DHCP and AUTOIP to be both enabled on the same interface at the same time.")
 --*/
 #define __NETWORK_LWIP_DHCP_AUTOIP_COOP__ 0
 /*--
@@ -480,12 +438,6 @@ this:AddWidget("Spinbox", 1, 25, "LWIP_DHCP_AUTOIP_COOP_TRIES")
 --*/
 #define __NETWORK_LWIP_DHCP_AUTOIP_COOP_TRIES__ 9
 
-
-
-/*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "LabelIGMP", "\nIGMP options", -1, "bold")
-this:GoBackWidget("IGMP")
-++*/
 /*--
 this:AddWidget("Combobox", "LWIP_IGMP")
 this:AddItem("Disable (0)", "0")
@@ -494,17 +446,11 @@ this:SetToolTip("LWIP_IGMP==1: Turn on IGMP module.")
 --*/
 #define __NETWORK_LWIP_IGMP__ 1
 
-
-
-/*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "LabelDNS", "\nDNS options", -1, "bold")
-this:GoBackWidget("DNS")
-++*/
 /*--
 this:AddWidget("Combobox", "LWIP_DNS")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("LWIP_DNS==1: Turn on DNS module.\nUDP must be available for DNS transport.")
+this:SetToolTip("LWIP_DNS==1: Turn on DNS module. UDP must be available for DNS transport.")
 --*/
 #define __NETWORK_LWIP_DNS__ 1
 /*--
@@ -554,11 +500,6 @@ this:SetToolTip("Set path to DNS server list. Each DNS IP address should be adde
 --*/
 #define __NETWORK_LWIP_DNS_LIST_PATH__ "/conf/dns.conf"
 
-
-/*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "LabelUDP", "\nUDP options", -1, "bold")
-this:GoBackWidget("UDP")
-++*/
 /*--
 this:AddWidget("Combobox", "LWIP_UDP")
 this:AddItem("Disable (0)", "0")
@@ -575,15 +516,10 @@ this:SetToolTip("UDP_TTL: Default Time-To-Live value.")
 this:AddWidget("Combobox", "LWIP_NETBUF_RECVINFO")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("LWIP_NETBUF_RECVINFO==1: append destination\naddr and port to every netbuf.")
+this:SetToolTip("LWIP_NETBUF_RECVINFO==1: append destination addr and port to every netbuf.")
 --*/
 #define __NETWORK_LWIP_NETBUF_RECVINFO__ 0
 
-
-/*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "LabelTCP", "\nTCP options", -1, "bold")
-this:GoBackWidget("TCP")
-++*/
 /*--
 this:AddWidget("Combobox", "LWIP_TCP")
 this:AddItem("Disable (0)", "0")
@@ -598,9 +534,9 @@ this:SetToolTip("TCP_TTL: Default Time-To-Live value.")
 #define __NETWORK_TCP_TTL__ 255
 /*--
 this:AddWidget("Spinbox", 1, 600, "TCP_MSL")
-this:SetToolTip("TCP_MSL: Maximum segment lifetime is the time a TCP segment can exist in the\n"..
-                "internetwork system. It is arbitrarily defined to be 2 minutes long.\n"..
-                "The Maximum Segment Lifetime value is used to determine the TIME_WAIT\n"..
+this:SetToolTip("TCP_MSL: Maximum segment lifetime is the time a TCP segment can exist in the "..
+                "internetwork system. It is arbitrarily defined to be 2 minutes long. "..
+                "The Maximum Segment Lifetime value is used to determine the TIME_WAIT "..
                 "interval (2*MSL). Interval in seconds.")
 --*/
 #define __NETWORK_TCP_MSL__ 60
@@ -640,11 +576,11 @@ this:SetToolTip("TCP_MSS: TCP Maximum segment size. (default is 536, a conservat
 this:AddWidget("Combobox", "TCP_CALCULATE_EFF_SEND_MSS")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("TCP_CALCULATE_EFF_SEND_MSS: \"The maximum size of a segment that TCP really\n"..
-                "sends, the 'effective send MSS,' MUST be the smaller of the send MSS (which\n"..
-                "reflects the available reassembly buffer size at the remote host) and the\n"..
-                "largest size permitted by the IP layer\" (RFC 1122)\n"..
-                "Setting this to 1 enables code that checks TCP_MSS against the MTU of the\n"..
+this:SetToolTip("TCP_CALCULATE_EFF_SEND_MSS: \"The maximum size of a segment that TCP really "..
+                "sends, the 'effective send MSS,' MUST be the smaller of the send MSS (which "..
+                "reflects the available reassembly buffer size at the remote host) and the "..
+                "largest size permitted by the IP layer\" (RFC 1122) "..
+                "Setting this to 1 enables code that checks TCP_MSS against the MTU of the "..
                 "netif used for a connection and limits the MSS if it would be too big otherwise.")
 --*/
 #define __NETWORK_TCP_CALCULATE_EFF_SEND_MSS__ 1
@@ -685,9 +621,9 @@ this:AddItem("1", "1")
 this:AddItem("128", "128")
 this:AddItem("TCP_MSS", "TCP_MSS")
 this:AddItem("TCP_MSS/4", "TCP_MSS/4")
-this:SetToolTip("TCP_OVERSIZE: The maximum number of bytes that tcp_write may\n"..
-                "allocate ahead of time in an attempt to create shorter pbuf chains\n"..
-                "for transmission. The meaningful range is 0 to TCP_MSS. Some\n"..
+this:SetToolTip("TCP_OVERSIZE: The maximum number of bytes that tcp_write may "..
+                "allocate ahead of time in an attempt to create shorter pbuf chains "..
+                "for transmission. The meaningful range is 0 to TCP_MSS. Some "..
                 "suggested values are:\n"..
                 "0:         Disable oversized allocation. Each tcp_write() allocates a new pbuf (old behaviour).\n"..
                 "1:         Allocate size-aligned pbufs with minimal excess. Use this if your scatter-gather DMA requires aligned fragments.\n"..
@@ -716,26 +652,13 @@ this:SetToolTip("TSet TCP_RCV_SCALE to the desired scaling factor (shift count i
 --*/
 #define __NETWORK_TCP_RCV_SCALE__ 0
 
-
-
-
-/*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "LabelPBUF", "\nPbuf options", -1, "bold")
-this:GoBackWidget("PBUF")
-++*/
 /*--
 this:AddWidget("Spinbox", 0, 65536, "PBUF_LINK_ENCAPSULATION_HLEN")
-this:SetToolTip("PBUF_LINK_ENCAPSULATION_HLEN: the number of bytes that should be allocated\n"..
+this:SetToolTip("PBUF_LINK_ENCAPSULATION_HLEN: the number of bytes that should be allocated "..
                 "for an additional encapsulation header before ethernet headers (e.g. 802.11).")
 --*/
 #define __NETWORK_PBUF_LINK_ENCAPSULATION_HLEN__ 0
 
-
-
-/*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "LabelNETIF", "\nNETIF options", -1, "bold")
-this:GoBackWidget("NETIF")
-++*/
 /*--
 this:AddWidget("Combobox", "LWIP_SINGLE_NETIF")
 this:AddItem("Disable (0)", "0")
@@ -754,20 +677,14 @@ this:SetToolTip("LWIP_NETIF_HOSTNAME==1: use DHCP_OPTION_HOSTNAME with netif's h
 this:AddWidget("Combobox", "LWIP_NETIF_HWADDRHINT")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("LWIP_NETIF_HWADDRHINT==1: Cache link-layer-address hints (e.g. table\n"..
-                "indices) in struct netif. TCP and UDP can make use of this to prevent\n"..
-                "scanning the ARP table for every sent packet. While this is faster for big\n"..
-                "ARP tables or many concurrent connections, it might be counterproductive\n"..
+this:SetToolTip("LWIP_NETIF_HWADDRHINT==1: Cache link-layer-address hints (e.g. table "..
+                "indices) in struct netif. TCP and UDP can make use of this to prevent "..
+                "scanning the ARP table for every sent packet. While this is faster for big "..
+                "ARP tables or many concurrent connections, it might be counterproductive "..
                 "if you have a tiny ARP table or if there never are concurrent connections.")
 --*/
 #define __NETWORK_LWIP_NETIF_HWADDRHINT__ 0
 
-
-
-/*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "LabelLOOPIF", "\nLOOPIF options", -1, "bold")
-this:GoBackWidget("LOOPIF")
-++*/
 /*--
 this:AddWidget("Combobox", "LWIP_LOOPIF_MULTICAST")
 this:AddItem("Disable (0)", "0")
@@ -779,22 +696,17 @@ this:SetToolTip("LWIP_LOOPIF_MULTICAST==1: Support multicast/IGMP on loop interf
 this:AddWidget("Combobox", "LWIP_NETIF_LOOPBACK")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("LWIP_NETIF_LOOPBACK==1: Support sending packets with a destination IP\n"..
+this:SetToolTip("LWIP_NETIF_LOOPBACK==1: Support sending packets with a destination IP "..
                 "address equal to the netif IP address, looping them back up the stack.")
 --*/
 #define __NETWORK_LWIP_NETIF_LOOPBACK__ 1
 /*--
 this:AddWidget("Spinbox", 1, 1024, "LWIP_LOOPBACK_MAX_PBUFS")
-this:SetToolTip("LWIP_LOOPBACK_MAX_PBUFS: Maximum number of pbufs\non queue for loopback sending for each netif.")
+this:SetToolTip("LWIP_LOOPBACK_MAX_PBUFS: Maximum number of pbufs on queue for loopback sending for each netif.")
 --*/
 #define __NETWORK_LWIP_LOOPBACK_MAX_PBUFS__ 16
 
 
-
-/*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "LabelThr", "\nThread options", -1, "bold")
-this:GoBackWidget("THR")
-++*/
 /*--
 this:AddWidget("Editline", true, "TCPIP_THREAD_NAME")
 this:SetToolTip("TCPIP_THREAD_NAME: The name assigned to the main tcpip thread.")
@@ -808,22 +720,22 @@ this:AddItem("Large stack size", "_STACK_DEPTH_LARGE")
 this:AddItem("Very large stack size", "_STACK_DEPTH_VERY_LARGE")
 this:AddItem("Huge stack size", "_STACK_DEPTH_HUGE")
 this:AddItem("Very huge stack size", "_STACK_DEPTH_VERY_HUGE")
-this:SetToolTip("TCPIP_THREAD_STACKSIZE: The stack size used by the main tcpip thread.\n"..
-                "The stack size value itself is platform-dependent, but is passed to\n"..
+this:SetToolTip("TCPIP_THREAD_STACKSIZE: The stack size used by the main tcpip thread. "..
+                "The stack size value itself is platform-dependent, but is passed to "..
                 "sys_thread_new() when the thread is created.")
 --*/
 #define __NETWORK_TCPIP_THREAD_STACKSIZE__ _STACK_DEPTH_LOW
 /*--
 this:AddWidget("Spinbox", -128, 127, "TCPIP_THREAD_PRIO")
-this:SetToolTip("TCPIP_THREAD_PRIO: The priority assigned to the main tcpip thread.\n"..
-                "The priority value itself is platform-dependent, but is passed to\n"..
+this:SetToolTip("TCPIP_THREAD_PRIO: The priority assigned to the main tcpip thread. "..
+                "The priority value itself is platform-dependent, but is passed to "..
                 "sys_thread_new() when the thread is created.")
 --*/
 #define __NETWORK_TCPIP_THREAD_PRIO__ 0
 /*--
 this:AddWidget("Spinbox", 1, 128, "TCPIP_MBOX_SIZE")
-this:SetToolTip("TCPIP_MBOX_SIZE: The mailbox size for the tcpip thread messages\n"..
-                "The queue size value itself is platform-dependent, but is passed\n"..
+this:SetToolTip("TCPIP_MBOX_SIZE: The mailbox size for the tcpip thread messages "..
+                "The queue size value itself is platform-dependent, but is passed "..
                 "to sys_mbox_new() when tcpip_init is called.")
 --*/
 #define __NETWORK_TCPIP_MBOX_SIZE__ 8
@@ -840,15 +752,15 @@ this:AddItem("Large stack size", "_STACK_DEPTH_LARGE")
 this:AddItem("Very large stack size", "_STACK_DEPTH_VERY_LARGE")
 this:AddItem("Huge stack size", "_STACK_DEPTH_HUGE")
 this:AddItem("Very huge stack size", "_STACK_DEPTH_VERY_HUGE")
-this:SetToolTip("SLIPIF_THREAD_STACKSIZE: The stack size used by the main tcpip thread.\n"..
-                "The stack size value itself is platform-dependent, but is passed to\n"..
+this:SetToolTip("SLIPIF_THREAD_STACKSIZE: The stack size used by the main tcpip thread. "..
+                "The stack size value itself is platform-dependent, but is passed to "..
                 "sys_thread_new() when the thread is created.")
 --*/
 #define __NETWORK_SLIPIF_THREAD_STACKSIZE__ _STACK_DEPTH_LOW
 /*--
 this:AddWidget("Spinbox", -128, 127, "SLIPIF_THREAD_PRIO")
-this:SetToolTip("SLIPIF_THREAD_PRIO: The priority assigned to the main tcpip thread.\n"..
-                "The priority value itself is platform-dependent, but is passed to\n"..
+this:SetToolTip("SLIPIF_THREAD_PRIO: The priority assigned to the main tcpip thread. "..
+                "The priority value itself is platform-dependent, but is passed to "..
                 "sys_thread_new() when the thread is created.")
 --*/
 #define __NETWORK_SLIPIF_THREAD_PRIO__ 0
@@ -865,72 +777,61 @@ this:AddItem("Large stack size", "_STACK_DEPTH_LARGE")
 this:AddItem("Very large stack size", "_STACK_DEPTH_VERY_LARGE")
 this:AddItem("Huge stack size", "_STACK_DEPTH_HUGE")
 this:AddItem("Very huge stack size", "_STACK_DEPTH_VERY_HUGE")
-this:SetToolTip("DEFAULT_THREAD_STACKSIZE: The stack size used by the main tcpip thread.\n"..
-                "The stack size value itself is platform-dependent, but is passed to\n"..
+this:SetToolTip("DEFAULT_THREAD_STACKSIZE: The stack size used by the main tcpip thread. "..
+                "The stack size value itself is platform-dependent, but is passed to "..
                 "sys_thread_new() when the thread is created.")
 --*/
 #define __NETWORK_DEFAULT_THREAD_STACKSIZE__ _STACK_DEPTH_LOW
 /*--
 this:AddWidget("Spinbox", -128, 127, "DEFAULT_THREAD_PRIO")
-this:SetToolTip("DEFAULT_THREAD_PRIO: The priority assigned to the main tcpip thread.\n"..
-                "The priority value itself is platform-dependent, but is passed to\n"..
+this:SetToolTip("DEFAULT_THREAD_PRIO: The priority assigned to the main tcpip thread. "..
+                "The priority value itself is platform-dependent, but is passed to "..
                 "sys_thread_new() when the thread is created.")
 --*/
 #define __NETWORK_DEFAULT_THREAD_PRIO__ 0
 /*--
 this:AddWidget("Spinbox", 1, 128, "RAW_RECVMBOX_SIZE")
-this:SetToolTip("DEFAULT_RAW_RECVMBOX_SIZE: The mailbox size for the incoming packets on a\n"..
-                "NETCONN_RAW. The queue size value itself is platform-dependent, but is passed\n"..
+this:SetToolTip("DEFAULT_RAW_RECVMBOX_SIZE: The mailbox size for the incoming packets on a "..
+                "NETCONN_RAW. The queue size value itself is platform-dependent, but is passed "..
                 "to sys_mbox_new() when the recvmbox is created.")
 --*/
 #define __NETWORK_DEFAULT_RAW_RECVMBOX_SIZE__ 8
 /*--
 this:AddWidget("Spinbox", 1, 128, "UDP_RECVMBOX_SIZE")
-this:SetToolTip("DEFAULT_UDP_RECVMBOX_SIZE: The mailbox size for the incoming packets on a\n"..
-                "NETCONN_UDP. The queue size value itself is platform-dependent, but is passed\n"..
+this:SetToolTip("DEFAULT_UDP_RECVMBOX_SIZE: The mailbox size for the incoming packets on a "..
+                "NETCONN_UDP. The queue size value itself is platform-dependent, but is passed "..
                 "to sys_mbox_new() when the recvmbox is created.")
 --*/
 #define __NETWORK_DEFAULT_UDP_RECVMBOX_SIZE__ 8
 /*--
 this:AddWidget("Spinbox", 1, 128, "TCP_RECVMBOX_SIZE")
-this:SetToolTip("DEFAULT_TCP_RECVMBOX_SIZE: The mailbox size for the incoming packets on a\n"..
-                "NETCONN_TCP. The queue size value itself is platform-dependent, but is passed\n"..
+this:SetToolTip("DEFAULT_TCP_RECVMBOX_SIZE: The mailbox size for the incoming packets on a "..
+                "NETCONN_TCP. The queue size value itself is platform-dependent, but is passed "..
                 "to sys_mbox_new() when the recvmbox is created.")
 --*/
 #define __NETWORK_DEFAULT_TCP_RECVMBOX_SIZE__ 8
 /*--
 this:AddWidget("Spinbox", 5, 1000, "TCP_TMR_INTERVAL")
-this:SetToolTip("TCP_TMR_INTERVAL: The TCP thread check interval in milliseconds.\n"..
+this:SetToolTip("TCP_TMR_INTERVAL: The TCP thread check interval in milliseconds. "..
                 "The default value is 250 ms.")
 --*/
 #define __NETWORK_DEFAULT_TCP_TIMER_INTERVAL__ 250
 /*--
 this:AddWidget("Spinbox", 1, 128, "ACCEPTMBOX_SIZE")
-this:SetToolTip("DEFAULT_ACCEPTMBOX_SIZE: The mailbox size for the incoming connections.\n"..
-                "The queue size value itself is platform-dependent, but is passed to\n"..
+this:SetToolTip("DEFAULT_ACCEPTMBOX_SIZE: The mailbox size for the incoming connections. "..
+                "The queue size value itself is platform-dependent, but is passed to "..
                 "sys_mbox_new() when the acceptmbox is created.")
 --*/
 #define __NETWORK_DEFAULT_ACCEPTMBOX_SIZE__ 8
 
-
-/*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "LabelSEQL", "\nSequential Layer options", -1, "bold")
-this:GoBackWidget("SEQL")
-++*/
 /*--
 this:AddWidget("Combobox", "LWIP_TCPIP_TIMEOUT")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("LWIP_TCPIP_TIMEOUT==1: Enable tcpip_timeout/tcpip_untimeout\nto create timers running in tcpip_thread from another thread.")
+this:SetToolTip("LWIP_TCPIP_TIMEOUT==1: Enable tcpip_timeout/tcpip_untimeout to create timers running in tcpip_thread from another thread.")
 --*/
 #define __NETWORK_LWIP_TCPIP_TIMEOUT__ 0
 
-
-
-/*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "LabelSocket", "\nSocket options", -1, "bold")
-this:GoBackWidget("Socket")
-++*/
 /*--
 this:AddWidget("Combobox", "LWIP_TCP_KEEPALIVE")
 this:AddItem("Disable (0)", "0")
@@ -939,12 +840,6 @@ this:SetToolTip("LWIP_TCP_KEEPALIVE==1: Enable TCP_KEEPIDLE, TCP_KEEPINTVL and T
 --*/
 #define __NETWORK_LWIP_TCP_KEEPALIVE__ 0
 
-
-
-/*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "LabelStats", "\nStatistics options", -1, "bold")
-this:GoBackWidget("Stats")
-++*/
 /*--
 this:AddWidget("Combobox", "LWIP_STATS")
 this:AddItem("Disable (0)", "0")
@@ -953,18 +848,11 @@ this:SetToolTip("LWIP_STATS==1: Enable statistics collection in lwip_stats.")
 --*/
 #define __NETWORK_LWIP_STATS__ 0
 
-
-
-/*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "LabelChS", "\nChecksum options", -1, "bold")
-this:GoBackWidget("ChS")
-++*/
 /*--
 this:AddWidget("Combobox", "LWIP_CHECKSUM_CTRL_PER_NETIF")
 this:AddItem("Disable (0)", "0")
 this:AddItem("Enable (1)", "1")
-this:SetToolTip("LWIP_CHECKSUM_CTRL_PER_NETIF==1: Checksum generation/check can be enabled/disabled per netif.\n"..
-                "ATTENTION: if enabled, the CHECKSUM_GEN_* and CHECKSUM_CHECK_* defines must be enabled!")
+this:SetToolTip("LWIP_CHECKSUM_CTRL_PER_NETIF==1: Checksum generation/check can be enabled/disabled per netif. ATTENTION: if enabled, the CHECKSUM_GEN_* and CHECKSUM_CHECK_* defines must be enabled!")
 --*/
 #define __NETWORK_LWIP_CHECKSUM_CTRL_PER_NETIF__ 0
 /*--
@@ -1045,18 +933,13 @@ this:SetToolTip("LWIP_CHECKSUM_ON_COPY==1: Calculate checksum when\ncopying data
 --*/
 #define __NETWORK_LWIP_CHECKSUM_ON_COPY__ 0
 
-
-/*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "LabelDebug", "\nDebug options", -1, "bold")
-this:GoBackWidget("Debug")
-++*/
 /*--
 this:AddWidget("Combobox", "LWIP_DBG_MIN_LEVEL")
 this:AddItem("All", "LWIP_DBG_LEVEL_ALL")
 this:AddItem("Warnings", "LWIP_DBG_LEVEL_WARNING")
 this:AddItem("Serious", "LWIP_DBG_LEVEL_SERIOUS")
 this:AddItem("Severe", "LWIP_DBG_LEVEL_SEVERE")
-this:SetToolTip("LWIP_DBG_MIN_LEVEL: After masking, the value of the debug is\n"..
+this:SetToolTip("LWIP_DBG_MIN_LEVEL: After masking, the value of the debug is "..
                 "compared against this value. If it is smaller, then debugging messages are written.")
 --*/
 #define __NETWORK_LWIP_DBG_MIN_LEVEL__ LWIP_DBG_LEVEL_ALL

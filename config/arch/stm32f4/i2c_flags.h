@@ -37,8 +37,7 @@
 #define _I2C_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > I2C",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > I²C", "The I²C module configuration.")
 
 this.PortExist = function(this, devNo)
     local I2C_PER = {}
@@ -198,10 +197,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddExtraWidget("Label", "Label1", "I2C1", -1, "bold")
-    this:AddExtraWidget("Void", "Void1")
-
-    this:AddWidget("Combobox", "Use DMA")
+    this:AddWidget("Combobox", "I²C1 Use DMA")
     this:AddItem("No", "_NO_")
     this:AddItem("Yes", "_YES_")
 end
@@ -210,14 +206,14 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Spinbox", 1e3, 400e3, "SCL frequency [Hz]")
+    this:AddWidget("Spinbox", 1e3, 400e3, "I²C1 SCL frequency [Hz]")
 end
 --*/
 #define __I2C1_SCL_FREQ__ 100000
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "SCL duty cycle")
+    this:AddWidget("Combobox", "I²C1 SCL duty cycle")
     this:AddItem("1/2", "_I2C_DUTY_CYCLE_1_2")
     this:AddItem("16/9", "_I2C_DUTY_CYCLE_16_9")
 end
@@ -226,10 +222,8 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddExtraWidget("Label", "Label2", "\nI2C2", -1, "bold")
-    this:AddExtraWidget("Void", "Void2")
-
-    this:AddWidget("Combobox", "Use DMA")
+    this:AddExtraWidget("Label", "I2C2GAP", "")
+    this:AddWidget("Combobox", "I²C2 Use DMA")
     this:AddItem("No", "_NO_")
     this:AddItem("Yes", "_YES_")
 end
@@ -238,14 +232,14 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Spinbox", 1e3, 400e3, "SCL frequency [Hz]")
+    this:AddWidget("Spinbox", 1e3, 400e3, "I²C2 SCL frequency [Hz]")
 end
 --*/
 #define __I2C2_SCL_FREQ__ 100000
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "SCL duty cycle")
+    this:AddWidget("Combobox", "I²C2 SCL duty cycle")
     this:AddItem("1/2", "_I2C_DUTY_CYCLE_1_2")
     this:AddItem("16/9", "_I2C_DUTY_CYCLE_16_9")
 end
@@ -254,9 +248,7 @@ end
 
 /*--
 if this:PortExist(3) then
-    this:AddExtraWidget("Label", "Label3", "\nI2C3", -1, "bold")
-    this:AddExtraWidget("Void", "Void3")
-
+    this:AddExtraWidget("Label", "I2C3GAP", "")
     this:AddWidget("Combobox", "Use DMA")
     this:AddItem("No", "_NO_")
     this:AddItem("Yes", "_YES_")
@@ -266,14 +258,14 @@ end
 
 /*--
 if this:PortExist(3) then
-    this:AddWidget("Spinbox", 1e3, 400e3, "SCL frequency [Hz]")
+    this:AddWidget("Spinbox", 1e3, 400e3, "I²C3 SCL frequency [Hz]")
 end
 --*/
 #define __I2C3_SCL_FREQ__ 100000
 
 /*--
 if this:PortExist(3) then
-    this:AddWidget("Combobox", "SCL duty cycle")
+    this:AddWidget("Combobox", "I²C3 SCL duty cycle")
     this:AddItem("1/2", "_I2C_DUTY_CYCLE_1_2")
     this:AddItem("16/9", "_I2C_DUTY_CYCLE_16_9")
 end

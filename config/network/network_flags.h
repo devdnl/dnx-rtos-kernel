@@ -38,19 +38,16 @@
 #define _NETWORK_FLAGS_H_
 
 #/*--
-# this:SetLayout("TitledGridBack", 2, "Home > Network",
-#                function() this:LoadFile("config.h", true) end)
+# this:SetTitle("Home > Network", "Network configuration menu.")
 #++*/
 
 #/*--
-# this:AddExtraWidget("Label", "LabelStacks", "\nStacks", -1, "bold")
-# this:AddExtraWidget("Void", "VoidStacks")
-#++*/
-
-#/*--
-# this:AddWidget("Checkbox", "Enable Unix Domain Socket")
-# this:AddExtraWidget("Hyperlink", "UDSConfigure", "Configure")
-# this:SetEvent("clicked", "UDSConfigure", function() this:LoadFile("network/uds_flags.h") end)
+# this:AddWidget("Combobox", "Unix Domain Socket: enable")
+# this:AddItem("Yes", "_YES_")
+# this:AddItem("No", "_NO_")
+# this:SetToolTip("The Unix Domain Socket is a internal system network that can "..
+#                 "be used as IPC.")
+# this:AddExtraWidget("Submenu", "UDSConfigure", "Unix Domain Socket: configure", "network/uds_flags.h")
 #--*/
 #define __ENABLE_UDS_STACK__ _NO_
 #/*
@@ -58,9 +55,12 @@ __ENABLE_UDS_STACK__=_NO_
 #*/
 
 #/*--
-# this:AddWidget("Checkbox", "Enable TCP/IP")
-# this:AddExtraWidget("Hyperlink", "TCPIPConfigure", "Configure")
-# this:SetEvent("clicked", "TCPIPConfigure", function() this:LoadFile("network/tcpip_flags.h") end)
+# this:AddWidget("Combobox", "TCP/IP: enable")
+# this:AddItem("Yes", "_YES_")
+# this:AddItem("No", "_NO_")
+# this:SetToolTip("The TCP/IP is a global internet/local network stack. "..
+#                 "Can be used in localhost domain as IPC.")
+# this:AddExtraWidget("Submenu", "TCPIPConfigure", "TCP/IP: configure", "network/tcpip_flags.h")
 #--*/
 #define __ENABLE_TCPIP_STACK__ _NO_
 #/*
@@ -68,9 +68,13 @@ __ENABLE_TCPIP_STACK__=_NO_
 #*/
 
 #/*--
-# this:AddWidget("Checkbox", "Enable SIPC")
-# this:AddExtraWidget("Hyperlink", "SIPCConfigure", "Configure")
-# this:SetEvent("clicked", "SIPCConfigure", function() this:LoadFile("network/sipc_flags.h") end)
+# this:AddWidget("Combobox", "SIPC: enable")
+# this:AddItem("Yes", "_YES_")
+# this:AddItem("No", "_NO_")
+# this:SetToolTip("The SIPC is a simple serial protocol used in point-to-point communication. "..
+#                 "That stack is very limited and is not recommended to be used. It will be "..
+#                 "removed in the future.")
+# this:AddExtraWidget("Submenu", "SIPCConfigure", "SIPC: configure", "network/sipc_flags.h")
 #--*/
 #define __ENABLE_SIPC_STACK__ _NO_
 #/*
@@ -78,9 +82,12 @@ __ENABLE_SIPC_STACK__=_NO_
 #*/
 
 #/*--
-# this:AddWidget("Checkbox", "Enable CANNET")
-# this:AddExtraWidget("Hyperlink", "CANNETConfigure", "Configure")
-# this:SetEvent("clicked", "CANNETConfigure", function() this:LoadFile("network/cannet_flags.h") end)
+# this:AddWidget("Combobox", "CANNET: enable")
+# this:AddItem("Yes", "_YES_")
+# this:AddItem("No", "_NO_")
+# this:SetToolTip("The CANNET is a network stack that can be used in CAN networks. "..
+#                 "Stack provides full TCP/UDP-like handling.")
+# this:AddExtraWidget("Submenu", "CANNETConfigure", "CANNET: configure", "network/cannet_flags.h")
 #--*/
 #define __ENABLE_CANNET_STACK__ _NO_
 #/*

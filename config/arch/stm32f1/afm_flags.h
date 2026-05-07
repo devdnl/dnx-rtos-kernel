@@ -37,16 +37,9 @@
 #define _AFM_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > AFM",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > AFM", "The AFM module configuration.")
 ++*/
 
-
-
-/*--
-this:AddExtraWidget("Label", "LabelEvent", "Cortex Event Output", -1, "bold")
-this:AddExtraWidget("Void", "VoidEvent")
-++*/
 /*--
 this:AddWidget("Combobox", "Output")
 this:AddItem("Disable", "_NO_")
@@ -68,10 +61,6 @@ for i = 0, 15 do this:AddItem(tostring(i), tostring(i)) end
 
 
 
-/*--
-this:AddExtraWidget("Label", "LabelRemap", "\nPeripheral remap", -1, "bold")
-this:AddExtraWidget("Void", "VoidRemap")
-++*/
 /*--
 this:AddWidget("Combobox", "Remap SPI1")
 this:AddItem("No (NSS/PA4, SCK/PA5, MISO/PA6, MOSI/PA7)", "0")

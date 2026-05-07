@@ -38,13 +38,8 @@
 #define _SIPC_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Network > SIPC Stack",
-    function() -- back button
-        this:LoadFile("network/network_flags.h")
-    end
-)
+this:SetTitle("Home > Network > SIPC Stack", "The SIPC stack configuration.")
 ++*/
-
 
 /*--
 this:AddWidget("Combobox", "Debug messages")

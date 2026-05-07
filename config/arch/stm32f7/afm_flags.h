@@ -37,14 +37,9 @@
 #define _AFM_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > AFM",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > AFM", "The AFM module configuration.")
 ++*/
 
-/*--
-this:AddExtraWidget("Label", "LabelMEMRMP", "\nMemory remap", -1, "bold")
-this:AddExtraWidget("Void", "VoidMEMRMP")
-++*/
 /*--
 this:AddWidget("Combobox", "FMC memory mapping swap")
 this:AddItem("No swap", "(0 << SYSCFG_MEMRMP_SWP_FMC_Pos)")
@@ -67,10 +62,6 @@ this:AddItem("Boot mem. base addr. defined by BOOT_ADD1 option byte", "(1 << SYS
 #define __AFM_MEM_BOOT__ (0 << SYSCFG_MEMRMP_MEM_BOOT_Pos)
 
 
-/*--
-this:AddExtraWidget("Label", "LabelPMC", "\nPeripheral mode", -1, "bold")
-this:AddExtraWidget("Void", "VoidPMC")
-++*/
 /*--
 this:AddWidget("Combobox", "Ethernet PHY interface")
 this:AddItem("MII interface", "(0 << SYSCFG_PMC_MII_RMII_SEL_Pos)")
@@ -141,10 +132,6 @@ this:AddItem("It forces FM+ drive capability on I2C1", "(1 << SYSCFG_PMC_I2C1_FM
 
 
 /*--
-this:AddExtraWidget("Label", "LabelCBR", "\nClass B", -1, "bold")
-this:AddExtraWidget("Void", "VoidCBR")
-++*/
-/*--
 this:AddWidget("Combobox", "PVD Lock")
 this:AddItem("PVD interrupt not connected to Break input TIMER1", "(0 << SYSCFG_CBR_PVDL_Pos)")
 this:AddItem("PVD interrupt connected to Break input TIMER1/8", "(1 << SYSCFG_CBR_PVDL_Pos)")
@@ -159,10 +146,6 @@ this:AddItem("Lockup output of Cortex-M7 is connected with Break input of TIMER1
 #define __AFM_CLL__ (0 << SYSCFG_CBR_CLL_Pos)
 
 
-/*--
-this:AddExtraWidget("Label", "LabelCMPCR", "\nCompensation cell control", -1, "bold")
-this:AddExtraWidget("Void", "VoidCMPCELL")
-++*/
 /*--
 this:AddWidget("Combobox", "Compensation cell power-down")
 this:AddItem("I/O compensation cell power-down mode", "(0 << SYSCFG_CMPCR_CMP_PD_Pos)")

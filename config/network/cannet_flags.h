@@ -38,11 +38,7 @@
 #define _CANNET_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Network > CANNET Stack",
-    function() -- back button
-        this:LoadFile("network/network_flags.h")
-    end
-)
+this:SetTitle("Home > Network > CANNET Stack", "The CANNET stack configuration.")
 ++*/
 
 /*--

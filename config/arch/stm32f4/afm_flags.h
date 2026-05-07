@@ -37,22 +37,17 @@
 #define _AFM_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > AFM",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > AFM", "The AFM module configuration.")
 ++*/
 
-/*--
-this:AddExtraWidget("Label", "LabelMEMRMP", "\nMemory remap", -1, "bold")
-this:AddExtraWidget("Void", "VoidMEMRMP")
-++*/
 /*--
 this:AddWidget("Combobox", "FMC memory mapping swap")
 this:AddItem("No swap", "(0 << 10)")
 this:AddItem("Swap SDRAM, NAND/PCCARD swapped", "(1 << 10)")
-this:SetToolTip("SDRAM banks and NAND Bank 2/PCCARD mapping are swapped. SDRAM\n "..
-                "Bank 1 and 2 are mapped at NAND Bank 2 (0x8000 0000) and PCCARD Bank \n"..
-                "(0x9000 0000) address, respectively. NAND Bank 2 and PCCARD Bank are \n"..
-                "mapped at 0xC000 0000 and 0xD000 0000, respectively.")
+this:SetToolTip("SDRAM banks and NAND Bank 2/PCCARD mapping are swapped. SDRAM "..
+                "Bank 1 and 2 are mapped at NAND Bank 2 (0x80000000) and PCCARD Bank "..
+                "(0x90000000) address, respectively. NAND Bank 2 and PCCARD Bank are "..
+                "mapped at 0xC0000000 and 0xD0000000, respectively.")
 --*/
 #define __AFM_SWP_FMC__ (0 << 10)
 
@@ -66,19 +61,15 @@ this:AddItem("Bank 1 and 2 swapped", "(1 << 8)")
 /*--
 this:AddWidget("Combobox", "Memory mapping")
 this:AddItem("Selected by Boot pins", "_AFM_MEM_MODE_AUTO")
-this:AddItem("Main Flash memory mapped at 0x0000 0000", "(0 << 0)")
-this:AddItem("System Flash memory mapped at 0x0000 0000", "(1 << 0)")
-this:AddItem("FMC Bank1 (NOR/PSRAM 1 and 2) mapped at 0x0000 0000", "(2 << 0)")
-this:AddItem("Embedded SRAM (SRAM1) mapped at 0x0000 0000", "(3 << 0)")
-this:AddItem("FMC/SDRAM Bank 1 and 2 mapped at 0x0000 0000", "(4 << 0)")
+this:AddItem("Main Flash memory mapped at 0x00000000", "(0 << 0)")
+this:AddItem("System Flash memory mapped at 0x00000000", "(1 << 0)")
+this:AddItem("FMC Bank1 (NOR/PSRAM 1 and 2) mapped at 0x00000000", "(2 << 0)")
+this:AddItem("Embedded SRAM (SRAM1) mapped at 0x00000000", "(3 << 0)")
+this:AddItem("FMC/SDRAM Bank 1 and 2 mapped at 0x00000000", "(4 << 0)")
 --*/
 #define __AFM_MEM_MODE__ _AFM_MEM_MODE_AUTO
 
 
-/*--
-this:AddExtraWidget("Label", "LabelPMC", "\nPeripheral mode", -1, "bold")
-this:AddExtraWidget("Void", "VoidPMC")
-++*/
 /*--
 this:AddWidget("Combobox", "Ethernet PHY interface")
 this:AddItem("MII interface", "(0 << 23)")
@@ -87,20 +78,12 @@ this:AddItem("RMII interface", "(1 << 23)")
 #define __AFM_MII_RMII_SEL__ (1 << 23)
 
 /*--
-this:AddExtraWidget("Label", "LabelBKPRAM", "\nBackup RAM", -1, "bold")
-this:AddExtraWidget("Void", "VoidBKPRAM")
-++*/
-/*--
 this:AddWidget("Combobox", "Backup RAM")
 this:AddItem("Disable", "_NO_")
 this:AddItem("Enable", "_YES_")
 --*/
 #define __AFM_BKPRAM_ENABLE__ _NO_
 
-/*--
-this:AddExtraWidget("Label", "LabelCMPCR", "\nCompensation cell control", -1, "bold")
-this:AddExtraWidget("Void", "VoidCMPCELL")
-++*/
 /*--
 this:AddWidget("Combobox", "Compensation cell power-down")
 this:AddItem("I/O compensation cell power-down mode", "(0 << SYSCFG_CMPCR_CMP_PD_Pos)")

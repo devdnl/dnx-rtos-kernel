@@ -35,8 +35,7 @@
 #define _EXT4FS_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > File Systems > ext4fs",
-               function() this:LoadFile("filesystems/filesystems_flags.h") end)
+this:SetTitle("Home > File Systems > ext4fs", "The ext4fs file system configuration.")
 ++*/
 
 /*--

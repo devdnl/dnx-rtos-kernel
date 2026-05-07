@@ -8,7 +8,7 @@ switch_to_bsp()
     echo "= SWITCHING TO '$1' CONFIGURATION"
     echo "====================================================================="
     make clean
-    ./tools/configtool/configtool -- import=../test_bsp/$1.dnxc:../../config
+    ./tools/configtool/configtool -- import=../test_bsp/$1.bsp:../../config
 }
 
 switch_to_bsp "stm32f1"

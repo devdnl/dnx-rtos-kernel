@@ -38,13 +38,8 @@
 #define _UDS_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Network > UDS Stack",
-    function() -- back button
-        this:LoadFile("network/network_flags.h")
-    end
-)
+this:SetTitle("Home > Network > UDS Stack", "The Unix Domanin Socket Stack configuration.")
 ++*/
-
 
 /*--
 this:AddWidget("Combobox", "Debug messages")

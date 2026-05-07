@@ -37,261 +37,244 @@
 #define _I2C_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > I²C",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > I²C", "The I²C module configuration.")
 ++*/
 
 /*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "Label1A", "I2C1", -1, "bold")
-this:AddExtraWidget("Label", "Label1B", "\t\t\t\t\t\t", -1, "bold")
-++*/
-
 /*--
-this:AddWidget("Spinbox", 1e3, 1000e3, "SCL frequency [Hz]")
+this:AddWidget("Editline", false, "I2C1 SCL frequency [Hz]")
 --*/
 #define __I2C1_SCL_FREQ__ 100000
 
 /*--
-this:AddWidget("Combobox", "Analog filter")
+this:AddWidget("Combobox", "I2C1 Analog filter")
 this:AddItem("DISABLE", "I2C_CR1_ANFOFF")
 this:AddItem("ENABLE", "0")
 --*/
 #define __I2C1_ANALOG_FILTER_DISABLE__ 0
 
 /*--
-this:AddWidget("Combobox", "Digital filter")
+this:AddWidget("Combobox", "I2C1 Digital filter")
 this:AddItem("DISABLE", "0")
 for i=1,15 do this:AddItem(tostring(i).." clock periods", tostring(i)) end
 --*/
 #define __I2C1_DIGITAL_FILTER__ 0
 
 /*--
-this:AddWidget("Spinbox", 0, 1000, "SCL rising time [ns]")
+this:AddWidget("Spinbox", 0, 1000, "I2C1 SCL rising time [ns]")
 --*/
 #define __I2C1_SCL_RISE_TIME_ns__ 100
 
 /*--
-this:AddWidget("Spinbox", 0, 1000, "SCL falling time [ns]")
+this:AddWidget("Spinbox", 0, 1000, "I2C1 SCL falling time [ns]")
 --*/
 #define __I2C1_SCL_FALL_TIME_ns__ 100
 
 /*--
-this:AddWidget("Spinbox", 10, 1000, "Data hold time SCL-SDA [ns]")
+this:AddWidget("Spinbox", 10, 1000, "I2C1 Data hold time SCL-SDA [ns]")
 --*/
 #define __I2C1_DATA_HOLD_TIME_ns__ 10
 
 /*--
-this:AddWidget("Spinbox", 10, 1000, "Data setup time SCL-SDA [ns]")
+this:AddWidget("Spinbox", 10, 1000, "I2C1 Data setup time SCL-SDA [ns]")
 --*/
 #define __I2C1_DATA_SETUP_TIME_ns__ 10
 
 /*--
-this:AddWidget("Combobox", "IRQ priority")
+this:AddWidget("Combobox", "I2C1 IRQ priority")
 uC.AddPriorityItems(this, false)
 --*/
 #define __I2C1_IRQ_PRIORITY__ __CPU_DEFAULT_IRQ_PRIORITY__
 
 /*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "Label2A", "\nI2C2", -1, "bold")
-this:AddExtraWidget("Label", "Label2B", "\t\t\t\t\t\t", -1, "bold")
-++*/
-
 /*--
-this:AddWidget("Spinbox", 1e3, 1000e3, "SCL frequency [Hz]")
+this:AddExtraWidget("Label", "I2C2_GAP", "")
+this:AddWidget("Editline", false, "I2C2 SCL frequency [Hz]")
 --*/
 #define __I2C2_SCL_FREQ__ 100000
 
 /*--
-this:AddWidget("Combobox", "Analog filter")
+this:AddWidget("Combobox", "I2C2 Analog filter")
 this:AddItem("DISABLE", "I2C_CR1_ANFOFF")
 this:AddItem("ENABLE", "0")
 --*/
 #define __I2C2_ANALOG_FILTER_DISABLE__ 0
 
 /*--
-this:AddWidget("Combobox", "Digital filter")
+this:AddWidget("Combobox", "I2C2 Digital filter")
 this:AddItem("DISABLE", "0")
 for i=1,15 do this:AddItem(tostring(i).." clock periods", tostring(i)) end
 --*/
 #define __I2C2_DIGITAL_FILTER__ 0
 
 /*--
-this:AddWidget("Spinbox", 0, 1000, "SCL rising time [ns]")
+this:AddWidget("Spinbox", 0, 1000, "I2C2 SCL rising time [ns]")
 --*/
 #define __I2C2_SCL_RISE_TIME_ns__ 100
 
 /*--
-this:AddWidget("Spinbox", 0, 1000, "SCL falling time [ns]")
+this:AddWidget("Spinbox", 0, 1000, "I2C2 SCL falling time [ns]")
 --*/
 #define __I2C2_SCL_FALL_TIME_ns__ 100
 
 /*--
-this:AddWidget("Spinbox", 10, 1000, "Data hold time SCL-SDA [ns]")
+this:AddWidget("Spinbox", 10, 1000, "I2C2 Data hold time SCL-SDA [ns]")
 --*/
 #define __I2C2_DATA_HOLD_TIME_ns__ 10
 
 /*--
-this:AddWidget("Spinbox", 10, 1000, "Data setup time SCL-SDA [ns]")
+this:AddWidget("Spinbox", 10, 1000, "I2C2 Data setup time SCL-SDA [ns]")
 --*/
 #define __I2C2_DATA_SETUP_TIME_ns__ 10
 
 /*--
-this:AddWidget("Combobox", "IRQ priority")
+this:AddWidget("Combobox", "I2C2 IRQ priority")
 uC.AddPriorityItems(this, false)
 --*/
 #define __I2C2_IRQ_PRIORITY__ __CPU_DEFAULT_IRQ_PRIORITY__
 
 /*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "Label3A", "\nI2C3", -1, "bold")
-this:AddExtraWidget("Label", "Label3B", "\t\t\t\t\t\t", -1, "bold")
-++*/
-
 /*--
-this:AddWidget("Spinbox", 1e3, 1000e3, "SCL frequency [Hz]")
+this:AddExtraWidget("Label", "I2C3_GAP", "")
+this:AddWidget("Editline", false, "I2C3 SCL frequency [Hz]")
 uC.AddPriorityItems(this)
 --*/
 #define __I2C3_SCL_FREQ__ 100000
 
 /*--
-this:AddWidget("Combobox", "Analog filter")
+this:AddWidget("Combobox", "I2C3 Analog filter")
 this:AddItem("DISABLE", "I2C_CR1_ANFOFF")
 this:AddItem("ENABLE", "0")
 --*/
 #define __I2C3_ANALOG_FILTER_DISABLE__ 0
 
 /*--
-this:AddWidget("Combobox", "Digital filter")
+this:AddWidget("Combobox", "I2C3 Digital filter")
 this:AddItem("DISABLE", "0")
 for i=1,15 do this:AddItem(tostring(i).." clock periods", tostring(i)) end
 --*/
 #define __I2C3_DIGITAL_FILTER__ 0
 
 /*--
-this:AddWidget("Spinbox", 0, 1000, "SCL rising time [ns]")
+this:AddWidget("Spinbox", 0, 1000, "I2C3 SCL rising time [ns]")
 --*/
 #define __I2C3_SCL_RISE_TIME_ns__ 100
 
 /*--
-this:AddWidget("Spinbox", 0, 1000, "SCL falling time [ns]")
+this:AddWidget("Spinbox", 0, 1000, "I2C3 SCL falling time [ns]")
 --*/
 #define __I2C3_SCL_FALL_TIME_ns__ 100
 
 /*--
-this:AddWidget("Spinbox", 10, 1000, "Data hold time SCL-SDA [ns]")
+this:AddWidget("Spinbox", 10, 1000, "I2C3 Data hold time SCL-SDA [ns]")
 --*/
 #define __I2C3_DATA_HOLD_TIME_ns__ 10
 
 /*--
-this:AddWidget("Spinbox", 10, 1000, "Data setup time SCL-SDA [ns]")
+this:AddWidget("Spinbox", 10, 1000, "I2C3 Data setup time SCL-SDA [ns]")
 --*/
 #define __I2C3_DATA_SETUP_TIME_ns__ 10
 
 /*--
-this:AddWidget("Combobox", "IRQ priority")
+this:AddWidget("Combobox", "I2C3 IRQ priority")
 uC.AddPriorityItems(this, false)
 --*/
 #define __I2C3_IRQ_PRIORITY__ __CPU_DEFAULT_IRQ_PRIORITY__
 
 
 /*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "Label4A", "\nI2C4", -1, "bold")
-this:AddExtraWidget("Label", "Label4B", "\t\t\t\t\t\t", -1, "bold")
-++*/
-
 /*--
-this:AddWidget("Spinbox", 1e3, 1000e3, "SCL frequency [Hz]")
+this:AddExtraWidget("Label", "I2C4_GAP", "")
+this:AddWidget("Editline", false, "I2C4 SCL frequency [Hz]")
 uC.AddPriorityItems(this)
 --*/
 #define __I2C4_SCL_FREQ__ 100000
 
 /*--
-this:AddWidget("Combobox", "Analog filter")
+this:AddWidget("Combobox", "I2C4 Analog filter")
 this:AddItem("DISABLE", "I2C_CR1_ANFOFF")
 this:AddItem("ENABLE", "0")
 --*/
 #define __I2C4_ANALOG_FILTER_DISABLE__ 0
 
 /*--
-this:AddWidget("Combobox", "Digital filter")
+this:AddWidget("Combobox", "I2C4 Digital filter")
 this:AddItem("DISABLE", "0")
 for i=1,15 do this:AddItem(tostring(i).." clock periods", tostring(i)) end
 --*/
 #define __I2C4_DIGITAL_FILTER__ 0
 
 /*--
-this:AddWidget("Spinbox", 0, 1000, "SCL rising time [ns]")
+this:AddWidget("Spinbox", 0, 1000, "I2C4 SCL rising time [ns]")
 --*/
 #define __I2C4_SCL_RISE_TIME_ns__ 640
 
 /*--
-this:AddWidget("Spinbox", 0, 1000, "SCL falling time [ns]")
+this:AddWidget("Spinbox", 0, 1000, "I2C4 SCL falling time [ns]")
 --*/
 #define __I2C4_SCL_FALL_TIME_ns__ 20
 
 /*--
-this:AddWidget("Spinbox", 10, 1000, "Data hold time SCL-SDA [ns]")
+this:AddWidget("Spinbox", 10, 1000, "I2C4 Data hold time SCL-SDA [ns]")
 --*/
 #define __I2C4_DATA_HOLD_TIME_ns__ 10
 
 /*--
-this:AddWidget("Spinbox", 10, 1000, "Data setup time SCL-SDA [ns]")
+this:AddWidget("Spinbox", 10, 1000, "I2C4 Data setup time SCL-SDA [ns]")
 --*/
 #define __I2C4_DATA_SETUP_TIME_ns__ 10
 
 /*--
-this:AddWidget("Combobox", "IRQ priority")
+this:AddWidget("Combobox", "I2C4 IRQ priority")
 uC.AddPriorityItems(this, false)
 --*/
 #define __I2C4_IRQ_PRIORITY__ __CPU_DEFAULT_IRQ_PRIORITY__
 
 
 /*------------------------------------------------------------------------------
-this:AddExtraWidget("Label", "Label5A", "\nI2C5", -1, "bold")
-this:AddExtraWidget("Label", "Label5B", "\t\t\t\t\t\t", -1, "bold")
-++*/
-
 /*--
-this:AddWidget("Spinbox", 1e3, 1000e3, "SCL frequency [Hz]")
+this:AddExtraWidget("Label", "I2C5_GAP", "")
+this:AddWidget("Editline", false, "I2C5 SCL frequency [Hz]")
 uC.AddPriorityItems(this)
 --*/
 #define __I2C5_SCL_FREQ__ 100000
 
 /*--
-this:AddWidget("Combobox", "Analog filter")
+this:AddWidget("Combobox", "I2C5 Analog filter")
 this:AddItem("DISABLE", "I2C_CR1_ANFOFF")
 this:AddItem("ENABLE", "0")
 --*/
 #define __I2C5_ANALOG_FILTER_DISABLE__ 0
 
 /*--
-this:AddWidget("Combobox", "Digital filter")
+this:AddWidget("Combobox", "I2C5 Digital filter")
 this:AddItem("DISABLE", "0")
 for i=1,15 do this:AddItem(tostring(i).." clock periods", tostring(i)) end
 --*/
 #define __I2C5_DIGITAL_FILTER__ 0
 
 /*--
-this:AddWidget("Spinbox", 0, 1000, "SCL rising time [ns]")
+this:AddWidget("Spinbox", 0, 1000, "I2C5 SCL rising time [ns]")
 --*/
 #define __I2C5_SCL_RISE_TIME_ns__ 100
 
 /*--
-this:AddWidget("Spinbox", 0, 1000, "SCL falling time [ns]")
+this:AddWidget("Spinbox", 0, 1000, "I2C5 SCL falling time [ns]")
 --*/
 #define __I2C5_SCL_FALL_TIME_ns__ 100
 
 /*--
-this:AddWidget("Spinbox", 10, 1000, "Data hold time SCL-SDA [ns]")
+this:AddWidget("Spinbox", 10, 1000, "I2C5 Data hold time SCL-SDA [ns]")
 --*/
 #define __I2C5_DATA_HOLD_TIME_ns__ 10
 
 /*--
-this:AddWidget("Spinbox", 10, 1000, "Data setup time SCL-SDA [ns]")
+this:AddWidget("Spinbox", 10, 1000, "I2C5 Data setup time SCL-SDA [ns]")
 --*/
 #define __I2C5_DATA_SETUP_TIME_ns__ 10
 
 /*--
-this:AddWidget("Combobox", "IRQ priority")
+this:AddWidget("Combobox", "I2C5 IRQ priority")
 uC.AddPriorityItems(this, false)
 --*/
 #define __I2C5_IRQ_PRIORITY__ __CPU_DEFAULT_IRQ_PRIORITY__

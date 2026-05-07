@@ -37,8 +37,7 @@
 #define _SPI_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > SPI",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > SPI", "The SPI module configuration.")
 
 this.PortExist = function(this, devNo)
     local SPI_PER = {}
@@ -197,12 +196,7 @@ end
 ++*/
 
 /*--
-this:AddExtraWidget("Label", "LabelDefaults", "Defaults", -1, "bold")
-this:AddExtraWidget("Void", "VoidDefaults")
-++*/
-
-/*--
-this:AddWidget("Combobox", "Clock divider")
+this:AddWidget("Combobox", "Default Clock divider")
 this:AddItem("PCLK / 2", "SPI_CLK_DIV__2")
 this:AddItem("PCLK / 4", "SPI_CLK_DIV__4")
 this:AddItem("PCLK / 8", "SPI_CLK_DIV__8")
@@ -215,26 +209,21 @@ this:AddItem("PCLK / 256", "SPI_CLK_DIV__256")
 #define __SPI_DEFAULT_CLK_DIV__ SPI_CLK_DIV__4
 
 /*--
-this:AddWidget("Combobox", "SPI mode")
-this:AddItem("Mode 0: SCK Low at idle, capture on rising edge (CPOL = 0; CPHA = 0)", "SPI_MODE__0")
-this:AddItem("Mode 1: SCK Low at idle, capture on falling edge (CPOL = 0; CPHA = 1)", "SPI_MODE__1")
-this:AddItem("Mode 2: SCK High at idle, capture on falling edge (CPOL = 1; CPHA = 0)", "SPI_MODE__2")
-this:AddItem("Mode 3: SCK High at idle, capture on rising edge (CPOL = 1; CPHA = 1)", "SPI_MODE__3")
+this:AddWidget("Combobox", "Default SPI mode")
+this:AddItem("Mode 0: SCK Low at idle, capture on rising edge", "SPI_MODE__0")
+this:AddItem("Mode 1: SCK Low at idle, capture on falling edge", "SPI_MODE__1")
+this:AddItem("Mode 2: SCK High at idle, capture on falling edge", "SPI_MODE__2")
+this:AddItem("Mode 3: SCK High at idle, capture on rising edge", "SPI_MODE__3")
 --*/
 #define __SPI_DEFAULT_MODE__ SPI_MODE__0
 
 /*--
-this:AddWidget("Combobox", "Bit order")
+this:AddWidget("Combobox", "Default Bit order")
 this:AddItem("LSb first", "_NO_")
 this:AddItem("MSb first", "_YES_")
 --*/
 #define __SPI_DEFAULT_MSB_FIRST__ _YES_
 
-
-/*--
-this:AddExtraWidget("Label", "LabelDMA", "\nDMA Configuration", -1, "bold")
-this:AddExtraWidget("Void", "VoidDMA")
-++*/
 /*--
 if this:PortExist(1) then
     this:AddWidget("Combobox", "SPI1 DMA")

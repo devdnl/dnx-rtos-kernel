@@ -35,8 +35,7 @@ Brief    Watchdog driver configuration.
 #define _WDG_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > WDG",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > WDG", "The WDG module configuration.")
 
 -- timeout to register
 local T2R     = {}
@@ -120,7 +119,7 @@ this:SetEvent("clicked", "ComboboxTimeout",
     end
 )
 
--- set timout selection widget according to selected divider and reload value
+-- set timeout selection widget according to selected divider and reload value
 local DIV    = this:GetFlagValue("__WDG_CLK_DIVIDER__")
 local RELOAD = this:GetFlagValue("__WDG_RELOAD_VALUE__")
 local time   = this:GetTime(DIV, RELOAD)

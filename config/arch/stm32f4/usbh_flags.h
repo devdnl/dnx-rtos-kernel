@@ -36,8 +36,7 @@ Brief   USB Host driver
 #define _USBH_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > USBH",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > USBH", "The USBH module configuration.")
 ++*/
 
 /*--
@@ -46,14 +45,16 @@ this:AddWidget("Editline", false, "PHY reset pin")
 #define __USBH_PHY_RESET_PIN__ NONE
 
 /*--
-this:AddWidget("Checkbox", "Debug messages")
-this:AddExtraWidget("Void", "VOIDDEBUG")
+this:AddWidget("Combobox", "Debug messages")
+this:AddItem("No", "_NO_")
+this:AddItem("Yes", "_YES_")
 --*/
 #define __USBH_DEBUG_MSG__ _NO_
 
 /*--
-this:AddWidget("Checkbox", "Enable DMA transfers")
-this:AddExtraWidget("Void", "VOIDDMA")
+this:AddWidget("Combobox", "Enable DMA transfers")
+this:AddItem("No", "_NO_")
+this:AddItem("Yes", "_YES_")
 --*/
 #define __USBH_ENABLE_DMA_TRANSFER__ _YES_
 

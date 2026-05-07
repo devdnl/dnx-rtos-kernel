@@ -36,8 +36,7 @@ Brief   NVM driver
 #define _NVM_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > NVM",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > NVM", "The NVM module confiuguration.")
 ++*/
 
 #endif /* _NVM_FLAGS_H_ */

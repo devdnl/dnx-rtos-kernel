@@ -36,20 +36,25 @@
 #define _CLK_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 3, "Home > Microcontroller > CLK",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > CLK", "The CLK module configuration.")
 
 this:SetEvent("PostDiscard", function() this:CalculateFreq() end)
+
+this.ShowFrequency = function(id, input)
+    if type(this.freq[id]) == "number" then
+        return input .. " [" .. PrintFrequency(this.freq[id]) .. "]"
+    elseif type(this.freq[id]) == "string" then
+        return input .. " [" .. this.freq[id] .. "]"
+    else
+        return input .. " ["..type(this.freq[id]).."]"
+    end
+end
+
 ++*/
 
 //==============================================================================
 // Oscillators Configuration
 //==============================================================================
-/*--
-this:AddExtraWidget("Label", "LABEL_SUPPLY_SOURCE", "Supply source", -1, "bold")
-this:AddExtraWidget("Label", "LABEL_VoidSupplySource1", "\t\t\t\t\t\t\t", -1, "bold")
-this:AddExtraWidget("Void", "VoidSupplySource2")
-++*/
 /*--
 this:AddWidget("Combobox", "Supply source")
 this:AddItem("LDO supply", "PWR_LDO_SUPPLY")
@@ -61,21 +66,15 @@ this:AddItem("SMPS supplies EXT and LDO 1.8V", "PWR_SMPS_1V8_SUPPLIES_EXT_AND_LD
 this:AddItem("SMPS supplies EXT and LDO 2.5V", "PWR_SMPS_2V5_SUPPLIES_EXT_AND_LDO")
 this:AddItem("SMPS supplies EXT 1.8V", "PWR_SMPS_1V8_SUPPLIES_EXT")
 this:AddItem("SMPS supplies EXT 2.5V", "PWR_SMPS_2V5_SUPPLIES_EXT")
-this:AddExtraWidget("Label", "LABEL_SUPPLY_SOURCE_EXTRA", "")
 --*/
 #define __CLK_SUPPLY_SOURCE__ PWR_LDO_SUPPLY
 
-/*--
-this:AddExtraWidget("Label", "LABEL_OSCILLATORS", "\nOscillators", -1, "bold")
-this:AddExtraWidget("Label", "LABEL_VoidOsc1", "\t\t\t\t\t\t\t", -1, "bold")
-this:AddExtraWidget("Void", "VoidOsc2")
-++*/
 /*--
 this:AddWidget("Combobox", "LSI oscillator")
 this:AddItem("Disable", "DISABLE")
 this:AddItem("Enable", "ENABLE")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_LSI_ON", "")
+this:SetValueFormatter("LSI", this.ShowFrequency)
 --*/
 #define __CLK_LSI_ON__ ENABLE
 
@@ -85,7 +84,7 @@ this:AddItem("Disable", "DISABLE")
 this:AddItem("Enable", "ENABLE")
 this:AddItem("Baypass", "_CLK_BAYPASS")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_LSE_ON", "")
+this:SetValueFormatter("LSE", this.ShowFrequency)
 --*/
 #define __CLK_LSE_ON__ ENABLE
 
@@ -95,7 +94,6 @@ this:AddItem("Low", "LL_RCC_LSEDRIVE_LOW")
 this:AddItem("Medium Low", "LL_RCC_LSEDRIVE_MEDIUMLOW")
 this:AddItem("Medium High", "LL_RCC_LSEDRIVE_MEDIUMHIGH")
 this:AddItem("High", "LL_RCC_LSEDRIVE_HIGH")
-this:AddExtraWidget("Label", "LABEL_LSE_DRIVE", "")
 --*/
 #define __CLK_LSE_DRIVE_CAPABILITY__ LL_RCC_LSEDRIVE_HIGH
 
@@ -105,7 +103,7 @@ this:AddItem("Disable", "DISABLE")
 this:AddItem("Enable", "ENABLE")
 this:AddItem("Baypass", "_CLK_BAYPASS")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_HSE_ON", "")
+this:SetValueFormatter("HSE", this.ShowFrequency)
 --*/
 #define __CLK_HSE_ON__ _CLK_BAYPASS
 
@@ -114,17 +112,12 @@ this:AddExtraWidget("Label", "LABEL_HSE_ON", "")
 // PLL clock source
 //==============================================================================
 /*--
-this:AddExtraWidget("Label", "LABEL_PLL_SRC", "\nPLL Clock source", -1, "bold")
-this:AddExtraWidget("Void", "VoidPLLSRC1")
-this:AddExtraWidget("Void", "VoidPLLSRC2")
-++*/
-/*--
 this:AddWidget("Combobox", "PLL Clock source (ref_ck)")
 this:AddItem("HSI", "LL_RCC_PLLSOURCE_HSI")
 this:AddItem("CSI", "LL_RCC_PLLSOURCE_CSI")
 this:AddItem("HSE", "LL_RCC_PLLSOURCE_HSE")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_PLL_SRC", "")
+this:SetValueFormatter("ref_ck", this.ShowFrequency)
 --*/
 #define __CLK_PLL_SRC__ LL_RCC_PLLSOURCE_HSI
 
@@ -133,80 +126,69 @@ this:AddExtraWidget("Label", "LABEL_CLK_PLL_SRC", "")
 // PLL1 clock configuration
 //==============================================================================
 /*--
-this:AddExtraWidget("Label", "LABEL_PLL1_CLOCKS", "\nPLL1 Clocks", -1, "bold")
-this:AddExtraWidget("Void", "VoidPLL1CLK1")
-this:AddExtraWidget("Void", "VoidPLL1CLK2")
-++*/
-/*--
-this:AddWidget("Combobox", "PLL Enable")
+this:AddWidget("Combobox", "PLL1 Enable")
 this:AddItem("No", "_NO_")
 this:AddItem("Yes", "_YES_")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL1_ON", "")
 --*/
 #define __CLK_PLL1_ON__ _YES_
 
 /*--
-this:AddWidget("Spinbox", 0, 63, "PLL ref_ck divider (M)")
+this:AddWidget("Spinbox", 0, 63, "PLL1 ref_ck divider (M)")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL1_M", "")
 --*/
 #define __CLK_PLL1_M__ 8
 
 /*--
-this:AddWidget("Spinbox", 4, 512, "PLL multiplier (N)")
+this:AddWidget("Spinbox", 4, 512, "PLL1 multiplier (N)")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL1_N", "")
 --*/
 #define __CLK_PLL1_N__ 60
 
 /*--
-this:AddWidget("Combobox", "PLL P clock enable")
+this:AddWidget("Combobox", "PLL1 P clock enable")
 this:AddItem("No", "_NO_")
 this:AddItem("Yes", "_YES_")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL1_P_ON", "")
 --*/
 #define __CLK_PLL1_P_ENABLE__ _YES_
 
 /*--
-this:AddWidget("Combobox", "PLL divider P (pll1_p_ck)")
+this:AddWidget("Combobox", "PLL1 divider P (pll1_p_ck)")
 this:AddItem("1", "1")
 for i = 2, 128, 2 do this:AddItem(tostring(i), tostring(i)) end
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL1_P", "")
+this:SetValueFormatter("PLL1P", this.ShowFrequency)
 --*/
 #define __CLK_PLL1_P__ 1
 
 /*--
-this:AddWidget("Combobox", "PLL Q clock enable")
+this:AddWidget("Combobox", "PLL1 Q clock enable")
 this:AddItem("No", "_NO_")
 this:AddItem("Yes", "_YES_")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL1_Q_ON", "")
 --*/
 #define __CLK_PLL1_Q_ENABLE__ _YES_
 
 /*--
-this:AddWidget("Spinbox", 1, 128, "PLL divider Q (pll1_q_ck)")
+this:AddWidget("Spinbox", 1, 128, "PLL1 divider Q (pll1_q_ck)")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL1_Q", "")
+this:SetValueFormatter("PLL1Q", this.ShowFrequency)
 --*/
 #define __CLK_PLL1_Q__ 1
 
 /*--
-this:AddWidget("Combobox", "PLL R clock enable")
+this:AddWidget("Combobox", "PLL1 R clock enable")
 this:AddItem("No", "_NO_")
 this:AddItem("Yes", "_YES_")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL1_R_ON", "")
 --*/
 #define __CLK_PLL1_R_ENABLE__ _NO_
 
 /*--
-this:AddWidget("Spinbox", 1, 128, "PLL divider R (pll1_r_ck)")
+this:AddWidget("Spinbox", 1, 128, "PLL1 divider R (pll1_r_ck)")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL1_R", "")
+this:SetValueFormatter("PLL1R", this.ShowFrequency)
 --*/
 #define __CLK_PLL1_R__ 1
 
@@ -215,78 +197,67 @@ this:AddExtraWidget("Label", "LABEL_PLL1_R", "")
 // PLL2 clock configuration
 //==============================================================================
 /*--
-this:AddExtraWidget("Label", "LABEL_PLL2_CLOCKS", "\nPLL2 Clocks", -1, "bold")
-this:AddExtraWidget("Void", "VoidPLL2CLK1")
-this:AddExtraWidget("Void", "VoidPLL2CLK2")
-++*/
-/*--
-this:AddWidget("Combobox", "PLL Enable")
+this:AddWidget("Combobox", "PLL2 Enable")
 this:AddItem("No", "_NO_")
 this:AddItem("Yes", "_YES_")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL2_ON", "")
 --*/
 #define __CLK_PLL2_ON__ _YES_
 
 /*--
-this:AddWidget("Spinbox", 0, 63, "PLL ref_ck divider (M)")
+this:AddWidget("Spinbox", 0, 63, "PLL2 ref_ck divider (M)")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL2_M", "")
 --*/
 #define __CLK_PLL2_M__ 8
 
 /*--
-this:AddWidget("Spinbox", 4, 512, "PLL multiplier (N)")
+this:AddWidget("Spinbox", 4, 512, "PLL2 multiplier (N)")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL2_N", "")
 --*/
 #define __CLK_PLL2_N__ 60
 
 /*--
-this:AddWidget("Combobox", "PLL P clock enable")
+this:AddWidget("Combobox", "PLL2 P clock enable")
 this:AddItem("No", "_NO_")
 this:AddItem("Yes", "_YES_")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL2_P_ON", "")
 --*/
 #define __CLK_PLL2_P_ENABLE__ _YES_
 
 /*--
-this:AddWidget("Spinbox", 1, 128, "PLL divider P (pll2_p_ck)")
+this:AddWidget("Spinbox", 1, 128, "PLL2 divider P (pll2_p_ck)")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL2_P", "")
+this:SetValueFormatter("PLL2P", this.ShowFrequency)
 --*/
 #define __CLK_PLL2_P__ 1
 
 /*--
-this:AddWidget("Combobox", "PLL Q clock enable")
+this:AddWidget("Combobox", "PLL2 Q clock enable")
 this:AddItem("No", "_NO_")
 this:AddItem("Yes", "_YES_")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL2_Q_ON", "")
 --*/
 #define __CLK_PLL2_Q_ENABLE__ _YES_
 
 /*--
-this:AddWidget("Spinbox", 1, 128, "PLL divider Q (pll2_q_ck)")
+this:AddWidget("Spinbox", 1, 128, "PLL2 divider Q (pll2_q_ck)")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL2_Q", "")
+this:SetValueFormatter("PLL1Q", this.ShowFrequency)
 --*/
 #define __CLK_PLL2_Q__ 1
 
 /*--
-this:AddWidget("Combobox", "PLL R clock enable")
+this:AddWidget("Combobox", "PLL2 R clock enable")
 this:AddItem("No", "_NO_")
 this:AddItem("Yes", "_YES_")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL2_R_ON", "")
 --*/
 #define __CLK_PLL2_R_ENABLE__ _NO_
 
 /*--
-this:AddWidget("Spinbox", 1, 128, "PLL divider R (pll2_r_ck)")
+this:AddWidget("Spinbox", 1, 128, "PLL2 divider R (pll2_r_ck)")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL2_R", "")
+this:SetValueFormatter("PLL2R", this.ShowFrequency)
 --*/
 #define __CLK_PLL2_R__ 1
 
@@ -295,78 +266,67 @@ this:AddExtraWidget("Label", "LABEL_PLL2_R", "")
 // PLL3 clock configuration
 //==============================================================================
 /*--
-this:AddExtraWidget("Label", "LABEL_PLL3_CLOCKS", "\nPLL3 Clocks", -1, "bold")
-this:AddExtraWidget("Void", "VoidPLL3CLK1")
-this:AddExtraWidget("Void", "VoidPLL3CLK2")
-++*/
-/*--
-this:AddWidget("Combobox", "PLL Enable")
+this:AddWidget("Combobox", "PLL3 Enable")
 this:AddItem("No", "_NO_")
 this:AddItem("Yes", "_YES_")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL3_ON", "")
 --*/
 #define __CLK_PLL3_ON__ _YES_
 
 /*--
-this:AddWidget("Spinbox", 0, 63, "PLL ref_ck divider (M)")
+this:AddWidget("Spinbox", 0, 63, "PLL3 ref_ck divider (M)")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL3_M", "")
 --*/
 #define __CLK_PLL3_M__ 8
 
 /*--
-this:AddWidget("Spinbox", 4, 512, "PLL multiplier (N)")
+this:AddWidget("Spinbox", 4, 512, "PLL3 multiplier (N)")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL3_N", "")
 --*/
 #define __CLK_PLL3_N__ 60
 
 /*--
-this:AddWidget("Combobox", "PLL P clock enable")
+this:AddWidget("Combobox", "PLL3 P clock enable")
 this:AddItem("No", "_NO_")
 this:AddItem("Yes", "_YES_")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL3_P_ON", "")
 --*/
 #define __CLK_PLL3_P_ENABLE__ _YES_
 
 /*--
-this:AddWidget("Spinbox", 1, 128, "PLL divider P (pll3_p_ck)")
+this:AddWidget("Spinbox", 1, 128, "PLL3 divider P (pll3_p_ck)")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL3_P", "")
+this:SetValueFormatter("PLL3P", this.ShowFrequency)
 --*/
 #define __CLK_PLL3_P__ 1
 
 /*--
-this:AddWidget("Combobox", "PLL Q clock enable")
+this:AddWidget("Combobox", "PLL3 Q clock enable")
 this:AddItem("No", "_NO_")
 this:AddItem("Yes", "_YES_")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL3_Q_ON", "")
 --*/
 #define __CLK_PLL3_Q_ENABLE__ _YES_
 
 /*--
-this:AddWidget("Spinbox", 1, 128, "PLL divider Q (pll3_q_ck)")
+this:AddWidget("Spinbox", 1, 128, "PLL3 divider Q (pll3_q_ck)")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL3_Q", "")
+this:SetValueFormatter("PLL3Q", this.ShowFrequency)
 --*/
 #define __CLK_PLL3_Q__ 1
 
 /*--
-this:AddWidget("Combobox", "PLL R clock enable")
+this:AddWidget("Combobox", "PLL3 R clock enable")
 this:AddItem("No", "_NO_")
 this:AddItem("Yes", "_YES_")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL3_R_ON", "")
 --*/
 #define __CLK_PLL3_R_ENABLE__ _NO_
 
 /*--
-this:AddWidget("Spinbox", 1, 128, "PLL divider R (pll3_r_ck)")
+this:AddWidget("Spinbox", 1, 128, "PLL3 divider R (pll3_r_ck)")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_PLL3_R", "")
+this:SetValueFormatter("PLL3R", this.ShowFrequency)
 --*/
 #define __CLK_PLL3_R__ 1
 
@@ -375,18 +335,13 @@ this:AddExtraWidget("Label", "LABEL_PLL3_R", "")
 // Buses clock configuration
 //==============================================================================
 /*--
-this:AddExtraWidget("Label", "LABEL_BUS_CLOCKS", "\nBus Clocks", -1, "bold")
-this:AddExtraWidget("Void", "VoidBusCLK1")
-this:AddExtraWidget("Void", "VoidBusCLK2")
-++*/
-/*--
 this:AddWidget("Combobox", "SYSCLK source (sys_ck)")
 this:AddItem("HSI (hsi_ck)", "LL_RCC_SYS_CLKSOURCE_HSI")
 this:AddItem("CSI (csi_ck)", "LL_RCC_SYS_CLKSOURCE_CSI")
 this:AddItem("HSE (hse_ck)", "LL_RCC_SYS_CLKSOURCE_HSE")
 this:AddItem("PLL1 (pll1_p_ck)", "LL_RCC_SYS_CLKSOURCE_PLL1")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_SYSCLK_SRC", "")
+this:SetValueFormatter("sys_ck", this.ShowFrequency)
 --*/
 #define __CLK_SYSCLK_SRC__ LL_RCC_SYS_CLKSOURCE_PLL1
 
@@ -402,7 +357,7 @@ this:AddItem("sys_ck / 128", "LL_RCC_SYSCLK_DIV_128")
 this:AddItem("sys_ck / 256", "LL_RCC_SYSCLK_DIV_256")
 this:AddItem("sys_ck / 512", "LL_RCC_SYSCLK_DIV_512")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_SYSCLK_DIV", "")
+this:SetValueFormatter("sysclk", this.ShowFrequency)
 --*/
 #define __CLK_SYSCLK_DIV__ LL_RCC_SYSCLK_DIV_1
 
@@ -418,7 +373,7 @@ this:AddItem("sys_ck / 128", "LL_RCC_AHB_DIV_128")
 this:AddItem("sys_ck / 256", "LL_RCC_AHB_DIV_256")
 this:AddItem("sys_ck / 512", "LL_RCC_AHB_DIV_512")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_AHBCLK_DIV", "")
+this:SetValueFormatter("ahbclk", this.ShowFrequency)
 --*/
 #define __CLK_AHB_DIV__ LL_RCC_AHB_DIV_2
 
@@ -430,7 +385,7 @@ this:AddItem("ahb_ck / 4", "LL_RCC_APB1_DIV_4")
 this:AddItem("ahb_ck / 8", "LL_RCC_APB1_DIV_8")
 this:AddItem("ahb_ck / 16", "LL_RCC_APB1_DIV_16")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_APB1CLK_DIV", "")
+this:SetValueFormatter("apb1clk", this.ShowFrequency)
 --*/
 #define __CLK_APB1_DIV__ LL_RCC_APB1_DIV_2
 
@@ -442,7 +397,7 @@ this:AddItem("ahb_ck / 4", "LL_RCC_APB2_DIV_4")
 this:AddItem("ahb_ck / 8", "LL_RCC_APB2_DIV_8")
 this:AddItem("ahb_ck / 16", "LL_RCC_APB2_DIV_16")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_APB2CLK_DIV", "")
+this:SetValueFormatter("apb2clk", this.ShowFrequency)
 --*/
 #define __CLK_APB2_DIV__ LL_RCC_APB2_DIV_2
 
@@ -454,7 +409,7 @@ this:AddItem("ahb_ck / 4", "LL_RCC_APB3_DIV_4")
 this:AddItem("ahb_ck / 8", "LL_RCC_APB3_DIV_8")
 this:AddItem("ahb_ck / 16", "LL_RCC_APB3_DIV_16")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_APB3CLK_DIV", "")
+this:SetValueFormatter("apb3clk", this.ShowFrequency)
 --*/
 #define __CLK_APB3_DIV__ LL_RCC_APB3_DIV_2
 
@@ -466,7 +421,7 @@ this:AddItem("ahb_ck / 4", "LL_RCC_APB4_DIV_4")
 this:AddItem("ahb_ck / 8", "LL_RCC_APB4_DIV_8")
 this:AddItem("ahb_ck / 16", "LL_RCC_APB4_DIV_16")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_APB4CLK_DIV", "")
+this:SetValueFormatter("apb4clk", this.ShowFrequency)
 --*/
 #define __CLK_APB4_DIV__ LL_RCC_APB4_DIV_4
 
@@ -474,17 +429,10 @@ this:AddExtraWidget("Label", "LABEL_APB4CLK_DIV", "")
 // Peripheral clock configuration
 //==============================================================================
 /*--
-this:AddExtraWidget("Label", "LABEL_PERIPH_CLOCKS", "\nPeripheral Clocks", -1, "bold")
-this:AddExtraWidget("Void", "VoidPeriphCLK1")
-this:AddExtraWidget("Void", "VoidPeriphCLK2")
-++*/
-
-/*--
 this:AddWidget("Combobox", "RTC HSE Clock divider")
 this:AddItem("No clock", "LL_RCC_RTC_NOCLOCK")
 for i=2,63 do this:AddItem(tostring(i), "LL_RCC_RTC_HSE_DIV_"..tostring(i)) end
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_RTC_HSE_DIV", "")
 --*/
 #define __CLK_RTC_HSE_DIV__ LL_RCC_RTC_NOCLOCK
 
@@ -495,7 +443,7 @@ this:AddItem("LSE clock", "LL_RCC_RTC_CLKSOURCE_LSE")
 this:AddItem("LSI clock", "LL_RCC_RTC_CLKSOURCE_LSI")
 this:AddItem("HSE clock", "LL_RCC_RTC_CLKSOURCE_HSE")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_RTC_SRC", "")
+this:SetValueFormatter("RTC", this.ShowFrequency)
 --*/
 #define __CLK_SRC_RTC__ LL_RCC_RTC_CLKSOURCE_LSE
 
@@ -508,7 +456,7 @@ this:AddItem("HSI", "LL_RCC_USART16_CLKSOURCE_HSI")
 this:AddItem("CSI", "LL_RCC_USART16_CLKSOURCE_CSI")
 this:AddItem("LSE", "LL_RCC_USART16_CLKSOURCE_LSE")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_UART16", "")
+this:SetValueFormatter("UART16", this.ShowFrequency)
 --*/
 #define __CLK_SRC_UART16__ LL_RCC_USART16_CLKSOURCE_PCLK2
 
@@ -521,7 +469,7 @@ this:AddItem("HSI", "LL_RCC_USART234578_CLKSOURCE_HSI")
 this:AddItem("CSI", "LL_RCC_USART234578_CLKSOURCE_CSI")
 this:AddItem("LSE", "LL_RCC_USART234578_CLKSOURCE_LSE")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_UART234578", "")
+this:SetValueFormatter("UART234578", this.ShowFrequency)
 --*/
 #define __CLK_SRC_UART234578__ LL_RCC_USART234578_CLKSOURCE_PCLK1
 
@@ -534,7 +482,7 @@ this:AddItem("HSI", "LL_RCC_LPUART1_CLKSOURCE_HSI")
 this:AddItem("CSI", "LL_RCC_LPUART1_CLKSOURCE_CSI")
 this:AddItem("LSE", "LL_RCC_LPUART1_CLKSOURCE_LSE")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_LPUART1", "")
+this:SetValueFormatter("LPUART1", this.ShowFrequency)
 --*/
 #define __CLK_SRC_LPUART1__ LL_RCC_LPUART1_CLKSOURCE_PCLK4
 
@@ -545,7 +493,7 @@ this:AddItem("PLL3R", "LL_RCC_I2C123_CLKSOURCE_PLL3R")
 this:AddItem("HSI", "LL_RCC_I2C123_CLKSOURCE_HSI")
 this:AddItem("CSI", "LL_RCC_I2C123_CLKSOURCE_CSI")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_I2C123", "")
+this:SetValueFormatter("I2C123", this.ShowFrequency)
 --*/
 #define __CLK_SRC_I2C123__ LL_RCC_I2C123_CLKSOURCE_PCLK1
 
@@ -556,7 +504,7 @@ this:AddItem("PLL3R", "LL_RCC_I2C4_CLKSOURCE_PLL3R")
 this:AddItem("HSI", "LL_RCC_I2C4_CLKSOURCE_HSI")
 this:AddItem("CSI", "LL_RCC_I2C4_CLKSOURCE_CSI")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_I2C4", "")
+this:SetValueFormatter("I2C4", this.ShowFrequency)
 --*/
 #define __CLK_SRC_I2C4__ LL_RCC_I2C4_CLKSOURCE_PCLK4
 
@@ -569,7 +517,7 @@ this:AddItem("LSE", "LL_RCC_LPTIM1_CLKSOURCE_LSE")
 this:AddItem("LSI", "LL_RCC_LPTIM1_CLKSOURCE_LSI")
 this:AddItem("CLKP", "LL_RCC_LPTIM1_CLKSOURCE_CLKP")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_LPTIM1", "")
+this:SetValueFormatter("LPTIM1", this.ShowFrequency)
 --*/
 #define __CLK_SRC_LPTIM1__ LL_RCC_LPTIM1_CLKSOURCE_LSE
 
@@ -582,7 +530,7 @@ this:AddItem("LSE", "LL_RCC_LPTIM2_CLKSOURCE_LSE")
 this:AddItem("LSI", "LL_RCC_LPTIM2_CLKSOURCE_LSI")
 this:AddItem("CLKP", "LL_RCC_LPTIM2_CLKSOURCE_CLKP")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_LPTIM2", "")
+this:SetValueFormatter("LPTIM2", this.ShowFrequency)
 --*/
 #define __CLK_SRC_LPTIM2__ LL_RCC_LPTIM2_CLKSOURCE_LSE
 
@@ -595,7 +543,7 @@ this:AddItem("LSE", "LL_RCC_LPTIM345_CLKSOURCE_LSE")
 this:AddItem("LSI", "LL_RCC_LPTIM345_CLKSOURCE_LSI")
 this:AddItem("CLKP", "LL_RCC_LPTIM345_CLKSOURCE_CLKP")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_LPTIM345", "")
+this:SetValueFormatter("LPTIM345", this.ShowFrequency)
 --*/
 #define __CLK_SRC_LPTIM345__ LL_RCC_LPTIM345_CLKSOURCE_LSE
 
@@ -605,7 +553,7 @@ this:AddItem("HSI", "LL_RCC_CLKP_CLKSOURCE_HSI")
 this:AddItem("CSI", "LL_RCC_CLKP_CLKSOURCE_CSI")
 this:AddItem("HSE", "LL_RCC_CLKP_CLKSOURCE_HSE")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_CLKP", "")
+this:SetValueFormatter("CLKP", this.ShowFrequency)
 --*/
 #define __CLK_SRC_CLKP__ LL_RCC_CLKP_CLKSOURCE_HSI
 
@@ -615,7 +563,7 @@ this:AddItem("PLL1Q", "LL_RCC_SPDIF_CLKSOURCE_PLL1Q")
 this:AddItem("PLL2R", "LL_RCC_SPDIF_CLKSOURCE_PLL2R")
 this:AddItem("PLL3R", "LL_RCC_SPDIF_CLKSOURCE_PLL3R")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_SPDIF", "")
+this:SetValueFormatter("SPDIF", this.ShowFrequency)
 --*/
 #define __CLK_SRC_SPDIF__ LL_RCC_SPDIF_CLKSOURCE_PLL1Q
 
@@ -627,7 +575,7 @@ this:AddItem("PLL3P", "LL_RCC_SAI1_CLKSOURCE_PLL3P")
 this:AddItem("I2S_CKIN", "LL_RCC_SAI1_CLKSOURCE_I2S_CKIN")
 this:AddItem("CLKP", "LL_RCC_SAI1_CLKSOURCE_CLKP")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_SAI1", "")
+this:SetValueFormatter("SAI1", this.ShowFrequency)
 --*/
 #define __CLK_SRC_SAI1__ LL_RCC_SAI1_CLKSOURCE_PLL1Q
 
@@ -639,7 +587,7 @@ this:AddItem("PLL3P", "LL_RCC_SAI23_CLKSOURCE_PLL3P")
 this:AddItem("I2S_CKIN", "LL_RCC_SAI23_CLKSOURCE_I2S_CKIN")
 this:AddItem("CLKP", "LL_RCC_SAI23_CLKSOURCE_CLKP")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_SAI23", "")
+this:SetValueFormatter("SAI23", this.ShowFrequency)
 --*/
 #define __CLK_SRC_SAI23__ LL_RCC_SAI23_CLKSOURCE_PLL1Q
 
@@ -652,7 +600,7 @@ this:AddItem("I2S_CKIN", "LL_RCC_SAI2A_CLKSOURCE_I2S_CKIN")
 this:AddItem("CLKP", "LL_RCC_SAI2A_CLKSOURCE_CLKP")
 this:AddItem("SPDIF", "LL_RCC_SAI2A_CLKSOURCE_SPDIF")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_SAI2A", "")
+this:SetValueFormatter("SAI2A", this.ShowFrequency)
 --*/
 #define __CLK_SRC_SAI2A__ LL_RCC_SAI2A_CLKSOURCE_PLL1Q
 
@@ -665,7 +613,7 @@ this:AddItem("I2S_CKIN", "LL_RCC_SAI2B_CLKSOURCE_I2S_CKIN")
 this:AddItem("CLKP", "LL_RCC_SAI2B_CLKSOURCE_CLKP")
 this:AddItem("SPDIF", "LL_RCC_SAI2B_CLKSOURCE_SPDIF")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_SAI2B", "")
+this:SetValueFormatter("SAI2B", this.ShowFrequency)
 --*/
 #define __CLK_SRC_SAI2B__ LL_RCC_SAI2B_CLKSOURCE_PLL1Q
 
@@ -677,7 +625,7 @@ this:AddItem("PLL3P", "LL_RCC_SAI4A_CLKSOURCE_PLL3P")
 this:AddItem("I2S_CKIN", "LL_RCC_SAI4A_CLKSOURCE_I2S_CKIN")
 this:AddItem("CLKP", "LL_RCC_SAI4A_CLKSOURCE_CLKP")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_SAI4A", "")
+this:SetValueFormatter("SAI4A", this.ShowFrequency)
 --*/
 #define __CLK_SRC_SAI4A__ LL_RCC_SAI4A_CLKSOURCE_PLL1Q
 
@@ -689,7 +637,7 @@ this:AddItem("PLL3P", "LL_RCC_SAI4B_CLKSOURCE_PLL3P")
 this:AddItem("I2S_CKIN", "LL_RCC_SAI4B_CLKSOURCE_I2S_CKIN")
 this:AddItem("CLKP", "LL_RCC_SAI4B_CLKSOURCE_CLKP")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_SAI4B", "")
+this:SetValueFormatter("SAI4B", this.ShowFrequency)
 --*/
 #define __CLK_SRC_SAI4B__ LL_RCC_SAI4B_CLKSOURCE_PLL1Q
 
@@ -698,7 +646,7 @@ this:AddWidget("Combobox", "SDMMC clock source")
 this:AddItem("PLL1Q", "LL_RCC_SDMMC_CLKSOURCE_PLL1Q")
 this:AddItem("PLL2R", "LL_RCC_SDMMC_CLKSOURCE_PLL2R")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_SDMMC", "")
+this:SetValueFormatter("SDMMC", this.ShowFrequency)
 --*/
 #define __CLK_SRC_SDMMC__ LL_RCC_SDMMC_CLKSOURCE_PLL1Q
 
@@ -709,7 +657,7 @@ this:AddItem("PLL1Q", "LL_RCC_RNG_CLKSOURCE_PLL1Q")
 this:AddItem("LSE", "LL_RCC_RNG_CLKSOURCE_LSE")
 this:AddItem("LSI", "LL_RCC_RNG_CLKSOURCE_LSI")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_RNG", "")
+this:SetValueFormatter("RNG", this.ShowFrequency)
 --*/
 #define __CLK_SRC_RNG__ LL_RCC_RNG_CLKSOURCE_PLL1Q
 
@@ -720,7 +668,7 @@ this:AddItem("PLL1Q", "LL_RCC_USB_CLKSOURCE_PLL1Q")
 this:AddItem("PLL3Q", "LL_RCC_USB_CLKSOURCE_PLL3Q")
 this:AddItem("HSI48", "LL_RCC_USB_CLKSOURCE_HSI48")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_USB", "")
+this:SetValueFormatter("USB", this.ShowFrequency)
 --*/
 #define __CLK_SRC_USB__ LL_RCC_USB_CLKSOURCE_PLL1Q
 
@@ -730,7 +678,7 @@ this:AddItem("LSE", "LL_RCC_CEC_CLKSOURCE_LSE")
 this:AddItem("LSI", "LL_RCC_CEC_CLKSOURCE_LSI")
 this:AddItem("CSI_DIV122", "LL_RCC_CEC_CLKSOURCE_CSI_DIV122")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_CEC", "")
+this:SetValueFormatter("CEC", this.ShowFrequency)
 --*/
 #define __CLK_SRC_CEC__ LL_RCC_CEC_CLKSOURCE_LSE
 
@@ -739,7 +687,7 @@ this:AddWidget("Combobox", "DFSDM1 clock source")
 this:AddItem("PCLK2", "LL_RCC_DFSDM1_CLKSOURCE_PCLK2")
 this:AddItem("SYSCLK", "LL_RCC_DFSDM1_CLKSOURCE_SYSCLK")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_DFSDM1", "")
+this:SetValueFormatter("DFSDM1", this.ShowFrequency)
 --*/
 #define __CLK_SRC_DFSDM1__ LL_RCC_DFSDM1_CLKSOURCE_PCLK2
 
@@ -748,7 +696,7 @@ this:AddWidget("Combobox", "DFSDM2 clock source")
 this:AddItem("PCLK4", "LL_RCC_DFSDM2_CLKSOURCE_PCLK4")
 this:AddItem("SYSCLK", "LL_RCC_DFSDM2_CLKSOURCE_SYSCLK")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_DFSDM2", "")
+this:SetValueFormatter("DFSDM2", this.ShowFrequency)
 --*/
 #define __CLK_SRC_DFSDM2__ LL_RCC_DFSDM2_CLKSOURCE_PCLK4
 
@@ -759,7 +707,7 @@ this:AddItem("PLL1Q", "LL_RCC_FMC_CLKSOURCE_PLL1Q")
 this:AddItem("PLL2R", "LL_RCC_FMC_CLKSOURCE_PLL2R")
 this:AddItem("CLKP", "LL_RCC_FMC_CLKSOURCE_CLKP")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_FMC", "")
+this:SetValueFormatter("FMC", this.ShowFrequency)
 --*/
 #define __CLK_SRC_FMC__ LL_RCC_FMC_CLKSOURCE_HCLK
 
@@ -770,7 +718,7 @@ this:AddItem("PLL1Q", "LL_RCC_QSPI_CLKSOURCE_PLL1Q")
 this:AddItem("PLL2R", "LL_RCC_QSPI_CLKSOURCE_PLL2R")
 this:AddItem("CLKP", "LL_RCC_QSPI_CLKSOURCE_CLKP")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_QSPI", "")
+this:SetValueFormatter("QSPI", this.ShowFrequency)
 --*/
 #define __CLK_SRC_QSPI__ LL_RCC_QSPI_CLKSOURCE_HCLK
 
@@ -781,7 +729,7 @@ this:AddItem("PLL1Q", "LL_RCC_OSPI_CLKSOURCE_PLL1Q")
 this:AddItem("PLL2R", "LL_RCC_OSPI_CLKSOURCE_PLL2R")
 this:AddItem("CLKP", "LL_RCC_OSPI_CLKSOURCE_CLKP")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_OSPI", "")
+this:SetValueFormatter("OSPI", this.ShowFrequency)
 --*/
 #define __CLK_SRC_OSPI__ LL_RCC_OSPI_CLKSOURCE_HCLK
 
@@ -790,7 +738,7 @@ this:AddWidget("Combobox", "DSI clock source")
 this:AddItem("PHY", "LL_RCC_DSI_CLKSOURCE_PHY")
 this:AddItem("PLL2Q", "LL_RCC_DSI_CLKSOURCE_PLL2Q")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_DSI", "")
+this:SetValueFormatter("DSI", this.ShowFrequency)
 --*/
 #define __CLK_SRC_DSI__ LL_RCC_DSI_CLKSOURCE_PHY
 
@@ -802,7 +750,7 @@ this:AddItem("PLL3P", "LL_RCC_SPI123_CLKSOURCE_PLL3P")
 this:AddItem("I2S_CKIN", "LL_RCC_SPI123_CLKSOURCE_I2S_CKIN")
 this:AddItem("CLKP", "LL_RCC_SPI123_CLKSOURCE_CLKP")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_SPI123", "")
+this:SetValueFormatter("SPI123", this.ShowFrequency)
 --*/
 #define __CLK_SRC_SPI123__ LL_RCC_SPI123_CLKSOURCE_PLL1Q
 
@@ -815,7 +763,7 @@ this:AddItem("HSI", "LL_RCC_SPI45_CLKSOURCE_HSI")
 this:AddItem("CSI", "LL_RCC_SPI45_CLKSOURCE_CSI")
 this:AddItem("HSE", "LL_RCC_SPI45_CLKSOURCE_HSE")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_SPI45", "")
+this:SetValueFormatter("SPI45", this.ShowFrequency)
 --*/
 #define __CLK_SRC_SPI45__ LL_RCC_SPI45_CLKSOURCE_PCLK2
 
@@ -829,7 +777,7 @@ this:AddItem("CSI", "LL_RCC_SPI6_CLKSOURCE_CSI")
 this:AddItem("HSE", "LL_RCC_SPI6_CLKSOURCE_HSE")
 this:AddItem("I2S_CKIN", "LL_RCC_SPI6_CLKSOURCE_I2S_CKIN")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_SPI6", "")
+this:SetValueFormatter("SPI6", this.ShowFrequency)
 --*/
 #define __CLK_SRC_SPI6__ LL_RCC_SPI6_CLKSOURCE_PCLK4
 
@@ -839,7 +787,7 @@ this:AddItem("HSE", "LL_RCC_FDCAN_CLKSOURCE_HSE")
 this:AddItem("PLL1Q", "LL_RCC_FDCAN_CLKSOURCE_PLL1Q")
 this:AddItem("PLL2Q", "LL_RCC_FDCAN_CLKSOURCE_PLL2Q")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_FDCAN", "")
+this:SetValueFormatter("FDCAN", this.ShowFrequency)
 --*/
 #define __CLK_SRC_FDCAN__ LL_RCC_FDCAN_CLKSOURCE_HSE
 
@@ -848,7 +796,7 @@ this:AddWidget("Combobox", "SWP clock source")
 this:AddItem("PCLK1", "LL_RCC_SWP_CLKSOURCE_PCLK1")
 this:AddItem("HSI", "LL_RCC_SWP_CLKSOURCE_HSI")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_SWP", "")
+this:SetValueFormatter("SWP", this.ShowFrequency)
 --*/
 #define __CLK_SRC_SWP__ LL_RCC_SWP_CLKSOURCE_PCLK1
 
@@ -858,7 +806,7 @@ this:AddItem("PLL2P", "LL_RCC_ADC_CLKSOURCE_PLL2P")
 this:AddItem("PLL3R", "LL_RCC_ADC_CLKSOURCE_PLL3R")
 this:AddItem("CLKP", "LL_RCC_ADC_CLKSOURCE_CLKP")
 this:SetEvent("clicked", function() this.CalculateFreq() end)
-this:AddExtraWidget("Label", "LABEL_CLK_SRC_ADC", "")
+this:SetValueFormatter("ADC", this.ShowFrequency)
 --*/
 #define __CLK_SRC_ADC__ LL_RCC_ADC_CLKSOURCE_PLL2P
 
@@ -886,7 +834,6 @@ this.CalculateFreq = function(self)
     -- HSE clock frequency -----------------------------------------------------
     local HSEON = iff(this:GetFlagValue("__CLK_HSE_ON__") == "DISABLE", 0, 1)
     freq.HSE = uC.OSCFREQ * HSEON
-    this:SetFlagValue("LABEL_HSE_ON", PrintFrequency(freq.HSE).." (HSE)")
 
     -- HSI & CSI clock frequency -----------------------------------------------
     freq.HSI = 64e6
@@ -897,12 +844,10 @@ this.CalculateFreq = function(self)
     -- LSE clock frequency -----------------------------------------------------
     local LSEON = iff(this:GetFlagValue("__CLK_LSE_ON__") == "DISABLE", 0, 1)
     freq.LSE = 32768 * LSEON
-    this:SetFlagValue("LABEL_LSE_ON", PrintFrequency(freq.LSE).." (LSE)")
 
     -- LSI clock frequency -----------------------------------------------------
     local LSION = iff(this:GetFlagValue("__CLK_LSI_ON__") == "DISABLE", 0, 1)
     freq.LSI = 32e3 * LSION
-    this:SetFlagValue("LABEL_LSI_ON", PrintFrequency(freq.LSI).." (LSI)")
 
     -- PLLs clock source -------------------------------------------------------
     local PLLSRC = this:GetFlagValue("__CLK_PLL_SRC__")
@@ -915,7 +860,6 @@ this.CalculateFreq = function(self)
     else
         freq.ref_ck = 0
     end
-    this:SetFlagValue("LABEL_CLK_PLL_SRC", PrintFrequency(freq.ref_ck))
 
     -- PLL1 clock frequency ----------------------------------------------------
     local PLL1ON = iff(this:GetFlagValue("__CLK_PLL1_ON__") == "_NO_", 0, 1)
@@ -932,15 +876,12 @@ this.CalculateFreq = function(self)
 
     freq.pll1_p_ck = freq.pll1_ck / tonumber(DIVP1) * PLLPON
     freq.PLL1P = freq.pll1_p_ck
-    this:SetFlagValue("LABEL_PLL1_P", PrintFrequency(freq.pll1_p_ck))
 
     freq.pll1_q_ck = freq.pll1_ck / tonumber(DIVQ1) * PLLQON
     freq.PLL1Q = freq.pll1_q_ck
-    this:SetFlagValue("LABEL_PLL1_Q", PrintFrequency(freq.pll1_q_ck))
 
     freq.pll1_r_ck = freq.pll1_ck / tonumber(DIVR1) * PLLRON
     freq.PLL1R = freq.pll1_r_ck
-    this:SetFlagValue("LABEL_PLL1_R", PrintFrequency(freq.pll1_r_ck))
 
 
     -- PLL2 clock frequency ----------------------------------------------------
@@ -958,15 +899,12 @@ this.CalculateFreq = function(self)
 
     freq.pll2_p_ck = freq.pll2_ck / tonumber(DIVP1) * PLLPON
     freq.PLL2P = freq.pll2_p_ck
-    this:SetFlagValue("LABEL_PLL2_P", PrintFrequency(freq.pll2_p_ck))
 
     freq.pll2_q_ck = freq.pll2_ck / tonumber(DIVQ1) * PLLQON
     freq.PLL2Q = freq.pll2_q_ck
-    this:SetFlagValue("LABEL_PLL2_Q", PrintFrequency(freq.pll2_q_ck))
 
     freq.pll2_r_ck = freq.pll2_ck / tonumber(DIVR1) * PLLRON
     freq.PLL2R = freq.pll2_r_ck
-    this:SetFlagValue("LABEL_PLL2_R", PrintFrequency(freq.pll2_r_ck))
 
 
     -- PLL3 clock frequency ----------------------------------------------------
@@ -984,15 +922,12 @@ this.CalculateFreq = function(self)
 
     freq.pll3_p_ck = freq.pll3_ck / tonumber(DIVP1) * PLLPON
     freq.PLL3P = freq.pll3_p_ck
-    this:SetFlagValue("LABEL_PLL3_P", PrintFrequency(freq.pll3_p_ck))
 
     freq.pll3_q_ck = freq.pll3_ck / tonumber(DIVQ1) * PLLQON
     freq.PLL3Q = freq.pll3_q_ck
-    this:SetFlagValue("LABEL_PLL3_Q", PrintFrequency(freq.pll3_q_ck))
 
     freq.pll3_r_ck = freq.pll3_ck / tonumber(DIVR1) * PLLRON
     freq.PLL3R = freq.pll3_r_ck
-    this:SetFlagValue("LABEL_PLL3_R", PrintFrequency(freq.pll3_r_ck))
 
 
     -- SYSCLK source
@@ -1009,43 +944,36 @@ this.CalculateFreq = function(self)
     else
         freq.sys_ck = 0
     end
-    this:SetFlagValue("LABEL_SYSCLK_SRC", PrintFrequency(freq.sys_ck))
 
     -- SYSCLK frequency
     local SYSCLK_DIV = this:GetFlagValue("__CLK_SYSCLK_DIV__"):gsub("LL_RCC_SYSCLK_DIV_", "")
     freq.sysclk = freq.sys_ck / tonumber(SYSCLK_DIV)
     freq.SYSCLK = freq.sysclk
-    this:SetFlagValue("LABEL_SYSCLK_DIV", PrintFrequency(freq.sysclk))
 
     -- AHB clk frequency
     local AHBCLK_DIV = this:GetFlagValue("__CLK_AHB_DIV__"):gsub("LL_RCC_AHB_DIV_", "")
     freq.ahbclk = freq.sys_ck / tonumber(AHBCLK_DIV)
     freq.HCLK = freq.ahbclk
-    this:SetFlagValue("LABEL_AHBCLK_DIV", PrintFrequency(freq.ahbclk))
 
     -- APB1 clk frequency
     local APB1CLK_DIV = this:GetFlagValue("__CLK_APB1_DIV__"):gsub("LL_RCC_APB1_DIV_", "")
     freq.apb1clk = freq.ahbclk / tonumber(APB1CLK_DIV)
     freq.PCLK1 = freq.apb1clk
-    this:SetFlagValue("LABEL_APB1CLK_DIV", PrintFrequency(freq.apb1clk))
 
     -- APB2 clk frequency
     local APB2CLK_DIV = this:GetFlagValue("__CLK_APB2_DIV__"):gsub("LL_RCC_APB2_DIV_", "")
     freq.apb2clk = freq.ahbclk / tonumber(APB2CLK_DIV)
     freq.PCLK2 = freq.apb2clk
-    this:SetFlagValue("LABEL_APB2CLK_DIV", PrintFrequency(freq.apb2clk))
 
     -- APB3 clk frequency
     local APB3CLK_DIV = this:GetFlagValue("__CLK_APB3_DIV__"):gsub("LL_RCC_APB3_DIV_", "")
     freq.apb3clk = freq.ahbclk / tonumber(APB3CLK_DIV)
     freq.PCLK3 = freq.apb3clk
-    this:SetFlagValue("LABEL_APB3CLK_DIV", PrintFrequency(freq.apb3clk))
 
     -- APB4 clk frequency
     local APB4CLK_DIV = this:GetFlagValue("__CLK_APB4_DIV__"):gsub("LL_RCC_APB4_DIV_", "")
     freq.apb4clk = freq.ahbclk / tonumber(APB4CLK_DIV)
     freq.PCLK4 = freq.apb4clk
-    this:SetFlagValue("LABEL_APB4CLK_DIV", PrintFrequency(freq.apb4clk))
 
     -- PERIPHERAL CLOCK --------------------------------------------------------
     -- RTC frequency
@@ -1061,172 +989,141 @@ this.CalculateFreq = function(self)
     else
         freq.RTC = freq[SEL]
     end
-    this:SetFlagValue("LABEL_RTC_SRC", PrintFrequency(freq.RTC))
 
     -- UART1..6 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_UART16__"):gsub("LL_RCC_USART16_CLKSOURCE_", "")
-    freq.uart16 = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_UART16", PrintFrequency(freq.uart16))
+    freq.UART16 = freq[SEL]
 
     -- UART234578 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_UART234578__"):gsub("LL_RCC_USART234578_CLKSOURCE_", "")
-    freq.uart234578 = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_UART234578", PrintFrequency(freq.uart234578))
+    freq.UART234578 = freq[SEL]
 
     -- LPUART1 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_LPUART1__"):gsub("LL_RCC_LPUART1_CLKSOURCE_", "")
-    freq.lpuart1 = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_LPUART1", PrintFrequency(freq.lpuart1))
+    freq.LPUART1 = freq[SEL]
 
     -- I2C123 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_I2C123__"):gsub("LL_RCC_I2C123_CLKSOURCE_", "")
-    freq.i2c123 = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_I2C123", PrintFrequency(freq.i2c123))
+    freq.I2C123 = freq[SEL]
 
     -- I2C4 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_I2C4__"):gsub("LL_RCC_I2C4_CLKSOURCE_", "")
-    freq.i2c4 = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_I2C4", PrintFrequency(freq.i2c4))
+    freq.I2C4 = freq[SEL]
 
     -- LPTIM1 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_LPTIM1__"):gsub("LL_RCC_LPTIM1_CLKSOURCE_", "")
     freq.LPTIM1 = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_LPTIM1", PrintFrequency(freq.LPTIM1))
 
     -- LPTIM2 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_LPTIM2__"):gsub("LL_RCC_LPTIM2_CLKSOURCE_", "")
     freq.LPTIM2 = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_LPTIM2", PrintFrequency(freq.LPTIM2))
 
     -- LPTIM345 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_LPTIM345__"):gsub("LL_RCC_LPTIM345_CLKSOURCE_", "")
     freq.LPTIM345 = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_LPTIM345", PrintFrequency(freq.LPTIM345))
 
     -- CLKP frequency
     local SEL = this:GetFlagValue("__CLK_SRC_CLKP__"):gsub("LL_RCC_CLKP_CLKSOURCE_", "")
     freq.CLKP = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_CLKP", PrintFrequency(freq.CLKP))
 
     -- SPDIF frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SPDIF__"):gsub("LL_RCC_SPDIF_CLKSOURCE_", "")
     freq.SPDIF = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_SPDIF", PrintFrequency(freq.SPDIF))
 
     -- SAI1 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SAI1__"):gsub("LL_RCC_SAI1_CLKSOURCE_", "")
     freq.SAI1 = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_SAI1", PrintFrequency(freq.SAI1))
 
     -- SAI23 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SAI23__"):gsub("LL_RCC_SAI23_CLKSOURCE_", "")
     freq.SAI23 = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_SAI23", PrintFrequency(freq.SAI23))
 
     -- SAI2A frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SAI2A__"):gsub("LL_RCC_SAI2A_CLKSOURCE_", "")
     freq.SAI2A = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_SAI2A", PrintFrequency(freq.SAI2A))
 
     -- SAI2B frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SAI2B__"):gsub("LL_RCC_SAI2B_CLKSOURCE_", "")
     freq.SAI2B = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_SAI2B", PrintFrequency(freq.SAI2B))
 
     -- SAI4A frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SAI4A__"):gsub("LL_RCC_SAI4A_CLKSOURCE_", "")
     freq.SAI4A = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_SAI4A", PrintFrequency(freq.SAI4A))
 
     -- SAI4B frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SAI4B__"):gsub("LL_RCC_SAI4B_CLKSOURCE_", "")
     freq.SAI4B = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_SAI4B", PrintFrequency(freq.SAI4B))
 
     -- SDMMC frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SDMMC__"):gsub("LL_RCC_SDMMC_CLKSOURCE_", "")
     freq.SDMMC = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_SDMMC", PrintFrequency(freq.SDMMC))
 
     -- RNG frequency
     local SEL = this:GetFlagValue("__CLK_SRC_RNG__"):gsub("LL_RCC_RNG_CLKSOURCE_", "")
     freq.RNG = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_RNG", PrintFrequency(freq.RNG))
 
     -- USB frequency
     local SEL = this:GetFlagValue("__CLK_SRC_USB__"):gsub("LL_RCC_USB_CLKSOURCE_", "")
     freq.USB = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_USB", PrintFrequency(freq.USB))
 
     -- CEC frequency
     local SEL = this:GetFlagValue("__CLK_SRC_CEC__"):gsub("LL_RCC_CEC_CLKSOURCE_", "")
     freq.CEC = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_CEC", PrintFrequency(freq.CEC))
 
     -- DFSDM1 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_DFSDM1__"):gsub("LL_RCC_DFSDM1_CLKSOURCE_", "")
     freq.DFSDM1 = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_DFSDM1", PrintFrequency(freq.DFSDM1))
 
     -- DFSDM2 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_DFSDM2__"):gsub("LL_RCC_DFSDM2_CLKSOURCE_", "")
     freq.DFSDM2 = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_DFSDM2", PrintFrequency(freq.DFSDM2))
 
     -- FMC frequency
     local SEL = this:GetFlagValue("__CLK_SRC_FMC__"):gsub("LL_RCC_FMC_CLKSOURCE_", "")
     freq.FMC = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_FMC", PrintFrequency(freq.FMC))
 
     -- QSPI frequency
     local SEL = this:GetFlagValue("__CLK_SRC_QSPI__"):gsub("LL_RCC_QSPI_CLKSOURCE_", "")
     freq.QSPI = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_QSPI", PrintFrequency(freq.QSPI))
 
     -- OSPI frequency
     local SEL = this:GetFlagValue("__CLK_SRC_OSPI__"):gsub("LL_RCC_OSPI_CLKSOURCE_", "")
     freq.OSPI = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_OSPI", PrintFrequency(freq.OSPI))
 
     -- DSI frequency
     local SEL = this:GetFlagValue("__CLK_SRC_DSI__"):gsub("LL_RCC_DSI_CLKSOURCE_", "")
     freq.DSI = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_DSI", PrintFrequency(freq.DSI))
 
     -- SPI123 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SPI123__"):gsub("LL_RCC_SPI123_CLKSOURCE_", "")
     freq.SPI123 = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_SPI123", PrintFrequency(freq.SPI123))
 
     -- SPI45 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SPI45__"):gsub("LL_RCC_SPI45_CLKSOURCE_", "")
     freq.SPI45 = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_SPI45", PrintFrequency(freq.SPI45))
 
     -- SPI6 frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SPI6__"):gsub("LL_RCC_SPI6_CLKSOURCE_", "")
     freq.SPI6 = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_SPI6", PrintFrequency(freq.SPI6))
 
     -- FDCAN frequency
     local SEL = this:GetFlagValue("__CLK_SRC_FDCAN__"):gsub("LL_RCC_FDCAN_CLKSOURCE_", "")
     freq.FDCAN = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_FDCAN", PrintFrequency(freq.FDCAN))
 
     -- SWP frequency
     local SEL = this:GetFlagValue("__CLK_SRC_SWP__"):gsub("LL_RCC_SWP_CLKSOURCE_", "")
     freq.SWP = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_SWP", PrintFrequency(freq.SWP))
 
     -- ADC frequency
     local SEL = this:GetFlagValue("__CLK_SRC_ADC__"):gsub("LL_RCC_ADC_CLKSOURCE_", "")
     freq.ADC = freq[SEL]
-    this:SetFlagValue("LABEL_CLK_SRC_ADC", PrintFrequency(freq.ADC))
 
     -- end calculations
     this:SetFlagValue("__CLK_SYSCLK_SRC_STATUS__", "LL_RCC_SYS_CLKSOURCE_STATUS_"..SYSCLKSRC)
-    this:SetFlagValue("__CLK_HCLK_FREQ__", tostring(freq.HCLK))
-    this:SetFlagValue("__CLK_SYSCLK_FREQ__", tostring(freq.sys_ck))
+    this:SetFlagValue("__CLK_HCLK_FREQ__", tostring(math.floor(freq.HCLK)))
+    this:SetFlagValue("__CLK_SYSCLK_FREQ__", tostring(math.floor(freq.sys_ck)))
+
+    this.freq = freq
 end
 
 -- trigger frequency calculation after loading all flags

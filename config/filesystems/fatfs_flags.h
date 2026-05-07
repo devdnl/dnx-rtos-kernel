@@ -35,12 +35,11 @@
 #define _FATFS_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 1, "Home > File Systems > fatfs",
-               function() this:LoadFile("filesystems/filesystems_flags.h") end)
+this:SetTitle("Home > File Systems > fatfs", "The fatfs file system configuration.")
 ++*/
 
 /*--
-this:AddWidget("Combobox")
+this:AddWidget("Combobox", "Code page")
 this:AddItem("U.S. (437)",                        "437" )
 this:AddItem("Arabic (720)",                      "720" )
 this:AddItem("Greek (737)",                       "737" )
@@ -66,7 +65,9 @@ this:AddItem("Traditional Chinese (DBCS) (950)",  "950" )
 #define __FATFS_LFN_CODEPAGE__ 852
 
 /*--
-this:AddWidget("Checkbox", "Buffered files (fast)")
+this:AddWidget("Combobox", "Buffered files (fast)")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 this:SetToolTip("When option is disabled, file system uses the sector buffer in the file system "..
                 "object instead of the sector buffer in the individual file object for file "..
                 "data transfer. This reduces memory consumption 512 bytes each file object.")

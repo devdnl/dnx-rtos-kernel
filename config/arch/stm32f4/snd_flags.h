@@ -36,8 +36,7 @@ Brief   Sound interface driver
 #define _SND_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > SND (SAI)",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > SND (SAI)", "The SND module configuration.")
 
 this.PortExist = function(this, devNo)
     local SAI_PER = {}
@@ -198,25 +197,12 @@ end
 //==============================================================================
 // SAI1
 //==============================================================================
-/*--
-if this:PortExist(1) then
-        this:AddExtraWidget("Label", "LABEL_SAI1", "SAI1", -1, "bold")
-        this:AddExtraWidget("Void", "VOIDSAI1")
-end
-++*/
 //------------------------------------------------------------------------------
 // SAI1 BLOCK A
 //------------------------------------------------------------------------------
 /*--
 if this:PortExist(1) then
-        this:AddExtraWidget("Label", "LABEL_SAI1_BLOCK_A", "Block A", -1, "bold")
-        this:AddExtraWidget("Void", "VOIDSAI1BlockA")
-end
-++*/
-
-/*--
-if this:PortExist(1) then
-    this:AddWidget("Combobox", "SAI Clock Divider")
+    this:AddWidget("Combobox", "SAI1 A Clock Divider")
     this:AddItem("Enable", "0")
     this:AddItem("Disable (SAI_CK / 1)", "SAI_xCR1_NODIV")
 end
@@ -225,7 +211,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "SAI Clock strobe")
+    this:AddWidget("Combobox", "SAI1 A Clock strobe")
     this:AddItem("Data valid on FALLING clock edge", "0")
     this:AddItem("Data valid on RISING clock edge", "SAI_xCR1_CKSTR")
 end
@@ -234,7 +220,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Bit order")
+    this:AddWidget("Combobox", "SAI1 A Bit order")
     this:AddItem("MSB first", "0")
     this:AddItem("LSB first", "SAI_xCR1_LSBFIRST")
 end
@@ -243,7 +229,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Data size")
+    this:AddWidget("Combobox", "SAI1 A Data size")
     this:AddItem("8-bit", "2")
     this:AddItem("10-bit", "3")
     this:AddItem("16-bit", "4")
@@ -256,7 +242,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Protocol")
+    this:AddWidget("Combobox", "SAI1 A Protocol")
     this:AddItem("Free protocol", "0")
     this:AddItem("AC'97", "2")
 end
@@ -265,7 +251,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Audio block mode")
+    this:AddWidget("Combobox", "SAI1 A Audio block mode")
     this:AddItem("Master transmitter", "0")
     this:AddItem("Master received", "1")
     this:AddItem("Slave transmitter", "2")
@@ -276,7 +262,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Companding mode")
+    this:AddWidget("Combobox", "SAI1 A Companding mode")
     this:AddItem("No companding algorithm", "0")
     this:AddItem("µ-Law algorithm", "2")
     this:AddItem("A-Law algorithm", "3")
@@ -286,7 +272,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Complement bit")
+    this:AddWidget("Combobox", "SAI1 A Complement bit")
     this:AddItem("1's complement", "0")
     this:AddItem("2's complement", "SAI_xCR2_CPL")
 end
@@ -295,7 +281,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Tristate data line")
+    this:AddWidget("Combobox", "SAI1 A Tristate data line")
     this:AddItem("Disable", "0")
     this:AddItem("Enable", "SAI_xCR2_TRIS")
 end
@@ -304,7 +290,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Frame synchronization offset")
+    this:AddWidget("Combobox", "SAI1 A Frame synchronization offset")
     this:AddItem("FS is asserted on the first bit of the slot 0", "0")
     this:AddItem("FS is asserted one bit before the first bit of slot 0", "SAI_xFRCR_FSOFF")
 end
@@ -313,7 +299,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Frame synchronization polarity")
+    this:AddWidget("Combobox", "SAI1 A Frame synchronization polarity")
     this:AddItem("FS is active low (falling edge)", "0")
     this:AddItem("FS is active high (rising edge)", "SAI_xFRCR_FSPOL")
 end
@@ -322,7 +308,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Frame synchronization definition")
+    this:AddWidget("Combobox", "SAI1 A Frame synchronization definition")
     this:AddItem("FS signal is a start frame signal", "0")
     this:AddItem("FS signal is a start of frame signal + channel side identification", "SAI_xFRCR_FSDEF")
 end
@@ -331,28 +317,28 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Spinbox", 1, 128, "Frame synchronization active level length")
+    this:AddWidget("Spinbox", 1, 128, "SAI1 A Frame synchronization active level length")
 end
 --*/
 #define __SND_CFG_SAI1_BLKA_FSALL__ 16
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Spinbox", 1, 32, "Frame length (should be even)")
+    this:AddWidget("Spinbox", 1, 32, "SAI1 A Frame length (should be even)")
 end
 --*/
 #define __SND_CFG_SAI1_BLKA_FRL__ 32
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Spinbox", 1, 16, "Number of slots in an audio frame")
+    this:AddWidget("Spinbox", 1, 16, "SAI1 A Number of slots in an audio frame")
 end
 --*/
 #define __SND_CFG_SAI1_BLKA_NBSLOT__ 2
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Slot size")
+    this:AddWidget("Combobox", "SAI1 A Slot size")
     this:AddItem("The slot size is equivalent to the data size", "0")
     this:AddItem("16-bit", "1")
     this:AddItem("32-bit", "2")
@@ -362,7 +348,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Spinbox", 0, 31, "First bit offset")
+    this:AddWidget("Spinbox", 0, 31, "SAI1 A First bit offset")
 end
 --*/
 #define __SND_CFG_SAI1_BLKA_FBOFF__ 1
@@ -373,14 +359,7 @@ end
 //------------------------------------------------------------------------------
 /*--
 if this:PortExist(1) then
-        this:AddExtraWidget("Label", "LABEL_SAI1_BLOCK_B", "\nBlock B", -1, "bold")
-        this:AddExtraWidget("Void", "VOIDSAI1BlockB")
-end
-++*/
-
-/*--
-if this:PortExist(1) then
-    this:AddWidget("Combobox", "SAI Clock Divider")
+    this:AddWidget("Combobox", "SAI1 B Clock Divider")
     this:AddItem("Enable", "0")
     this:AddItem("Disable (SAI_CK / 1)", "SAI_xCR1_NODIV")
 end
@@ -389,7 +368,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "SAI Clock strobe")
+    this:AddWidget("Combobox", "SAI1 B Clock strobe")
     this:AddItem("Data valid on FALLING clock edge", "0")
     this:AddItem("Data valid on RISING clock edge", "SAI_xCR1_CKSTR")
 end
@@ -398,7 +377,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Bit order")
+    this:AddWidget("Combobox", "SAI1 B Bit order")
     this:AddItem("MSB first", "0")
     this:AddItem("LSB first", "SAI_xCR1_LSBFIRST")
 end
@@ -407,7 +386,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Data size")
+    this:AddWidget("Combobox", "SAI1 B Data size")
     this:AddItem("8-bit", "2")
     this:AddItem("10-bit", "3")
     this:AddItem("16-bit", "4")
@@ -420,7 +399,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Protocol")
+    this:AddWidget("Combobox", "SAI1 B Protocol")
     this:AddItem("Free protocol", "0")
     this:AddItem("AC'97", "2")
 end
@@ -429,7 +408,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Audio block mode")
+    this:AddWidget("Combobox", "SAI1 B Audio block mode")
     this:AddItem("Master transmitter", "0")
     this:AddItem("Master received", "1")
     this:AddItem("Slave transmitter", "2")
@@ -440,7 +419,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Companding mode")
+    this:AddWidget("Combobox", "SAI1 B Companding mode")
     this:AddItem("No companding algorithm", "0")
     this:AddItem("µ-Law algorithm", "2")
     this:AddItem("A-Law algorithm", "3")
@@ -450,7 +429,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Complement bit")
+    this:AddWidget("Combobox", "SAI1 B Complement bit")
     this:AddItem("1's complement", "0")
     this:AddItem("2's complement", "SAI_xCR2_CPL")
 end
@@ -459,7 +438,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Tristate data line")
+    this:AddWidget("Combobox", "SAI1 B Tristate data line")
     this:AddItem("Disable", "0")
     this:AddItem("Enable", "SAI_xCR2_TRIS")
 end
@@ -468,7 +447,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Frame synchronization offset")
+    this:AddWidget("Combobox", "SAI1 B Frame synchronization offset")
     this:AddItem("FS is asserted on the first bit of the slot 0", "0")
     this:AddItem("FS is asserted one bit before the first bit of slot 0", "SAI_xFRCR_FSOFF")
 end
@@ -477,7 +456,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Frame synchronization polarity")
+    this:AddWidget("Combobox", "SAI1 B Frame synchronization polarity")
     this:AddItem("FS is active low (falling edge)", "0")
     this:AddItem("FS is active high (rising edge)", "SAI_xFRCR_FSPOL")
 end
@@ -486,7 +465,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Frame synchronization definition")
+    this:AddWidget("Combobox", "SAI1 B Frame synchronization definition")
     this:AddItem("FS signal is a start frame signal", "0")
     this:AddItem("FS signal is a start of frame signal + channel side identification", "SAI_xFRCR_FSDEF")
 end
@@ -495,28 +474,28 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Spinbox", 1, 128, "Frame synchronization active level length")
+    this:AddWidget("Spinbox", 1, 128, "SAI1 B Frame synchronization active level length")
 end
 --*/
 #define __SND_CFG_SAI1_BLKB_FSALL__ 16
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Spinbox", 1, 32, "Frame length (should be even)")
+    this:AddWidget("Spinbox", 1, 32, "SAI1 B Frame length (should be even)")
 end
 --*/
 #define __SND_CFG_SAI1_BLKB_FRL__ 32
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Spinbox", 1, 16, "Number of slots in an audio frame")
+    this:AddWidget("Spinbox", 1, 16, "SAI1 B Number of slots in an audio frame")
 end
 --*/
 #define __SND_CFG_SAI1_BLKB_NBSLOT__ 2
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Combobox", "Slot size")
+    this:AddWidget("Combobox", "SAI1 B Slot size")
     this:AddItem("The slot size is equivalent to the data size", "0")
     this:AddItem("16-bit", "1")
     this:AddItem("32-bit", "2")
@@ -526,7 +505,7 @@ end
 
 /*--
 if this:PortExist(1) then
-    this:AddWidget("Spinbox", 0, 31, "First bit offset")
+    this:AddWidget("Spinbox", 0, 31, "SAI1 B First bit offset")
 end
 --*/
 #define __SND_CFG_SAI1_BLKB_FBOFF__ 0
@@ -537,25 +516,18 @@ end
 //==============================================================================
 // SAI2
 //==============================================================================
-/*--
-if this:PortExist(2) then
-        this:AddExtraWidget("Label", "LABEL_SAI2", "\n\nSAI2", -1, "bold")
-        this:AddExtraWidget("Void", "VOIDSAI2")
-end
-++*/
 //------------------------------------------------------------------------------
 // SAI2 BLOCK A
 //------------------------------------------------------------------------------
 /*--
 if this:PortExist(2) then
-        this:AddExtraWidget("Label", "LABEL_SAI2_BLOCK_A", "Block A", -1, "bold")
-        this:AddExtraWidget("Void", "VOIDSAI2BlockA")
+    this:AddExtraWidget("Label", "LABEL_SAI2_BLOCK_A", "")
 end
 ++*/
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "SAI Clock Divider")
+    this:AddWidget("Combobox", "SAI2 A Clock Divider")
     this:AddItem("Enable", "0")
     this:AddItem("Disable (SAI_CK / 1)", "SAI_xCR1_NODIV")
 end
@@ -564,7 +536,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "SAI Clock strobe")
+    this:AddWidget("Combobox", "SAI2 A Clock strobe")
     this:AddItem("Data valid on FALLING clock edge", "0")
     this:AddItem("Data valid on RISING clock edge", "SAI_xCR1_CKSTR")
 end
@@ -573,7 +545,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Bit order")
+    this:AddWidget("Combobox", "SAI2 A Bit order")
     this:AddItem("MSB first", "0")
     this:AddItem("LSB first", "SAI_xCR1_LSBFIRST")
 end
@@ -582,7 +554,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Data size")
+    this:AddWidget("Combobox", "SAI2 A Data size")
     this:AddItem("8-bit", "2")
     this:AddItem("10-bit", "3")
     this:AddItem("16-bit", "4")
@@ -595,7 +567,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Protocol")
+    this:AddWidget("Combobox", "SAI2 A Protocol")
     this:AddItem("Free protocol", "0")
     this:AddItem("AC'97", "2")
 end
@@ -604,7 +576,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Audio block mode")
+    this:AddWidget("Combobox", "SAI2 A Audio block mode")
     this:AddItem("Master transmitter", "0")
     this:AddItem("Master received", "1")
     this:AddItem("Slave transmitter", "2")
@@ -615,7 +587,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Companding mode")
+    this:AddWidget("Combobox", "SAI2 A Companding mode")
     this:AddItem("No companding algorithm", "0")
     this:AddItem("µ-Law algorithm", "2")
     this:AddItem("A-Law algorithm", "3")
@@ -625,7 +597,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Complement bit")
+    this:AddWidget("Combobox", "SAI2 A Complement bit")
     this:AddItem("1's complement", "0")
     this:AddItem("2's complement", "SAI_xCR2_CPL")
 end
@@ -634,7 +606,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Tristate data line")
+    this:AddWidget("Combobox", "SAI2 A Tristate data line")
     this:AddItem("Disable", "0")
     this:AddItem("Enable", "SAI_xCR2_TRIS")
 end
@@ -643,7 +615,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Frame synchronization offset")
+    this:AddWidget("Combobox", "SAI2 A Frame synchronization offset")
     this:AddItem("FS is asserted on the first bit of the slot 0", "0")
     this:AddItem("FS is asserted one bit before the first bit of slot 0", "SAI_xFRCR_FSOFF")
 end
@@ -652,7 +624,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Frame synchronization polarity")
+    this:AddWidget("Combobox", "SAI2 A Frame synchronization polarity")
     this:AddItem("FS is active low (falling edge)", "0")
     this:AddItem("FS is active high (rising edge)", "SAI_xFRCR_FSPOL")
 end
@@ -661,7 +633,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Frame synchronization definition")
+    this:AddWidget("Combobox", "SAI2 A Frame synchronization definition")
     this:AddItem("FS signal is a start frame signal", "0")
     this:AddItem("FS signal is a start of frame signal + channel side identification", "SAI_xFRCR_FSDEF")
 end
@@ -670,28 +642,28 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Spinbox", 1, 128, "Frame synchronization active level length")
+    this:AddWidget("Spinbox", 1, 128, "SAI2 A Frame synchronization active level length")
 end
 --*/
 #define __SND_CFG_SAI2_BLKA_FSALL__ 16
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Spinbox", 1, 32, "Frame length (should be even)")
+    this:AddWidget("Spinbox", 1, 32, "SAI2 A Frame length (should be even)")
 end
 --*/
 #define __SND_CFG_SAI2_BLKA_FRL__ 32
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Spinbox", 1, 16, "Number of slots in an audio frame")
+    this:AddWidget("Spinbox", 1, 16, "SAI2 A Number of slots in an audio frame")
 end
 --*/
 #define __SND_CFG_SAI2_BLKA_NBSLOT__ 2
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Slot size")
+    this:AddWidget("Combobox", "SAI2 A Slot size")
     this:AddItem("The slot size is equivalent to the data size", "0")
     this:AddItem("16-bit", "1")
     this:AddItem("32-bit", "2")
@@ -701,7 +673,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Spinbox", 0, 31, "First bit offset")
+    this:AddWidget("Spinbox", 0, 31, "SAI2 A First bit offset")
 end
 --*/
 #define __SND_CFG_SAI2_BLKA_FBOFF__ 0
@@ -712,14 +684,7 @@ end
 //------------------------------------------------------------------------------
 /*--
 if this:PortExist(2) then
-        this:AddExtraWidget("Label", "LABEL_SAI2_BLOCK_B", "\nBlock B", -1, "bold")
-        this:AddExtraWidget("Void", "VOIDSAI2BlockB")
-end
-++*/
-
-/*--
-if this:PortExist(2) then
-    this:AddWidget("Combobox", "SAI Clock Divider")
+    this:AddWidget("Combobox", "SAI2 B Clock Divider")
     this:AddItem("Enable", "0")
     this:AddItem("Disable (SAI_CK / 1)", "SAI_xCR1_NODIV")
 end
@@ -728,7 +693,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "SAI Clock strobe")
+    this:AddWidget("Combobox", "SAI2 B Clock strobe")
     this:AddItem("Data valid on FALLING clock edge", "0")
     this:AddItem("Data valid on RISING clock edge", "SAI_xCR1_CKSTR")
 end
@@ -737,7 +702,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Bit order")
+    this:AddWidget("Combobox", "SAI2 B Bit order")
     this:AddItem("MSB first", "0")
     this:AddItem("LSB first", "SAI_xCR1_LSBFIRST")
 end
@@ -746,7 +711,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Data size")
+    this:AddWidget("Combobox", "SAI2 B Data size")
     this:AddItem("8-bit", "2")
     this:AddItem("10-bit", "3")
     this:AddItem("16-bit", "4")
@@ -759,7 +724,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Protocol")
+    this:AddWidget("Combobox", "SAI2 B Protocol")
     this:AddItem("Free protocol", "0")
     this:AddItem("AC'97", "2")
 end
@@ -768,7 +733,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Audio block mode")
+    this:AddWidget("Combobox", "SAI2 B Audio block mode")
     this:AddItem("Master transmitter", "0")
     this:AddItem("Master received", "1")
     this:AddItem("Slave transmitter", "2")
@@ -779,7 +744,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Companding mode")
+    this:AddWidget("Combobox", "SAI2 B Companding mode")
     this:AddItem("No companding algorithm", "0")
     this:AddItem("µ-Law algorithm", "2")
     this:AddItem("A-Law algorithm", "3")
@@ -789,7 +754,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Complement bit")
+    this:AddWidget("Combobox", "SAI2 B Complement bit")
     this:AddItem("1's complement", "0")
     this:AddItem("2's complement", "SAI_xCR2_CPL")
 end
@@ -798,7 +763,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Tristate data line")
+    this:AddWidget("Combobox", "SAI2 B Tristate data line")
     this:AddItem("Disable", "0")
     this:AddItem("Enable", "SAI_xCR2_TRIS")
 end
@@ -807,7 +772,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Frame synchronization offset")
+    this:AddWidget("Combobox", "SAI2 B Frame synchronization offset")
     this:AddItem("FS is asserted on the first bit of the slot 0", "0")
     this:AddItem("FS is asserted one bit before the first bit of slot 0", "SAI_xFRCR_FSOFF")
 end
@@ -816,7 +781,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Frame synchronization polarity")
+    this:AddWidget("Combobox", "SAI2 B Frame synchronization polarity")
     this:AddItem("FS is active low (falling edge)", "0")
     this:AddItem("FS is active high (rising edge)", "SAI_xFRCR_FSPOL")
 end
@@ -825,7 +790,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Frame synchronization definition")
+    this:AddWidget("Combobox", "SAI2 B Frame synchronization definition")
     this:AddItem("FS signal is a start frame signal", "0")
     this:AddItem("FS signal is a start of frame signal + channel side identification", "SAI_xFRCR_FSDEF")
 end
@@ -834,28 +799,28 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Spinbox", 1, 128, "Frame synchronization active level length")
+    this:AddWidget("Spinbox", 1, 128, "SAI2 B Frame synchronization active level length")
 end
 --*/
 #define __SND_CFG_SAI2_BLKB_FSALL__ 16
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Spinbox", 1, 32, "Frame length (should be even)")
+    this:AddWidget("Spinbox", 1, 32, "SAI2 B Frame length (should be even)")
 end
 --*/
 #define __SND_CFG_SAI2_BLKB_FRL__ 32
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Spinbox", 1, 16, "Number of slots in an audio frame")
+    this:AddWidget("Spinbox", 1, 16, "SAI2 B Number of slots in an audio frame")
 end
 --*/
 #define __SND_CFG_SAI2_BLKB_NBSLOT__ 2
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Combobox", "Slot size")
+    this:AddWidget("Combobox", "SAI2 B Slot size")
     this:AddItem("The slot size is equivalent to the data size", "0")
     this:AddItem("16-bit", "1")
     this:AddItem("32-bit", "2")
@@ -865,7 +830,7 @@ end
 
 /*--
 if this:PortExist(2) then
-    this:AddWidget("Spinbox", 0, 31, "First bit offset")
+    this:AddWidget("Spinbox", 0, 31, "SAI2 B First bit offset")
 end
 --*/
 #define __SND_CFG_SAI2_BLKB_FBOFF__ 0

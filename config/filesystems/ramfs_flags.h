@@ -35,8 +35,7 @@
 #define _RAMFS_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > File Systems > ramfs",
-               function() this:LoadFile("filesystems/filesystems_flags.h") end)
+this:SetTitle("Home > File Systems > ramfs", "The ramfs file system configuration.")
 ++*/
 
 /*--

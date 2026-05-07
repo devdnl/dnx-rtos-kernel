@@ -36,13 +36,13 @@ Brief   Daniel Zorychta
 #define _FLATFS_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > File Systems > flatfs",
-               function() this:LoadFile("filesystems/filesystems_flags.h") end)
+this:SetTitle("Home > File Systems > flatfs", "The flatfs file system configuration.")
 ++*/
 
 /*--
-this:AddWidget("Checkbox", "Enable file system debug")
-this:AddExtraWidget("Void", "VoidEnable")
+this:AddWidget("Combobox", "Enable file system debug")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 --*/
 #define __FLATFS_LOG_ENABLE__ _NO_
 

@@ -1,4 +1,37 @@
 #!/usr/bin/env lua
+
+--[[============================================================================
+@file   optimize_bsp.lua
+
+@author Daniel Zorychta
+
+@brief  This script remove unused arcitectures from BSP file.
+
+        MIT License
+
+        Copyright (C) 2025 Daniel Zorychta <daniel.zorychta@gmail.com>
+
+        Permission is hereby granted, free of charge, to any person obtaining
+        a copy of this software and associated documentation files (the
+        "Software"), to deal in the Software without restriction, including
+        without limitation the rights to use, copy, modify, merge, publish,
+        distribute, sublicense, and/or sell copies of the Software, and to
+        permit persons to whom the Software is furnished to do so, subject to
+        the following conditions:
+
+        The above copyright notice and this permission notice shall be included
+        in all copies or substantial portions of the Software.
+
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+        OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+        THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+        OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+        ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+        OTHER DEALINGS IN THE SOFTWARE.
+
+==============================================================================]]
+
 --------------------------------------------------------------------------------
 -- @brief  Load table from file
 -- @param  file         file to read from
@@ -109,29 +142,37 @@ end
 
 --------------------------------------------------------------------------------
 -- @brief  Optimize table to selected architecture.
+-- @param  tab      table to optimize
 -- @param  arch     architecture name
 --------------------------------------------------------------------------------
 function Optimize(tab, arch)
+    local arch_escaped = arch:gsub("([^%w])", "%%%1")
 
-    for i,v in pairs(tab.file) do
+    for f, v in pairs(tab) do
 
-        local f = io.open("../config/"..i, "rb")
-        if f then
-            if i:match("arch/.*/.*") then
-                if not (i:match("arch/"..arch.."/.*") or i:match("arch/noarch/.*")) then
-                    print("Removing useless '"..i.."' entry")
-                    tab.file[i] = nil
-                end
+        local arch_dir = f:match("arch/.*/.*")
+
+        if arch_dir ~= nil then
+            if arch_dir:match("noarch") then
+                -- leave as is
+            elseif arch_dir:match(arch) == nil then
+                --print("Removing "..f.."...")
+                tab[f] = nil
             end
-
-            f:close()
-        else
-            print("No config file: " .. i)
-            tab.file[i] = nil
         end
+
+        --[[if tab[f] and next(v) == nil then
+            print("Removing "..f.." (empty)...")
+            tab[f] = nil
+        end]]
     end
 end
 
+--------------------------------------------------------------------------------
+-- @brief  Main loop.
+-- @param  arg[1]   BSP file path
+-- @param  arg[2]   architecture filter
+--------------------------------------------------------------------------------
 if #arg == 2 then
     local tab = LoadTable(arg[1])
     Optimize(tab, arg[2])

@@ -39,13 +39,7 @@
 #define _PROJECT_FLAGS_H_
 
 #/*--
-# this:SetLayout("TitledGridBack", 2, "Home > Project",
-#                function() this:LoadFile("config.h") end)
-#++*/
-
-#/*--
-# this:AddExtraWidget("Label", "LabelBasic", "Basic", -1, "bold")
-# this:AddExtraWidget("Void", "VoidBasic")
+# this:SetTitle("Home > Project", "General project configuration.")
 #++*/
 
 #/*--
@@ -69,11 +63,6 @@ none=
 __PROJECT_TOOLCHAIN__=arm-none-eabi-
 #*/
 
-
-#/*--
-# this:AddExtraWidget("Label", "LabelBoard", "\nBoard", -1, "bold")
-# this:AddExtraWidget("Void", "VoidBoard")
-#++*/
 #// Existing architectures
 #define stm32f1 0x16F54349
 #define stm32f2 0x2f31e2fc
@@ -97,22 +86,17 @@ __CPU_ARCH__=stm32f1
 #*/
 
 #/*--
-# this:AddWidget("Spinbox", 1e6, 100e6, "Oscillator frequency [Hz]")
+# this:AddWidget("Editline", false, "Oscillator frequency [Hz]")
 # this:SetToolTip("This is a frequency of a connected to the microcontroller external generator or crystal.")
 #--*/
 #define __CPU_OSC_FREQ__ 8000000
 
 #/*--
-# this:AddWidget("Spinbox", 0, 16, "Terminal UART")
+# this:AddWidget("Editline", false, "Terminal UART")
 # this:SetToolTip("This value set UART terminal. This is UART major number.")
 #--*/
 #define __CPU_UART_TERM__ 0
 
-
-#/*--
-# this:AddExtraWidget("Label", "LabelAppset", "\nAppset configuration", -1, "bold")
-# this:AddExtraWidget("Void", "VoidAppset")
-#++*/
 #/*--
 # this:AddWidget("Editline", false, "Appset address")
 # this:SetToolTip("Address to appset table.\nThe UINT32_MAX (or 0xFFFFFFFF) value means that application table is localized just after OS section.")

@@ -37,8 +37,7 @@
 #define _CRC_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > CRC",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > CRC", "The CRC module configuration.")
 ++*/
 
 #endif /* _CRC_FLAGS_H_ */

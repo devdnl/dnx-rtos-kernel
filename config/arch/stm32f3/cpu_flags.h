@@ -38,8 +38,7 @@
 #define _CPU_FLAGS_H_
 
 #/*--
-# this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > Selection",
-#                function() this:LoadFile("arch/arch_flags.h") end)
+# this:SetTitle("Home > Microcontroller > Selection", "Microcontroller configuartion.")
 #++*/
 
 #/*-- Flag is set in __CPU_NAME__ event

@@ -35,14 +35,9 @@ Brief    Digital Camera Interface Driver
 #define _DCI_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > DCI",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > DCI", "The DCI module configuration.")
 ++*/
 
-/*--
-this:AddExtraWidget("Label", "LabelGC", "\nGeneral configuration", -1, "bold")
-this:AddExtraWidget("Void", "VoidGC")
-++*/
 /*--
 this:AddWidget("Spinbox", 1, 2048, "Camera resolution X")
 --*/
@@ -111,10 +106,6 @@ this:SetToolTip("JPEG data transfer: crop and embedded sync. cannot be used.")
 
 
 /*--
-this:AddExtraWidget("Label", "LabelSM", "\nSynchronization mode", -1, "bold")
-this:AddExtraWidget("Void", "VoidSM")
-++*/
-/*--
 this:AddWidget("Combobox", "Embedded synchronization select")
 this:AddItem("Hardware sync. data capture (HSYNC/VSYNC signals)", "(0 << 4)")
 this:AddItem("Synchronization codes embedded in data flow", "(1 << 4)")
@@ -180,11 +171,6 @@ this:SetToolTip("This byte specifies the mask to be applied to the code of the f
 --*/
 #define __DCI_FSU__ 0xFF
 
-
-/*--
-this:AddExtraWidget("Label", "LabelCF", "\nCrop feature", -1, "bold")
-this:AddExtraWidget("Void", "VoidCF")
-++*/
 /*--
 this:AddWidget("Combobox", "Crop feature")
 this:AddItem("The full image is captured", "(0 << 2)")
@@ -213,10 +199,6 @@ this:AddWidget("Spinbox", 1, 2048, "Crop width")
 #define __DCI_CROP_WIDTH__ 1
 
 
-/*--
-this:AddExtraWidget("Label", "LabelIRQ", "\nIRQ configuration", -1, "bold")
-this:AddExtraWidget("Void", "VoidIRQ")
-++*/
 /*--
 this:AddWidget("Combobox", "IRQ priority")
 uC.AddPriorityItems(this, false)

@@ -36,8 +36,7 @@ Brief   Real Time Clock Module
 #define _RTC_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > Microcontroller > RTC",
-               function() this:LoadFile("arch/arch_flags.h") end)
+this:SetTitle("Home > Microcontroller > RTC", "The RTC module configuration.")
 ++*/
 
 #endif /* _RTC_FLAGS_H_ */

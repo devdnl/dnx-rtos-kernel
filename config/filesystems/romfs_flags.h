@@ -36,12 +36,13 @@ Brief   ROM File System
 #define _ROMFS_FLAGS_H_
 
 /*--
-this:SetLayout("TitledGridBack", 2, "Home > File Systems > romfs",
-               function() this:LoadFile("filesystems/filesystems_flags.h") end)
+this:SetTitle("Home > File Systems > romfs", "The romfs file system configuration.")
 ++*/
 
 /*--
-this:AddWidget("Checkbox", "Executable flag in regular files")
+this:AddWidget("Combobox", "Add executable flag in regular files")
+this:AddItem("Yes", "_YES_")
+this:AddItem("No", "_NO_")
 --*/
 #define __ROMFS_CFG_EXEC_FILES__ _YES_
 
