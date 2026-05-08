@@ -483,7 +483,7 @@ static const syscallfunc_t syscalltab[] = {
 /*==============================================================================
   Exported objects
 ==============================================================================*/
-const char *const dnx_RTOS_version = "3.8.0";
+const char *const dnx_RTOS_version = "3.9.0";
 const char *const dnx_RTOS_name = "dnx RTOS";
 const char *const dnx_RTOS_commit_hash = COMMIT_HASH;
 const char *const dnx_RTOS_platform_name = _CPUCTL_PLATFORM_NAME;

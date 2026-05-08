@@ -1556,7 +1556,7 @@ void _sleep_ms(u32_t milliseconds)
         do {
                 TickType_t wait = min(milliseconds, BLOCK_TIME_MS);
 
-                vTaskDelay(MS2TICK(wait));
+                vTaskDelay(max(1, MS2TICK(wait)));
 
                 if (milliseconds < _WAIT_FOREVER_MS) {
                         milliseconds -= wait;
