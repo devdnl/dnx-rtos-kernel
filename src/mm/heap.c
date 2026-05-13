@@ -77,11 +77,11 @@
  * multiple of MEM_ALIGNMENT (e.g. MEM_ALIGN_SIZE(3) and
  * MEM_ALIGN_SIZE(4) will both yield 4 for MEM_ALIGNMENT == 4).
  */
-#define MEM_ALIGN_SIZE(size)            (((size) + _HEAP_ALIGN_ - 1) & ~(_HEAP_ALIGN_-1))
+#define MEM_ALIGN_SIZE(size) (((size) + _HEAP_ALIGN_ - 1) & ~(_HEAP_ALIGN_ - 1))
 
 /** some alignment macros: we define them here for better source code layout */
-#define BLOCK_MIN_SIZE_ALIGNED          MEM_ALIGN_SIZE(__HEAP_BLOCK_SIZE__)
-#define SIZEOF_STRUCT_MEM               MEM_ALIGN_SIZE(sizeof(struct mem))
+#define BLOCK_MIN_SIZE_ALIGNED MEM_ALIGN_SIZE(__HEAP_BLOCK_SIZE__)
+#define SIZEOF_STRUCT_MEM      MEM_ALIGN_SIZE(sizeof(struct mem))
 
 #if __OS_HEAP_OVERFLOW_CHECK__ == _YES_
 #define MEM_SANITY_REGION_BEFORE_ALIGNED 8
@@ -91,13 +91,17 @@
 #define MEM_SANITY_REGION_AFTER_ALIGNED  0
 #endif
 
-#define MEM_SANITY_OFFSET               MEM_SANITY_REGION_BEFORE_ALIGNED
-#define MEM_SANITY_OVERHEAD             (MEM_SANITY_REGION_BEFORE_ALIGNED + MEM_SANITY_REGION_AFTER_ALIGNED)
+#define MEM_SANITY_OFFSET   MEM_SANITY_REGION_BEFORE_ALIGNED
+#define MEM_SANITY_OVERHEAD (MEM_SANITY_REGION_BEFORE_ALIGNED + MEM_SANITY_REGION_AFTER_ALIGNED)
 
-#define PROTECT                         _kernel_scheduler_lock
-#define UNPROTECT                       _kernel_scheduler_unlock
+#define PROTECT   _kernel_scheduler_lock
+#define UNPROTECT _kernel_scheduler_unlock
 
-#define HEAP_ASSERT(_cond, _msg, _fail_var)        if (!(_cond)) {_fail_var = true; _assert_msg(_cond, _msg);}
+#define HEAP_ASSERT(_cond, _msg, _fail_var) \
+        if (!(_cond)) {                     \
+                _fail_var = true;           \
+                _assert_msg(_cond, _msg);   \
+        }
 
 /*==============================================================================
   Local types, enums definitions
@@ -108,11 +112,11 @@
  * we only use the macro SIZEOF_STRUCT_MEM, which automatically alignes.
  */
 struct mem {
-        size_t next;            /**< index (-> ram[next]) of the next struct      */
-        size_t prev;            /**< index (-> ram[prev]) of the previous struct  */
-        u8_t   used;            /**< 1: this area is used; 0: this area is unused */
+        size_t next; /**< index (-> ram[next]) of the next struct      */
+        size_t prev; /**< index (-> ram[prev]) of the previous struct  */
+        u8_t used;   /**< 1: this area is used; 0: this area is unused */
 #if __OS_HEAP_OVERFLOW_CHECK__ == _YES_
-        size_t user_size;       /**< user size used in overflow check */
+        size_t user_size; /**< user size used in overflow check */
 #endif
 };
 
@@ -124,6 +128,13 @@ static void plug_holes(_heap_t *heap, struct mem *mem);
 /*==============================================================================
   Local object definitions
 ==============================================================================*/
+#if __OS_HEAP_OVERFLOW_CHECK__ == _YES_
+static const u8_t SANITY_REGION_BEFORE[MEM_SANITY_REGION_BEFORE_ALIGNED] = {0xd9, 0x2f, 0x71, 0x78, 0x3c, 0x31, 0x3a,
+        0x46};
+
+static const u8_t SANITY_REGION_AFTER[MEM_SANITY_REGION_AFTER_ALIGNED] = {0x52, 0x71, 0xd8, 0xf2, 0x6e, 0x2a, 0x13,
+        0x08};
+#endif
 
 /*==============================================================================
   Exported object definitions
@@ -219,13 +230,13 @@ static void plug_holes(_heap_t *heap, struct mem *mem)
 //==============================================================================
 static int link_valid(_heap_t *heap, struct mem *mem)
 {
-        size_t rmem_idx  = mem_to_ptr(heap, mem);
+        size_t rmem_idx = mem_to_ptr(heap, mem);
         struct mem *nmem = ptr_to_mem(heap, mem->next);
         struct mem *pmem = ptr_to_mem(heap, mem->prev);
 
-        if (  (mem->next > heap->size) || (mem->prev > heap->size)
-           || ((mem->prev != rmem_idx) && (pmem->next != rmem_idx))
-           || ((nmem != heap->ram_end) && (nmem->prev != rmem_idx))) {
+        if ((mem->next > heap->size) || (mem->prev > heap->size) ||
+                ((mem->prev != rmem_idx) && (pmem->next != rmem_idx)) ||
+                ((nmem != heap->ram_end) && (nmem->prev != rmem_idx))) {
 
                 return 0;
 
@@ -248,80 +259,115 @@ static bool sanity(_heap_t *heap)
         bool fail = false;
 
         HEAP_ASSERT(MEM_ALIGN_SIZE(heap->size) == heap->size, "HEAP: invalid heap size alignment", fail);
-        if (fail) return false;
+        if (fail) {
+                return false;
+        }
 
         /* begin with first element here */
         struct mem *mem = (struct mem *)heap->ram;
 
         HEAP_ASSERT((mem->used == 0) || (mem->used == 1), "HEAP: element used invalid", fail);
-        if (fail) return false;
+        if (fail) {
+                return false;
+        }
 
         u8_t last_used = mem->used;
 
         HEAP_ASSERT(mem->prev == 0, "HEAP: element prev ptr not valid", fail);
-        if (fail) return false;
+        if (fail) {
+                return false;
+        }
 
         HEAP_ASSERT(mem->next <= heap->size, "HEAP: element next ptr invalid", fail);
-        if (fail) return false;
+        if (fail) {
+                return false;
+        }
 
         HEAP_ASSERT(MEM_ALIGN_SIZE(ptr_to_mem(heap, mem->next) == ptr_to_mem(heap, mem->next)),
-                    "HEAP: element next ptr unaligned", fail);
-        if (fail) return false;
+                "HEAP: element next ptr unaligned", fail);
+        if (fail) {
+                return false;
+        }
 
         /* check all elements before the end of the heap */
         size_t max = heap->size / SIZEOF_STRUCT_MEM;
 
-        for (mem = ptr_to_mem(heap, mem->next);
-             ((u8_t *) mem > heap->ram) && (mem < heap->ram_end);
-             mem = ptr_to_mem(heap, mem->next)) {
+        for (mem = ptr_to_mem(heap, mem->next); ((u8_t *)mem > heap->ram) && (mem < heap->ram_end);
+                mem = ptr_to_mem(heap, mem->next)) {
 
                 HEAP_ASSERT(MEM_ALIGN_SIZE((uintptr_t)mem) == (uintptr_t)mem, "HEAP: element unaligned", fail);
-                if (fail) return false;
+                if (fail) {
+                        return false;
+                }
 
                 HEAP_ASSERT(mem->prev <= heap->size, "HEAP: element prev ptr invalid", fail);
-                if (fail) return false;
+                if (fail) {
+                        return false;
+                }
 
                 HEAP_ASSERT(mem->next <= heap->size, "HEAP: element next ptr invalid", fail);
-                if (fail) return false;
+                if (fail) {
+                        return false;
+                }
 
                 HEAP_ASSERT(MEM_ALIGN_SIZE(ptr_to_mem(heap, mem->prev) == ptr_to_mem(heap, mem->prev)),
-                            "HEAP: element prev ptr unaligned", fail);
-                if (fail) return false;
+                        "HEAP: element prev ptr unaligned", fail);
+                if (fail) {
+                        return false;
+                }
 
                 HEAP_ASSERT(MEM_ALIGN_SIZE(ptr_to_mem(heap, mem->next) == ptr_to_mem(heap, mem->next)),
-                            "HEAP: element next ptr unaligned", fail);
-                if (fail) return false;
+                        "HEAP: element next ptr unaligned", fail);
+                if (fail) {
+                        return false;
+                }
 
                 if (last_used == 0) {
                         /* 2 unused elements in a row? */
                         HEAP_ASSERT(mem->used == 1, "HEAP: 2 element unused in row?", fail);
-                        if (fail) return false;
+                        if (fail) {
+                                return false;
+                        }
                 } else {
                         HEAP_ASSERT((mem->used == 0) || (mem->used == 1), "HEAP: element used invalid", fail);
-                        if (fail) return false;
+                        if (fail) {
+                                return false;
+                        }
                 }
 
                 HEAP_ASSERT(link_valid(heap, mem), "HEAP: element link invalid", fail);
-                if (fail) return false;
+                if (fail) {
+                        return false;
+                }
 
                 /* used/unused altering */
                 last_used = mem->used;
 
                 HEAP_ASSERT(--max > 0, "HEAP: sanity: dead loop", fail);
-                if (fail) return false;
+                if (fail) {
+                        return false;
+                }
         }
 
         HEAP_ASSERT(mem == ptr_to_mem(heap, heap->size), "HEAP: end ptr sanity", fail);
-        if (fail) return false;
+        if (fail) {
+                return false;
+        }
 
         HEAP_ASSERT(mem->used == 1, "HEAP: element used invalid", fail);
-        if (fail) return false;
+        if (fail) {
+                return false;
+        }
 
         HEAP_ASSERT(mem->prev == heap->size, "HEAP: element prev ptr invalid", fail);
-        if (fail) return false;
+        if (fail) {
+                return false;
+        }
 
         HEAP_ASSERT(mem->next == heap->size, "HEAP: element next ptr invalid", fail);
-        if (fail) return false;
+        if (fail) {
+                return false;
+        }
 
         return true;
 }
@@ -337,18 +383,18 @@ static bool sanity(_heap_t *heap)
 //==============================================================================
 static void overflow_check_raw(void *p, size_t size)
 {
-        u8_t *m = (u8_t *) p + size;
-        for (u16_t k = 0; k < MEM_SANITY_REGION_AFTER_ALIGNED; k++) {
-                if (m[k] != 0xcd) {
-                        _printk("HEAP: block overflow @ %p", p);
+        u8_t *m = (u8_t *)p - MEM_SANITY_REGION_BEFORE_ALIGNED;
+        for (u16_t k = 0; k < MEM_SANITY_REGION_BEFORE_ALIGNED; k++) {
+                if (m[k] != SANITY_REGION_BEFORE[k]) {
+                        _printk("HEAP: block underflow @ %p:%lu", p, size);
                         break;
                 }
         }
 
-        m = (u8_t *) p - MEM_SANITY_REGION_BEFORE_ALIGNED;
-        for (u16_t k = 0; k < MEM_SANITY_REGION_BEFORE_ALIGNED; k++) {
-                if (m[k] != 0xcd) {
-                        _printk("HEAP: block underflow @ %p", p);
+        m = (u8_t *)p + size;
+        for (u16_t k = 0; k < MEM_SANITY_REGION_AFTER_ALIGNED; k++) {
+                if (m[k] != SANITY_REGION_AFTER[k]) {
+                        _printk("HEAP: block overflow @ %p:%lu", p, size);
                         break;
                 }
         }
@@ -364,11 +410,11 @@ static void overflow_check_raw(void *p, size_t size)
 //==============================================================================
 static void mem_overflow_init_raw(void *p, size_t size)
 {
-        u8_t *m = (u8_t *) p - MEM_SANITY_REGION_BEFORE_ALIGNED;
-        memset(m, 0xcd, MEM_SANITY_REGION_BEFORE_ALIGNED);
+        u8_t *m = (u8_t *)p - MEM_SANITY_REGION_BEFORE_ALIGNED;
+        memcpy(m, SANITY_REGION_BEFORE, MEM_SANITY_REGION_BEFORE_ALIGNED);
 
-        m = (u8_t *) p + size;
-        memset(m, 0xcd, MEM_SANITY_REGION_AFTER_ALIGNED);
+        m = (u8_t *)p + size;
+        memcpy(m, SANITY_REGION_AFTER, MEM_SANITY_REGION_AFTER_ALIGNED);
 }
 #endif
 
@@ -383,7 +429,7 @@ static void mem_overflow_init_raw(void *p, size_t size)
 static void overflow_init_element(struct mem *mem, size_t user_size)
 {
 #if __OS_HEAP_OVERFLOW_CHECK__ == _YES_
-        void *p = (u8_t *) mem + SIZEOF_STRUCT_MEM + MEM_SANITY_OFFSET;
+        void *p = (u8_t *)mem + SIZEOF_STRUCT_MEM + MEM_SANITY_OFFSET;
         mem->user_size = user_size;
         mem_overflow_init_raw(p, user_size);
 #else
@@ -402,31 +448,30 @@ static void overflow_init_element(struct mem *mem, size_t user_size)
 static void overflow_check_element(struct mem *mem)
 {
 #if __OS_HEAP_OVERFLOW_CHECK__ == _YES_
-        void *p = (u8_t *) mem + SIZEOF_STRUCT_MEM + MEM_SANITY_OFFSET;
+        void *p = (u8_t *)mem + SIZEOF_STRUCT_MEM + MEM_SANITY_OFFSET;
         overflow_check_raw(p, mem->user_size);
 #else
         (void)mem;
 #endif
 }
 
-
 //==============================================================================
 /**
-* @brief  Zero the heap and initialize start, end and lowest-free
-*
-* @param  heap          heap object
-* @param  start         memory start address
-* @param  size          memory size
-*
-* @return One of errno value.
-*/
+ * @brief  Zero the heap and initialize start, end and lowest-free
+ *
+ * @param  heap          heap object
+ * @param  start         memory start address
+ * @param  size          memory size
+ *
+ * @return One of errno value.
+ */
 //==============================================================================
 int _heap_init(_heap_t *heap, void *start, size_t size)
 {
         int err = EINVAL;
 
         if (heap && start && size) {
-                heap->used     = 0;
+                heap->used = 0;
                 heap->used_max = 0;
 
                 /* align the heap */
@@ -447,9 +492,9 @@ int _heap_init(_heap_t *heap, void *start, size_t size)
                 heap->ram_end->next = heap->size;
                 heap->ram_end->prev = heap->size;
 
-                #if __OS_HEAP_SANITY_CHECK__ == _YES_
+#if __OS_HEAP_SANITY_CHECK__ == _YES_
                 sanity(heap);
-                #endif
+#endif
 
                 /* initialize the lowest-free pointer to the start of the heap */
                 heap->lfree = (struct mem *)heap->ram;
@@ -520,13 +565,15 @@ void _heap_free(_heap_t *heap, void *rmem, size_t *freed)
 
         size_t blksize = (mem->next - (size_t)(((u8_t *)mem - heap->ram)));
         heap->used -= blksize;
-        if (freed) *freed = blksize;
+        if (freed) {
+                *freed = blksize;
+        }
 
         plug_holes(heap, mem);
 
-        #if __OS_HEAP_SANITY_CHECK__ == _YES_
+#if __OS_HEAP_SANITY_CHECK__ == _YES_
         sanity(heap);
-        #endif
+#endif
 
         UNPROTECT();
 }
@@ -583,20 +630,19 @@ void *_heap_alloc(_heap_t *heap, size_t size_in, size_t *allocated)
                          * mem->next - (ptr + SIZEOF_STRUCT_MEM) gives us the 'user data size' of mem
                          */
 
-                        if (mem->next - (ptr + SIZEOF_STRUCT_MEM)
-                           >= (size + SIZEOF_STRUCT_MEM + BLOCK_MIN_SIZE_ALIGNED)) {
+                        if (mem->next - (ptr + SIZEOF_STRUCT_MEM) >=
+                                (size + SIZEOF_STRUCT_MEM + BLOCK_MIN_SIZE_ALIGNED)) {
                                 /* (in addition to the above, we test if another struct mem
-                                * (SIZEOF_STRUCT_MEM) containing
-                                * at least BLOCK_MIN_SIZE_ALIGNED of data also fits in the 'user
-                                * data space' of 'mem')
-                                * -> split large block, create empty remainder,
-                                * remainder must be large enough to contain BLOCK_MIN_SIZE_ALIGNED data: if
-                                * mem->next - (ptr + (2*SIZEOF_STRUCT_MEM)) == size,
-                                * struct mem would fit in but no data between mem2 and mem2->next
-                                * @todo we could leave out BLOCK_MIN_SIZE_ALIGNED. We would create an empty
-                                *       region that couldn't hold data, but when mem->next gets freed,
-                                *       the 2 regions would be combined, resulting in more free memory
-                                */
+                                 * (SIZEOF_STRUCT_MEM) containing
+                                 * at least BLOCK_MIN_SIZE_ALIGNED of data also fits in the 'user
+                                 * data space' of 'mem') -> split large block, create empty remainder,
+                                 * remainder must be large enough to contain BLOCK_MIN_SIZE_ALIGNED data: if
+                                 * mem->next - (ptr + (2*SIZEOF_STRUCT_MEM)) == size,
+                                 * struct mem would fit in but no data between mem2 and mem2->next
+                                 * @todo we could leave out BLOCK_MIN_SIZE_ALIGNED. We would create an empty
+                                 *       region that couldn't hold data, but when mem->next gets freed,
+                                 *       the 2 regions would be combined, resulting in more free memory
+                                 */
                                 ptr2 = ptr + SIZEOF_STRUCT_MEM + size;
 
                                 /* create mem2 struct */
@@ -639,15 +685,17 @@ void *_heap_alloc(_heap_t *heap, size_t size_in, size_t *allocated)
                                 heap->lfree = cur;
                         }
 
-                        heap->used    += used;
+                        heap->used += used;
                         heap->used_max = heap->used_max < heap->used ? heap->used : heap->used_max;
-                        if (allocated) *allocated = used;
+                        if (allocated) {
+                                *allocated = used;
+                        }
 
                         overflow_init_element(mem, size_in);
 
-                        #if __OS_HEAP_SANITY_CHECK__ == _YES_
+#if __OS_HEAP_SANITY_CHECK__ == _YES_
                         sanity(heap);
-                        #endif
+#endif
 
                         UNPROTECT();
 
@@ -730,7 +778,7 @@ size_t _heap_get_block_size(_heap_t *heap, void *rmem)
 
         if ((((uintptr_t)rmem) & (_HEAP_ALIGN_ - 1)) != 0) {
                 _printk("HEAP: blksize: unaligned pointer");
-                return 0 ;
+                return 0;
         }
 
         struct mem *mem = (struct mem *)(void *)((u8_t *)rmem - (SIZEOF_STRUCT_MEM + MEM_SANITY_OFFSET));
