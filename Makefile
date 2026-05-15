@@ -388,8 +388,8 @@ generate :
 	@$(MKDIR) $(TARGET_DIR_NAME)/build
 	@$(MKDIR) $(TARGET_DIR_NAME)/build-tmp
 	@$(ECHO) "#include \"../$(CONFIG)\"" > $(TARGET_DIR_NAME)/build-tmp/defs.h
-	@$(ECHO) "#define COMMIT_HASH \"$(shell git rev-parse --short HEAD 2>/dev/null)"\" >> $(TARGET_DIR_NAME)/build-tmp/defs.h
-	@$(ECHO) "#define BRANCH_NAME \"$(shell git symbolic-ref --short HEAD 2>/dev/null)"\" >> $(TARGET_DIR_NAME)/build-tmp/defs.h
+	@$(ECHO) "#define COMMIT_HASH \"$(shell git rev-parse --short HEAD 2>/dev/null)\"" >> $(TARGET_DIR_NAME)/build-tmp/defs.h
+	@$(ECHO) "#define BRANCH_NAME \"$(shell git symbolic-ref --short HEAD 2>/dev/null)\"" >> $(TARGET_DIR_NAME)/build-tmp/defs.h
 	@$(ECHO) "#define COMPILE_EPOCH_TIME $(shell $(DATE) "+%s")" > $(TARGET_DIR_NAME)/build-tmp/vars.h
 	@$(SYNCDIR) $(TARGET_DIR_NAME)/build-tmp/ $(TARGET_DIR_NAME)/build/
 
