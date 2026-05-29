@@ -53,34 +53,32 @@
   Local symbolic constants/macros
 ==============================================================================*/
 // critical section - mutex wait must set to max possible
-#define ATOMIC(_mtx)                                                                   \
-        for (int __ = 0; __ == 0;)                                                     \
-                for (int _e = _mutex_lock(_mtx, _WAIT_FOREVER_MS); _e == 0 && __ == 0; \
-                        _mutex_unlock(_mtx), __++)                                     \
+#define ATOMIC(_mtx)                                                                                              \
+        for (int __ = 0; __ == 0;)                                                                                \
+                for (int _e = _mutex_lock(_mtx, _WAIT_FOREVER_MS); _e == 0 && __ == 0; _mutex_unlock(_mtx), __++) \
                         for (bool ___ = true; ___; ___ = false)
 
 #define foreach_resource(_v, _l) for (res_header_t *_v = _l; _v; _v = _v->next)
 
-#define foreach_process(_v, _l)  for (_process_t *_v = _l; _v; _v = cast(_process_t *, _v->header.next))
+#define foreach_process(_v, _l) for (_process_t *_v = _l; _v; _v = cast(_process_t *, _v->header.next))
 
-#define NO_SYSCALL               UINT8_MAX
+#define NO_SYSCALL UINT8_MAX
 
-#define SHEBANGLEN               64
+#define SHEBANGLEN 64
 
-#define is_proc_valid(proc)                                            \
-        (_mm_is_object_in_heap(proc) && (proc->header.self == proc) && \
-                (proc->header.type == RES_TYPE_PROCESS))
+#define is_proc_valid(proc) \
+        (_mm_is_object_in_heap(proc) && (proc->header.self == proc) && (proc->header.type == RES_TYPE_PROCESS))
 
 #define is_tid_in_range(proc, tid) (tid < __OS_PROCESS_MAX_THREADS__)
 
-#define PROC_FLAG_DETACHED         (1 << 0)
-#define PROC_FLAG_KWORKER          (1 << 1)
-#define PROC_FLAG_KILL             (1 << 2)
+#define PROC_FLAG_DETACHED (1 << 0)
+#define PROC_FLAG_KWORKER  (1 << 1)
+#define PROC_FLAG_KILL     (1 << 2)
 
-#define PID_MIN                    1
-#define PID_MAX                    999
+#define PID_MIN 1
+#define PID_MAX 999
 
-#define SHARED_DESCRIPTOR          (1 << 15)
+#define SHARED_DESCRIPTOR (1 << 15)
 
 /*==============================================================================
   Local types, enums definitions
@@ -294,8 +292,7 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
         }
 
         ATOMIC (process_mtx) {
-                size_t stack_size = *proc->pdata->stack_depth + (__OS_IRQ_STACK_DEPTH__) +
-                        (__OS_IO_STACK_DEPTH__);
+                size_t stack_size = *proc->pdata->stack_depth + (__OS_IRQ_STACK_DEPTH__) + (__OS_IO_STACK_DEPTH__);
                 stack_size = max(stack_size, _STACK_DEPTH_MINIMAL);
 
                 proc->taskdata[0].stack_size = stack_size;
@@ -400,8 +397,7 @@ void _process_clean_up_killed_processes(void)
                                 if (not running) {
                                         _printk("PID %u: terminated.", proc->pid);
 
-                                        process_move_list(proc, &terminate_process_list,
-                                                &destroy_process_list);
+                                        process_move_list(proc, &terminate_process_list, &destroy_process_list);
 
                                         if (proc->event) {
                                                 _flag_set(proc->event, _PROCESS_EXIT_FLAG(0));
@@ -669,9 +665,18 @@ void _process_abort(_process_t *proc)
         if (is_proc_valid(proc)) {
                 kfile_t *stderr = cast(kfile_t *, proc->desctab.resource[2]);
 
-                static const char *aborted = "Aborted\n";
+                static const char *aborted = "*** Aborted ***\n";
                 size_t wrcnt;
                 _vfs_fwrite(aborted, strlen(aborted), &wrcnt, stderr);
+
+                pid_t pid = 0;
+                _process_get_pid(proc, &pid);
+
+                tid_t tid = _process_get_active_thread(proc, false);
+
+                printk("*** APP ABORT: '%s' [%u:%d:%d,%s] ***", _process_get_name(proc), _cpuctl_get_cpu_id(),
+                        pid, tid, "USR");
+
                 _process_exit(proc, -1);
         } else {
                 _assert(is_proc_valid(proc));
@@ -1242,8 +1247,7 @@ int _process_release_resource(_process_t *proc, res_header_t *resource, res_type
  * @return One of errno value.
  */
 //==============================================================================
-int _process_thread_create(_process_t *proc, thread_func_t func, const _thread_attr_t *attr, void *arg,
-        tid_t *tid)
+int _process_thread_create(_process_t *proc, thread_func_t func, const _thread_attr_t *attr, void *arg, tid_t *tid)
 {
         int err = EINVAL;
 
@@ -1655,11 +1659,9 @@ void _calculate_CPU_load_from_IRQ(void)
 
                                         proc->taskdata[tid].timecnt[cpuid] = 0;
 
-                                        cpu_load->avg_CPU_load_calc.avg1sec += proc->taskdata[tid]
-                                                                                       .CPU_load[cpuid];
+                                        cpu_load->avg_CPU_load_calc.avg1sec += proc->taskdata[tid].CPU_load[cpuid];
 
-                                        proc->taskdata[tid].syscalls_per_sec = proc->taskdata[tid]
-                                                                                       .syscalls_ctr;
+                                        proc->taskdata[tid].syscalls_per_sec = proc->taskdata[tid].syscalls_ctr;
 
                                         proc->taskdata[tid].syscalls_ctr = 0;
                                 }
@@ -1848,8 +1850,7 @@ bool _process_is_consistent(bool isr)
 
                 res_header_t *flag = (void *)p->event;
                 sanity_ok = (p->pdata->main != _kworker_process)
-                        ? (_mm_is_object_in_heap(flag) && (flag->self == flag) &&
-                                  (flag->type == RES_TYPE_FLAG))
+                        ? (_mm_is_object_in_heap(flag) && (flag->self == flag) && (flag->type == RES_TYPE_FLAG))
                         : true;
                 if (!sanity_ok) {
                         if (not isr) {
@@ -1989,9 +1990,8 @@ bool _process_is_consistent(bool isr)
                         goto end;
                 }
 
-                sanity_ok = (p->pdata->main == _kworker_process)
-                        ? ((p->flag & PROC_FLAG_KWORKER) == PROC_FLAG_KWORKER)
-                        : true;
+                sanity_ok = (p->pdata->main == _kworker_process) ? ((p->flag & PROC_FLAG_KWORKER) == PROC_FLAG_KWORKER)
+                                                                 : true;
                 if (!sanity_ok) {
                         if (not isr) {
                                 _printk("PID %u: kworker without flag!", p->pid);
@@ -1999,8 +1999,7 @@ bool _process_is_consistent(bool isr)
                         goto end;
                 }
 
-                sanity_ok = (p->pdata->main != _kworker_process) ? ((p->flag & PROC_FLAG_KWORKER) == 0)
-                                                                 : true;
+                sanity_ok = (p->pdata->main != _kworker_process) ? ((p->flag & PROC_FLAG_KWORKER) == 0) : true;
                 if (!sanity_ok) {
                         if (not isr) {
                                 _printk("PID %u: flagged as kworker!", p->pid);
@@ -2487,8 +2486,7 @@ static void process_destroy_all_resources(_process_t *proc)
                                 if (!err) {
                                         chain->resource[i] = NULL;
                                 } else {
-                                        printk("PROCESS: PID %d: unknown object %p\n", proc->pid,
-                                                chain->resource[i]);
+                                        printk("PROCESS: PID %d: unknown object %p\n", proc->pid, chain->resource[i]);
                                 }
                         }
                 }
@@ -2678,8 +2676,7 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
 
                 if (attr->fd_stdin >= 0) {
                         res_header_t *res;
-                        if (_process_descriptor_get_resource(active_process[cpuid], attr->fd_stdin, &res) ==
-                                0) {
+                        if (_process_descriptor_get_resource(active_process[cpuid], attr->fd_stdin, &res) == 0) {
                                 if (_vfs_fopen_ref(res->self) == 0) {
                                         proc->desctab.resource[0] = res;
                                 }
@@ -2702,8 +2699,7 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
 
                 if (attr->fd_stdout >= 0) {
                         res_header_t *res;
-                        if (_process_descriptor_get_resource(active_process[cpuid], attr->fd_stdout, &res) ==
-                                0) {
+                        if (_process_descriptor_get_resource(active_process[cpuid], attr->fd_stdout, &res) == 0) {
                                 if (_vfs_fopen_ref(res->self) == 0) {
                                         proc->desctab.resource[1] = res;
                                 }
@@ -2726,8 +2722,7 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
 
                 if (attr->fd_stderr >= 0) {
                         res_header_t *res;
-                        if (_process_descriptor_get_resource(active_process[cpuid], attr->fd_stderr, &res) ==
-                                0) {
+                        if (_process_descriptor_get_resource(active_process[cpuid], attr->fd_stderr, &res) == 0) {
                                 if (_vfs_fopen_ref(res->self) == 0) {
                                         proc->desctab.resource[2] = res;
                                 }
@@ -3115,8 +3110,7 @@ static int argtab_create(const char *str, u8_t *argc, char **argv[])
                         *argc = no_of_args;
 
                         char **arg = NULL;
-                        err = _kmalloc(_MM_KRN, (no_of_args + 1) * sizeof(char *), NULL, 0, 0,
-                                cast(void *, &arg));
+                        err = _kmalloc(_MM_KRN, (no_of_args + 1) * sizeof(char *), NULL, 0, 0, cast(void *, &arg));
                         if (!err) {
                                 for (int i = 0; i < no_of_args; i++) {
                                         arg[i] = sys_llist_take_front(largs);
@@ -3294,8 +3288,7 @@ static int allocate_process_globals(_process_t *proc, size_t app_ctx_size, const
 
         if (!err and (app_ctx_size > 0)) {
                 res_header_t *ctx;
-                err = _kzalloc(_MM_PROG, app_ctx_size, pref_ram, _MM_FLAG__DMA, _MM_FLAG__DMA,
-                        cast(void *, &ctx));
+                err = _kzalloc(_MM_PROG, app_ctx_size, pref_ram, _MM_FLAG__DMA, _MM_FLAG__DMA, cast(void *, &ctx));
                 if (!err) {
                         proc->app_ctx = &ctx[1];
                         _process_register_resource(proc, ctx);

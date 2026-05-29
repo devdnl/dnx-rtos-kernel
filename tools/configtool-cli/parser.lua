@@ -248,12 +248,12 @@ local function ManageGUI(self, startEntry)
                                 local num = tonumber(r)
                                 if type(num) == "number" then
                                     if num < w.min then
-                                        num = w.min
+                                        r = w.min
                                     elseif num > w.max then
-                                        num = w.max
+                                        r = w.max
                                     end
 
-                                    w.flag.SetValue(tostring(num))
+                                    w.flag.SetValue(tostring(r))
                                     CallFlagEvent(w.flag, "clicked")
 
                                     break
