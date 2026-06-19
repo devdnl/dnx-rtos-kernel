@@ -110,27 +110,27 @@ extern "C" {
 #endif
 
 /* modes */
-#define S_IRWXU            0000700 /* RWX mask for owner */
-#define S_IRUSR            0000400 /* R for owner */
-#define S_IWUSR            0000200 /* W for owner */
-#define S_IXUSR            0000100 /* X for owner */
+#define S_IRWXU 0000700 /* RWX mask for owner */
+#define S_IRUSR 0000400 /* R for owner */
+#define S_IWUSR 0000200 /* W for owner */
+#define S_IXUSR 0000100 /* X for owner */
 
-#define S_IRWXG            0000070 /* RWX mask for group */
-#define S_IRGRP            0000040 /* R for group */
-#define S_IWGRP            0000020 /* W for group */
-#define S_IXGRP            0000010 /* X for group */
+#define S_IRWXG 0000070 /* RWX mask for group */
+#define S_IRGRP 0000040 /* R for group */
+#define S_IWGRP 0000020 /* W for group */
+#define S_IXGRP 0000010 /* X for group */
 
-#define S_IRWXO            0000007 /* RWX mask for other */
-#define S_IROTH            0000004 /* R for other */
-#define S_IWOTH            0000002 /* W for other */
-#define S_IXOTH            0000001 /* X for other */
+#define S_IRWXO 0000007 /* RWX mask for other */
+#define S_IROTH 0000004 /* R for other */
+#define S_IWOTH 0000002 /* W for other */
+#define S_IXOTH 0000001 /* X for other */
 
-#define S_ISUID            0004000 /* set user id on execution */
-#define S_ISGID            0002000 /* set group id on execution */
-#define S_ISVTX            0001000 /* save swapped text even after use */
+#define S_ISUID 0004000 /* set user id on execution */
+#define S_ISGID 0002000 /* set group id on execution */
+#define S_ISVTX 0001000 /* save swapped text even after use */
 
-#define S_IPMT             (000777)
-#define S_IFMT             (070000)
+#define S_IPMT (000777)
+#define S_IFMT (070000)
 
 #define S_ISREG(mode_t_m)  ((mode_t_m & S_IFMT) == S_IFREG)
 #define S_ISDIR(mode_t_m)  ((mode_t_m & S_IFMT) == S_IFDIR)
@@ -139,12 +139,12 @@ extern "C" {
 #define S_ISPROG(mode_t_m) ((mode_t_m & S_IFMT) == S_IFPROG)
 #define S_ISFIFO(mode_t_m) ((mode_t_m & S_IFMT) == S_IFIFO)
 
-#define S_IFREG            0000000
-#define S_IFDIR            0010000
-#define S_IFDEV            0020000
-#define S_IFLNK            0030000
-#define S_IFPROG           0040000
-#define S_IFIFO            0050000
+#define S_IFREG  0000000
+#define S_IFDIR  0010000
+#define S_IFDEV  0020000
+#define S_IFLNK  0030000
+#define S_IFPROG 0040000
+#define S_IFIFO  0050000
 
 /* stream definitions */
 #define EOF (-1)
@@ -175,15 +175,15 @@ struct vfs_file;
 
 /** device info. Doxygen documentation in drivers/driver.h */
 struct vfs_dev_stat {
-        u64_t st_size;  /**< total size, in bytes */
-        u8_t  st_major; /**< device major number  */
-        u8_t  st_minor; /**< device minor number  */
+        u64_t st_size; /**< total size, in bytes */
+        u8_t st_major; /**< device major number  */
+        u8_t st_minor; /**< device minor number  */
 };
 
 /** file write/read attributes. Doxygen documentation in fs/fs.h */
 struct vfs_fattr {
         bool non_blocking_rd :1; /**< non-blocking file read access */
-        bool non_strict_rd   :1; /**< non-strict file read access */
+        bool non_strict_rd :1;   /**< non-strict file read access */
         bool non_blocking_wr :1; /**< non-blocking file write access */
 };
 
@@ -234,35 +234,35 @@ typedef struct vfs_FS_itf {
 
 /** file flags */
 typedef struct vfs_file_flags {
-        bool             rd      :1; //! file read mode
-        bool             wr      :1; //! file write mode
-        bool             append  :1; //! file append mode (one of rd/wr is set)
-        bool             eof     :1; //! end of file
-        bool             error   :1; //! error occurred
-        bool             seekmod :1; //! file position modified
+        bool rd :1;      //! file read mode
+        bool wr :1;      //! file write mode
+        bool append :1;  //! file append mode (one of rd/wr is set)
+        bool eof :1;     //! end of file
+        bool error :1;   //! error occurred
+        bool seekmod :1; //! file position modified
         struct vfs_fattr fattr;
 } vfs_file_flags_t;
 
 /** file type */
 typedef struct vfs_file {
-        res_header_t        header;
-        void               *FS_hdl;
+        res_header_t header;
+        void *FS_hdl;
         const vfs_FS_itf_t *FS_if;
-        void               *f_hdl;
-        fpos_t              f_lseek;
-        vfs_file_flags_t    f_flag;
-        int                 references;
+        void *f_hdl;
+        fpos_t f_lseek;
+        vfs_file_flags_t f_flag;
+        int references;
 } kfile_t;
 
 /** directory type */
 typedef struct vfs_dir {
-        res_header_t        header;
-        void               *FS_hdl;
+        res_header_t header;
+        void *FS_hdl;
         const vfs_FS_itf_t *FS_if;
-        void               *d_hdl;   //!< Directory descriptor
-        size_t              d_items; //!< number of items
-        size_t              d_seek;  //!< seek
-        dirent_t            dirent;  //!< directory entry data
+        void *d_hdl;     //!< Directory descriptor
+        size_t d_items;  //!< number of items
+        size_t d_seek;   //!< seek
+        dirent_t dirent; //!< directory entry data
 } kdir_t;
 
 /** Path with CWD */
@@ -281,39 +281,38 @@ enum path_correction {
 /*==============================================================================
   Exported API functions
 ==============================================================================*/
-extern int  _vfs_init(void);
-extern int  _vfs_realpath(char *path, enum path_correction corr);
-extern int  _vfs_mount(const struct vfs_path *, const struct vfs_path *, const struct vfs_FS_itf *,
-         const char *);
-extern int  _vfs_umount(const struct vfs_path *);
-extern int  _vfs_getmntentry(int, struct mntent *);
-extern int  _vfs_mknod(const struct vfs_path *, dev_t);
-extern int  _vfs_mkdir(const struct vfs_path *, mode_t);
-extern int  _vfs_mkfifo(const struct vfs_path *, mode_t);
-extern int  _vfs_opendir(const struct vfs_path *, kdir_t **);
-extern int  _vfs_closedir(kdir_t *);
-extern int  _vfs_readdir(kdir_t *, dirent_t **);
-extern int  _vfs_seekdir(kdir_t *, u32_t);
-extern int  _vfs_telldir(kdir_t *, u32_t *);
-extern int  _vfs_remove(const struct vfs_path *);
-extern int  _vfs_rename(const struct vfs_path *, const struct vfs_path *);
-extern int  _vfs_chmod(const struct vfs_path *, mode_t);
-extern int  _vfs_chown(const struct vfs_path *, uid_t, gid_t);
-extern int  _vfs_stat(const struct vfs_path *, struct stat *);
-extern int  _vfs_statfs(const struct vfs_path *, struct statfs *);
-extern int  _vfs_fopen(const struct vfs_path *, int, mode_t, kfile_t **);
-extern int  _vfs_fopen_ref(kfile_t *);
-extern int  _vfs_fclose(kfile_t *, bool);
-extern int  _vfs_fwrite(const void *, size_t, size_t *, kfile_t *);
-extern int  _vfs_fread(void *, size_t, size_t *, kfile_t *);
-extern int  _vfs_fseek(kfile_t *, i64_t, int);
-extern int  _vfs_ftell(kfile_t *, i64_t *);
-extern int  _vfs_vfioctl(kfile_t *, int, va_list);
-extern int  _vfs_fstat(kfile_t *, struct stat *);
-extern int  _vfs_fflush(kfile_t *);
-extern int  _vfs_feof(kfile_t *, int *);
-extern int  _vfs_clearerr(kfile_t *);
-extern int  _vfs_ferror(kfile_t *, int *);
+extern int _vfs_init(void);
+extern int _vfs_realpath(char *path, enum path_correction corr);
+extern int _vfs_mount(const struct vfs_path *, const struct vfs_path *, const struct vfs_FS_itf *, const char *);
+extern int _vfs_umount(const struct vfs_path *);
+extern int _vfs_getmntentry(int, struct mntent *);
+extern int _vfs_mknod(const struct vfs_path *, dev_t);
+extern int _vfs_mkdir(const struct vfs_path *, mode_t);
+extern int _vfs_mkfifo(const struct vfs_path *, mode_t);
+extern int _vfs_opendir(const struct vfs_path *, kdir_t **);
+extern int _vfs_closedir(kdir_t *);
+extern int _vfs_readdir(kdir_t *, dirent_t **);
+extern int _vfs_seekdir(kdir_t *, u32_t);
+extern int _vfs_telldir(kdir_t *, u32_t *);
+extern int _vfs_remove(const struct vfs_path *);
+extern int _vfs_rename(const struct vfs_path *, const struct vfs_path *);
+extern int _vfs_chmod(const struct vfs_path *, mode_t);
+extern int _vfs_chown(const struct vfs_path *, uid_t, gid_t);
+extern int _vfs_stat(const struct vfs_path *, struct stat *);
+extern int _vfs_statfs(const struct vfs_path *, struct statfs *);
+extern int _vfs_fopen(const struct vfs_path *, int, mode_t, kfile_t **);
+extern int _vfs_fopen_ref(kfile_t *);
+extern int _vfs_fclose(kfile_t *, bool);
+extern int _vfs_fwrite(const void *, size_t, size_t *, kfile_t *);
+extern int _vfs_fread(void *, size_t, size_t *, kfile_t *);
+extern int _vfs_fseek(kfile_t *, i64_t, int);
+extern int _vfs_ftell(kfile_t *, i64_t *);
+extern int _vfs_vfioctl(kfile_t *, int, va_list);
+extern int _vfs_fstat(kfile_t *, struct stat *);
+extern int _vfs_fflush(kfile_t *);
+extern int _vfs_feof(kfile_t *, int *);
+extern int _vfs_clearerr(kfile_t *);
+extern int _vfs_ferror(kfile_t *, int *);
 extern void _vfs_sync(void);
 
 /*==============================================================================

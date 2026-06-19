@@ -35,15 +35,15 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define CLK_FILE_PATH     "/dev/clk"
+#define CLK_FILE_PATH "/dev/clk"
 
 #define PATH_ROOT         "/"
 #define PATH_ROOT_BIN     "/bin"
 #define PATH_ROOT_PID     "/pid"
 #define PATH_ROOT_CPUINFO "/cpuinfo"
 
-#define FILE_BUFFER       384
-#define PID_STR_LEN       12
+#define FILE_BUFFER 384
+#define PID_STR_LEN 12
 
 /*==============================================================================
   Local types, enums definitions
@@ -253,7 +253,7 @@ API_FS_OPEN(procfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
                 i32_t pid = 0;
                 sys_strtoi32(mpath, 10, &pid);
 
-                _process_stat_t stat;
+                _process_stat_t stat = {0};
                 if (sys_process_get_stat_pid(pid, &stat) == ESUCC) {
                         err = add_file_to_list(hdl, pid, FILE_CONTENT_PID, fhdl);
                 } else {
@@ -594,8 +594,7 @@ API_FS_OPENDIR(procfs, void *fs_handle, const char *path, kdir_t *dir)
                         dirinfo->dir_name = PATH_ROOT_BIN;
                         dir->d_items = 0;
 
-                        for (const appset_table_t *appset = sys_get_program_table(); appset;
-                                appset = appset->next) {
+                        for (const appset_table_t *appset = sys_get_program_table(); appset; appset = appset->next) {
 
                                 dir->d_items += appset->table->number_of_programs;
                         }
@@ -965,18 +964,22 @@ static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size, 
 
         switch (file->content) {
         case FILE_CONTENT_PID: {
-                _process_stat_t stat;
+                char cmdline[128];
+
+                _process_stat_t stat = {0};
+                stat.cmdline_buf = cmdline;
+                stat.cmdline_len = sizeof(cmdline);
+
                 if (sys_process_get_stat_pid(file->arg, &stat) == ESUCC) {
 
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek, "Name: %s\n", stat.name);
+                                buf_snprintf(buff, &size, &clen, &seek, "Command: %s\n", stat.cmdline_buf);
                         }
                         if (size) {
                                 buf_snprintf(buff, &size, &clen, &seek, "PID: %d\n", stat.pid);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek, "Memory usage: %d bytes\n",
-                                        stat.memory_usage);
+                                buf_snprintf(buff, &size, &clen, &seek, "Memory usage: %d bytes\n", stat.memory_usage);
                         }
                         if (size) {
                                 buf_snprintf(buff, &size, &clen, &seek, "Memory Block Count: %d\n",
@@ -989,41 +992,35 @@ static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size, 
                                 buf_snprintf(buff, &size, &clen, &seek, "Open Dirs: %d\n", stat.dir_count);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek, "Open Mutexes: %d\n",
-                                        stat.mutexes_count);
+                                buf_snprintf(buff, &size, &clen, &seek, "Open Mutexes: %d\n", stat.mutexes_count);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek, "Open Semaphores: %d\n",
-                                        stat.semaphores_count);
+                                buf_snprintf(buff, &size, &clen, &seek, "Open Semaphores: %d\n", stat.semaphores_count);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek, "Open Queues: %d\n",
-                                        stat.queue_count);
+                                buf_snprintf(buff, &size, &clen, &seek, "Open Queues: %d\n", stat.queue_count);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek, "Open Sockets: %d\n",
-                                        stat.socket_count);
+                                buf_snprintf(buff, &size, &clen, &seek, "Open Sockets: %d\n", stat.socket_count);
                         }
                         if (size) {
                                 buf_snprintf(buff, &size, &clen, &seek, "Threads: %d\n", stat.threads_count);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek, "CPU Load: %d.%d%%\n",
-                                        stat.CPU_load / 10, stat.CPU_load % 10);
+                                buf_snprintf(buff, &size, &clen, &seek, "CPU Load: %d.%d%%\n", stat.CPU_load / 10,
+                                        stat.CPU_load % 10);
                         }
                         if (size) {
                                 buf_snprintf(buff, &size, &clen, &seek, "Stack Size: %d\n", stat.stack_size);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek, "Stack Usage: %d\n",
-                                        stat.stack_max_usage);
+                                buf_snprintf(buff, &size, &clen, &seek, "Stack Usage: %d\n", stat.stack_max_usage);
                         }
                         if (size) {
                                 buf_snprintf(buff, &size, &clen, &seek, "Priority: %d\n", stat.priority);
                         }
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek, "Syscalls/s: %u\n",
-                                        stat.syscalls_per_sec);
+                                buf_snprintf(buff, &size, &clen, &seek, "Syscalls/s: %u\n", stat.syscalls_per_sec);
                         }
                 }
                 break;
@@ -1042,8 +1039,7 @@ static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size, 
                         CLK_info_t clkinf;
                         clkinf.iterator = 0;
 
-                        while (size > 0 && sys_ioctl(pll, IOCTL_CLK__GET_CLK_INFO, &clkinf) == ESUCC &&
-                                clkinf.name) {
+                        while (size > 0 && sys_ioctl(pll, IOCTL_CLK__GET_CLK_INFO, &clkinf) == ESUCC && clkinf.name) {
 
                                 buf_snprintf(buff, &size, &clen, &seek, "%16s: %d Hz\n", clkinf.name,
                                         cast(int, clkinf.freq_Hz));
@@ -1064,8 +1060,7 @@ static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size, 
 
                         if (n < appset->table->number_of_programs) {
 
-                                buf_snprintf(buff, &size, &clen, &seek, "#!%s\n",
-                                        appset->table->program_entry[n].name);
+                                buf_snprintf(buff, &size, &clen, &seek, "#!%s\n", appset->table->program_entry[n].name);
                                 break;
 
                         } else {

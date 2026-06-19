@@ -169,6 +169,7 @@ extern int _process_get_priority(pid_t, int *);
 extern int _process_get_container(pid_t, _process_t **);
 extern int _process_get_stat_seek(size_t, _process_stat_t *);
 extern int _process_get_stat_pid(pid_t, _process_stat_t *);
+extern int _process_get_pid_cmdline(pid_t pid, char *buf, size_t buf_len);
 extern tid_t _process_get_active_thread(_process_t *, bool);
 extern pid_t _process_get_active_process_pid(void);
 extern bool _process_is_kill_requested(void);

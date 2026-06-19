@@ -50,34 +50,34 @@
   Local types, enums definitions
 ==============================================================================*/
 typedef struct FS_entry {
-        const char         *source_path;
-        const char         *mount_point;
-        struct FS_entry    *parent;
-        void               *handle;
+        const char *source_path;
+        const char *mount_point;
+        struct FS_entry *parent;
+        void *handle;
         const vfs_FS_itf_t *interface;
-        u8_t                children_cnt;
+        u8_t children_cnt;
 } FS_entry_t;
 
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
 static bool is_first_fs(const char *mount_point);
-static int  new_FS_entry(FS_entry_t *parent_FS, const char *fs_mount_point, const char *fs_src_file,
-         const vfs_FS_itf_t *fs_interface, const char *opts, FS_entry_t **fs_entry);
-static int  delete_FS_entry(FS_entry_t *this);
+static int new_FS_entry(FS_entry_t *parent_FS, const char *fs_mount_point, const char *fs_src_file,
+        const vfs_FS_itf_t *fs_interface, const char *opts, FS_entry_t **fs_entry);
+static int delete_FS_entry(FS_entry_t *this);
 static bool is_file_valid(kfile_t *file);
 static bool is_dir_valid(kdir_t *dir);
-static int  get_path_FS(const char *path, size_t len, int *position, FS_entry_t **fs_entry);
-static int  get_path_base_FS(const char *path, const char **extPath, FS_entry_t **fs_entry);
-static int  new_absolute_path(const struct vfs_path *path, enum path_correction corr, char **new_path);
-static int  direct_devfs_close(void *fshdl, void *fhdl, bool force);
-static int  direct_devfs_write(void *fshdl, void *fhdl, const u8_t *src, size_t count, fpos_t *fpos,
-         size_t *wrcnt, struct vfs_fattr attr);
-static int  direct_devfs_read(void *fshdl, void *fhdl, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt,
-         struct vfs_fattr attr);
-static int  direct_devfs_ioctl(void *fshdl, void *fhdl, int iroq, void *arg);
-static int  direct_devfs_fstat(void *fshdl, void *fhdl, struct stat *stat);
-static int  direct_devfs_flush(void *fshdl, void *fhdl);
+static int get_path_FS(const char *path, size_t len, int *position, FS_entry_t **fs_entry);
+static int get_path_base_FS(const char *path, const char **extPath, FS_entry_t **fs_entry);
+static int new_absolute_path(const struct vfs_path *path, enum path_correction corr, char **new_path);
+static int direct_devfs_close(void *fshdl, void *fhdl, bool force);
+static int direct_devfs_write(void *fshdl, void *fhdl, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr attr);
+static int direct_devfs_read(void *fshdl, void *fhdl, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt,
+        struct vfs_fattr attr);
+static int direct_devfs_ioctl(void *fshdl, void *fhdl, int iroq, void *arg);
+static int direct_devfs_fstat(void *fshdl, void *fhdl, struct stat *stat);
+static int direct_devfs_flush(void *fshdl, void *fhdl);
 
 /*==============================================================================
   Local object definitions
@@ -86,13 +86,13 @@ static const char dev_path_protocol[] = "dev://";
 
 static struct {
         llist_t *mnt_list;
-        kmtx_t  *resource_mtx;
+        kmtx_t *resource_mtx;
 } VFS;
 
 static const struct vfs_FS_itf direct_devfs = {
         .fs_close = direct_devfs_close,
         .fs_write = direct_devfs_write,
-        .fs_read  = direct_devfs_read,
+        .fs_read = direct_devfs_read,
         .fs_ioctl = direct_devfs_ioctl,
         .fs_fstat = direct_devfs_fstat,
         .fs_flush = direct_devfs_flush,
@@ -132,13 +132,13 @@ int _vfs_init(void)
  * @return One of errno values.
  */
 //==============================================================================
-int _vfs_mount(const struct vfs_path *src_path, const struct vfs_path *mount_point,
-        const struct vfs_FS_itf *fsif, const char *opts)
+int _vfs_mount(const struct vfs_path *src_path, const struct vfs_path *mount_point, const struct vfs_FS_itf *fsif,
+        const char *opts)
 {
-        if (!mount_point || !mount_point->PATH || !src_path || !src_path->PATH || !fsif->fs_init ||
-                !fsif->fs_release || !fsif->fs_open || !fsif->fs_close || !fsif->fs_write || !fsif->fs_read ||
-                !fsif->fs_ioctl || !fsif->fs_fstat || !fsif->fs_flush || !fsif->fs_mknod || !fsif->fs_sync ||
-                !fsif->fs_opendir || !fsif->fs_closedir || !fsif->fs_readdir
+        if (!mount_point || !mount_point->PATH || !src_path || !src_path->PATH || !fsif->fs_init || !fsif->fs_release ||
+                !fsif->fs_open || !fsif->fs_close || !fsif->fs_write || !fsif->fs_read || !fsif->fs_ioctl ||
+                !fsif->fs_fstat || !fsif->fs_flush || !fsif->fs_mknod || !fsif->fs_sync || !fsif->fs_opendir ||
+                !fsif->fs_closedir || !fsif->fs_readdir
 #if __OS_ENABLE_FSTAT__ == _YES_
                 || !fsif->fs_stat
 #endif
@@ -170,13 +170,13 @@ int _vfs_mount(const struct vfs_path *src_path, const struct vfs_path *mount_poi
 
         // create new paths that are corrected by CWD
         char *cwd_mount_point = NULL;
-        int   err             = new_absolute_path(mount_point, ADD_SLASH, &cwd_mount_point);
+        int err = new_absolute_path(mount_point, ADD_SLASH, &cwd_mount_point);
         if (err) {
                 return err;
         }
 
         char *cwd_src_path = NULL;
-        err                = new_absolute_path(src_path, SUB_SLASH, &cwd_src_path);
+        err = new_absolute_path(src_path, SUB_SLASH, &cwd_src_path);
         if (err) {
                 goto finish;
         }
@@ -211,8 +211,8 @@ int _vfs_mount(const struct vfs_path *src_path, const struct vfs_path *mount_poi
 
                                         err = base_fs->interface->fs_closedir(base_fs->handle, &dir);
                                         if (!err) {
-                                                err = new_FS_entry(base_fs, cwd_mount_point, cwd_src_path,
-                                                        fsif, opts, &new_fs);
+                                                err = new_FS_entry(base_fs, cwd_mount_point, cwd_src_path, fsif, opts,
+                                                        &new_fs);
                                         }
                                 }
                         } else {
@@ -261,12 +261,12 @@ int _vfs_umount(const struct vfs_path *path)
         }
 
         char *cwd_path;
-        int   err = new_absolute_path(path, ADD_SLASH, &cwd_path);
+        int err = new_absolute_path(path, ADD_SLASH, &cwd_path);
         if (not err) {
                 err = _mutex_lock(VFS.resource_mtx, _WAIT_FOREVER_MS);
                 if (not err) {
 
-                        int         position;
+                        int position;
                         FS_entry_t *mount_fs;
                         err = get_path_FS(cwd_path, PATH_MAX_LEN, &position, &mount_fs);
 
@@ -307,18 +307,18 @@ int _vfs_getmntentry(int seek, struct mntent *mntent)
                 return EINVAL;
         }
 
-        FS_entry_t *fs  = NULL;
-        int         err = _mutex_lock(VFS.resource_mtx, _WAIT_FOREVER_MS);
+        FS_entry_t *fs = NULL;
+        int err = _mutex_lock(VFS.resource_mtx, _WAIT_FOREVER_MS);
         if (!err) {
-                fs  = sys_llist_at(VFS.mnt_list, seek);
+                fs = sys_llist_at(VFS.mnt_list, seek);
                 err = fs ? ESUCC : ENOENT;
                 _mutex_unlock(VFS.resource_mtx);
         }
 
         if (!err) {
-                mntent->mnt_dir   = fs->mount_point;
-                mntent->mnt_src   = fs->source_path;
-                mntent->mnt_free  = 0;
+                mntent->mnt_dir = fs->mount_point;
+                mntent->mnt_src = fs->source_path;
+                mntent->mnt_free = 0;
                 mntent->mnt_total = 0;
 
                 struct statfs stat_fs;
@@ -327,8 +327,8 @@ int _vfs_getmntentry(int seek, struct mntent *mntent)
                 err = fs->interface->fs_statfs(fs->handle, &stat_fs);
                 if (!err) {
                         mntent->mnt_fsname = stat_fs.f_fsname;
-                        mntent->mnt_free   = (u64_t)stat_fs.f_bfree * stat_fs.f_bsize;
-                        mntent->mnt_total  = (u64_t)stat_fs.f_blocks * stat_fs.f_bsize;
+                        mntent->mnt_free = (u64_t)stat_fs.f_bfree * stat_fs.f_bsize;
+                        mntent->mnt_total = (u64_t)stat_fs.f_blocks * stat_fs.f_bsize;
                 } else {
                         mntent->mnt_fsname = stat_fs.f_fsname ? stat_fs.f_fsname : "unknown";
                 }
@@ -355,7 +355,7 @@ int _vfs_mknod(const struct vfs_path *path, dev_t dev)
         }
 
         char *cwd_path;
-        int   err = new_absolute_path(path, NO_SLASH_ACTION, &cwd_path);
+        int err = new_absolute_path(path, NO_SLASH_ACTION, &cwd_path);
         if (!err) {
 
                 const char *external_path;
@@ -389,7 +389,7 @@ int _vfs_mkdir(const struct vfs_path *path, mode_t mode)
         }
 
         char *cwd_path;
-        int   err = new_absolute_path(path, SUB_SLASH, &cwd_path);
+        int err = new_absolute_path(path, SUB_SLASH, &cwd_path);
         if (!err) {
 
                 const char *external_path;
@@ -424,7 +424,7 @@ int _vfs_mkfifo(const struct vfs_path *path, mode_t mode)
         }
 
         char *cwd_path;
-        int   err = new_absolute_path(path, NO_SLASH_ACTION, &cwd_path);
+        int err = new_absolute_path(path, NO_SLASH_ACTION, &cwd_path);
         if (!err) {
 
                 const char *external_path;
@@ -469,7 +469,7 @@ int _vfs_opendir(const struct vfs_path *path, kdir_t **dir)
 
                         if (!err) {
                                 (*dir)->FS_hdl = fs->handle;
-                                (*dir)->FS_if  = fs->interface;
+                                (*dir)->FS_if = fs->interface;
 
                                 err = fs->interface->fs_opendir(fs->handle, external_path, *dir);
                         }
@@ -597,7 +597,7 @@ int _vfs_remove(const struct vfs_path *path)
         }
 
         char *cwd_path;
-        int   err = new_absolute_path(path, ADD_SLASH, &cwd_path);
+        int err = new_absolute_path(path, ADD_SLASH, &cwd_path);
         if (!err) {
 
                 const char *external_path;
@@ -677,8 +677,7 @@ int _vfs_rename(const struct vfs_path *old_name, const struct vfs_path *new_name
                 if (!err) {
 
                         if (old_fs == new_fs) {
-                                err = old_fs->interface->fs_rename(old_fs->handle, old_extern_path,
-                                        new_extern_path);
+                                err = old_fs->interface->fs_rename(old_fs->handle, old_extern_path, new_extern_path);
                         } else {
                                 err = ENOTSUP;
                         }
@@ -715,7 +714,7 @@ int _vfs_chmod(const struct vfs_path *path, mode_t mode)
         }
 
         char *cwd_path;
-        int   err = new_absolute_path(path, NO_SLASH_ACTION, &cwd_path);
+        int err = new_absolute_path(path, NO_SLASH_ACTION, &cwd_path);
         if (!err) {
 
                 const char *external_path;
@@ -751,7 +750,7 @@ int _vfs_chown(const struct vfs_path *path, uid_t owner, gid_t group)
         }
 
         char *cwd_path;
-        int   err = new_absolute_path(path, NO_SLASH_ACTION, &cwd_path);
+        int err = new_absolute_path(path, NO_SLASH_ACTION, &cwd_path);
         if (!err) {
 
                 const char *external_path;
@@ -786,7 +785,7 @@ int _vfs_stat(const struct vfs_path *path, struct stat *stat)
         }
 
         char *cwd_path;
-        int   err = new_absolute_path(path, NO_SLASH_ACTION, &cwd_path);
+        int err = new_absolute_path(path, NO_SLASH_ACTION, &cwd_path);
         if (!err) {
 
                 const char *external_path;
@@ -821,7 +820,7 @@ int _vfs_statfs(const struct vfs_path *path, struct statfs *statfs)
         }
 
         char *cwd_path;
-        int   err = new_absolute_path(path, ADD_SLASH, &cwd_path);
+        int err = new_absolute_path(path, ADD_SLASH, &cwd_path);
         if (!err) {
 
                 FS_entry_t *fs;
@@ -863,12 +862,12 @@ int _vfs_fopen(const struct vfs_path *path, int flags, mode_t mode, kfile_t **fi
         vfs_file_flags_t f_flags;
 
         memset(&f_flags, 0, sizeof(vfs_file_flags_t));
-        f_flags.rd     = ((flags == O_RDONLY) || (flags & O_RDWR));
-        f_flags.wr     = (flags & (O_RDWR | O_WRONLY));
+        f_flags.rd = ((flags == O_RDONLY) || (flags & O_RDWR));
+        f_flags.wr = (flags & (O_RDWR | O_WRONLY));
         f_flags.append = (flags & (O_APPEND));
 
         kfile_t *file_obj = NULL;
-        char    *cwd_path = NULL;
+        char *cwd_path = NULL;
 
         int err = _kzalloc(_MM_KRN, sizeof(kfile_t), NULL, 0, 0, cast(void **, &file_obj));
         if (err) {
@@ -891,8 +890,8 @@ int _vfs_fopen(const struct vfs_path *path, int flags, mode_t mode, kfile_t **fi
 
                 uint major = 0;
                 uint minor = 0;
-                if (sys_sscanf(path->PATH + sizeof(dev_path_protocol) + strlen(module_name), "%u:%u", &major,
-                            &minor) != 2) {
+                if (sys_sscanf(path->PATH + sizeof(dev_path_protocol) + strlen(module_name), "%u:%u", &major, &minor) !=
+                        2) {
                         err = ENODEV;
                         goto finish;
                 }
@@ -911,7 +910,7 @@ int _vfs_fopen(const struct vfs_path *path, int flags, mode_t mode, kfile_t **fi
 
                         if (!err) {
                                 file_obj->FS_hdl = const_cast(&direct_devfs);
-                                file_obj->FS_if  = &direct_devfs;
+                                file_obj->FS_if = &direct_devfs;
                         }
                 }
 
@@ -925,12 +924,19 @@ int _vfs_fopen(const struct vfs_path *path, int flags, mode_t mode, kfile_t **fi
                 FS_entry_t *fs;
                 err = get_path_base_FS(cwd_path, &external_path, &fs);
                 if (!err) {
-                        err = fs->interface->fs_open(fs->handle, &file_obj->f_hdl, &file_obj->f_lseek,
-                                external_path, flags);
+                        err = fs->interface->fs_open(fs->handle, &file_obj->f_hdl, &file_obj->f_lseek, external_path,
+                                flags);
 
                         if (!err && (flags & O_CREAT)) {
 #if __OS_ENABLE_CHMOD__ == _YES_
-                                err = fs->interface->fs_chmod(fs->handle, external_path, mode);
+                                struct stat stat;
+                                err = fs->interface->fs_fstat(file_obj->FS_hdl, file_obj->f_hdl, &stat);
+                                if (err) {
+                                        memset(&stat, 0, sizeof(stat));
+                                }
+
+                                mode_t cur_mode = stat.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
+                                err = fs->interface->fs_chmod(fs->handle, external_path, cur_mode | mode);
 #else
                                 UNUSED_ARG1(mode);
 #endif
@@ -938,7 +944,7 @@ int _vfs_fopen(const struct vfs_path *path, int flags, mode_t mode, kfile_t **fi
 
                         if (!err) {
                                 file_obj->FS_hdl = fs->handle;
-                                file_obj->FS_if  = fs->interface;
+                                file_obj->FS_if = fs->interface;
                         }
                 }
         }
@@ -961,7 +967,7 @@ int _vfs_fopen(const struct vfs_path *path, int flags, mode_t mode, kfile_t **fi
                         file_obj->f_lseek = stat.st_size;
                 }
 
-                file_obj->f_flag      = f_flags;
+                file_obj->f_flag = f_flags;
                 file_obj->header.self = file_obj;
                 file_obj->header.type = RES_TYPE_FILE;
         }
@@ -974,7 +980,7 @@ finish:
         if (file_obj) {
                 if (file_obj->header.type == RES_TYPE_FILE) {
                         file_obj->references = 1;
-                        *file                = file_obj;
+                        *file = file_obj;
                 } else {
                         _kfree(_MM_KRN, cast(void **, &file_obj));
                 }
@@ -1024,7 +1030,7 @@ int _vfs_fclose(kfile_t *file, bool force)
                         if (!err) {
                                 file->header.self = NULL;
                                 file->header.type = RES_TYPE_UNKNOWN;
-                                file->FS_hdl      = NULL;
+                                file->FS_hdl = NULL;
                                 _kfree(_MM_KRN, cast(void **, &file));
                         }
                 } else {
@@ -1062,8 +1068,8 @@ int _vfs_fwrite(const void *ptr, size_t size, size_t *wrcnt, kfile_t *file)
                                 file->f_flag.seekmod = false;
                         }
 
-                        err = file->FS_if->fs_write(file->FS_hdl, file->f_hdl, ptr, size, &file->f_lseek,
-                                wrcnt, file->f_flag.fattr);
+                        err = file->FS_if->fs_write(file->FS_hdl, file->f_hdl, ptr, size, &file->f_lseek, wrcnt,
+                                file->f_flag.fattr);
 
                         if (!err) {
                                 if ((*wrcnt < size) && !file->f_flag.fattr.non_blocking_wr) {
@@ -1078,7 +1084,7 @@ int _vfs_fwrite(const void *ptr, size_t size, size_t *wrcnt, kfile_t *file)
                         }
                 } else {
                         file->f_flag.error = true;
-                        err                = EPERM;
+                        err = EPERM;
                 }
         }
 
@@ -1105,13 +1111,12 @@ int _vfs_fread(void *ptr, size_t size, size_t *rdcnt, kfile_t *file)
                 *rdcnt = 0;
 
                 if (file->f_flag.rd) {
-                        err = file->FS_if->fs_read(file->FS_hdl, file->f_hdl, ptr, size, &file->f_lseek,
-                                rdcnt, file->f_flag.fattr);
+                        err = file->FS_if->fs_read(file->FS_hdl, file->f_hdl, ptr, size, &file->f_lseek, rdcnt,
+                                file->f_flag.fattr);
 
                         if (!err) {
                                 if ((*rdcnt < size) &&
-                                        !(file->f_flag.fattr.non_blocking_rd or
-                                                file->f_flag.fattr.non_strict_rd)) {
+                                        !(file->f_flag.fattr.non_blocking_rd or file->f_flag.fattr.non_strict_rd)) {
 
                                         file->f_flag.eof = true;
                                 }
@@ -1124,7 +1129,7 @@ int _vfs_fread(void *ptr, size_t size, size_t *rdcnt, kfile_t *file)
                         }
                 } else {
                         file->f_flag.error = true;
-                        err                = EPERM;
+                        err = EPERM;
                 }
         }
 
@@ -1153,7 +1158,7 @@ int _vfs_fseek(kfile_t *file, i64_t offset, int mode)
 
                 if (mode == VFS_SEEK_END) {
                         stat.st_size = 0;
-                        int err      = _vfs_fstat(file, &stat);
+                        int err = _vfs_fstat(file, &stat);
                         if (err) {
                                 return err;
                         }
@@ -1173,7 +1178,7 @@ int _vfs_fseek(kfile_t *file, i64_t offset, int mode)
                         return EINVAL;
                 }
 
-                file->f_flag.eof     = false;
+                file->f_flag.eof = false;
                 file->f_flag.seekmod = true;
 
                 if ((mode == VFS_SEEK_SET) && (offset == 0)) {
@@ -1223,17 +1228,17 @@ int _vfs_vfioctl(kfile_t *file, int rq, va_list arg)
                 switch (rq) {
                 case IOCTL_VFS__NON_BLOCKING_RD_MODE:
                         file->f_flag.fattr.non_blocking_rd = true;
-                        file->f_flag.fattr.non_strict_rd   = false;
+                        file->f_flag.fattr.non_strict_rd = false;
                         return ESUCC;
 
                 case IOCTL_VFS__NON_STRICT_RD_MODE:
                         file->f_flag.fattr.non_blocking_rd = false;
-                        file->f_flag.fattr.non_strict_rd   = true;
+                        file->f_flag.fattr.non_strict_rd = true;
                         return ESUCC;
 
                 case IOCTL_VFS__DEFAULT_RD_MODE:
                         file->f_flag.fattr.non_blocking_rd = false;
-                        file->f_flag.fattr.non_strict_rd   = false;
+                        file->f_flag.fattr.non_strict_rd = false;
                         return ESUCC;
 
                 case IOCTL_VFS__NON_BLOCKING_WR_MODE:
@@ -1336,7 +1341,7 @@ int _vfs_feof(kfile_t *file, int *eof)
 int _vfs_clearerr(kfile_t *file)
 {
         if (is_file_valid(file)) {
-                file->f_flag.eof   = false;
+                file->f_flag.eof = false;
                 file->f_flag.error = false;
                 return ESUCC;
         } else {
@@ -1420,7 +1425,7 @@ static int new_FS_entry(FS_entry_t *parent_FS, const char *fs_mount_point, const
         const vfs_FS_itf_t *fs_interface, const char *opts, FS_entry_t **fs_entry)
 {
         FS_entry_t *new_FS = NULL;
-        int         err    = _kmalloc(_MM_KRN, sizeof(FS_entry_t), NULL, 0, 0, cast(void **, &new_FS));
+        int err = _kmalloc(_MM_KRN, sizeof(FS_entry_t), NULL, 0, 0, cast(void **, &new_FS));
         if (!err) {
                 err = fs_interface->fs_init(&new_FS->handle, fs_src_file, opts);
                 if (!err) {
@@ -1428,12 +1433,12 @@ static int new_FS_entry(FS_entry_t *parent_FS, const char *fs_mount_point, const
                                 fs_src_file = "-";
                         }
 
-                        new_FS->interface    = fs_interface;
-                        new_FS->mount_point  = fs_mount_point;
-                        new_FS->source_path  = fs_src_file;
-                        new_FS->parent       = parent_FS;
+                        new_FS->interface = fs_interface;
+                        new_FS->mount_point = fs_mount_point;
+                        new_FS->source_path = fs_src_file;
+                        new_FS->parent = parent_FS;
                         new_FS->children_cnt = 0;
-                        *fs_entry            = new_FS;
+                        *fs_entry = new_FS;
                 } else {
                         _kfree(_MM_KRN, cast(void **, &new_FS));
                 }
@@ -1613,7 +1618,7 @@ static int new_absolute_path(const struct vfs_path *path, enum path_correction c
 
         // memory allocation
         char *abspath;
-        int   err = _kzalloc(_MM_KRN, abslen, _cpuctl_fast_mem, 0, 0, cast(void *, &abspath));
+        int err = _kzalloc(_MM_KRN, abslen, _cpuctl_fast_mem, 0, 0, cast(void *, &abspath));
         if (!err) {
                 if (path->PATH[0] == '/') {
                         strcpy(abspath, path->PATH);
@@ -1663,7 +1668,7 @@ int _vfs_realpath(char *path, enum path_correction corr)
 
                 char *rdptr = path;
                 char *wrptr = path;
-                char  last  = ' ';
+                char last = ' ';
 
                 while (*rdptr != '\0') {
                         if (*(rdptr + 0) == '.' && *(rdptr + 1) == '/') {
@@ -1684,7 +1689,7 @@ int _vfs_realpath(char *path, enum path_correction corr)
                                 if (last == '/' && *rdptr == '/') {
                                         rdptr++;
                                 } else {
-                                        last     = *rdptr;
+                                        last = *rdptr;
                                         *wrptr++ = *rdptr++;
                                 }
                         }
@@ -1745,8 +1750,8 @@ static int direct_devfs_close(void *fshdl, void *fhdl, bool force)
  * @return On success 0 is returned.
  */
 //==============================================================================
-static int direct_devfs_write(void *fshdl, void *fhdl, const u8_t *src, size_t count, fpos_t *fpos,
-        size_t *wrcnt, struct vfs_fattr attr)
+static int direct_devfs_write(void *fshdl, void *fhdl, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr attr)
 {
         UNUSED_ARG1(fshdl);
         return _driver_write(cast(dev_t, fhdl), src, count, fpos, wrcnt, attr);
@@ -1811,12 +1816,12 @@ static int direct_devfs_fstat(void *fshdl, void *fhdl, struct stat *stat)
         int err = _driver_stat(cast(dev_t, fhdl), &dev_stat);
         if (!err) {
                 stat->st_ctime = 0;
-                stat->st_dev   = cast(dev_t, fhdl);
-                stat->st_gid   = 0;
-                stat->st_mode  = 0666 | S_IFDEV;
+                stat->st_dev = cast(dev_t, fhdl);
+                stat->st_gid = 0;
+                stat->st_mode = 0666 | S_IFDEV;
                 stat->st_mtime = 0;
-                stat->st_size  = dev_stat.st_size;
-                stat->st_uid   = 0;
+                stat->st_size = dev_stat.st_size;
+                stat->st_uid = 0;
         }
 
         return err;

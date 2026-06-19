@@ -133,16 +133,16 @@ typedef i32_t dev_t;
 #ifndef __TM_STRUCT_DEFINED__
 /** @brief Time representation type. */
 struct tm {
-        int tm_sec;             //!< Seconds after the minute        (0-60*)
-        int tm_min;             //!< Minutes after the hour          (0-59)
-        int tm_hour;            //!< Hours since midnight            (0-23)
-        int tm_mday;            //!< Day of the month                (1-31)
-        int tm_mon;             //!< Months since January            (0-11)
-        int tm_year;            //!< Years since                     (1900)
-        int tm_wday;            //!< Days since Sunday               (0-6)
-        int tm_yday;            //!< Days since January 1            (0-365)
-        int tm_isdst;           //!< Daylight Saving Time flag
-        int tm_isutc;           //!< UTC time flag (dnx RTOS extension)
+        int tm_sec;   //!< Seconds after the minute        (0-60*)
+        int tm_min;   //!< Minutes after the hour          (0-59)
+        int tm_hour;  //!< Hours since midnight            (0-23)
+        int tm_mday;  //!< Day of the month                (1-31)
+        int tm_mon;   //!< Months since January            (0-11)
+        int tm_year;  //!< Years since                     (1900)
+        int tm_wday;  //!< Days since Sunday               (0-6)
+        int tm_yday;  //!< Days since January 1            (0-365)
+        int tm_isdst; //!< Daylight Saving Time flag
+        int tm_isutc; //!< UTC time flag (dnx RTOS extension)
 };
 #define __TM_STRUCT_DEFINED__
 #endif
@@ -167,8 +167,8 @@ typedef u32_t suseconds_t;
 #ifndef __STRUCT_TIMEVAL_DEFINED__
 /** @brief Type representing time value. */
 struct timeval {
-        time_t tv_sec;          /*!< seconds */
-        suseconds_t tv_usec;    /*!< microseconds */
+        time_t tv_sec;       /*!< seconds */
+        suseconds_t tv_usec; /*!< microseconds */
 };
 #define __STRUCT_TIMEVAL_DEFINED__
 #endif
@@ -182,8 +182,8 @@ struct timeval {
  * @see gettimeofday(), settimeofday()
  */
 struct timezone {
-        int tz_minuteswest;     /*!< minutes west of Greenwitch */
-        int tz_dsttime;         /*!< type of DST correction */
+        int tz_minuteswest; /*!< minutes west of Greenwitch */
+        int tz_dsttime;     /*!< type of DST correction */
 };
 #define __STRUCT_TIMEZONE_DEFINED__
 #endif
@@ -207,8 +207,8 @@ struct mntent {
         const char *mnt_fsname; //!< Device or server for file system
         const char *mnt_dir;    //!< Directory mounted on
         const char *mnt_src;    //!< Source path
-        u64_t       mnt_total;  //!< Device total size in bytes
-        u64_t       mnt_free;   //!< Device free space in bytes
+        u64_t mnt_total;        //!< Device total size in bytes
+        u64_t mnt_free;         //!< Device free space in bytes
 };
 #define __STRUCT_MNTENT_DEFINED__
 #endif
@@ -218,10 +218,10 @@ struct mntent {
 #ifndef __STRUCT_DIRENT_DEFINED__
 /** @brief Directory entry. */
 typedef struct dirent {
-        const char *d_name;         //!< File name
-        u64_t       size;           //!< File size in bytes
-        mode_t      mode;           //!< File mode (protection, file type)
-        dev_t       dev;            //!< Device address (if file type is driver)
+        const char *d_name; //!< File name
+        u64_t size;         //!< File size in bytes
+        mode_t mode;        //!< File mode (protection, file type)
+        dev_t dev;          //!< Device address (if file type is driver)
 } dirent_t;
 #define __STRUCT_DIRENT_DEFINED__
 #endif
@@ -230,13 +230,13 @@ typedef struct dirent {
 /** @brief File information. */
 #ifndef __STRUCT_STAT_DEFINED__
 struct stat {
-        u64_t   st_size;        /*!< Total size, in bytes.*/
-        dev_t   st_dev;         /*!< ID of device containing file.*/
-        mode_t  st_mode;        /*!< Protection, file type.*/
-        uid_t   st_uid;         /*!< User ID of owner.*/
-        gid_t   st_gid;         /*!< Group ID of owner.*/
-        time_t  st_ctime;       /*!< Time of creation.*/
-        time_t  st_mtime;       /*!< Time of last modification.*/
+        u64_t st_size;   /*!< Total size, in bytes.*/
+        dev_t st_dev;    /*!< ID of device containing file.*/
+        mode_t st_mode;  /*!< Protection, file type.*/
+        uid_t st_uid;    /*!< User ID of owner.*/
+        gid_t st_gid;    /*!< Group ID of owner.*/
+        time_t st_ctime; /*!< Time of creation.*/
+        time_t st_mtime; /*!< Time of last modification.*/
 };
 #define __STRUCT_STAT_DEFINED__
 #endif
@@ -244,29 +244,29 @@ struct stat {
 /** file system statistic */
 #ifndef __STRUCT_STATFS_DEFINED__
 struct statfs {
-        u32_t       f_type;     /*!< File system type. @see @ref SYS_FS_TYPE*/
-        u32_t       f_bsize;    /*!< Block size.*/
-        u32_t       f_blocks;   /*!< Total blocks.*/
-        u32_t       f_bfree;    /*!< Free blocks.*/
-        u32_t       f_files;    /*!< Total file nodes in file system.*/
-        u32_t       f_ffree;    /*!< Free file nodes in file system.*/
-        const char *f_fsname;   /*!< File system name.*/
+        u32_t f_type;         /*!< File system type. @see @ref SYS_FS_TYPE*/
+        u32_t f_bsize;        /*!< Block size.*/
+        u32_t f_blocks;       /*!< Total blocks.*/
+        u32_t f_bfree;        /*!< Free blocks.*/
+        u32_t f_files;        /*!< Total file nodes in file system.*/
+        u32_t f_ffree;        /*!< Free file nodes in file system.*/
+        const char *f_fsname; /*!< File system name.*/
 };
 #define __STRUCT_STATFS_DEFINED__
 #endif
 
 /** process (program) function type */
-typedef int (*process_func_t)(int, char**);
+typedef int (*process_func_t)(int, char **);
 
 /** thread function */
 typedef int (*thread_func_t)(void *arg);
 
 /** average CPU load */
 typedef struct {
-        u32_t avg1sec;                  //!< average CPU laod within 1 second (1% = 10)
-        u32_t avg1min;                  //!< average CPU load within 1 minute (1% = 10)
-        u32_t avg5min;                  //!< average CPU load within 5 minutes (1% = 10)
-        u32_t avg15min;                 //!< average CPU load within 15 minutes (1% = 10)
+        u32_t avg1sec;  //!< average CPU laod within 1 second (1% = 10)
+        u32_t avg1min;  //!< average CPU load within 1 minute (1% = 10)
+        u32_t avg5min;  //!< average CPU load within 5 minutes (1% = 10)
+        u32_t avg15min; //!< average CPU load within 15 minutes (1% = 10)
 } _avg_CPU_load_t;
 
 /**
@@ -275,18 +275,18 @@ typedef struct {
  * The type is used to configure process settings.
  */
 typedef struct {
-        void       (*at_init)(void*);   //!< function called at init before main()
-        void       *at_init_ctx;        //!< context of at_init function
-        const char *cwd;                //!< working directory path
-        size_t      app_ctx_size;       //!< size of application context object
-        int         fd_stdin;           //!< stdin file descriptor (major)
-        int         fd_stdout;          //!< stdin file descriptor (major)
-        int         fd_stderr;          //!< stdin file descriptor (major)
-        const char *p_stdin;            //!< stdin  file path (minor)
-        const char *p_stdout;           //!< stdout file path (minor)
-        const char *p_stderr;           //!< stderr file path (minor)
-        i16_t       priority;           //!< process priority
-        bool        detached;           //!< independent process (no parent)
+        void (*at_init)(void *); //!< function called at init before main()
+        void *at_init_ctx;       //!< context of at_init function
+        const char *cwd;         //!< working directory path
+        size_t app_ctx_size;     //!< size of application context object
+        int fd_stdin;            //!< stdin file descriptor (major)
+        int fd_stdout;           //!< stdin file descriptor (major)
+        int fd_stderr;           //!< stdin file descriptor (major)
+        const char *p_stdin;     //!< stdin  file path (minor)
+        const char *p_stdout;    //!< stdout file path (minor)
+        const char *p_stderr;    //!< stderr file path (minor)
+        i16_t priority;          //!< process priority
+        bool detached;           //!< independent process (no parent)
 } _process_attr_t;
 
 /**
@@ -295,22 +295,23 @@ typedef struct {
  * The type represent process statistics.
  */
 typedef struct {
-        const char *name;               //!< process name
-        pid_t       pid;                //!< process ID
-        size_t      memory_usage;       //!< memory usage (allocated by process)
-        u16_t       memory_block_count; //!< number of used memory blocks
-        u16_t       files_count;        //!< number of opened files
-        u16_t       dir_count;          //!< number of opened directories
-        u16_t       mutexes_count;      //!< number of used mutexes
-        u16_t       semaphores_count;   //!< number of used semaphores
-        u16_t       queue_count;        //!< number of used queues
-        u16_t       socket_count;       //!< number of used sockets
-        u16_t       threads_count;      //!< number of threads
-        u16_t       CPU_load;           //!< CPU load (1% = 10)
-        u16_t       stack_size;         //!< stack size
-        u16_t       stack_max_usage;    //!< max stack usage
-        i16_t       priority;           //!< priority
-        u16_t       syscalls_per_sec;   //!< syscalls per second
+        char *cmdline_buf;        //!< process command line buffer (destination)
+        size_t cmdline_len;       //!< process command line buffer length
+        pid_t pid;                //!< process ID
+        size_t memory_usage;      //!< memory usage (allocated by process)
+        u16_t memory_block_count; //!< number of used memory blocks
+        u16_t files_count;        //!< number of opened files
+        u16_t dir_count;          //!< number of opened directories
+        u16_t mutexes_count;      //!< number of used mutexes
+        u16_t semaphores_count;   //!< number of used semaphores
+        u16_t queue_count;        //!< number of used queues
+        u16_t socket_count;       //!< number of used sockets
+        u16_t threads_count;      //!< number of threads
+        u16_t CPU_load;           //!< CPU load (1% = 10)
+        u16_t stack_size;         //!< stack size
+        u16_t stack_max_usage;    //!< max stack usage
+        i16_t priority;           //!< priority
+        u16_t syscalls_per_sec;   //!< syscalls per second
 } _process_stat_t;
 
 /**
@@ -319,12 +320,12 @@ typedef struct {
  * The type represent thread attributes that configures thread settings.
  */
 typedef struct {
-        tid_t       tid;                //!< thread ID
-        u16_t       CPU_load;           //!< CPU load (1% = 10)
-        u16_t       stack_size;         //!< stack size
-        u16_t       stack_max_usage;    //!< max stack usage
-        i16_t       priority;           //!< priority
-        u16_t       syscalls_per_sec;   //!< syscalls per second
+        tid_t tid;              //!< thread ID
+        u16_t CPU_load;         //!< CPU load (1% = 10)
+        u16_t stack_size;       //!< stack size
+        u16_t stack_max_usage;  //!< max stack usage
+        i16_t priority;         //!< priority
+        u16_t syscalls_per_sec; //!< syscalls per second
 } _thread_stat_t;
 
 /**
@@ -333,9 +334,9 @@ typedef struct {
  * The type represent thread attributes that configures thread settings.
  */
 typedef struct {
-        size_t stack_depth;             //!< stack depth
-        i16_t  priority;                //!< thread priority
-        bool   detached;                //!< independent thread (without join possibility)
+        size_t stack_depth; //!< stack depth
+        i16_t priority;     //!< thread priority
+        bool detached;      //!< independent thread (without join possibility)
 } _thread_attr_t;
 
 /**
@@ -344,7 +345,7 @@ typedef struct {
 typedef struct {
         void **global_ref;
         void **app_ctx_ref;
-        int   *errno_ref;
+        int *errno_ref;
 } _dnxrtctx_t;
 
 /*==============================================================================

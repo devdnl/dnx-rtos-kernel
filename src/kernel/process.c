@@ -674,8 +674,8 @@ void _process_abort(_process_t *proc)
 
                 tid_t tid = _process_get_active_thread(proc, false);
 
-                printk("*** APP ABORT: '%s' [%u:%d:%d,%s] ***", _process_get_name(proc), _cpuctl_get_cpu_id(),
-                        pid, tid, "USR");
+                printk("*** APP ABORT: '%s' [%u:%d:%d,%s] ***", _process_get_name(proc), _cpuctl_get_cpu_id(), pid, tid,
+                        "USR");
 
                 _process_exit(proc, -1);
         } else {
@@ -2529,9 +2529,23 @@ static void process_destroy_all_resources(_process_t *proc)
 //==============================================================================
 static void process_get_stat(_process_t *proc, _process_stat_t *stat)
 {
-        memset(stat, 0, sizeof(_process_stat_t));
+        char *cmdline_buf = stat->cmdline_buf;
+        size_t cmdline_len = stat->cmdline_len;
 
-        stat->name = proc->pdata->name;
+        memset(stat, 0, sizeof(_process_stat_t));
+        stat->cmdline_buf = cmdline_buf;
+        stat->cmdline_len = cmdline_len;
+
+        if (stat->cmdline_buf and stat->cmdline_len) {
+                size_t n = 0;
+
+                for (size_t i = 0; i < proc->argc; i++) {
+                        n += sys_snprintf(&stat->cmdline_buf[n], stat->cmdline_len - n, "%s ", proc->argv[i]);
+                }
+
+                stat->cmdline_buf[n] = '\0';
+        }
+
         stat->pid = proc->pid;
         stat->priority = (proc->taskdata[0].task) ? _task_get_priority(proc->taskdata[0].task) : 0;
         stat->CPU_load = 0;
