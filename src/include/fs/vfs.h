@@ -192,7 +192,7 @@ typedef struct vfs_FS_itf {
         int (*fs_init)(void **fshdl, const char *path, const char *opts);
         int (*fs_release)(void *fshdl);
         int (*fs_open)(void *fshdl, void **fhdl, fpos_t *fpos, const char *path, u32_t flags);
-        int (*fs_close)(void *fshdl, void *fhdl, bool force);
+        int (*fs_close)(void *fshdl, void *fhdl);
         int (*fs_write)(void *fshdl, void *fhdl, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
                 struct vfs_fattr attr);
         int (*fs_read)(void *fshdl, void *fhdl, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt,
@@ -302,7 +302,7 @@ extern int _vfs_stat(const struct vfs_path *, struct stat *);
 extern int _vfs_statfs(const struct vfs_path *, struct statfs *);
 extern int _vfs_fopen(const struct vfs_path *, int, mode_t, kfile_t **);
 extern int _vfs_fopen_ref(kfile_t *);
-extern int _vfs_fclose(kfile_t *, bool);
+extern int _vfs_fclose(kfile_t *);
 extern int _vfs_fwrite(const void *, size_t, size_t *, kfile_t *);
 extern int _vfs_fread(void *, size_t, size_t *, kfile_t *);
 extern int _vfs_fseek(kfile_t *, i64_t, int);

@@ -70,7 +70,7 @@ static bool is_dir_valid(kdir_t *dir);
 static int get_path_FS(const char *path, size_t len, int *position, FS_entry_t **fs_entry);
 static int get_path_base_FS(const char *path, const char **extPath, FS_entry_t **fs_entry);
 static int new_absolute_path(const struct vfs_path *path, enum path_correction corr, char **new_path);
-static int direct_devfs_close(void *fshdl, void *fhdl, bool force);
+static int direct_devfs_close(void *fshdl, void *fhdl);
 static int direct_devfs_write(void *fshdl, void *fhdl, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
         struct vfs_fattr attr);
 static int direct_devfs_read(void *fshdl, void *fhdl, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt,
@@ -930,7 +930,7 @@ int _vfs_fopen(const struct vfs_path *path, int flags, mode_t mode, kfile_t **fi
                         if (!err && (flags & O_CREAT)) {
 #if __OS_ENABLE_CHMOD__ == _YES_
                                 struct stat stat;
-                                err = fs->interface->fs_fstat(file_obj->FS_hdl, file_obj->f_hdl, &stat);
+                                err = fs->interface->fs_fstat(fs->handle, file_obj->f_hdl, &stat);
                                 if (err) {
                                         memset(&stat, 0, sizeof(stat));
                                 }
@@ -1015,24 +1015,23 @@ int _vfs_fopen_ref(kfile_t *file)
  * @brief Function close opened file
  *
  * @param[in] file              pinter to file
- * @param[in] force             force close
  *
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-int _vfs_fclose(kfile_t *file, bool force)
+int _vfs_fclose(kfile_t *file)
 {
         int err = EINVAL;
 
         if (is_file_valid(file) && file->FS_if->fs_close) {
                 if ((file->references >= 0) and (file->references < 2)) {
-                        err = file->FS_if->fs_close(file->FS_hdl, file->f_hdl, force);
-                        if (!err) {
-                                file->header.self = NULL;
-                                file->header.type = RES_TYPE_UNKNOWN;
-                                file->FS_hdl = NULL;
-                                _kfree(_MM_KRN, cast(void **, &file));
-                        }
+                        err = file->FS_if->fs_close(file->FS_hdl, file->f_hdl);
+
+                        // note: free resource even on error
+                        file->header.self = NULL;
+                        file->header.type = RES_TYPE_UNKNOWN;
+                        file->FS_hdl = NULL;
+                        _kfree(_MM_KRN, cast(void **, &file));
                 } else {
                         file->references--;
                         err = 0;
@@ -1724,15 +1723,14 @@ int _vfs_realpath(char *path, enum path_correction corr)
  *
  * @param  fshdl        FS handle
  * @param  fhdl         file handle
- * @param  force        force close
  *
  * @return On success 0 is returned.
  */
 //==============================================================================
-static int direct_devfs_close(void *fshdl, void *fhdl, bool force)
+static int direct_devfs_close(void *fshdl, void *fhdl)
 {
         UNUSED_ARG1(fshdl);
-        return _driver_close(cast(dev_t, fhdl), force);
+        return _driver_close(cast(dev_t, fhdl), true);
 }
 
 //==============================================================================

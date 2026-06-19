@@ -40,42 +40,42 @@ Brief    EEPROM File System. File system for small memories 1-64KiB EEPROM.
 #define DBG(...)
 #endif
 
-#define BUSY_TIMEOUT                    20000
+#define BUSY_TIMEOUT 20000
 
-#define BLOCK_SIZE                      128
-#define BLOCKS_IN_BYTE                  8
+#define BLOCK_SIZE     128
+#define BLOCKS_IN_BYTE 8
 
-#define MAIN_BLOCK_ADDR                 0
+#define MAIN_BLOCK_ADDR 0
 
-#define ENTRY_TYPE_DIR                  0xFE
-#define ENTRY_TYPE_FILE                 0xFD
-#define ENTRY_TYPE_NODE                 0xFC
+#define ENTRY_TYPE_DIR  0xFE
+#define ENTRY_TYPE_FILE 0xFD
+#define ENTRY_TYPE_NODE 0xFC
 
-#define BLOCK_MAGIC_MAIN                0x53464545
-#define BLOCK_MAGIC_BITMAP              0x20504D42
-#define BLOCK_MAGIC_DIR                 0x30524944
-#define BLOCK_MAGIC_DIR_ENTRY           0x45524944
-#define BLOCK_MAGIC_FILE                0x454C4946
-#define BLOCK_MAGIC_FILE_DATA           0x41544144
-#define BLOCK_MAGIC_NODE                0x30564544
+#define BLOCK_MAGIC_MAIN      0x53464545
+#define BLOCK_MAGIC_BITMAP    0x20504D42
+#define BLOCK_MAGIC_DIR       0x30524944
+#define BLOCK_MAGIC_DIR_ENTRY 0x45524944
+#define BLOCK_MAGIC_FILE      0x454C4946
+#define BLOCK_MAGIC_FILE_DATA 0x41544144
+#define BLOCK_MAGIC_NODE      0x30564544
 
-#define DIR_DESC_MAGIC                  0x24526701
-#define FILE_DESC_MAGIC                 0xA2751FF7
+#define DIR_DESC_MAGIC  0x24526701
+#define FILE_DESC_MAGIC 0xA2751FF7
 
-#define NAME_LEN                        21      // note: modify with care
+#define NAME_LEN 21 // note: modify with care
 
-#define cache_get_block(sys_cache)      cast(block_cached_t*, &sys_cache[1])->block
-#define cache_get_block_num(sys_cache)  cast(block_cached_t*, &sys_cache[1])->block_num
+#define cache_get_block(sys_cache)     cast(block_cached_t *, &sys_cache[1])->block
+#define cache_get_block_num(sys_cache) cast(block_cached_t *, &sys_cache[1])->block_num
 
-#define FLAG_RDONLY                     (1<<0)
+#define FLAG_RDONLY (1 << 0)
 
-#define block_is_dir(block_buf)         (block_buf.buf.dir.magic  == BLOCK_MAGIC_DIR)
-#define block_is_dir_entry(block_buf)   (block_buf.buf.dir_entry.magic  == BLOCK_MAGIC_DIR_ENTRY)
-#define block_is_file(block_buf)        (block_buf.buf.file.magic == BLOCK_MAGIC_FILE)
-#define block_is_file_data(block_buf)   (block_buf.buf.file.magic == BLOCK_MAGIC_FILE_DATA)
-#define block_is_node(block_buf)        (block_buf.buf.node.magic == BLOCK_MAGIC_NODE)
+#define block_is_dir(block_buf)       (block_buf.buf.dir.magic == BLOCK_MAGIC_DIR)
+#define block_is_dir_entry(block_buf) (block_buf.buf.dir_entry.magic == BLOCK_MAGIC_DIR_ENTRY)
+#define block_is_file(block_buf)      (block_buf.buf.file.magic == BLOCK_MAGIC_FILE)
+#define block_is_file_data(block_buf) (block_buf.buf.file.magic == BLOCK_MAGIC_FILE_DATA)
+#define block_is_node(block_buf)      (block_buf.buf.node.magic == BLOCK_MAGIC_NODE)
 
-#define DEFAULT_MODE                    (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
+#define DEFAULT_MODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 
 /*==============================================================================
   Local types, enums definitions
@@ -96,7 +96,7 @@ Brief    EEPROM File System. File system for small memories 1-64KiB EEPROM.
  * Generic checksum block (calculation purposes).
  */
 typedef struct PACKED {
-        uint8_t  buf[126];
+        uint8_t buf[126];
         uint16_t checksum;
 } block_chsum_t;
 
@@ -104,112 +104,112 @@ typedef struct PACKED {
  * Main block definition (block 0).
  */
 typedef struct PACKED {
-        uint32_t magic;         //!< FS identifier ('EEFS')
-        uint16_t blocks;        //!< number of memory 128B blocks
-        uint8_t  bitmap_blocks; //!< number of next bitmap blocks
-        uint8_t  bitmap[119];   //!< empty block bitmap
-        uint16_t checksum;      //!< checksum
+        uint32_t magic;        //!< FS identifier ('EEFS')
+        uint16_t blocks;       //!< number of memory 128B blocks
+        uint8_t bitmap_blocks; //!< number of next bitmap blocks
+        uint8_t bitmap[119];   //!< empty block bitmap
+        uint16_t checksum;     //!< checksum
 } block_main_t;
 
 /**
  * Bitmap block definition.
  */
 typedef struct PACKED {
-        uint32_t magic;         //!< block magic number
-        uint8_t  map[122];      //!< bitmap
-        uint16_t checksum;      //!< checksum
+        uint32_t magic;    //!< block magic number
+        uint8_t map[122];  //!< bitmap
+        uint16_t checksum; //!< checksum
 } block_bitmap_t;
 
 /**
  * Single directory entry.
  */
 typedef struct PACKED {
-        uint16_t block_addr;    //!< block address with object
-        uint8_t  type;          //!< entry type
-        char     name[NAME_LEN];//!< entry name
+        uint16_t block_addr; //!< block address with object
+        uint8_t type;        //!< entry type
+        char name[NAME_LEN]; //!< entry name
 } dir_entry_t;
 
 /**
  * Directory block.
  */
-typedef struct PACKED{
-        uint32_t    magic;      //!< block magic number
-        uint32_t    ctime;      //!< create timestamp
-        uint32_t    mtime;      //!< modification timestamp
-        uint16_t    gid;        //!< group ID
-        uint16_t    uid;        //!< user ID
-        uint16_t    mode;       //!< mode
-        uint16_t    parent;     //!< parent entry block number
-        uint16_t    next;       //!< next directory entries
-        uint16_t    all_items;  //!< number of items in all chains
-        uint8_t     _[6];       //!< reserved
-        dir_entry_t entry[4];   //!< directory entry
-        uint16_t    checksum;   //!< checksum
+typedef struct PACKED {
+        uint32_t magic;       //!< block magic number
+        uint32_t ctime;       //!< create timestamp
+        uint32_t mtime;       //!< modification timestamp
+        uint16_t gid;         //!< group ID
+        uint16_t uid;         //!< user ID
+        uint16_t mode;        //!< mode
+        uint16_t parent;      //!< parent entry block number
+        uint16_t next;        //!< next directory entries
+        uint16_t all_items;   //!< number of items in all chains
+        uint8_t _[6];         //!< reserved
+        dir_entry_t entry[4]; //!< directory entry
+        uint16_t checksum;    //!< checksum
 } block_dir_t;
 
 /**
  * Directory entry block.
  */
 typedef struct PACKED {
-        uint32_t    magic;      //!< block magic number
-        dir_entry_t entry[5];   //!< directory entries
-        uint16_t    next;       //!< next directory entries
-        uint16_t    checksum;   //!< checksum
+        uint32_t magic;       //!< block magic number
+        dir_entry_t entry[5]; //!< directory entries
+        uint16_t next;        //!< next directory entries
+        uint16_t checksum;    //!< checksum
 } block_dir_entry_t;
 
 /**
  * File block.
  */
 typedef struct PACKED {
-        uint32_t magic;         //!< block magic number
-        uint32_t ctime;         //!< create timestamp
-        uint32_t mtime;         //!< modification timestamp
-        uint16_t gid;           //!< group ID
-        uint16_t uid;           //!< user ID
-        uint16_t mode;          //!< mode
-        uint16_t size;          //!< file size in bytes
-        uint8_t  data[102];     //!< file data
-        uint16_t data_next;     //!< next file data
-        uint16_t checksum;      //!< checksum
+        uint32_t magic;     //!< block magic number
+        uint32_t ctime;     //!< create timestamp
+        uint32_t mtime;     //!< modification timestamp
+        uint16_t gid;       //!< group ID
+        uint16_t uid;       //!< user ID
+        uint16_t mode;      //!< mode
+        uint16_t size;      //!< file size in bytes
+        uint8_t data[102];  //!< file data
+        uint16_t data_next; //!< next file data
+        uint16_t checksum;  //!< checksum
 } block_file_t;
 
 /**
  * File data block.
  */
 typedef struct PACKED {
-        uint32_t magic;         //!< block magic number
-        uint8_t  data[120];     //!< data
-        uint16_t data_next;     //!< next data block
-        uint16_t checksum;      //!< checksum
+        uint32_t magic;     //!< block magic number
+        uint8_t data[120];  //!< data
+        uint16_t data_next; //!< next data block
+        uint16_t checksum;  //!< checksum
 } block_file_data_t;
 
 /**
  * Device file block.
  */
 typedef struct PACKED {
-        uint32_t magic;         //!< block magic number
-        uint32_t ctime;         //!< create timestamp
-        uint32_t mtime;         //!< modification timestamp
-        uint32_t dev;           //!< device number
-        uint16_t gid;           //!< group ID
-        uint16_t uid;           //!< user ID
-        uint16_t mode;          //!< mode
-        uint8_t  _[104];        //!< reserved
-        uint16_t checksum;      //!< checksum
+        uint32_t magic;    //!< block magic number
+        uint32_t ctime;    //!< create timestamp
+        uint32_t mtime;    //!< modification timestamp
+        uint32_t dev;      //!< device number
+        uint16_t gid;      //!< group ID
+        uint16_t uid;      //!< user ID
+        uint16_t mode;     //!< mode
+        uint8_t _[104];    //!< reserved
+        uint16_t checksum; //!< checksum
 } block_node_t;
 
 /**
  * Generic block.
  */
 typedef union {
-        block_main_t      main;
-        block_bitmap_t    bitmap;
-        block_dir_t       dir;
+        block_main_t main;
+        block_bitmap_t bitmap;
+        block_dir_t dir;
         block_dir_entry_t dir_entry;
-        block_file_t      file;
+        block_file_t file;
         block_file_data_t file_data;
-        block_node_t      node;
-        block_chsum_t     chsum;
+        block_node_t node;
+        block_chsum_t chsum;
 } block_t;
 
 /**
@@ -217,9 +217,9 @@ typedef union {
  */
 typedef struct dir_desc {
         struct dir_desc *next;
-        uint32_t         magic;
-        uint16_t         block_num;
-        char             name[NAME_LEN];
+        uint32_t magic;
+        uint16_t block_num;
+        char name[NAME_LEN];
 } dir_desc_t;
 
 /**
@@ -227,16 +227,18 @@ typedef struct dir_desc {
  */
 typedef struct file_desc {
         struct file_desc *next;
-        uint32_t          magic;
-        uint16_t          block_num;
-        uint8_t           flags;
+        uint32_t magic;
+        uint32_t block_file_magic;
+        uint32_t block_dev;
+        uint16_t block_num;
+        uint8_t flags;
 } file_desc_t;
 
 /**
  * Type contains block buffer and position on disc.
  */
 typedef struct {
-        u16_t   num;
+        u16_t num;
         block_t buf;
 } block_buf_t;
 
@@ -244,7 +246,7 @@ typedef struct {
  * Type contains block cache buffer.
  */
 typedef struct {
-        bool  used;
+        bool used;
         u32_t hit;
         block_buf_t buf;
 } cache_buf_t;
@@ -253,17 +255,17 @@ typedef struct {
  * File system handle.
  */
 typedef struct {
-        kfile_t     *srcdev;
-        kmtx_t      *lock_mtx;
-        dir_desc_t  *open_dirs;
+        kfile_t *srcdev;
+        kmtx_t *lock_mtx;
+        dir_desc_t *open_dirs;
         file_desc_t *open_files;
-        uint16_t     root_dir_block;
-        block_buf_t  block;
-        block_buf_t  tmpblock;
-        u8_t         flag;
-        #if __EEFS_CACHE_SIZE__ > 0
-        cache_buf_t  cache_block[__EEFS_CACHE_SIZE__];
-        #endif
+        uint16_t root_dir_block;
+        block_buf_t block;
+        block_buf_t tmpblock;
+        u8_t flag;
+#if __EEFS_CACHE_SIZE__ > 0
+        cache_buf_t cache_block[__EEFS_CACHE_SIZE__];
+#endif
 } EEFS_t;
 
 /*==============================================================================
@@ -335,9 +337,8 @@ API_FS_INIT(eefs, void **fs_handle, const char *src_path, const char *opts)
                 err = block_read(hdl, &hdl->block);
                 if (!err) {
 
-                        if (  hdl->block.buf.main.magic         == BLOCK_MAGIC_MAIN
-                           && hdl->block.buf.main.blocks        >= 8
-                           && hdl->block.buf.main.bitmap_blocks <= 64 ) {
+                        if (hdl->block.buf.main.magic == BLOCK_MAGIC_MAIN && hdl->block.buf.main.blocks >= 8 &&
+                                hdl->block.buf.main.bitmap_blocks <= 64) {
 
                                 for (size_t blk = 1; blk < (1U + hdl->block.buf.main.bitmap_blocks); blk++) {
                                         hdl->block.num = blk;
@@ -379,7 +380,7 @@ API_FS_INIT(eefs, void **fs_handle, const char *src_path, const char *opts)
                         }
                 }
 
-                finish:
+        finish:
                 if (err) {
                         DBG("init error %d", err);
 
@@ -424,7 +425,7 @@ API_FS_RELEASE(eefs, void *fs_handle)
                         sys_mutex_unlock(mtx);
                         sys_mutex_destroy(mtx);
 
-                        sys_free(cast(void*, &hdl));
+                        sys_free(cast(void *, &hdl));
 
                         return err;
                 } else {
@@ -544,13 +545,13 @@ API_FS_OPENDIR(eefs, void *fs_handle, const char *path, kdir_t *dir)
                         if (!err) {
                                 dir_desc_t *dd = dir->d_hdl;
 
-                                dd->block_num  = hdl->block.num;
-                                dd->magic      = DIR_DESC_MAGIC;
-                                dd->next       = hdl->open_dirs;
+                                dd->block_num = hdl->block.num;
+                                dd->magic = DIR_DESC_MAGIC;
+                                dd->next = hdl->open_dirs;
                                 hdl->open_dirs = dd;
 
-                                dir->d_items   = hdl->block.buf.dir.all_items;
-                                dir->d_seek    = 0;
+                                dir->d_items = hdl->block.buf.dir.all_items;
+                                dir->d_seek = 0;
                         }
                 }
 
@@ -574,8 +575,8 @@ API_FS_OPENDIR(eefs, void *fs_handle, const char *path, kdir_t *dir)
 //==============================================================================
 API_FS_CLOSEDIR(eefs, void *fs_handle, kdir_t *dir)
 {
-        EEFS_t     *hdl = fs_handle;
-        dir_desc_t *dd  = dir->d_hdl;
+        EEFS_t *hdl = fs_handle;
+        dir_desc_t *dd = dir->d_hdl;
 
         int err = sys_mutex_lock(hdl->lock_mtx, BUSY_TIMEOUT);
         if (!err) {
@@ -639,14 +640,14 @@ API_FS_READDIR(eefs, void *fs_handle, kdir_t *dir)
         int err = sys_mutex_lock(hdl->lock_mtx, BUSY_TIMEOUT);
         if (!err) {
 
-                u16_t seek     = dir->d_seek;
+                u16_t seek = dir->d_seek;
                 hdl->block.num = dd->block_num;
 
                 memset(dd->name, 0, sizeof(dd->name));
                 dir->dirent.d_name = dd->name;
-                dir->dirent.dev    = 0;
-                dir->dirent.size   = 0;
-                dir->dirent.mode   = 0;
+                dir->dirent.dev = 0;
+                dir->dirent.size = 0;
+                dir->dirent.mode = 0;
 
                 do {
                         err = block_read(hdl, &hdl->block);
@@ -654,9 +655,9 @@ API_FS_READDIR(eefs, void *fs_handle, kdir_t *dir)
                                 break;
                         }
 
-                        dir_entry_t *entry   = NULL;
-                        uint8_t      items   = 0;
-                        uint16_t     blknext = 0;
+                        dir_entry_t *entry = NULL;
+                        uint8_t items = 0;
+                        uint16_t blknext = 0;
 
                         err = dir_get_entry_params(hdl, &entry, &items, &blknext);
 
@@ -664,8 +665,7 @@ API_FS_READDIR(eefs, void *fs_handle, kdir_t *dir)
                                 if (is_entry_item_used(entry)) {
 
                                         if (seek == 0) {
-                                                err = dir_read_entry(hdl, dd, entry,
-                                                                     &dir->dirent);
+                                                err = dir_read_entry(hdl, dd, entry, &dir->dirent);
                                                 dir->d_seek++;
                                                 break;
                                         } else {
@@ -736,9 +736,7 @@ API_FS_RENAME(eefs, void *fs_handle, const char *old_name, const char *new_name)
 {
         EEFS_t *hdl = fs_handle;
 
-        int err =  LAST_CHARACTER(old_name) == '/'
-                || LAST_CHARACTER(new_name) == '/'
-                 ? EISDIR : ESUCC;
+        int err = LAST_CHARACTER(old_name) == '/' || LAST_CHARACTER(new_name) == '/' ? EISDIR : ESUCC;
 
         if (!err) {
                 err = sys_mutex_lock(hdl->lock_mtx, BUSY_TIMEOUT);
@@ -746,16 +744,20 @@ API_FS_RENAME(eefs, void *fs_handle, const char *old_name, const char *new_name)
 
         if (!err) {
 
-                char       *dirnameold  = NULL;
-                char       *dirnamenew  = NULL;
+                char *dirnameold = NULL;
+                char *dirnamenew = NULL;
                 const char *basenameold = path_get_basename(old_name, NULL);
                 const char *basenamenew = path_get_basename(new_name, NULL);
 
                 err = path_alloc_dirname(old_name, &dirnameold);
-                if (err) goto finish;
+                if (err) {
+                        goto finish;
+                }
 
                 err = path_alloc_dirname(new_name, &dirnamenew);
-                if (err) goto finish;
+                if (err) {
+                        goto finish;
+                }
 
                 if (!isstreq(dirnameold, dirnamenew)) {
                         err = EFAULT;
@@ -766,16 +768,15 @@ API_FS_RENAME(eefs, void *fs_handle, const char *old_name, const char *new_name)
                 }
 
                 while (!err) {
-                        dir_entry_t *dirent  = NULL;
-                        u8_t         items   = 0;
-                        u16_t        blknext = 0;
+                        dir_entry_t *dirent = NULL;
+                        u8_t items = 0;
+                        u16_t blknext = 0;
 
                         err = dir_get_entry_params(hdl, &dirent, &items, &blknext);
 
                         while (!err && items--) {
 
-                                if (  is_entry_item_used(dirent)
-                                   && isstreqn(basenameold, dirent->name, NAME_LEN)) {
+                                if (is_entry_item_used(dirent) && isstreqn(basenameold, dirent->name, NAME_LEN)) {
 
                                         sys_strlcpy(dirent->name, basenamenew, NAME_LEN);
 
@@ -794,16 +795,15 @@ API_FS_RENAME(eefs, void *fs_handle, const char *old_name, const char *new_name)
                         } else {
                                 err = ENOENT;
                         }
-
                 }
 
-                finish:
+        finish:
                 if (dirnameold) {
-                        sys_free(cast(void*, &dirnameold));
+                        sys_free(cast(void *, &dirnameold));
                 }
 
                 if (dirnamenew) {
-                        sys_free(cast(void*, &dirnamenew));
+                        sys_free(cast(void *, &dirnamenew));
                 }
 
                 sys_mutex_unlock(hdl->lock_mtx);
@@ -964,8 +964,8 @@ API_FS_STAT(eefs, void *fs_handle, const char *path, struct stat *stat)
 //==============================================================================
 API_FS_FSTAT(eefs, void *fs_handle, void *fhdl, struct stat *stat)
 {
-        EEFS_t      *hdl = fs_handle;
-        file_desc_t *fd  = fhdl;
+        EEFS_t *hdl = fs_handle;
+        file_desc_t *fd = fhdl;
 
         int err = EILSEQ;
 
@@ -1004,11 +1004,11 @@ API_FS_STATFS(eefs, void *fs_handle, struct statfs *statfs)
 {
         EEFS_t *hdl = fs_handle;
 
-        statfs->f_bsize  = sizeof(block_t);
-        statfs->f_ffree  = 0;
-        statfs->f_files  = 0;
+        statfs->f_bsize = sizeof(block_t);
+        statfs->f_ffree = 0;
+        statfs->f_files = 0;
         statfs->f_fsname = "eefs";
-        statfs->f_type   = SYS_FS_TYPE__SOLID;
+        statfs->f_type = SYS_FS_TYPE__SOLID;
 
         int err = sys_mutex_lock(hdl->lock_mtx, BUSY_TIMEOUT);
         if (!err) {
@@ -1054,7 +1054,7 @@ API_FS_OPEN(eefs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path, 
         if (!err) {
 
                 file_desc_t *fd;
-                err = sys_malloc(sizeof(file_desc_t), cast(void*, &fd));
+                err = sys_malloc(sizeof(file_desc_t), cast(void *, &fd));
                 if (!err) {
 
                         err = block_load(hdl, path);
@@ -1068,8 +1068,8 @@ API_FS_OPEN(eefs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path, 
                         }
 
                         if (!err) {
-                                if (  hdl->block.buf.file.magic == BLOCK_MAGIC_FILE
-                                   || hdl->block.buf.node.magic == BLOCK_MAGIC_NODE) {
+                                if (hdl->block.buf.file.magic == BLOCK_MAGIC_FILE ||
+                                        hdl->block.buf.node.magic == BLOCK_MAGIC_NODE) {
 
                                         if (flags & O_TRUNC) {
                                                 err = file_truncate(hdl);
@@ -1077,23 +1077,23 @@ API_FS_OPEN(eefs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path, 
 
                                         if (!err) {
                                                 if (block_is_node(hdl->block)) {
-                                                        *fpos     = 0;
-                                                        dev_t dev = hdl->block.buf.node.dev;
-                                                        err       = sys_driver_open(dev, flags);
+                                                        *fpos = 0;
+                                                        err = sys_driver_open(hdl->block.buf.node.dev, flags);
 
                                                 } else if (block_is_file(hdl->block)) {
-                                                        *fpos = !(flags & O_APPEND) ? 0
-                                                              : hdl->block.buf.file.size;
+                                                        *fpos = !(flags & O_APPEND) ? 0 : hdl->block.buf.file.size;
                                                 }
                                         }
 
                                         if (!err) {
-                                                fd->block_num   = hdl->block.num;
-                                                fd->magic       = FILE_DESC_MAGIC;
-                                                fd->flags       = flags;
-                                                fd->next        = hdl->open_files;
+                                                fd->block_num = hdl->block.num;
+                                                fd->block_file_magic = hdl->block.buf.node.magic;
+                                                fd->block_dev = hdl->block.buf.node.dev;
+                                                fd->magic = FILE_DESC_MAGIC;
+                                                fd->flags = flags;
+                                                fd->next = hdl->open_files;
                                                 hdl->open_files = fd;
-                                                *fhdl           = fd;
+                                                *fhdl = fd;
                                         }
                                 } else {
                                         err = EISDIR;
@@ -1101,7 +1101,7 @@ API_FS_OPEN(eefs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path, 
                         }
 
                         if (err) {
-                                sys_free(cast(void*, &fd));
+                                sys_free(cast(void *, &fd));
                         }
                 }
 
@@ -1117,19 +1117,21 @@ API_FS_OPEN(eefs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path, 
 /**
  * @brief Close file
  *
+ * Note: the file should always be closed (resources should be released) even
+ *       function return error.
+ *
  * @param[in ]          *fs_handle              file system allocated memory
  * @param[in ]          *fhdl                   file handle
- * @param[in ]           force                  force close
  *
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_FS_CLOSE(eefs, void *fs_handle, void *fhdl, bool force)
+API_FS_CLOSE(eefs, void *fs_handle, void *fhdl)
 {
-        EEFS_t      *hdl = fs_handle;
-        file_desc_t *fd  = fhdl;
+        EEFS_t *hdl = fs_handle;
+        file_desc_t *fd = fhdl;
 
-        int err = sys_mutex_lock(hdl->lock_mtx, BUSY_TIMEOUT);
+        int err = sys_mutex_lock(hdl->lock_mtx, _MAX_DELAY_MS);
         if (!err) {
                 if (fd->magic == FILE_DESC_MAGIC) {
 
@@ -1140,33 +1142,21 @@ API_FS_CLOSE(eefs, void *fs_handle, void *fhdl, bool force)
 
                         while (file) {
                                 if (file == fd) {
-                                        dev_t dev = -1;
-
-                                        hdl->block.num = fd->block_num;
-                                        err = block_read(hdl, &hdl->block);
-                                        if (!err) {
-                                                if (block_is_node(hdl->block)) {
-                                                        dev = hdl->block.buf.node.dev;
-                                                }
-                                        }
-
-                                        if (dev != -1) {
-                                                err = sys_driver_close(dev, force);
+                                        if (fd->block_file_magic == BLOCK_MAGIC_NODE) {
+                                                err = sys_driver_close(fd->block_dev, true);
                                         } else {
                                                 err = ESUCC;
                                         }
 
-                                        if (!err) {
-                                                if (prev) {
-                                                        prev->next = file->next;
-                                                } else {
-                                                        hdl->open_files = file->next;
-                                                }
-
-                                                memset(fd, 0, sizeof(file_desc_t));
-
-                                                sys_free(&fhdl);
+                                        if (prev) {
+                                                prev->next = file->next;
+                                        } else {
+                                                hdl->open_files = file->next;
                                         }
+
+                                        memset(fd, 0, sizeof(file_desc_t));
+
+                                        sys_free(&fhdl);
 
                                         break;
                                 }
@@ -1175,13 +1165,14 @@ API_FS_CLOSE(eefs, void *fs_handle, void *fhdl, bool force)
                                 file = file->next;
                         }
                 } else {
+                        printk("EEFS: invalid file descriptor!");
                         err = EILSEQ;
                 }
 
                 sys_mutex_unlock(hdl->lock_mtx);
         }
 
-        DBG("close file '%d' (%d)", cast(file_desc_t*, fhdl)->block_num, err);
+        DBG("close file '%d' (%d)", cast(file_desc_t *, fhdl)->block_num, err);
 
         return err;
 }
@@ -1201,17 +1192,11 @@ API_FS_CLOSE(eefs, void *fs_handle, void *fhdl, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_FS_WRITE(eefs,
-             void            *fs_handle,
-             void            *fhdl,
-             const u8_t      *src,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *wrcnt,
-             struct vfs_fattr fattr)
+API_FS_WRITE(eefs, void *fs_handle, void *fhdl, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
-        EEFS_t      *hdl = fs_handle;
-        file_desc_t *fd  = fhdl;
+        EEFS_t *hdl = fs_handle;
+        file_desc_t *fd = fhdl;
 
         int err = EILSEQ;
 
@@ -1230,8 +1215,7 @@ API_FS_WRITE(eefs,
                                 dev_t dev = hdl->block.buf.node.dev;
                                 sys_mutex_unlock(hdl->lock_mtx);
 
-                                err = sys_driver_write(dev, src, count,
-                                                       fpos, wrcnt, fattr);
+                                err = sys_driver_write(dev, src, count, fpos, wrcnt, fattr);
                                 goto finish;
 
                         } else if (block_is_file(hdl->block)) {
@@ -1245,7 +1229,7 @@ API_FS_WRITE(eefs,
 
         sys_mutex_unlock(hdl->lock_mtx);
 
-        finish:
+finish:
         return err;
 }
 
@@ -1264,17 +1248,11 @@ API_FS_WRITE(eefs,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_FS_READ(eefs,
-            void            *fs_handle,
-            void            *fhdl,
-            u8_t            *dst,
-            size_t           count,
-            fpos_t          *fpos,
-            size_t          *rdcnt,
-            struct vfs_fattr fattr)
+API_FS_READ(eefs, void *fs_handle, void *fhdl, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt,
+        struct vfs_fattr fattr)
 {
-        EEFS_t      *hdl = fs_handle;
-        file_desc_t *fd  = fhdl;
+        EEFS_t *hdl = fs_handle;
+        file_desc_t *fd = fhdl;
 
         int err = EILSEQ;
 
@@ -1293,8 +1271,7 @@ API_FS_READ(eefs,
                                 dev_t dev = hdl->block.buf.node.dev;
                                 sys_mutex_unlock(hdl->lock_mtx);
 
-                                err = sys_driver_read(dev, dst, count,
-                                                      fpos, rdcnt, fattr);
+                                err = sys_driver_read(dev, dst, count, fpos, rdcnt, fattr);
                                 goto finish;
 
                         } else if (block_is_file(hdl->block)) {
@@ -1308,7 +1285,7 @@ API_FS_READ(eefs,
 
         sys_mutex_unlock(hdl->lock_mtx);
 
-        finish:
+finish:
         return err;
 }
 
@@ -1326,8 +1303,8 @@ API_FS_READ(eefs,
 //==============================================================================
 API_FS_IOCTL(eefs, void *fs_handle, void *fhdl, int request, void *arg)
 {
-        EEFS_t      *hdl = fs_handle;
-        file_desc_t *fd  = fhdl;
+        EEFS_t *hdl = fs_handle;
+        file_desc_t *fd = fhdl;
 
         int err = EILSEQ;
 
@@ -1369,8 +1346,8 @@ API_FS_IOCTL(eefs, void *fs_handle, void *fhdl, int request, void *arg)
 //==============================================================================
 API_FS_FLUSH(eefs, void *fs_handle, void *fhdl)
 {
-        EEFS_t      *hdl = fs_handle;
-        file_desc_t *fd  = fhdl;
+        EEFS_t *hdl = fs_handle;
+        file_desc_t *fd = fhdl;
 
         int err = EILSEQ;
 
@@ -1464,7 +1441,7 @@ static int block_read(EEFS_t *hdl, block_buf_t *blk)
 {
         int err = EFAULT;
 
-        #if __EEFS_CACHE_SIZE__ > 0
+#if __EEFS_CACHE_SIZE__ > 0
         for (size_t i = 0; i < ARRAY_SIZE(hdl->cache_block); i++) {
                 if (hdl->cache_block[i].used) {
                         if (hdl->cache_block[i].buf.num == blk->num) {
@@ -1482,7 +1459,7 @@ static int block_read(EEFS_t *hdl, block_buf_t *blk)
         if (!err) {
                 return err;
         }
-        #endif
+#endif
 
         for (int i = 0; i < 3; i++) {
 
@@ -1493,13 +1470,13 @@ static int block_read(EEFS_t *hdl, block_buf_t *blk)
                 err = sys_fread(&blk->buf, BLOCK_SIZE, &rdcnt, hdl->srcdev);
 
                 if (!err) {
-                        u16_t chsum  = fletcher16(blk->buf.chsum.buf, sizeof(blk->buf.chsum.buf));
-                              chsum ^= blk->num;
+                        u16_t chsum = fletcher16(blk->buf.chsum.buf, sizeof(blk->buf.chsum.buf));
+                        chsum ^= blk->num;
 
                         err = (chsum == blk->buf.chsum.checksum) ? ESUCC : EILSEQ;
 
                         if (!err) {
-                                #if __EEFS_CACHE_SIZE__ > 0
+#if __EEFS_CACHE_SIZE__ > 0
                                 uint32_t hit_min = UINT32_MAX;
 
                                 // find not used block
@@ -1523,7 +1500,7 @@ static int block_read(EEFS_t *hdl, block_buf_t *blk)
                                                 return 0;
                                         }
                                 }
-                                #endif
+#endif
                                 break;
 
                         } else {
@@ -1553,17 +1530,17 @@ static int block_write(EEFS_t *hdl, block_buf_t *blk)
                 return EROFS;
 
         } else {
-                blk->buf.chsum.checksum  = fletcher16(blk->buf.chsum.buf, sizeof(blk->buf.chsum.buf));
+                blk->buf.chsum.checksum = fletcher16(blk->buf.chsum.buf, sizeof(blk->buf.chsum.buf));
                 blk->buf.chsum.checksum ^= blk->num;
 
-                #if __EEFS_CACHE_SIZE__ > 0
+#if __EEFS_CACHE_SIZE__ > 0
                 for (size_t i = 0; i < ARRAY_SIZE(hdl->cache_block); i++) {
                         if (hdl->cache_block[i].used && hdl->cache_block[i].buf.num == blk->num) {
                                 memcpy(&hdl->cache_block[i].buf, blk, sizeof(*blk));
                                 break;
                         }
                 }
-                #endif
+#endif
 
                 size_t wrcnt = 0;
                 sys_fseek(hdl->srcdev, blk->num * BLOCK_SIZE, SEEK_SET);
@@ -1582,9 +1559,7 @@ static int block_write(EEFS_t *hdl, block_buf_t *blk)
 //==============================================================================
 static bool is_entry_item_used(dir_entry_t *entry)
 {
-        return (  entry->type == ENTRY_TYPE_DIR
-               || entry->type == ENTRY_TYPE_FILE
-               || entry->type == ENTRY_TYPE_NODE);
+        return (entry->type == ENTRY_TYPE_DIR || entry->type == ENTRY_TYPE_FILE || entry->type == ENTRY_TYPE_NODE);
 }
 
 //==============================================================================
@@ -1599,12 +1574,12 @@ static bool is_entry_item_used(dir_entry_t *entry)
 //==============================================================================
 static int block_load(EEFS_t *hdl, const char *path)
 {
-        int      err;
-        char    *name;
-        size_t   namelen;
-        bool     namelast;
+        int err;
+        char *name;
+        size_t namelen;
+        bool namelast;
 
-        bool     found = false;
+        bool found = false;
         hdl->block.num = hdl->root_dir_block;
 
         if (isstreq(path, "/")) {
@@ -1629,9 +1604,9 @@ static int block_load(EEFS_t *hdl, const char *path)
                         break;
                 }
 
-                dir_entry_t *dirent  = NULL;
-                uint8_t      items   = 0;
-                uint16_t     blknext = 0;
+                dir_entry_t *dirent = NULL;
+                uint8_t items = 0;
+                uint16_t blknext = 0;
 
                 err = dir_get_entry_params(hdl, &dirent, &items, &blknext);
 
@@ -1639,21 +1614,19 @@ static int block_load(EEFS_t *hdl, const char *path)
 
                         if (is_entry_item_used(dirent)) {
 
-                                if ( (namelen == strnlen(dirent->name, sizeof(dirent->name)))
-                                   && isstreqn(name, dirent->name, namelen) ) {
+                                if ((namelen == strnlen(dirent->name, sizeof(dirent->name))) &&
+                                        isstreqn(name, dirent->name, namelen)) {
 
                                         if (namelast) {
-                                                found          = true;
+                                                found = true;
                                                 hdl->block.num = dirent->block_addr;
                                                 err = block_read(hdl, &hdl->block);
 
                                         } else {
                                                 if (dirent->type == ENTRY_TYPE_DIR) {
-                                                        blknext  = dirent->block_addr;
-                                                        path_ref = path_get_next_item(path_ref,
-                                                                                      &name,
-                                                                                      &namelen,
-                                                                                      &namelast);
+                                                        blknext = dirent->block_addr;
+                                                        path_ref = path_get_next_item(path_ref, &name, &namelen,
+                                                                &namelast);
                                                 } else {
                                                         err = ENOTDIR;
                                                 }
@@ -1724,22 +1697,22 @@ static int block_get_file_stat(EEFS_t *hdl, struct stat *stat)
                 u16_t size = 0;
                 err = dir_get_size(hdl, &size);
 
-                stat->st_size  = size;
-                stat->st_dev   = 0;
-                stat->st_mode  = S_IFDIR | hdl->block.buf.dir.mode;
-                stat->st_uid   = hdl->block.buf.dir.uid;
-                stat->st_gid   = hdl->block.buf.dir.gid;
+                stat->st_size = size;
+                stat->st_dev = 0;
+                stat->st_mode = S_IFDIR | hdl->block.buf.dir.mode;
+                stat->st_uid = hdl->block.buf.dir.uid;
+                stat->st_gid = hdl->block.buf.dir.gid;
                 stat->st_ctime = hdl->block.buf.dir.ctime;
                 stat->st_mtime = hdl->block.buf.dir.mtime;
                 break;
         }
 
         case BLOCK_MAGIC_FILE:
-                stat->st_size  = hdl->block.buf.file.size;
-                stat->st_dev   = 0;
-                stat->st_mode  = S_IFREG | hdl->block.buf.file.mode;
-                stat->st_uid   = hdl->block.buf.file.uid;
-                stat->st_gid   = hdl->block.buf.file.gid;
+                stat->st_size = hdl->block.buf.file.size;
+                stat->st_dev = 0;
+                stat->st_mode = S_IFREG | hdl->block.buf.file.mode;
+                stat->st_uid = hdl->block.buf.file.uid;
+                stat->st_gid = hdl->block.buf.file.gid;
                 stat->st_ctime = hdl->block.buf.file.ctime;
                 stat->st_mtime = hdl->block.buf.file.mtime;
                 break;
@@ -1750,16 +1723,16 @@ static int block_get_file_stat(EEFS_t *hdl, struct stat *stat)
 
                 if (!err) {
                         stat->st_size = dev_stat.st_size;
-
-                } if (err == ENODEV) {
+                }
+                if (err == ENODEV) {
                         stat->st_size = 0;
                         err = ESUCC;
                 }
 
-                stat->st_dev   = hdl->block.buf.node.dev;
-                stat->st_mode  = S_IFDEV | hdl->block.buf.node.mode;
-                stat->st_uid   = hdl->block.buf.node.uid;
-                stat->st_gid   = hdl->block.buf.node.gid;
+                stat->st_dev = hdl->block.buf.node.dev;
+                stat->st_mode = S_IFDEV | hdl->block.buf.node.mode;
+                stat->st_uid = hdl->block.buf.node.uid;
+                stat->st_gid = hdl->block.buf.node.gid;
                 stat->st_ctime = hdl->block.buf.node.ctime;
                 stat->st_mtime = hdl->block.buf.node.mtime;
                 break;
@@ -1794,11 +1767,11 @@ static int bmp_block_find_empty(EEFS_t *hdl, uint16_t *blknum)
                         goto finish;
                 }
 
-                uint16_t blks    = hdl->tmpblock.buf.main.blocks;
+                uint16_t blks = hdl->tmpblock.buf.main.blocks;
                 uint16_t bmpblks = hdl->tmpblock.buf.main.bitmap_blocks;
-                uint8_t *bmp     = hdl->tmpblock.buf.main.bitmap;
-                uint8_t  bsz     = sizeof(hdl->tmpblock.buf.main.bitmap);
-                uint8_t  bmpnext = 1;
+                uint8_t *bmp = hdl->tmpblock.buf.main.bitmap;
+                uint8_t bsz = sizeof(hdl->tmpblock.buf.main.bitmap);
+                uint8_t bmpnext = 1;
 
                 *blknum = 0;
 
@@ -1839,7 +1812,7 @@ static int bmp_block_find_empty(EEFS_t *hdl, uint16_t *blknum)
                 } while (!err && bmpblks--);
         }
 
-        finish:
+finish:
         return err;
 }
 
@@ -1871,14 +1844,14 @@ static int bmp_block_alloc_ctrl(EEFS_t *hdl, uint16_t blknum, bool allocate)
                 }
 
                 u16_t bmpblk = 0;
-                u8_t  blkidx = (blknum / 8);
-                u8_t  blkbit = (blknum % 8);
-                u8_t *bmp    = hdl->tmpblock.buf.main.bitmap;
+                u8_t blkidx = (blknum / 8);
+                u8_t blkbit = (blknum % 8);
+                u8_t *bmp = hdl->tmpblock.buf.main.bitmap;
 
                 if (blkidx >= sizeof(hdl->tmpblock.buf.main.bitmap)) {
 
                         blkidx -= sizeof(hdl->tmpblock.buf.main.bitmap);
-                        bmpblk  = (blkidx / sizeof(hdl->tmpblock.buf.bitmap.map));
+                        bmpblk = (blkidx / sizeof(hdl->tmpblock.buf.bitmap.map));
                         blkidx -= bmpblk * sizeof(hdl->tmpblock.buf.bitmap.map);
                         bmpblk += 1;
 
@@ -1909,7 +1882,7 @@ static int bmp_block_alloc_ctrl(EEFS_t *hdl, uint16_t blknum, bool allocate)
                 }
         }
 
-        finish:
+finish:
         return err;
 }
 
@@ -1964,11 +1937,11 @@ static int bmp_get_used_blocks(EEFS_t *hdl, uint16_t *blkused)
                         goto finish;
                 }
 
-                uint16_t blks    = hdl->tmpblock.buf.main.blocks;
+                uint16_t blks = hdl->tmpblock.buf.main.blocks;
                 uint16_t bmpblks = hdl->tmpblock.buf.main.bitmap_blocks;
-                uint8_t *bmp     = hdl->tmpblock.buf.main.bitmap;
-                uint8_t  bsz     = sizeof(hdl->tmpblock.buf.main.bitmap);
-                uint8_t  bmpnext = 1;
+                uint8_t *bmp = hdl->tmpblock.buf.main.bitmap;
+                uint8_t bsz = sizeof(hdl->tmpblock.buf.main.bitmap);
+                uint8_t bmpnext = 1;
 
                 do {
                         for (u8_t i = 0; i < bsz && blks > 0; i++, blks -= 8) {
@@ -1979,14 +1952,9 @@ static int bmp_get_used_blocks(EEFS_t *hdl, uint16_t *blkused)
                                 } else if (bmp[i] == 0) {
                                         ones = 0;
                                 } else {
-                                        ones = ((bmp[i] >> 7) & 1)
-                                             + ((bmp[i] >> 6) & 1)
-                                             + ((bmp[i] >> 5) & 1)
-                                             + ((bmp[i] >> 4) & 1)
-                                             + ((bmp[i] >> 3) & 1)
-                                             + ((bmp[i] >> 2) & 1)
-                                             + ((bmp[i] >> 1) & 1)
-                                             + ((bmp[i] >> 0) & 1);
+                                        ones = ((bmp[i] >> 7) & 1) + ((bmp[i] >> 6) & 1) + ((bmp[i] >> 5) & 1) +
+                                                ((bmp[i] >> 4) & 1) + ((bmp[i] >> 3) & 1) + ((bmp[i] >> 2) & 1) +
+                                                ((bmp[i] >> 1) & 1) + ((bmp[i] >> 0) & 1);
                                 }
 
                                 *blkused += (8 - ones);
@@ -2004,7 +1972,7 @@ static int bmp_get_used_blocks(EEFS_t *hdl, uint16_t *blkused)
                 } while (!err && bmpblks--);
         }
 
-        finish:
+finish:
         return err;
 }
 
@@ -2030,19 +1998,19 @@ static const char *path_get_next_item(const char *path, char **name, size_t *len
                 return NULL;
         }
 
-        size_t      itemlen = 0;
-        const char *slash   = strchr(path, '/');
+        size_t itemlen = 0;
+        const char *slash = strchr(path, '/');
 
         if (slash) {
                 itemlen = cast(size_t, slash - path);
-                *last   = (slash[0] == '/' && slash[1] == '\0');
+                *last = (slash[0] == '/' && slash[1] == '\0');
         } else {
                 itemlen = strnlen(path, NAME_LEN);
-                slash   = path + itemlen;
-                *last   = true;
+                slash = path + itemlen;
+                *last = true;
         }
 
-        *len  = itemlen;
+        *len = itemlen;
         *name = cast(char *, path);
 
         return slash;
@@ -2092,7 +2060,7 @@ static int path_alloc_dirname(const char *path, char **path_base)
                 if (slash) {
                         size_t sz = slash - path + 1;
 
-                        err = sys_zalloc(sz + 1, cast(void*, path_base));
+                        err = sys_zalloc(sz + 1, cast(void *, path_base));
                         if (!err) {
                                 strncpy(*path_base, path, sz);
                         }
@@ -2114,9 +2082,9 @@ static int path_alloc_dirname(const char *path, char **path_base)
 //==============================================================================
 static const char *path_get_basename(const char *path, size_t *len)
 {
-        const char *basename     = path_get_last_slash(path) + 1;
-        size_t      basenamelen  = strnlen(basename, NAME_LEN);
-                    basenamelen -= LAST_CHARACTER(basename) == '/' ? 1 : 0;
+        const char *basename = path_get_last_slash(path) + 1;
+        size_t basenamelen = strnlen(basename, NAME_LEN);
+        basenamelen -= LAST_CHARACTER(basename) == '/' ? 1 : 0;
 
         if (len) {
                 *len = basenamelen;
@@ -2142,16 +2110,16 @@ static int dir_get_entry_params(EEFS_t *hdl, dir_entry_t **dirent, u8_t *items, 
         int err = EILSEQ;
 
         if (block_is_dir(hdl->block)) {
-                *dirent  = hdl->block.buf.dir.entry;
-                *items   = ARRAY_SIZE(hdl->block.buf.dir.entry);
+                *dirent = hdl->block.buf.dir.entry;
+                *items = ARRAY_SIZE(hdl->block.buf.dir.entry);
                 *blknext = hdl->block.buf.dir.next;
-                err      = ESUCC;
+                err = ESUCC;
 
         } else if (block_is_dir_entry(hdl->block)) {
-                *dirent  = hdl->block.buf.dir_entry.entry;
-                *items   = ARRAY_SIZE(hdl->block.buf.dir_entry.entry);
+                *dirent = hdl->block.buf.dir_entry.entry;
+                *items = ARRAY_SIZE(hdl->block.buf.dir_entry.entry);
                 *blknext = hdl->block.buf.dir_entry.next;
-                err      = ESUCC;
+                err = ESUCC;
         } else {
                 DBG("invalid dir/dir_entry magic in block %u", hdl->block.num);
         }
@@ -2174,7 +2142,7 @@ static int dir_add_chain(EEFS_t *hdl)
         if (!err) {
 
                 memset(&hdl->tmpblock.buf, 0xFF, sizeof(hdl->tmpblock.buf));
-                hdl->tmpblock.buf.dir_entry.next  = 0;
+                hdl->tmpblock.buf.dir_entry.next = 0;
                 hdl->tmpblock.buf.dir_entry.magic = BLOCK_MAGIC_DIR_ENTRY;
 
                 err = block_write(hdl, &hdl->tmpblock);
@@ -2221,7 +2189,7 @@ static int dir_add_item(EEFS_t *hdl, dir_entry_t *dirent, const char *name, u16_
         if (!err) {
 
                 // set directory entry
-                dirent->type       = type;
+                dirent->type = type;
                 dirent->block_addr = hdl->tmpblock.num;
                 sys_strlcpy(dirent->name, name, NAME_LEN);
 
@@ -2239,38 +2207,38 @@ static int dir_add_item(EEFS_t *hdl, dir_entry_t *dirent, const char *name, u16_
 
                 switch (type) {
                 case BLOCK_MAGIC_DIR:
-                        dirent->type                     = ENTRY_TYPE_DIR;
-                        hdl->tmpblock.buf.dir.magic      = type;
-                        hdl->tmpblock.buf.dir.ctime      = time;
-                        hdl->tmpblock.buf.dir.mtime      = time;
-                        hdl->tmpblock.buf.dir.mode       = DEFAULT_MODE;
-                        hdl->tmpblock.buf.dir.gid        = 0;
-                        hdl->tmpblock.buf.dir.uid        = 0;
-                        hdl->tmpblock.buf.dir.all_items  = 0;
-                        hdl->tmpblock.buf.dir.next       = 0;
-                        hdl->tmpblock.buf.dir.parent     = blkparent;
+                        dirent->type = ENTRY_TYPE_DIR;
+                        hdl->tmpblock.buf.dir.magic = type;
+                        hdl->tmpblock.buf.dir.ctime = time;
+                        hdl->tmpblock.buf.dir.mtime = time;
+                        hdl->tmpblock.buf.dir.mode = DEFAULT_MODE;
+                        hdl->tmpblock.buf.dir.gid = 0;
+                        hdl->tmpblock.buf.dir.uid = 0;
+                        hdl->tmpblock.buf.dir.all_items = 0;
+                        hdl->tmpblock.buf.dir.next = 0;
+                        hdl->tmpblock.buf.dir.parent = blkparent;
                         break;
 
                 case BLOCK_MAGIC_FILE:
-                        dirent->type                     = ENTRY_TYPE_FILE;
-                        hdl->tmpblock.buf.file.magic     = type;
-                        hdl->tmpblock.buf.file.ctime     = time;
-                        hdl->tmpblock.buf.file.mtime     = time;
+                        dirent->type = ENTRY_TYPE_FILE;
+                        hdl->tmpblock.buf.file.magic = type;
+                        hdl->tmpblock.buf.file.ctime = time;
+                        hdl->tmpblock.buf.file.mtime = time;
                         hdl->tmpblock.buf.file.data_next = 0;
-                        hdl->tmpblock.buf.file.gid       = 0;
-                        hdl->tmpblock.buf.file.uid       = 0;
-                        hdl->tmpblock.buf.file.mode      = DEFAULT_MODE;
-                        hdl->tmpblock.buf.file.size      = 0;
+                        hdl->tmpblock.buf.file.gid = 0;
+                        hdl->tmpblock.buf.file.uid = 0;
+                        hdl->tmpblock.buf.file.mode = DEFAULT_MODE;
+                        hdl->tmpblock.buf.file.size = 0;
                         break;
 
                 case BLOCK_MAGIC_NODE:
-                        dirent->type                     = ENTRY_TYPE_NODE;
-                        hdl->tmpblock.buf.node.magic     = type;
-                        hdl->tmpblock.buf.node.ctime     = time;
-                        hdl->tmpblock.buf.node.mtime     = time;
-                        hdl->tmpblock.buf.node.mode      = DEFAULT_MODE;
-                        hdl->tmpblock.buf.node.gid       = 0;
-                        hdl->tmpblock.buf.node.uid       = 0;
+                        dirent->type = ENTRY_TYPE_NODE;
+                        hdl->tmpblock.buf.node.magic = type;
+                        hdl->tmpblock.buf.node.ctime = time;
+                        hdl->tmpblock.buf.node.mtime = time;
+                        hdl->tmpblock.buf.node.mode = DEFAULT_MODE;
+                        hdl->tmpblock.buf.node.gid = 0;
+                        hdl->tmpblock.buf.node.uid = 0;
                         break;
 
                 default:
@@ -2346,9 +2314,9 @@ static int dir_add_entry(EEFS_t *hdl, const char *path, uint32_t type)
 
         bool created = false;
         do {
-                dir_entry_t *dirent  = NULL;
-                uint8_t      items   = 0;
-                uint16_t     blknext = 0;
+                dir_entry_t *dirent = NULL;
+                uint8_t items = 0;
+                uint16_t blknext = 0;
 
                 err = dir_get_entry_params(hdl, &dirent, &items, &blknext);
 
@@ -2361,8 +2329,7 @@ static int dir_add_entry(EEFS_t *hdl, const char *path, uint32_t type)
                                 if (name) {
                                         name++;
 
-                                        err = dir_add_item(hdl, dirent, name,
-                                                           blkparent, type);
+                                        err = dir_add_item(hdl, dirent, name, blkparent, type);
 
                                         created = true;
 
@@ -2387,9 +2354,9 @@ static int dir_add_entry(EEFS_t *hdl, const char *path, uint32_t type)
 
         } while (!err && !created);
 
-        finish:
+finish:
         if (root_path) {
-                sys_free(cast(void*, &root_path));
+                sys_free(cast(void *, &root_path));
         }
 
         return err;
@@ -2407,9 +2374,9 @@ static int dir_add_entry(EEFS_t *hdl, const char *path, uint32_t type)
 //==============================================================================
 static int dir_rm_entry(EEFS_t *hdl, const char *path)
 {
-        char       *dirname     = NULL;
-        size_t      basenamelen = 0;
-        const char *basename    = path_get_basename(path, &basenamelen);
+        char *dirname = NULL;
+        size_t basenamelen = 0;
+        const char *basename = path_get_basename(path, &basenamelen);
 
         int err = path_alloc_dirname(path, &dirname);
         if (err) {
@@ -2422,14 +2389,14 @@ static int dir_rm_entry(EEFS_t *hdl, const char *path)
         }
 
         u16_t blkdirroot = hdl->block.num;
-        u16_t blkprev    = 0;
+        u16_t blkprev = 0;
 
         do {
                 dir_entry_t *enttorm = NULL;
-                dir_entry_t *dirent  = NULL;
-                u8_t         items   = 0;
-                u16_t        blknext = 0;
-                u8_t         used    = 0;
+                dir_entry_t *dirent = NULL;
+                u8_t items = 0;
+                u16_t blknext = 0;
+                u8_t used = 0;
 
                 err = dir_get_entry_params(hdl, &dirent, &items, &blknext);
                 if (err) {
@@ -2442,8 +2409,8 @@ static int dir_rm_entry(EEFS_t *hdl, const char *path)
 
                                 used++;
 
-                                if (  basenamelen == strnlen(dirent->name, NAME_LEN)
-                                   && isstreqn(basename, dirent->name, basenamelen)) {
+                                if (basenamelen == strnlen(dirent->name, NAME_LEN) &&
+                                        isstreqn(basename, dirent->name, basenamelen)) {
 
                                         enttorm = dirent;
                                 }
@@ -2575,9 +2542,9 @@ static int dir_rm_entry(EEFS_t *hdl, const char *path)
                 }
         } while (!err);
 
-        finish:
+finish:
         if (dirname) {
-                sys_free(cast(void*, &dirname));
+                sys_free(cast(void *, &dirname));
         }
 
         return err;
@@ -2639,7 +2606,7 @@ static int dir_read_entry(EEFS_t *hdl, dir_desc_t *dd, dir_entry_t *eefs_entry, 
 
         sys_strlcpy(dd->name, eefs_entry->name, sizeof(dd->name));
 
-        dirent->dev       = -1;
+        dirent->dev = -1;
         hdl->tmpblock.num = eefs_entry->block_addr;
 
         switch (eefs_entry->type) {
@@ -2662,7 +2629,7 @@ static int dir_read_entry(EEFS_t *hdl, dir_desc_t *dd, dir_entry_t *eefs_entry, 
         case ENTRY_TYPE_NODE:
                 err = block_read(hdl, &hdl->tmpblock);
                 if (!err) {
-                        dirent->dev  = hdl->tmpblock.buf.node.dev;
+                        dirent->dev = hdl->tmpblock.buf.node.dev;
                         dirent->mode = S_IFDEV | hdl->tmpblock.buf.node.mode;
 
                         struct vfs_dev_stat dev_stat;
@@ -2700,12 +2667,11 @@ static int file_truncate(EEFS_t *hdl)
 
                 hdl->tmpblock.num = hdl->block.buf.file.data_next;
 
-                if (!(  hdl->block.buf.file.size      == 0
-                     && hdl->block.buf.file.data_next == 0 )) {
+                if (!(hdl->block.buf.file.size == 0 && hdl->block.buf.file.data_next == 0)) {
 
-                        hdl->block.buf.file.size      = 0;
+                        hdl->block.buf.file.size = 0;
                         hdl->block.buf.file.data_next = 0;
-                        hdl->block.buf.file.mtime     = time;
+                        hdl->block.buf.file.mtime = time;
 
                         err = block_write(hdl, &hdl->block);
                 } else {
@@ -2806,27 +2772,25 @@ static int file_write(EEFS_t *hdl, const u8_t *src, size_t count, fpos_t *fpos, 
 {
         int err = ESUCC;
 
-        *wrcnt         = 0;
-        u16_t baseblk  = hdl->block.num;
+        *wrcnt = 0;
+        u16_t baseblk = hdl->block.num;
         u16_t chainpos = 0;
-        u16_t blkseek  = *fpos;
-        u16_t chainsz  = sizeof(((block_file_t*)0)->data);
-        u8_t *data     = hdl->block.buf.file.data;
+        u16_t blkseek = *fpos;
+        u16_t chainsz = sizeof(((block_file_t *)0)->data);
+        u8_t *data = hdl->block.buf.file.data;
 
         // calculate start chain number
         if (*fpos > chainsz) {
-                chainpos = CEILING((*fpos - chainsz),
-                                   sizeof(((block_file_data_t*)0)->data));
+                chainpos = CEILING((*fpos - chainsz), sizeof(((block_file_data_t *)0)->data));
 
-                blkseek  = (*fpos - chainsz)
-                         - ((chainpos - 1) * sizeof(((block_file_data_t*)0)->data));
+                blkseek = (*fpos - chainsz) - ((chainpos - 1) * sizeof(((block_file_data_t *)0)->data));
         }
 
         while (!err && count > 0) {
                 if (chainpos > 0) {
                         u16_t next = 0;
-                        chainsz    = sizeof(hdl->block.buf.file_data.data);
-                        data       = hdl->block.buf.file_data.data;
+                        chainsz = sizeof(hdl->block.buf.file_data.data);
+                        data = hdl->block.buf.file_data.data;
 
                         if (block_is_file(hdl->block)) {
                                 next = hdl->block.buf.file.data_next;
@@ -2859,10 +2823,10 @@ static int file_write(EEFS_t *hdl, const u8_t *src, size_t count, fpos_t *fpos, 
                         err = block_write(hdl, &hdl->block);
 
                         if (!err) {
-                                *wrcnt  += sz;
-                                blkseek  = 0;
-                                src     += sz;
-                                count   -= sz;
+                                *wrcnt += sz;
+                                blkseek = 0;
+                                src += sz;
+                                count -= sz;
                                 chainpos = 1;
                         }
                 }
@@ -2876,8 +2840,7 @@ static int file_write(EEFS_t *hdl, const u8_t *src, size_t count, fpos_t *fpos, 
                         sys_gettime(&time);
                         hdl->block.buf.file.mtime = time;
 
-                        hdl->block.buf.file.size = max((*fpos + *wrcnt),
-                                                       hdl->block.buf.file.size);
+                        hdl->block.buf.file.size = max((*fpos + *wrcnt), hdl->block.buf.file.size);
                         err = block_write(hdl, &hdl->block);
                 }
         }
@@ -2902,11 +2865,11 @@ static int file_read(EEFS_t *hdl, u8_t *dst, size_t count, fpos_t *fpos, size_t 
 {
         int err = ESUCC;
 
-        *rdcnt         = 0;
+        *rdcnt = 0;
         u16_t chainpos = 0;
-        u16_t blkseek  = *fpos;
-        u16_t chainsz  = sizeof(((block_file_t*)0)->data);
-        u8_t *data     = hdl->block.buf.file.data;
+        u16_t blkseek = *fpos;
+        u16_t chainsz = sizeof(((block_file_t *)0)->data);
+        u8_t *data = hdl->block.buf.file.data;
 
         if (*fpos >= hdl->block.buf.file.size) {
                 return err;
@@ -2918,18 +2881,16 @@ static int file_read(EEFS_t *hdl, u8_t *dst, size_t count, fpos_t *fpos, size_t 
 
         // calculate start chain number
         if (*fpos > chainsz) {
-                chainpos = CEILING((*fpos - chainsz),
-                                   sizeof(((block_file_data_t*)0)->data));
+                chainpos = CEILING((*fpos - chainsz), sizeof(((block_file_data_t *)0)->data));
 
-                blkseek  = (*fpos - chainsz)
-                         - ((chainpos - 1) * sizeof(((block_file_data_t*)0)->data));
+                blkseek = (*fpos - chainsz) - ((chainpos - 1) * sizeof(((block_file_data_t *)0)->data));
         }
 
         while (!err && count > 0) {
                 if (chainpos > 0) {
                         u16_t next = 0;
-                        chainsz    = sizeof(hdl->block.buf.file_data.data);
-                        data       = hdl->block.buf.file_data.data;
+                        chainsz = sizeof(hdl->block.buf.file_data.data);
+                        data = hdl->block.buf.file_data.data;
 
                         if (block_is_file(hdl->block)) {
                                 next = hdl->block.buf.file.data_next;
@@ -2960,10 +2921,10 @@ static int file_read(EEFS_t *hdl, u8_t *dst, size_t count, fpos_t *fpos, size_t 
                                 memcpy(dst, data + blkseek, sz);
                         }
 
-                        *rdcnt  += sz;
-                        blkseek  = 0;
-                        dst     += sz;
-                        count   -= sz;
+                        *rdcnt += sz;
+                        blkseek = 0;
+                        dst += sz;
+                        count -= sz;
                         chainpos = 1;
                 }
         }

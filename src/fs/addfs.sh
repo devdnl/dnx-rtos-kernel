@@ -71,7 +71,7 @@ function create_registration_file()
         echo '    extern API_FS_INIT('$fs', void**, const char*, const char*);'
         echo '    extern API_FS_RELEASE('$fs', void*);'
         echo '    extern API_FS_OPEN('$fs', void*, void**, fpos_t*, const char*, u32_t);'
-        echo '    extern API_FS_CLOSE('$fs', void*, void*, bool);'
+        echo '    extern API_FS_CLOSE('$fs', void*, void*);'
         echo '    extern API_FS_WRITE('$fs', void*, void*, const u8_t*, size_t, fpos_t*, size_t*, struct vfs_fattr);'
         echo '    extern API_FS_READ('$fs', void*, void*, u8_t*, size_t, fpos_t*, size_t*, struct vfs_fattr);'
         echo '    extern API_FS_IOCTL('$fs', void*, void*, int, void*);'

@@ -297,23 +297,26 @@ API_FS_OPEN(procfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
 /**
  * @brief Close file
  *
+ * Note: the file should always be closed (resources should be released) even
+ *       function return error.
+ *
  * @param[in ]          *fs_handle              file system allocated memory
  * @param[in ]          *fhdl                   file fhdl data
- * @param[in ]           force                  force close
  *
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_FS_CLOSE(procfs, void *fs_handle, void *fhdl, bool force)
+API_FS_CLOSE(procfs, void *fs_handle, void *fhdl)
 {
-        UNUSED_ARG1(force);
-
         struct procfs *fsctx = fs_handle;
 
         int err = sys_mutex_lock(fsctx->resource_mtx, _WAIT_FOREVER_MS);
         if (!err) {
                 int pos = sys_llist_find_begin(fsctx->file_list, fhdl);
                 err = sys_llist_erase(fsctx->file_list, pos) ? ESUCC : ENOENT;
+                if (err) {
+                        printk("PROCFS: no such descriptor!");
+                }
 
                 sys_mutex_unlock(fsctx->resource_mtx);
         }
@@ -486,7 +489,7 @@ API_FS_STAT(procfs, void *fs_handle, const char *path, struct stat *stat)
         int err = _procfs_open(fs_handle, &fhdl, &fpos, path, O_RDONLY);
         if (!err) {
                 err = _procfs_fstat(fs_handle, fhdl, stat);
-                _procfs_close(fs_handle, fhdl, true);
+                _procfs_close(fs_handle, fhdl);
         }
 
         return err;

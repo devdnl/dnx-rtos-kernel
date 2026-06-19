@@ -36,15 +36,15 @@ Brief   ROM File System (FPKG container)
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define FPKG_CRC32_INIT        0xFFFFFFFF
+#define FPKG_CRC32_INIT 0xFFFFFFFF
 
 #define FILE_DESCRIPTOR_MAGIC  0x43534446
 #define FILE_ENTRY_MAGIC       0x544E4546
 #define CONTAINER_HEADER_MAGIC 0x474B5046
 
-#define FLAG_ENCRYPTED         (1 << 0)
+#define FLAG_ENCRYPTED (1 << 0)
 
-#define is_encrypted(hdl)      (hdl->flags & FLAG_ENCRYPTED)
+#define is_encrypted(hdl) (hdl->flags & FLAG_ENCRYPTED)
 
 /*==============================================================================
   Local object types
@@ -287,8 +287,7 @@ API_FS_OPEN(romfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
                                 break;
                         }
 
-                        file->content_offset = entry.file_descriptor_address + sizeof(desc) +
-                                desc.file_name_len;
+                        file->content_offset = entry.file_descriptor_address + sizeof(desc) + desc.file_name_len;
 
                         file->content_prng_seed = desc.content_prng_seed;
                         file->current_seed = desc.content_prng_seed;
@@ -315,17 +314,17 @@ API_FS_OPEN(romfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
 /**
  * @brief Close file.
  *
+ * Note: the file should always be closed (resources should be released) even
+ *       function return error.
+ *
  * @param[in ]          *fs_handle              file system allocated memory
  * @param[in ]          *fhdl                   file handle
- * @param[in ]           force                  force close
  *
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_FS_CLOSE(romfs, void *fs_handle, void *fhdl, bool force)
+API_FS_CLOSE(romfs, void *fs_handle, void *fhdl)
 {
-        UNUSED_ARG2(fhdl, force);
-
         romfs_t *hdl = fs_handle;
 
         int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
@@ -539,7 +538,7 @@ API_FS_STAT(romfs, void *fs_handle, const char *path, struct stat *stat)
 
                         break;
 
-                } else if ((strncmp(hdl->tmp, path, path_len) == 0) and(hdl->tmp[path_len] == '/')) {
+                } else if ((strncmp(hdl->tmp, path, path_len) == 0) and (hdl->tmp[path_len] == '/')) {
 
                         stat->st_mode |= S_IFDIR;
 
@@ -817,8 +816,8 @@ API_FS_READDIR(romfs, void *fs_handle, kdir_t *kdir)
                         kdir->dirent.size = desc.file_size;
                 }
 
-                if ((strncmp(hdl->tmp, dir->dir_root, strlen(dir->dir_root)) == 0)
-                                and(strcmp(dir->item_name, item_name) != 0)) {
+                if ((strncmp(hdl->tmp, dir->dir_root, strlen(dir->dir_root)) == 0) and
+                        (strcmp(dir->item_name, item_name) != 0)) {
 
                         err = sys_free(cast(void *, &dir->item_name));
                         if (err) {
@@ -1198,8 +1197,7 @@ static int read_file_descriptor_name(romfs_t *hdl, file_entry_t *entry, file_des
 
         size_t name_len = 0;
 
-        int err = sys_fseek(hdl->file, entry->file_descriptor_address + sizeof(file_descriptor_t),
-                VFS_SEEK_SET);
+        int err = sys_fseek(hdl->file, entry->file_descriptor_address + sizeof(file_descriptor_t), VFS_SEEK_SET);
         if (err) {
                 return err;
         }
@@ -1359,8 +1357,7 @@ static bool is_container_header_valid(const container_header_t *hdr)
         bool valid = false;
 
         uint32_t crc = calc_CRC32(&hdr->prng_seed,
-                sizeof(*hdr) - offsetof(container_header_t, prng_seed) - sizeof(hdr->file_crc32),
-                FPKG_CRC32_INIT);
+                sizeof(*hdr) - offsetof(container_header_t, prng_seed) - sizeof(hdr->file_crc32), FPKG_CRC32_INIT);
 
         if ((hdr->magic == CONTAINER_HEADER_MAGIC) && (hdr->crc32 == crc)) {
 
@@ -1388,8 +1385,8 @@ static bool is_file_entry_valid(const file_entry_t *file_entry)
         uint32_t crc = calc_CRC32(&file_entry->file_descriptor_address,
                 sizeof(*file_entry) - offsetof(file_entry_t, file_descriptor_address), FPKG_CRC32_INIT);
 
-        return ((file_entry->magic == FILE_ENTRY_MAGIC) and(file_entry->crc32 == crc)
-                        and(file_entry->file_descriptor_address < cast(uintptr_t, file_entry)));
+        return ((file_entry->magic == FILE_ENTRY_MAGIC) and (file_entry->crc32 == crc) and
+                (file_entry->file_descriptor_address < cast(uintptr_t, file_entry)));
 }
 
 //==============================================================================
@@ -1409,7 +1406,7 @@ static bool is_file_descriptor_valid(const file_descriptor_t *file_desc)
         uint32_t crc = calc_CRC32(&file_desc->file_name_len,
                 sizeof(*file_desc) - offsetof(file_descriptor_t, file_name_len), FPKG_CRC32_INIT);
 
-        return ((file_desc->magic == FILE_DESCRIPTOR_MAGIC) and(file_desc->crc32 == crc));
+        return ((file_desc->magic == FILE_DESCRIPTOR_MAGIC) and (file_desc->crc32 == crc));
 }
 
 //==============================================================================

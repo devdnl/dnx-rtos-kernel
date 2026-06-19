@@ -2869,7 +2869,7 @@ static int resource_destroy(res_header_t *resource)
 
         switch (resource->type) {
         case RES_TYPE_FILE:
-                _vfs_fclose(cast(kfile_t *, res2free), true);
+                _vfs_fclose(cast(kfile_t *, res2free));
                 break;
 
         case RES_TYPE_DIR:
@@ -3038,7 +3038,7 @@ finish:
         }
 
         if (file) {
-                _vfs_fclose(file, true);
+                _vfs_fclose(file);
         }
 
         return err;

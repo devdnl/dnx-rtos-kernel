@@ -35,8 +35,8 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define MUTEX_TIMEOUT   5000
-#define FATFILE_MAGIC   0xb812310e
+#define MUTEX_TIMEOUT 5000
+#define FATFILE_MAGIC 0xb812310e
 
 /*==============================================================================
   Local types, enums definitions
@@ -47,21 +47,21 @@ struct fatdir {
 };
 
 struct fatfs {
-        kfile_t    *fsfile;
-        FATFS    fatfs;
+        kfile_t *fsfile;
+        FATFS fatfs;
         llist_t *file_list;
-        kmtx_t  *mutex;
-        int      opened_dirs;
-        bool     read_only;
+        kmtx_t *mutex;
+        int opened_dirs;
+        bool read_only;
 };
 
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static int    faterr_2_errno(FRESULT fresult);
+static int faterr_2_errno(FRESULT fresult);
 static time_t time_fat2unix(uint32_t fattime);
-static int    cmp_ptr(const void *a, const void *b);
-static void   dummy_free(void *obj);
+static int cmp_ptr(const void *a, const void *b);
+static void dummy_free(void *obj);
 
 /*==============================================================================
   Local object definitions
@@ -266,6 +266,9 @@ API_FS_OPEN(fatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
 /**
  * @brief Close file
  *
+ * Note: the file should always be closed (resources should be released) even
+ *       function return error.
+ *
  * @param[in ]          *fs_handle              file system allocated memory
  * @param[in ]          *fhdl                   file handle
  * @param[in ]           force                  force close
@@ -273,31 +276,31 @@ API_FS_OPEN(fatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_FS_CLOSE(fatfs, void *fs_handle, void *fhdl, bool force)
+API_FS_CLOSE(fatfs, void *fs_handle, void *fhdl)
 {
-        UNUSED_ARG1(force);
-
         struct fatfs *hdl = fs_handle;
 
         FIL *fatfile = fhdl;
 
-        int err = sys_mutex_lock(hdl->mutex, MUTEX_TIMEOUT);
+        int err = sys_mutex_lock(hdl->mutex, _MAX_DELAY_MS);
         if (!err) {
                 err = faterr_2_errno(f_close(fatfile));
-                if (!err or hdl->read_only) {
-                        fatfile->self = NULL;
-                        fatfile->magic = 0;
-                        sys_free(&fhdl);
-
-                        // remove all closed files from list
-                        sys_llist_foreach(FIL*, fatfile, hdl->file_list) {
-                                if ((fatfile->self != fatfile) or (fatfile->magic != FATFILE_MAGIC)) {
-                                        sys_llist_erase_by_iterator(&_iterator);
-                                }
-                        }
-
-                        err = 0;
+                if (err) {
+                        printk("FATFS: file close error!");
                 }
+
+                fatfile->self = NULL;
+                fatfile->magic = 0;
+                sys_free(&fhdl);
+
+                // remove all closed files from list
+                sys_llist_foreach (FIL *, ff, hdl->file_list) {
+                        if ((ff->self != ff) or (ff->magic != FATFILE_MAGIC)) {
+                                sys_llist_erase_by_iterator(&_iterator);
+                        }
+                }
+
+                err = 0;
 
                 sys_mutex_unlock(hdl->mutex);
         }
@@ -320,20 +323,14 @@ API_FS_CLOSE(fatfs, void *fs_handle, void *fhdl, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_FS_WRITE(fatfs,
-             void            *fs_handle,
-             void            *fhdl,
-             const u8_t      *src,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *wrcnt,
-             struct vfs_fattr fattr)
+API_FS_WRITE(fatfs, void *fs_handle, void *fhdl, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
         struct fatfs *hdl = fs_handle;
         FIL *fat_file = fhdl;
-        int  err      = EROFS;
+        int err = EROFS;
 
         if (not hdl->read_only) {
                 if (f_tell(fat_file) != (u32_t)*fpos) {
@@ -369,19 +366,13 @@ API_FS_WRITE(fatfs,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_FS_READ(fatfs,
-            void            *fs_handle,
-            void            *fhdl,
-            u8_t            *dst,
-            size_t           count,
-            fpos_t          *fpos,
-            size_t          *rdcnt,
-            struct vfs_fattr fattr)
+API_FS_READ(fatfs, void *fs_handle, void *fhdl, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fs_handle, fattr);
 
         FIL *fat_file = fhdl;
-        int  err      = ESUCC;
+        int err = ESUCC;
 
         if (f_tell(fat_file) != (u32_t)*fpos) {
                 err = faterr_2_errno(f_lseek(fat_file, (u32_t)*fpos));
@@ -522,9 +513,9 @@ API_FS_OPENDIR(fatfs, void *fs_handle, const char *path, kdir_t *dir)
         struct fatfs *hdl = fs_handle;
 
         size_t pathlen = strlen(path);
-        char  *dospath = NULL;
+        char *dospath = NULL;
 
-        int err = sys_zalloc(pathlen + 1, cast(void*, &dospath));
+        int err = sys_zalloc(pathlen + 1, cast(void *, &dospath));
         if (!err) {
 
                 err = sys_malloc(sizeof(struct fatdir), &dir->d_hdl);
@@ -535,13 +526,11 @@ API_FS_OPENDIR(fatfs, void *fs_handle, const char *path, kdir_t *dir)
                                 dospath[pathlen - 1] = '\0';
                         }
 
-                        dir->d_seek  = 0;
+                        dir->d_seek = 0;
                         dir->d_items = 0;
 
                         struct fatdir *fatdir = dir->d_hdl;
-                        err = faterr_2_errno(f_opendir(&hdl->fatfs,
-                                                       &fatdir->dir,
-                                                        dospath));
+                        err = faterr_2_errno(f_opendir(&hdl->fatfs, &fatdir->dir, dospath));
                         if (!err) {
                                 hdl->opened_dirs++;
                         } else {
@@ -549,7 +538,7 @@ API_FS_OPENDIR(fatfs, void *fs_handle, const char *path, kdir_t *dir)
                         }
                 }
 
-                sys_free(cast(void*, &dospath));
+                sys_free(cast(void *, &dospath));
         }
 
         return err;
@@ -600,8 +589,7 @@ API_FS_READDIR(fatfs, void *fs_handle, kdir_t *dir)
                         sys_strlcpy(fatdir->name, fno.fname, sizeof(fatdir->name));
                         dir->dirent.d_name = fatdir->name;
                         dir->dirent.size = fno.fsize;
-                        dir->dirent.mode = (S_IRWXU | S_IRWXG | S_IRWXO)
-                                           | (fno.fattrib & AM_DIR ? S_IFDIR : S_IFREG);
+                        dir->dirent.mode = (S_IRWXU | S_IRWXG | S_IRWXO) | (fno.fattrib & AM_DIR ? S_IFDIR : S_IFREG);
                         dir->d_seek = fatdir->dir.dptr;
                 } else {
                         err = ENOENT;
@@ -718,13 +706,13 @@ API_FS_FSTAT(fatfs, void *fs_handle, void *fhdl, struct stat *stat)
 
         FIL *fat_file = fhdl;
 
-        stat->st_dev   = 0;
-        stat->st_gid   = 0;
-        stat->st_mode  = S_IFREG | S_IRWXU | S_IRWXG | S_IRWXO;
+        stat->st_dev = 0;
+        stat->st_gid = 0;
+        stat->st_mode = S_IFREG | S_IRWXU | S_IRWXG | S_IRWXO;
         stat->st_mtime = time_fat2unix((fat_file->obj.fdate << 16) | fat_file->obj.ftime);
         stat->st_ctime = stat->st_mtime;
-        stat->st_size  = f_size(fat_file);
-        stat->st_uid   = 0;
+        stat->st_size = f_size(fat_file);
+        stat->st_uid = 0;
 
         return ESUCC;
 }
@@ -747,14 +735,13 @@ API_FS_STAT(fatfs, void *fs_handle, const char *path, struct stat *stat)
         FILINFO file_info;
         int err = faterr_2_errno(f_stat(&hdl->fatfs, path, &file_info));
         if (!err) {
-                stat->st_dev   = 0;
-                stat->st_gid   = 0;
+                stat->st_dev = 0;
+                stat->st_gid = 0;
                 stat->st_mtime = time_fat2unix((file_info.fdate << 16) | file_info.ftime);
                 stat->st_ctime = stat->st_mtime;
-                stat->st_size  = file_info.fsize;
-                stat->st_uid   = 0;
-                stat->st_mode  = (S_IRWXU | S_IRWXG | S_IRWXO)
-                               | (file_info.fattrib & AM_DIR ? S_IFDIR : S_IFREG);
+                stat->st_size = file_info.fsize;
+                stat->st_uid = 0;
+                stat->st_mode = (S_IRWXU | S_IRWXG | S_IRWXO) | (file_info.fattrib & AM_DIR ? S_IFDIR : S_IFREG);
         }
 
         return err;
@@ -772,11 +759,11 @@ API_FS_STAT(fatfs, void *fs_handle, const char *path, struct stat *stat)
 //==============================================================================
 API_FS_STATFS(fatfs, void *fs_handle, struct statfs *statfs)
 {
-        struct fatfs *hdl    = fs_handle;
-        u32_t  free_clusters = 0;
+        struct fatfs *hdl = fs_handle;
+        u32_t free_clusters = 0;
 
         statfs->f_fsname = "fatfs (FAT?)";
-        statfs->f_type   = hdl->fatfs.fs_type;
+        statfs->f_type = hdl->fatfs.fs_type;
 
         struct stat fstat;
         fstat.st_size = 0;
@@ -786,12 +773,12 @@ API_FS_STATFS(fatfs, void *fs_handle, struct statfs *statfs)
 
                 err = faterr_2_errno(f_getfree(&hdl->fatfs, &free_clusters));
                 if (!err) {
-                        statfs->f_bsize  = FF_MAX_SS;
-                        statfs->f_bfree  = free_clusters * hdl->fatfs.csize;
+                        statfs->f_bsize = FF_MAX_SS;
+                        statfs->f_bfree = free_clusters * hdl->fatfs.csize;
                         statfs->f_blocks = fstat.st_size / FF_MAX_SS;
-                        statfs->f_ffree  = 0;
-                        statfs->f_files  = 0;
-                        statfs->f_type   = SYS_FS_TYPE__SOLID;
+                        statfs->f_ffree = 0;
+                        statfs->f_files = 0;
+                        statfs->f_type = SYS_FS_TYPE__SOLID;
 
                         if (hdl->fatfs.fs_type == FS_FAT12) {
                                 statfs->f_fsname = "FAT12 (fatfs)";
@@ -828,7 +815,7 @@ API_FS_SYNC(fatfs, void *fs_handle)
                 int err = sys_mutex_lock(hdl->mutex, MUTEX_TIMEOUT);
                 if (!err) {
 
-                        sys_llist_foreach(FIL*, f, hdl->file_list) {
+                        sys_llist_foreach (FIL *, f, hdl->file_list) {
                                 f_sync(f);
                         }
 
@@ -853,26 +840,26 @@ API_FS_SYNC(fatfs, void *fs_handle)
 static int faterr_2_errno(FRESULT fresult)
 {
         static const uint8_t fat2errno[] = {
-                [FR_OK                 ] = ESUCC,
-                [FR_DISK_ERR           ] = EIO,
-                [FR_INT_ERR            ] = EINVAL,
-                [FR_NOT_READY          ] = EBUSY,
-                [FR_NO_FILE            ] = ENOENT,
-                [FR_NO_PATH            ] = ENOENT,
-                [FR_INVALID_NAME       ] = ENOENT,
-                [FR_DENIED             ] = EACCES,
-                [FR_EXIST              ] = EEXIST,
-                [FR_INVALID_OBJECT     ] = EINVAL,
-                [FR_WRITE_PROTECTED    ] = EROFS,
-                [FR_INVALID_DRIVE      ] = EMEDIUMTYPE,
-                [FR_NOT_ENABLED        ] = ENOSPC,
-                [FR_NO_FILESYSTEM      ] = EMEDIUMTYPE,
-                [FR_MKFS_ABORTED       ] = ECANCELED,
-                [FR_TIMEOUT            ] = ETIME,
-                [FR_LOCKED             ] = ECANCELED,
-                [FR_NOT_ENOUGH_CORE    ] = ENOMEM,
+                [FR_OK] = ESUCC,
+                [FR_DISK_ERR] = EIO,
+                [FR_INT_ERR] = EINVAL,
+                [FR_NOT_READY] = EBUSY,
+                [FR_NO_FILE] = ENOENT,
+                [FR_NO_PATH] = ENOENT,
+                [FR_INVALID_NAME] = ENOENT,
+                [FR_DENIED] = EACCES,
+                [FR_EXIST] = EEXIST,
+                [FR_INVALID_OBJECT] = EINVAL,
+                [FR_WRITE_PROTECTED] = EROFS,
+                [FR_INVALID_DRIVE] = EMEDIUMTYPE,
+                [FR_NOT_ENABLED] = ENOSPC,
+                [FR_NO_FILESYSTEM] = EMEDIUMTYPE,
+                [FR_MKFS_ABORTED] = ECANCELED,
+                [FR_TIMEOUT] = ETIME,
+                [FR_LOCKED] = ECANCELED,
+                [FR_NOT_ENOUGH_CORE] = ENOMEM,
                 [FR_TOO_MANY_OPEN_FILES] = EMFILE,
-                [FR_INVALID_PARAMETER  ] = EINVAL,
+                [FR_INVALID_PARAMETER] = EINVAL,
         };
 
         return (fresult >= ARRAY_SIZE(fat2errno) ? ENOTSUP : fat2errno[fresult]);
@@ -890,11 +877,11 @@ static int faterr_2_errno(FRESULT fresult)
 static time_t time_fat2unix(uint32_t fattime)
 {
         struct tm tm;
-        tm.tm_sec  = (fattime & 0x1F) << 1;
-        tm.tm_min  = (fattime >> 5) & 0x3F;
+        tm.tm_sec = (fattime & 0x1F) << 1;
+        tm.tm_min = (fattime >> 5) & 0x3F;
         tm.tm_hour = (fattime >> 11) & 0x1F;
         tm.tm_mday = (fattime >> 16) & 0x1F;
-        tm.tm_mon  = ((fattime >> 21) & 0x0F) - 1;
+        tm.tm_mon = ((fattime >> 21) & 0x0F) - 1;
         tm.tm_year = ((fattime >> 25) & 0x7F) + 80;
 
         return sys_mktime(&tm);

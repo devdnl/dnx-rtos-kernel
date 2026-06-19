@@ -520,14 +520,16 @@ API_FS_OPEN(flatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
 /**
  * @brief Close file.
  *
+ * Note: the file should always be closed (resources should be released) even
+ *       function return error.
+ *
  * @param[in ]          *fs_handle              file system allocated memory
  * @param[in ]          *fhdl                   file handle
- * @param[in ]           force                  force close
  *
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_FS_CLOSE(flatfs, void *fs_handle, void *fhdl, bool force)
+API_FS_CLOSE(flatfs, void *fs_handle, void *fhdl)
 {
         flatfs_t *hdl = fs_handle;
 
@@ -541,7 +543,8 @@ API_FS_CLOSE(flatfs, void *fs_handle, void *fhdl, bool force)
                         err = ESUCC;
 
                 } else {
-                        err = force ? ESUCC : ENOENT;
+                        MSG("no such file descriptor!");
+                        err = ENOENT;
                 }
 
                 sys_mutex_unlock(hdl->mtx);

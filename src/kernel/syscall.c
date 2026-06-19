@@ -483,7 +483,7 @@ static const syscallfunc_t syscalltab[] = {
 /*==============================================================================
   Exported objects
 ==============================================================================*/
-const char *const dnx_RTOS_version = "3.9.2";
+const char *const dnx_RTOS_version = "3.9.3";
 const char *const dnx_RTOS_name = "dnx RTOS";
 const char *const dnx_RTOS_commit_hash = COMMIT_HASH;
 const char *const dnx_RTOS_platform_name = _CPUCTL_PLATFORM_NAME;
@@ -965,7 +965,7 @@ static int syscall_open(syscallrq_t *rq)
                         err = _process_descriptor_allocate(GETPROCESS(), &desc, &file->header,
                                 *flags & O_SHARED);
                         if (err) {
-                                _vfs_fclose(file, true);
+                                _vfs_fclose(file);
                         } else {
                                 *fd = desc;
                         }
