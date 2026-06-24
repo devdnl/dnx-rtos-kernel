@@ -271,7 +271,6 @@ API_FS_OPEN(fatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
  *
  * @param[in ]          *fs_handle              file system allocated memory
  * @param[in ]          *fhdl                   file handle
- * @param[in ]           force                  force close
  *
  * @return One of errno value (errno.h)
  */
@@ -291,7 +290,6 @@ API_FS_CLOSE(fatfs, void *fs_handle, void *fhdl)
 
                 fatfile->self = NULL;
                 fatfile->magic = 0;
-                sys_free(&fhdl);
 
                 // remove all closed files from list
                 sys_llist_foreach (FIL *, ff, hdl->file_list) {
@@ -299,6 +297,8 @@ API_FS_CLOSE(fatfs, void *fs_handle, void *fhdl)
                                 sys_llist_erase_by_iterator(&_iterator);
                         }
                 }
+
+                sys_free(&fhdl);
 
                 err = 0;
 
