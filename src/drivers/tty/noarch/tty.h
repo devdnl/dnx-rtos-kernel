@@ -44,9 +44,9 @@ extern "C" {
 /*==============================================================================
   Exported object types
 ==============================================================================*/
-typedef struct ttybfr  ttybfr_t;
+typedef struct ttybfr ttybfr_t;
 typedef struct ttyedit ttyedit_t;
-typedef struct ttycmd  ttycmd_t;
+typedef struct ttycmd ttycmd_t;
 
 typedef enum ttycmd_resp {
         TTYCMD_BUSY,
@@ -84,39 +84,39 @@ typedef enum ttycmd_resp {
 /*==============================================================================
   Exported functions
 ==============================================================================*/
-/* buffer support ----------------------------------------------------------- */
-extern int         ttybfr_create(ttybfr_t **);
-extern int         ttybfr_destroy(ttybfr_t *);
-extern void        ttybfr_put(ttybfr_t *, const char *, size_t);
-extern void        ttybfr_flush(ttybfr_t *);
-extern void        ttybfr_clear(ttybfr_t *);
+extern int ttybfr_create(ttybfr_t **);
+extern int ttybfr_destroy(ttybfr_t *);
+extern void ttybfr_put(ttybfr_t *, const char *, size_t);
+extern void ttybfr_flush(ttybfr_t *);
+extern void ttybfr_clear(ttybfr_t *);
 extern const char *ttybfr_get_line(ttybfr_t *, int);
 extern const char *ttybfr_get_fresh_line(ttybfr_t *);
-extern void        ttybfr_clear_fresh_line_counter(ttybfr_t *);
+extern void ttybfr_clear_fresh_line_counter(ttybfr_t *);
 
-/* editline support --------------------------------------------------------- */
-extern int   ttyedit_create(kfile_t **, ttyedit_t **);
-extern int   ttyedit_destroy(ttyedit_t *);
-extern int   ttyedit_enable_echo(ttyedit_t *);
-extern int   ttyedit_disable_echo(ttyedit_t *);
-extern bool  ttyedit_is_echo_enabled(ttyedit_t *);
+extern int ttyedit_create(kfile_t **, ttyedit_t **);
+extern int ttyedit_destroy(ttyedit_t *);
+extern int ttyedit_enable_echo(ttyedit_t *);
+extern int ttyedit_disable_echo(ttyedit_t *);
+extern bool ttyedit_is_echo_enabled(ttyedit_t *);
 extern char *ttyedit_get_value(ttyedit_t *);
-extern void  ttyedit_set_value(ttyedit_t *, const char *, bool);
-extern void  ttyedit_clear(ttyedit_t *);
-extern void  ttyedit_clear_collected_character(ttyedit_t *);
-extern void  ttyedit_insert_char(ttyedit_t *, char);
-extern void  ttyedit_remove_char(ttyedit_t *);
-extern void  ttyedit_delete_char(ttyedit_t *);
-extern void  ttyedit_move_cursor_left(ttyedit_t *);
-extern void  ttyedit_move_cursor_right(ttyedit_t *);
-extern void  ttyedit_move_cursor_home(ttyedit_t *);
-extern void  ttyedit_move_cursor_end(ttyedit_t *);
+extern void ttyedit_set_value(ttyedit_t *, const char *, bool);
+extern void ttyedit_clear(ttyedit_t *);
+extern void ttyedit_clear_collected_character(ttyedit_t *);
+extern void ttyedit_insert_char(ttyedit_t *, char);
+extern void ttyedit_remove_char(ttyedit_t *);
+extern void ttyedit_delete_char(ttyedit_t *);
+extern void ttyedit_move_cursor_left(ttyedit_t *);
+extern void ttyedit_move_cursor_right(ttyedit_t *);
+extern void ttyedit_move_cursor_home(ttyedit_t *);
+extern void ttyedit_move_cursor_end(ttyedit_t *);
 
-/* vt100 command analyze ---------------------------------------------------- */
-extern int           ttycmd_create(ttycmd_t **);
-extern int           ttycmd_destroy(ttycmd_t *);
+extern int ttycmd_create(ttycmd_t **);
+extern int ttycmd_destroy(ttycmd_t *);
 extern ttycmd_resp_t ttycmd_analyze(ttycmd_t *, char);
-extern bool          ttycmd_is_idle(ttycmd_t *);
+extern bool ttycmd_is_idle(ttycmd_t *);
+
+extern int32_t tty_utf8_to_ucs4(const char **text, size_t len);
+extern int tty_ucs4_to_utf8(int32_t ucs4, char *utf8);
 
 /*==============================================================================
   Exported inline functions

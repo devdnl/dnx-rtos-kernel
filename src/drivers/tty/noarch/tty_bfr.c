@@ -45,13 +45,13 @@
   Local object types
 ==============================================================================*/
 struct ttybfr {
-        void  *self;
-        char  *line[_TTY_TERMINAL_ROWS];
-        char   new_line_bfr[_TTY_TERMINAL_COLUMNS + CR_LF_NUL_LEN];
+        void *self;
+        char *line[_TTY_TERMINAL_ROWS];
+        char new_line_bfr[(4 * _TTY_TERMINAL_COLUMNS) + CR_LF_NUL_LEN];
         size_t new_line_bfr_idx;
-        u16_t  carriage;
-        u16_t  line_head;
-        bool   fresh_line[_TTY_TERMINAL_ROWS];
+        u16_t carriage;
+        u16_t line_head;
+        bool fresh_line[_TTY_TERMINAL_ROWS];
 };
 
 /*==============================================================================
@@ -62,8 +62,6 @@ struct ttybfr {
   Local objects
 ==============================================================================*/
 MODULE_NAME(TTY);
-
-static const char *CR_LF = "\r\n";
 
 /*==============================================================================
   Exported objects
@@ -121,7 +119,7 @@ static void link_line(ttybfr_t *this, char *line)
                 this->line[this->line_head] = NULL;
         }
 
-        this->line[this->line_head]       = line;
+        this->line[this->line_head] = line;
         this->fresh_line[this->line_head] = true;
 
         if (LAST_CHARACTER(line) == '\n') {
@@ -144,7 +142,7 @@ static void link_line(ttybfr_t *this, char *line)
 static void clear_new_line_buffer(ttybfr_t *this)
 {
         this->new_line_bfr_idx = 0;
-        this->carriage         = 0;
+        this->carriage = 0;
         memset(this->new_line_bfr, '\0', sizeof(this->new_line_bfr));
 }
 
@@ -176,7 +174,7 @@ static void put_new_line_buffer(ttybfr_t *this)
         void link_new_line(const char *str, size_t len)
         {
                 char *line = NULL;
-                int   err  = sys_malloc(len + 1, cast(void **, &line));
+                int err = sys_malloc(len + 1, cast(void **, &line));
                 if (!err && line) {
                         strcpy(line, str);
                         link_line(this, line);
@@ -189,15 +187,15 @@ static void put_new_line_buffer(ttybfr_t *this)
         }
 
         /* add line to the buffer */
-        size_t new_line_len = strlen(this->new_line_bfr);
-        char  *last_line    = this->line[get_line_index(this, 0)];
+        size_t new_line_len = this->new_line_bfr_idx;
+        char *last_line = this->line[get_line_index(this, 0)];
         if (last_line) {
                 if (LAST_CHARACTER(last_line) == '\n') {
                         link_new_line(this->new_line_bfr, new_line_len);
                 } else {
                         size_t last_line_len = strlen(last_line);
-                        char  *line          = NULL;
-                        int    err = sys_malloc(last_line_len + new_line_len + 1, cast(void **, &line));
+                        char *line = NULL;
+                        int err = sys_malloc(last_line_len + new_line_len + 1, cast(void **, &line));
                         if (!err && line) {
                                 strcpy(line, last_line);
                                 strcat(line, this->new_line_bfr);
@@ -209,6 +207,30 @@ static void put_new_line_buffer(ttybfr_t *this)
         }
 
         clear_new_line_buffer(this);
+}
+
+//==============================================================================
+/**
+ * @brief  Put string buffer to the line
+ *
+ * @param  this         buffer object
+ * @param  chr          character
+ */
+//==============================================================================
+static void put_char(ttybfr_t *this, uint32_t chr)
+{
+        char utf8[8];
+        int utf8_len = tty_ucs4_to_utf8(chr, utf8);
+        if (utf8_len < 1) {
+                return;
+        }
+
+        if ((this->new_line_bfr_idx + utf8_len) >= (ARRAY_SIZE(this->new_line_bfr) - CR_LF_NUL_LEN)) {
+                return;
+        }
+
+        memcpy(&this->new_line_bfr[this->new_line_bfr_idx], utf8, utf8_len);
+        this->new_line_bfr_idx += utf8_len;
 }
 
 /*------------------------------------------------------------------------------
@@ -265,23 +287,20 @@ int ttybfr_destroy(ttybfr_t *this)
 //==============================================================================
 void ttybfr_put(ttybfr_t *this, const char *src, size_t len)
 {
-        void put_char(const char chr)
-        {
-                this->new_line_bfr[this->new_line_bfr_idx++] = chr;
-
-                if (this->new_line_bfr_idx > _TTY_TERMINAL_COLUMNS) {
-                        put_new_line_buffer(this);
-                }
-        }
-
         if (is_valid(this)) {
                 bool VT100_cmd = false;
+                int32_t chr;
+                const char *e = src + len;
 
-                while (len--) {
-                        char chr = *src++;
+                while (true) {
+
+                        chr = tty_utf8_to_ucs4(&src, e - src);
+                        if (chr <= 0) {
+                                break;
+                        }
 
                         if (chr == '\r') {
-                                this->carriage         = 0;
+                                this->carriage = 0;
                                 this->new_line_bfr_idx = 0;
 
                                 if (this->line[this->line_head]) {
@@ -291,29 +310,31 @@ void ttybfr_put(ttybfr_t *this, const char *src, size_t len)
                                 }
 
                         } else if (chr == '\n') {
-                                strcat(this->new_line_bfr, CR_LF);
+                                put_char(this, '\r');
+                                put_char(this, '\n');
                                 put_new_line_buffer(this);
                                 this->carriage = 0;
 
                         } else if (chr == '\e') {
                                 VT100_cmd = true;
-                                put_char(chr);
+                                put_char(this, chr);
 
                         } else if (VT100_cmd) {
-                                put_char(chr);
+                                put_char(this, chr);
 
                                 if (strchr("hlHKCDm", chr)) {
                                         VT100_cmd = false;
                                 }
 
                         } else if (this->carriage >= _TTY_TERMINAL_COLUMNS) {
-                                strcat(this->new_line_bfr, "\r\n");
+                                put_char(this, '\r');
+                                put_char(this, '\n');
                                 put_new_line_buffer(this);
                                 this->carriage = 1;
-                                put_char(chr);
+                                put_char(this, chr);
 
                         } else {
-                                put_char(chr);
+                                put_char(this, chr);
                                 this->carriage++;
                         }
                 }

@@ -39,6 +39,28 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
+#define UNICODE_UTF8_4     0x1fffff
+#define UNI_SUR_HIGH_START 0xD800
+#define UNI_SUR_HIGH_END   0xDBFF
+#define UNI_SUR_LOW_START  0xDC00
+#define UNI_SUR_LOW_END    0xDFFF
+#define UNI_NOT_CHAR_MIN   0xFDD0
+#define UNI_NOT_CHAR_MAX   0xFDEF
+
+#define REJECT_FFFF(x)                \
+        if ((x & 0xFFFF) >= 0xFFFE) { \
+                return -EINVAL;       \
+        }
+
+#define REJECT_SURROGATE(ucs4)                                       \
+        if (ucs4 >= UNI_SUR_HIGH_START && ucs4 <= UNI_SUR_LOW_END) { \
+                return -EINVAL;                                      \
+        }
+
+#define REJECT_NOT_CHAR(r)                                    \
+        if (r >= UNI_NOT_CHAR_MIN && r <= UNI_NOT_CHAR_MAX) { \
+                return -EINVAL;                               \
+        }
 
 /*==============================================================================
   Local types, enums definitions
@@ -47,38 +69,38 @@ struct tty_io;
 
 typedef struct {
         struct tty_io *io;
-        kqueue_t      *queue_out;
-        kmtx_t        *secure_mtx;
-        ttybfr_t      *screen;
-        ttyedit_t     *editline;
-        ttycmd_t      *vtcmd;
-        bool           flushed;
-        u8_t           major;
-        u8_t           minor;
+        kqueue_t *queue_out;
+        kmtx_t *secure_mtx;
+        ttybfr_t *screen;
+        ttyedit_t *editline;
+        ttycmd_t *vtcmd;
+        bool flushed;
+        u8_t major;
+        u8_t minor;
 } tty_t;
 
 typedef struct tty_io {
         kfile_t *infile;
         kfile_t *outfile;
-        tty_t   *tty[_TTY_NUMBER_OF_VT];
-        tid_t    service_in;
-        u8_t     current_tty;
+        tty_t *tty[_TTY_NUMBER_OF_VT];
+        tid_t service_in;
+        u8_t current_tty;
 } tty_io_t;
 
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static int  configure(tty_t *tty, const TTY_config_t *conf);
-static int  service_in(void *arg);
+static int configure(tty_t *tty, const TTY_config_t *conf);
+static int service_in(void *arg);
 static void vt100_init(tty_io_t *io, bool force_clean);
 static void vt100_analyze(tty_io_t *io, char c);
 static void copy_string_to_queue(const char *str, kqueue_t *queue, bool lfend, uint timeout);
-static int  switch_terminal(tty_io_t *io, int term_no);
+static int switch_terminal(tty_io_t *io, int term_no);
 static void handle_new_line(tty_t *tty);
-static int  show_fresh_line(tty_t *tty);
-static int  clear_tty(tty_t *tty);
-static int  refresh_last_line(tty_t *tty);
-static int  dump_tty_buffer(tty_t *tty, char *dst, size_t *size);
+static int show_fresh_line(tty_t *tty);
+static int clear_tty(tty_t *tty);
+static int refresh_last_line(tty_t *tty);
+static int dump_tty_buffer(tty_t *tty, char *dst, size_t *size);
 
 /*==============================================================================
   Local object definitions
@@ -87,8 +109,8 @@ MODULE_NAME(TTY);
 
 static const _thread_attr_t SERVICE_IN_ATTR = {
         .stack_depth = _STACK_DEPTH_VERY_LOW,
-        .priority    = _PRIORITY_NORMAL,
-        .detached    = true,
+        .priority = _PRIORITY_NORMAL,
+        .detached = true,
 };
 
 /*==============================================================================
@@ -116,8 +138,8 @@ API_MOD_INIT(TTY, void **device_handle, u8_t major, u8_t minor, const void *conf
         }
 
         /* initialize module base */
-        tty_io_t *io  = NULL;
-        tty_t    *tty = NULL;
+        tty_io_t *io = NULL;
+        tty_t *tty = NULL;
 
         if (minor == 0) {
                 err = sys_zalloc(sizeof(tty_io_t), cast(void **, &io));
@@ -140,7 +162,7 @@ API_MOD_INIT(TTY, void **device_handle, u8_t major, u8_t minor, const void *conf
 
         } else {
                 tty_t *tty0 = NULL;
-                err         = sys_module_get_instance(major, 0, (void **)&tty0);
+                err = sys_module_get_instance(major, 0, (void **)&tty0);
 
                 if (!err) {
                         io = tty0->io;
@@ -184,9 +206,9 @@ API_MOD_INIT(TTY, void **device_handle, u8_t major, u8_t minor, const void *conf
                         goto tty_alloc_finish;
                 }
 
-                tty->io        = io;
-                tty->major     = major;
-                tty->minor     = minor;
+                tty->io = io;
+                tty->major = major;
+                tty->minor = minor;
                 io->tty[minor] = tty;
 
                 if (!err && config) {
@@ -416,7 +438,7 @@ API_MOD_READ(TTY, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, si
 API_MOD_IOCTL(TTY, void *device_handle, int request, void *arg)
 {
         tty_t *tty = device_handle;
-        int    err = EINVAL;
+        int err = EINVAL;
 
         switch (request) {
         case IOCTL_TTY__CONFIGURE:
@@ -428,21 +450,21 @@ API_MOD_IOCTL(TTY, void *device_handle, int request, void *arg)
         case IOCTL_TTY__GET_CURRENT_TTY:
                 if (arg) {
                         *cast(int *, arg) = tty->io->current_tty;
-                        err               = ESUCC;
+                        err = ESUCC;
                 }
                 break;
 
         case IOCTL_TTY__GET_COL:
                 if (arg) {
                         *cast(int *, arg) = _TTY_TERMINAL_COLUMNS;
-                        err               = ESUCC;
+                        err = ESUCC;
                 }
                 break;
 
         case IOCTL_TTY__GET_ROW:
                 if (arg) {
                         *cast(int *, arg) = _TTY_TERMINAL_ROWS;
-                        err               = ESUCC;
+                        err = ESUCC;
                 }
                 break;
 
@@ -485,7 +507,7 @@ API_MOD_IOCTL(TTY, void *device_handle, int request, void *arg)
                 break;
 
         case IOCTL_TTY__READ_BUFFER:
-                err               = EINVAL;
+                err = EINVAL;
                 TTY_buffer_t *buf = arg;
                 if (buf && buf->ptr && buf->size) {
                         err = dump_tty_buffer(tty, buf->ptr, &buf->size);
@@ -537,7 +559,7 @@ API_MOD_STAT(TTY, void *device_handle, struct vfs_dev_stat *device_stat)
 {
         tty_t *tty = device_handle;
 
-        device_stat->st_size  = 0;
+        device_stat->st_size = 0;
         device_stat->st_major = tty->major;
         device_stat->st_minor = tty->minor;
 
@@ -581,7 +603,7 @@ static int configure(tty_t *tty, const TTY_config_t *conf)
         }
 
         if (!err) {
-                tty->io->infile  = in;
+                tty->io->infile = in;
                 tty->io->outfile = out;
 
                 vt100_init(tty->io, false);
@@ -613,7 +635,7 @@ static int service_in(void *arg)
         bool last_CR = false;
 
         for (;;) {
-                char   c = '\0';
+                char c = '\0';
                 size_t rdcnt;
                 if (sys_fread(&c, 1, &rdcnt, io->infile) == ESUCC) {
                         /*
@@ -797,7 +819,7 @@ static int switch_terminal(tty_io_t *io, int term_no)
 
                         err = sys_mutex_lock(tty->secure_mtx, _WAIT_FOREVER_MS);
                         if (!err) {
-                                size_t      wrcnt;
+                                size_t wrcnt;
                                 const char *str;
 
                                 for (int i = _TTY_TERMINAL_ROWS - 1; i >= 0; i--) {
@@ -831,7 +853,7 @@ static void handle_new_line(tty_t *tty)
 {
         if (sys_mutex_lock(tty->secure_mtx, _WAIT_FOREVER_MS) == ESUCC) {
                 const char *str = ttyedit_get_value(tty->editline);
-                const char *lf  = "\n";
+                const char *lf = "\n";
 
                 if (ttyedit_is_echo_enabled(tty->editline)) {
 
@@ -840,7 +862,7 @@ static void handle_new_line(tty_t *tty)
                         ttybfr_clear_fresh_line_counter(tty->screen);
 
                         const char *crlf = "\r\n";
-                        size_t      wrcnt;
+                        size_t wrcnt;
                         sys_fwrite(crlf, strlen(crlf), &wrcnt, tty->io->outfile);
                 }
 
@@ -979,7 +1001,7 @@ static int dump_tty_buffer(tty_t *tty, char *dst, size_t *size)
                                         sys_strlcat(dst, str, len);
                                         dst += len - 2;
                                         *dst++ = '\n';
-                                        *dst   = '\0';
+                                        *dst = '\0';
                                         *size -= len - 1;
 
                                 } else {
@@ -992,6 +1014,234 @@ static int dump_tty_buffer(tty_t *tty, char *dst, size_t *size)
         }
 
         return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Function get next utf8-coded character.
+ *
+ * @param  text         pointer to text buffer
+ * @param  len          string length
+ *
+ * @return Unicode character or -1 on error.
+ */
+//==============================================================================
+int32_t tty_utf8_to_ucs4(const char **text, size_t len)
+{
+        int32_t unicode = -1;
+
+        if (text && *text && (**text != '\0') && (len > 0)) {
+
+                const char *str = *text;
+
+                char c = *str++;
+                if (c >= 0x80) {
+                        if (((c & 0xE0) == 0xC0) && (len >= 2)) {
+                                if (*str != '\0') {
+                                        unicode = ((c & 0x1F) << 6);
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
+                                if (*str != '\0') {
+                                        unicode |= (*str++ & 0x3F);
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
+                        } else if (((c & 0xF0) == 0xE0) && (len >= 3)) {
+                                if (*str != '\0') {
+                                        unicode = ((c & 0x0F) << 12);
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
+                                if (*str != '\0') {
+                                        unicode |= (*str++ & 0x3F) << 6;
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
+                                if (*str != '\0') {
+                                        unicode |= (*str++ & 0x3F) << 0;
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
+                        } else if (((c & 0xF8) == 0xF0) && (len >= 4)) {
+                                if (*str != '\0') {
+                                        unicode = ((c & 0x07) << 18);
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
+                                if (*str != '\0') {
+                                        unicode |= (*str++ & 0x3F) << 12;
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
+                                if (*str != '\0') {
+                                        unicode |= (*str++ & 0x3F) << 6;
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
+                                if (*str != '\0') {
+                                        unicode |= (*str++ & 0x3F) << 0;
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
+                        } else if (((c & 0xFC) == 0xF8) && (len >= 5)) {
+                                if (*str != '\0') {
+                                        unicode = ((c & 0x03) << 24);
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
+                                if (*str != '\0') {
+                                        unicode |= (*str++ & 0x3F) << 18;
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
+                                if (*str != '\0') {
+                                        unicode |= (*str++ & 0x3F) << 12;
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
+                                if (*str != '\0') {
+                                        unicode |= (*str++ & 0x3F) << 6;
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
+                                if (*str != '\0') {
+                                        unicode |= (*str++ & 0x3F) << 0;
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
+                        } else if (((c & 0xFE) == 0xFC) && (len >= 6)) {
+                                if (*str != '\0') {
+                                        unicode = ((c & 0x01) << 30);
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
+                                if (*str != '\0') {
+                                        unicode |= (*str++ & 0x3F) << 24;
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
+                                if (*str != '\0') {
+                                        unicode |= (*str++ & 0x3F) << 18;
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
+                                if (*str != '\0') {
+                                        unicode |= (*str++ & 0x3F) << 12;
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
+                                if (*str != '\0') {
+                                        unicode |= (*str++ & 0x3F) << 6;
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
+                                if (*str != '\0') {
+                                        unicode |= (*str++ & 0x3F) << 0;
+                                        *text += 1;
+                                } else {
+                                        return -1;
+                                }
+
+                        } else {
+                                unicode = 0;
+                                *text += 1;
+                        }
+                } else {
+                        unicode = c;
+                        *text += 1;
+                }
+        }
+
+        return unicode;
+}
+
+//==============================================================================
+/**
+ * @brief  Convert ucs4 to UTF8.
+ *
+ * @param  ucs4         ucs4 character
+ * @param  utf8         UTF8 buffer output
+ *
+ * @return Number of converted bytes or -1 if conversion error.
+ */
+//==============================================================================
+int tty_ucs4_to_utf8(int32_t ucs4, char *utf8)
+{
+        REJECT_FFFF(ucs4);
+
+        if (ucs4 < 0x80) {
+                utf8[0] = ucs4;
+                utf8[1] = '\0';
+                return 1;
+        }
+
+        if (ucs4 < 0x800) {
+                utf8[0] = (ucs4 >> 6) | 0xC0;
+                utf8[1] = (ucs4 & 0x3F) | 0x80;
+                utf8[2] = '\0';
+                return 2;
+        }
+
+        if (ucs4 < 0xFFFF) {
+                utf8[0] = ((ucs4 >> 12)) | 0xE0;
+                utf8[1] = ((ucs4 >> 6) & 0x3F) | 0x80;
+                utf8[2] = ((ucs4) & 0x3F) | 0x80;
+                utf8[3] = '\0';
+                REJECT_SURROGATE(ucs4);
+                REJECT_NOT_CHAR(ucs4);
+                return 3;
+        }
+
+        if (ucs4 <= UNICODE_UTF8_4) {
+                /* http://tidy.sourceforge.net/cgi-bin/lxr/source/src/utf8.c#L380 */
+                utf8[0] = 0xF0 | (ucs4 >> 18);
+                utf8[1] = 0x80 | ((ucs4 >> 12) & 0x3F);
+                utf8[2] = 0x80 | ((ucs4 >> 6) & 0x3F);
+                utf8[3] = 0x80 | ((ucs4 & 0x3F));
+                utf8[4] = '\0';
+                return 4;
+        }
+
+        return -1;
 }
 
 /*==============================================================================
