@@ -140,11 +140,56 @@ extern "C" {
  *  @return On success (card initialized) 0 is returned.
  *          On error (card not initialized) -1 is returned and @ref errno is set.
  */
-#define IOCTL_SDMMC__INITIALIZE_CARD    IOCTL_STORAGE__INITIALIZE
+#define IOCTL_SDMMC__INITIALIZE_CARD IOCTL_STORAGE__INITIALIZE
+
+/**
+ *  @brief  SDMMC configuration.
+ *  @param  [WR] @ref SDMMC_config_t *  SDMMC configuration object.
+ *  @return On success 0 is returned.
+ *          On error -1 is returned and @ref errno is set.
+ */
+#define IOCTL_SDMMC__CONFIGURE _IOW(SDMMC, 0x00, SDMMC_config_t *)
 
 /*==============================================================================
   Exported object types
 ==============================================================================*/
+typedef enum {
+        SDMMC_DEVICE_TYPE__SD,
+        SDMMC_DEVICE_TYPE__MMC,
+} SDMMC_device_type_t;
+
+typedef enum {
+        SDMMC_CLOCK_EDGE__RISING,
+        SDMMC_CLOCK_EDGE__FALLING,
+} SDMMC_clock_edge_t;
+
+typedef enum {
+        SDMMC_BUS_WIDE__1BIT,
+        SDMMC_BUS_WIDE__4BIT,
+        SDMMC_BUS_WIDE__8BIT,
+} SDMMC_bus_wide_t;
+
+typedef enum {
+        SDMMC_SPEED_MODE__DEFAULT,
+        SDMMC_SPEED_MODE__AUTO,
+        SDMMC_SPEED_MODE__HIGH,
+        SDMMC_SPEED_MODE__MMC_DDR,
+        SDMMC_SPEED_MODE__SD_ULTRA,
+} SDMMC_speed_mode_t;
+
+/**
+ * SDMMC module configuration structure.
+ */
+typedef struct {
+        SDMMC_device_type_t device_type;
+        SDMMC_clock_edge_t clock_edge;
+        SDMMC_bus_wide_t bus_wide;
+        SDMMC_speed_mode_t speed_mode;
+        u32_t card_timeout;
+        u32_t clock_div;
+        bool clock_power_save;
+        bool hardware_flow_ctrl;
+} SDMMC_config_t;
 
 /*==============================================================================
   Exported objects

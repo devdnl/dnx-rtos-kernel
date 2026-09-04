@@ -885,6 +885,15 @@ static int ext4_generic_open2(ext4_file *f, const char *path, int flags,
 			if (!(f->flags & O_CREAT))
 				break;
 
+			/*
+			 * NOTE: dnx RTOS fix
+			 * Prevent ext4 from creating a directory tree.
+			 */
+			if (!is_goal) {
+				r = ENOENT;
+				break;
+			}
+
 			/*O_CREAT allows create new entry*/
 			struct ext4_inode_ref child_ref;
 			r = ext4_fs_alloc_inode(fs, &child_ref,

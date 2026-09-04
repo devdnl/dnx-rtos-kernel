@@ -30,32 +30,42 @@ Brief   SD/MMC/eMMC Card Driver.
 /*==============================================================================
   Include files
 ==============================================================================*/
+#include "sys/types.h"
 #include "../sdmmc_ioctl.h"
 #include "drivers/driver.h"
 #include "stm32h7/dma_ddi.h"
 #include "stm32h7xx_hal_mmc.h"
 #include "stm32h7xx_hal_sd.h"
 
+// TEST
+//#ifndef SDMMC1
+//#define SDMMC1
+//#endif
+//#ifndef SDMMC2
+//#define SDMMC2
+//#endif
+//#ifndef __SDMMC_CFG_SDMMC1_TYPE__
+//#define __SDMMC_CFG_SDMMC1_TYPE__ _SDMMC_TYPE_BOTH
+//#endif
+// TEST
+
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define MTX_TIMEOUT         25000
+#define MTX_TIMEOUT 25000
 
-#define SDMMC_BLOCKSIZE     SD_BLOCKSIZE
+#define SDMMC_BLOCKSIZE SD_BLOCKSIZE
 
 #define _SDMMC_MODE_POLLING 0
 #define _SDMMC_MODE_IRQ     1
 #define _SDMMC_MODE_DMA     2
-#define _SDMMC_TYPE_SDCARD  0
-#define _SDMMC_TYPE_MMC     1
+#define _SDMMC_TYPE_SD      (1 << 0)
+#define _SDMMC_TYPE_MMC     (1 << 1)
+#define _SDMMC_TYPE_BOTH    (_SDMMC_TYPE_SD | _SDMMC_TYPE_MMC)
 
-#define IS_SD_USING                                           \
-        ((__SDMMC_CFG_SDMMC1_TYPE__ == _SDMMC_TYPE_SDCARD) || \
-                (__SDMMC_CFG_SDMMC2_TYPE__ == _SDMMC_TYPE_SDCARD))
+#define SD_ENABLED ((__SDMMC_CFG_SDMMC1_TYPE__ & _SDMMC_TYPE_SD) || (__SDMMC_CFG_SDMMC2_TYPE__ & _SDMMC_TYPE_SD))
 
-#define IS_MMC_USING                                       \
-        ((__SDMMC_CFG_SDMMC1_TYPE__ == _SDMMC_TYPE_MMC) || \
-                (__SDMMC_CFG_SDMMC2_TYPE__ == _SDMMC_TYPE_MMC))
+#define MMC_ENABLED ((__SDMMC_CFG_SDMMC1_TYPE__ & _SDMMC_TYPE_MMC) || (__SDMMC_CFG_SDMMC2_TYPE__ & _SDMMC_TYPE_MMC))
 
 /*==============================================================================
   Local object types
@@ -72,19 +82,20 @@ enum {
 
 /** driver instance associated with partition */
 typedef struct {
-        u32_t   mode;
-        u8_t    major;
-        u8_t    minor;
-        u64_t   card_size;
+        u32_t mode;
+        u8_t major;
+        u8_t minor;
+        u64_t card_size;
         kmtx_t *mtx;
         ksem_t *sem_xfer_complete;
-        bool    irq_yield;
+        bool irq_yield;
+        SDMMC_config_t config;
 
         union {
-#if IS_SD_USING
+#if SD_ENABLED
                 SD_HandleTypeDef sd;
 #endif
-#if IS_MMC_USING
+#if MMC_ENABLED
                 MMC_HandleTypeDef mmc;
 #endif
         } handle;
@@ -92,19 +103,11 @@ typedef struct {
 
 typedef struct {
         SDMMC_TypeDef *instance;
-        __IO u32_t    *RCC_APBENR;
-        u32_t          RCC_APBENR_SDMMCEN;
-        IRQn_Type      IRQn;
-        u32_t          IRQ_priority;
-        u32_t          card_timeout;
-        u32_t          clock_edge;
-        u32_t          clock_power_save;
-        u32_t          clock_div;
-        u32_t          bus_wide;
-        u32_t          hardware_flow_ctrl;
-        u32_t          mode;
-        u32_t          speed_mode;
-        u8_t           card_type;
+        __IO u32_t *RCC_APBENR;
+        u32_t RCC_APBENR_SDMMCEN;
+        IRQn_Type IRQn;
+        u32_t IRQ_priority;
+        u32_t mode;
 } sdmmc_info_t;
 
 /*==============================================================================
@@ -113,18 +116,12 @@ typedef struct {
 static int card_initialize(SDMMC_t *hdl);
 static int card_wait_ready(SDMMC_t *hdl);
 static int card_check_sdmmc_error(SDMMC_t *hdl);
-static int card_write_blocks(SDMMC_t *hdl, const u8_t *src, uint32_t block_address,
-        uint32_t blocks);
-static int card_write_blocks_IT(SDMMC_t *hdl, const u8_t *src, uint32_t block_address,
-        uint32_t blocks);
-static int card_write_blocks_DMA(SDMMC_t *hdl, const u8_t *src, uint32_t block_address,
-        uint32_t blocks);
-static int card_read_blocks(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
-        uint32_t blocks);
-static int card_read_blocks_IT(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
-        uint32_t blocks);
-static int card_read_blocks_DMA(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
-        uint32_t blocks);
+static int card_write_blocks(SDMMC_t *hdl, const u8_t *src, uint32_t block_address, uint32_t blocks);
+static int card_write_blocks_IT(SDMMC_t *hdl, const u8_t *src, uint32_t block_address, uint32_t blocks);
+static int card_write_blocks_DMA(SDMMC_t *hdl, const u8_t *src, uint32_t block_address, uint32_t blocks);
+static int card_read_blocks(SDMMC_t *hdl, u8_t *dst, uint32_t block_address, uint32_t blocks);
+static int card_read_blocks_IT(SDMMC_t *hdl, u8_t *dst, uint32_t block_address, uint32_t blocks);
+static int card_read_blocks_DMA(SDMMC_t *hdl, u8_t *dst, uint32_t block_address, uint32_t blocks);
 
 /*==============================================================================
   Local object
@@ -147,40 +144,43 @@ static SDMMC_t *sdmmc[SDMMC_COUNT];
 static const sdmmc_info_t SDMMC[] = {
 #if defined(SDMMC1)
         {
-                .instance           = SDMMC1,
-                .RCC_APBENR         = &RCC->AHB3ENR,
+                .instance = SDMMC1,
+                .RCC_APBENR = &RCC->AHB3ENR,
                 .RCC_APBENR_SDMMCEN = RCC_AHB3ENR_SDMMC1EN,
-                .IRQn               = SDMMC1_IRQn,
-                .IRQ_priority       = __SDMMC_CFG_SDMMC1_IRQ_PRIORITY__,
-                .card_timeout       = __SDMMC_CFG_SDMMC1_CARD_TIMEOUT__,
-                .clock_edge         = __SDMMC_CFG_SDMMC1_CLOCK_EDGE__,
-                .clock_power_save   = __SDMMC_CFG_SDMMC1_PWRSAVE__,
-                .clock_div          = __SDMMC_CFG_SDMMC1_CKDIV__ - 1,
-                .bus_wide           = __SDMMC_CFG_SDMMC1_BUS_WIDE__,
-                .hardware_flow_ctrl = __SDMMC_CFG_SDMMC1_HW_FLOW_CTRL__,
-                .mode               = __SDMMC_CFG_SDMMC1_MODE__,
-                .speed_mode         = __SDMMC_CFG_SDMMC1_SPEED_MODE__,
-                .card_type          = __SDMMC_CFG_SDMMC1_TYPE__,
+                .IRQn = SDMMC1_IRQn,
+                .IRQ_priority = __SDMMC_CFG_SDMMC1_IRQ_PRIORITY__,
+                .mode = __SDMMC_CFG_SDMMC1_MODE__,
         },
 #endif
 #if defined(SDMMC2)
         {
-                .instance           = SDMMC2,
-                .RCC_APBENR         = &RCC->AHB2ENR,
+                .instance = SDMMC2,
+                .RCC_APBENR = &RCC->AHB2ENR,
                 .RCC_APBENR_SDMMCEN = RCC_AHB2ENR_SDMMC2EN,
-                .IRQn               = SDMMC2_IRQn,
-                .IRQ_priority       = __SDMMC_CFG_SDMMC2_IRQ_PRIORITY__,
-                .card_timeout       = __SDMMC_CFG_SDMMC2_CARD_TIMEOUT__,
-                .clock_edge         = __SDMMC_CFG_SDMMC2_CLOCK_EDGE__,
-                .clock_power_save   = __SDMMC_CFG_SDMMC2_PWRSAVE__,
-                .clock_div          = __SDMMC_CFG_SDMMC2_CKDIV__ - 1,
-                .bus_wide           = __SDMMC_CFG_SDMMC2_BUS_WIDE__,
-                .hardware_flow_ctrl = __SDMMC_CFG_SDMMC2_HW_FLOW_CTRL__,
-                .mode               = __SDMMC_CFG_SDMMC2_MODE__,
-                .speed_mode         = __SDMMC_CFG_SDMMC2_SPEED_MODE__,
-                .card_type          = __SDMMC_CFG_SDMMC2_TYPE__,
+                .IRQn = SDMMC2_IRQn,
+                .IRQ_priority = __SDMMC_CFG_SDMMC2_IRQ_PRIORITY__,
+                .mode = __SDMMC_CFG_SDMMC2_MODE__,
         }
 #endif
+};
+
+static const u32_t CLOCK_EDGE[] = {
+        [SDMMC_CLOCK_EDGE__RISING] = SDMMC_CLOCK_EDGE_RISING,
+        [SDMMC_CLOCK_EDGE__FALLING] = SDMMC_CLOCK_EDGE_FALLING,
+};
+
+static const u32_t BUS_WIDE[] = {
+        [SDMMC_BUS_WIDE__1BIT] = SDMMC_BUS_WIDE_1B,
+        [SDMMC_BUS_WIDE__4BIT] = SDMMC_BUS_WIDE_4B,
+        [SDMMC_BUS_WIDE__8BIT] = SDMMC_BUS_WIDE_8B,
+};
+
+static const u32_t SPEED_MODE[] = {
+        [SDMMC_SPEED_MODE__DEFAULT] = SDMMC_SPEED_MODE_DEFAULT,
+        [SDMMC_SPEED_MODE__AUTO] = SDMMC_SPEED_MODE_AUTO,
+        [SDMMC_SPEED_MODE__HIGH] = SDMMC_SPEED_MODE_HIGH,
+        [SDMMC_SPEED_MODE__MMC_DDR] = SDMMC_SPEED_MODE_DDR,
+        [SDMMC_SPEED_MODE__SD_ULTRA] = SDMMC_SPEED_MODE_ULTRA,
 };
 
 /*==============================================================================
@@ -205,16 +205,21 @@ static const sdmmc_info_t SDMMC[] = {
 //==============================================================================
 API_MOD_INIT(SDMMC, void **device_handle, u8_t major, u8_t minor, const void *config)
 {
-        UNUSED_ARG1(config);
-
         int err = ENODEV;
 
-        if ((major < SDMMC_COUNT) && (minor == 0)) {
+        if (not config) {
+                err = EINVAL;
+
+        } else if ((major >= SDMMC_COUNT) or (minor != 0)) {
+                err = ENODEV;
+
+        } else {
                 err = sys_zalloc(sizeof(SDMMC_t), device_handle);
                 if (!err) {
                         SDMMC_t *hdl = *device_handle;
-                        hdl->major   = major;
-                        hdl->minor   = minor;
+                        hdl->major = major;
+                        hdl->minor = minor;
+                        hdl->config = *cast(typeof(hdl->config) *, config);
 
                         err = sys_semaphore_create(1, 0, &hdl->sem_xfer_complete);
                         if (!err) {
@@ -252,19 +257,19 @@ API_MOD_INIT(SDMMC, void **device_handle, u8_t major, u8_t minor, const void *co
 API_MOD_RELEASE(SDMMC, void *device_handle)
 {
         SDMMC_t *hdl = device_handle;
-        kmtx_t  *mtx = hdl->mtx;
+        kmtx_t *mtx = hdl->mtx;
 
         int err = sys_mutex_lock(mtx, MTX_TIMEOUT);
         if (!err) {
                 hdl->mtx = NULL;
                 sys_sleep_ms(MTX_TIMEOUT + 500);
 
-                if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
-#if IS_SD_USING
+                if (hdl->config.device_type == _SDMMC_TYPE_SD) {
+#if SD_ENABLED
                         HAL_SD_DeInit(&hdl->handle.sd);
 #endif
-                } else {
-#if IS_MMC_USING
+                } else if (hdl->config.device_type == _SDMMC_TYPE_MMC) {
+#if MMC_ENABLED
                         HAL_MMC_DeInit(&hdl->handle.mmc);
 #endif
                 }
@@ -324,8 +329,8 @@ API_MOD_CLOSE(SDMMC, void *device_handle, bool force)
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_WRITE(SDMMC, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos,
-        size_t *wrcnt, struct vfs_fattr fattr)
+API_MOD_WRITE(SDMMC, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
@@ -354,7 +359,7 @@ API_MOD_WRITE(SDMMC, void *device_handle, const u8_t *src, size_t count, fpos_t 
         }
 
         u32_t block_address = *fpos / SDMMC_BLOCKSIZE;
-        u32_t blocks        = count / SDMMC_BLOCKSIZE;
+        u32_t blocks = count / SDMMC_BLOCKSIZE;
 
         for (int i = 0; i < 5; i++) {
 
@@ -412,8 +417,7 @@ API_MOD_WRITE(SDMMC, void *device_handle, const u8_t *src, size_t count, fpos_t 
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(SDMMC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
-        size_t *rdcnt, struct vfs_fattr fattr)
+API_MOD_READ(SDMMC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
@@ -442,7 +446,7 @@ API_MOD_READ(SDMMC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
         }
 
         u32_t block_address = *fpos / SDMMC_BLOCKSIZE;
-        u32_t blocks        = count / SDMMC_BLOCKSIZE;
+        u32_t blocks = count / SDMMC_BLOCKSIZE;
 
         for (int i = 0; i < 5; i++) {
 
@@ -568,19 +572,65 @@ static int card_initialize(SDMMC_t *hdl)
 {
         int err = EFAULT;
 
+        if (hdl->config.device_type > SDMMC_DEVICE_TYPE__MMC) {
+                dev_dbg(hdl, "device type out of range!");
+                return EINVAL;
+        }
+
+        if (hdl->config.clock_edge > SDMMC_CLOCK_EDGE__FALLING) {
+                dev_dbg(hdl, "clock edge out of range!");
+                return EINVAL;
+        }
+
+        if (hdl->config.bus_wide > SDMMC_BUS_WIDE__8BIT) {
+                dev_dbg(hdl, "bus wide out of range!");
+                return EINVAL;
+        }
+
+        if ((hdl->config.device_type == SDMMC_DEVICE_TYPE__SD) and (hdl->config.bus_wide > SDMMC_BUS_WIDE__4BIT)) {
+                dev_dbg(hdl, "set SD bus to 4 bits!");
+                hdl->config.bus_wide = SDMMC_BUS_WIDE__4BIT;
+        }
+
+        if (hdl->config.speed_mode > SDMMC_SPEED_MODE__SD_ULTRA) {
+                dev_dbg(hdl, "speed mode out of range!");
+                return EINVAL;
+        }
+
+        if ((hdl->config.device_type == SDMMC_DEVICE_TYPE__SD) and
+                (hdl->config.speed_mode == SDMMC_SPEED_MODE__MMC_DDR)) {
+                dev_dbg(hdl, "DDR is not supported in SD mode!");
+                return EINVAL;
+        }
+
+        if ((hdl->config.device_type == SDMMC_DEVICE_TYPE__MMC) and
+                (hdl->config.speed_mode == SDMMC_SPEED_MODE__SD_ULTRA)) {
+                dev_dbg(hdl, "ultra speed is not supported in MMC mode!");
+                return EINVAL;
+        }
+
+        if (hdl->config.clock_div == 0) {
+                dev_dbg(hdl, "set clock divider to 1.");
+                hdl->config.clock_div = 1;
+        }
+
+        if (hdl->config.clock_div > 256) {
+                dev_dbg(hdl, "limited clock divider to 256.");
+                hdl->config.clock_div = 256;
+        }
+
         hdl->mode = SDMMC[hdl->major].mode;
 
-        if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
-#if IS_SD_USING
+        if (hdl->config.device_type == SDMMC_DEVICE_TYPE__SD) {
+#if SD_ENABLED
                 hdl->handle.sd.CtxPtr = hdl;
 
-                hdl->handle.sd.Instance            = SDMMC[hdl->major].instance;
-                hdl->handle.sd.Init.ClockEdge      = SDMMC[hdl->major].clock_edge;
-                hdl->handle.sd.Init.ClockPowerSave = SDMMC[hdl->major].clock_power_save;
-                hdl->handle.sd.Init.BusWide        = SDMMC_BUS_WIDE_1B;
-                hdl->handle.sd.Init.HardwareFlowControl = SDMMC[hdl->major]
-                                                                  .hardware_flow_ctrl;
-                hdl->handle.sd.Init.ClockDiv = SDMMC[hdl->major].clock_div;
+                hdl->handle.sd.Instance = SDMMC[hdl->major].instance;
+                hdl->handle.sd.Init.ClockEdge = CLOCK_EDGE[hdl->config.clock_edge];
+                hdl->handle.sd.Init.ClockPowerSave = hdl->config.clock_power_save;
+                hdl->handle.sd.Init.BusWide = SDMMC_BUS_WIDE_1B;
+                hdl->handle.sd.Init.HardwareFlowControl = hdl->config.hardware_flow_ctrl;
+                hdl->handle.sd.Init.ClockDiv = hdl->config.clock_div;
 
                 for (int i = 0; i < 3; i++) {
                         HAL_SD_DeInit(&hdl->handle.sd);
@@ -600,51 +650,47 @@ static int card_initialize(SDMMC_t *hdl)
                                         mode = "DMA";
                                         break;
                                 }
+
                                 dev_dbg(hdl, "using %s mode", mode);
 
-                                if (SDMMC[hdl->major].bus_wide != SDMMC_BUS_WIDE_1B) {
-                                        if (HAL_SD_ConfigWideBusOperation(&hdl->handle.sd,
-                                                    SDMMC_BUS_WIDE_4B) == HAL_OK) {
+                                if (hdl->config.bus_wide != SDMMC_BUS_WIDE__1BIT) {
+                                        if (HAL_SD_ConfigWideBusOperation(&hdl->handle.sd, SDMMC_BUS_WIDE_4B) ==
+                                                HAL_OK) {
                                                 dev_dbg(hdl, "using 4-bit wide bus");
                                         } else {
-                                                dev_dbg(hdl,
-                                                        "4-bit wide bus not supported");
+                                                dev_dbg(hdl, "4-bit wide bus not supported");
                                                 dev_dbg(hdl, "using 1-bit wide bus");
                                         }
                                 } else {
                                         dev_dbg(hdl, "using 1-bit wide bus");
                                 }
 
-                                if (SDMMC[hdl->major].speed_mode !=
-                                        SDMMC_SPEED_MODE_DEFAULT) {
+                                if (hdl->config.speed_mode != SDMMC_SPEED_MODE__DEFAULT) {
 
                                         const char *speed_mode = "?";
-                                        switch (SDMMC[hdl->major].speed_mode) {
-                                        case SDMMC_SPEED_MODE_DEFAULT:
+                                        switch (hdl->config.speed_mode) {
+                                        default:
+                                        case SDMMC_SPEED_MODE__DEFAULT:
                                                 speed_mode = "default";
                                                 break;
-                                        case SDMMC_SPEED_MODE_AUTO:
+                                        case SDMMC_SPEED_MODE__AUTO:
                                                 speed_mode = "auto";
                                                 break;
-                                        case SDMMC_SPEED_MODE_HIGH:
+                                        case SDMMC_SPEED_MODE__HIGH:
                                                 speed_mode = "high";
                                                 break;
-                                        case SDMMC_SPEED_MODE_ULTRA:
+                                        case SDMMC_SPEED_MODE__SD_ULTRA:
                                                 speed_mode = "ultra";
                                                 break;
                                         }
 
-                                        err = HAL_SD_ConfigSpeedBusOperation(
-                                                &hdl->handle.sd,
-                                                SDMMC[hdl->major].speed_mode);
+                                        err = HAL_SD_ConfigSpeedBusOperation(&hdl->handle.sd,
+                                                SPEED_MODE[hdl->config.speed_mode]);
                                         if (not err) {
-                                                dev_dbg(hdl, "switched to %s speed mode",
-                                                        speed_mode);
+                                                dev_dbg(hdl, "switched to %s speed mode", speed_mode);
                                         } else {
-                                                dev_dbg(hdl, "%s speed mode error: %d",
-                                                        speed_mode, err);
-                                                HAL_SD_ConfigSpeedBusOperation(
-                                                        &hdl->handle.sd,
+                                                dev_dbg(hdl, "%s speed mode error: %d", speed_mode, err);
+                                                HAL_SD_ConfigSpeedBusOperation(&hdl->handle.sd,
                                                         SDMMC_SPEED_MODE_DEFAULT);
                                         }
                                 }
@@ -653,15 +699,11 @@ static int card_initialize(SDMMC_t *hdl)
                                 err = HAL_SD_GetCardInfo(&hdl->handle.sd, &info);
                                 if (!err) {
 
-                                        dev_dbg(hdl, "found SD%s card",
-                                                info.CardType == CARD_SDSC ? "SC"
-                                                                           : "HC/XC");
+                                        dev_dbg(hdl, "found SD%s card", info.CardType == CARD_SDSC ? "SC" : "HC/XC");
 
-                                        dev_dbg(hdl, "%d %u-byte logical blocks",
-                                                info.BlockNbr, info.BlockSize);
+                                        dev_dbg(hdl, "%d %u-byte logical blocks", info.BlockNbr, info.BlockSize);
 
-                                        hdl->card_size = cast(u64_t, info.BlockSize) *
-                                                cast(u64_t, info.BlockNbr);
+                                        hdl->card_size = cast(u64_t, info.BlockSize) * cast(u64_t, info.BlockNbr);
                                 }
                         }
 
@@ -672,18 +714,20 @@ static int card_initialize(SDMMC_t *hdl)
                                 break;
                         }
                 }
+#else
+                dev_dbg(hdl, "SD support not enabled!");
+                err = ENOTSUP;
 #endif
-        } else {
-#if IS_MMC_USING
+        } else if (hdl->config.device_type == SDMMC_DEVICE_TYPE__MMC) {
+#if MMC_ENABLED
                 hdl->handle.mmc.CtxPtr = hdl;
 
-                hdl->handle.mmc.Instance            = SDMMC[hdl->major].instance;
-                hdl->handle.mmc.Init.ClockEdge      = SDMMC[hdl->major].clock_edge;
-                hdl->handle.mmc.Init.ClockPowerSave = SDMMC[hdl->major].clock_power_save;
-                hdl->handle.mmc.Init.BusWide        = SDMMC_BUS_WIDE_1B;
-                hdl->handle.mmc.Init.HardwareFlowControl = SDMMC[hdl->major]
-                                                                   .hardware_flow_ctrl;
-                hdl->handle.mmc.Init.ClockDiv = SDMMC[hdl->major].clock_div;
+                hdl->handle.mmc.Instance = SDMMC[hdl->major].instance;
+                hdl->handle.mmc.Init.ClockEdge = CLOCK_EDGE[hdl->config.clock_edge];
+                hdl->handle.mmc.Init.ClockPowerSave = hdl->config.clock_power_save;
+                hdl->handle.mmc.Init.BusWide = SDMMC_BUS_WIDE_1B;
+                hdl->handle.mmc.Init.HardwareFlowControl = hdl->config.hardware_flow_ctrl;
+                hdl->handle.mmc.Init.ClockDiv = hdl->config.clock_div;
 
                 for (int i = 0; i < 3; i++) {
                         HAL_MMC_DeInit(&hdl->handle.mmc);
@@ -705,54 +749,43 @@ static int card_initialize(SDMMC_t *hdl)
                                 }
                                 dev_dbg(hdl, "using %s mode", mode);
 
-                                if (SDMMC[hdl->major].bus_wide != SDMMC_BUS_WIDE_1B) {
-                                        u8_t bits = SDMMC[hdl->major].bus_wide ==
-                                                        SDMMC_BUS_WIDE_4B
-                                                ? 4
-                                                : 8;
+                                if (hdl->config.bus_wide != SDMMC_BUS_WIDE_1B) {
+                                        u8_t bits = hdl->config.bus_wide == SDMMC_BUS_WIDE__4BIT ? 4 : 8;
 
-                                        if (HAL_MMC_ConfigWideBusOperation(
-                                                    &hdl->handle.mmc,
-                                                    SDMMC[hdl->major].bus_wide) ==
-                                                HAL_OK) {
-                                                dev_dbg(hdl, "switched to %u-bit bus",
-                                                        bits);
+                                        if (HAL_MMC_ConfigWideBusOperation(&hdl->handle.mmc,
+                                                    BUS_WIDE[hdl->config.bus_wide]) == HAL_OK) {
+                                                dev_dbg(hdl, "switched to %u-bit bus", bits);
                                         } else {
-                                                dev_dbg(hdl, "%u-bit bus not supported",
-                                                        bits);
+                                                dev_dbg(hdl, "%u-bit bus not supported", bits);
                                         }
                                 }
 
-                                if (SDMMC[hdl->major].speed_mode !=
-                                        SDMMC_SPEED_MODE_DEFAULT) {
+                                if (hdl->config.speed_mode != SDMMC_SPEED_MODE_DEFAULT) {
 
                                         const char *speed_mode = "?";
-                                        switch (SDMMC[hdl->major].speed_mode) {
-                                        case SDMMC_SPEED_MODE_DEFAULT:
+                                        switch (hdl->config.speed_mode) {
+                                        default:
+                                        case SDMMC_SPEED_MODE__DEFAULT:
                                                 speed_mode = "default";
                                                 break;
-                                        case SDMMC_SPEED_MODE_AUTO:
+                                        case SDMMC_SPEED_MODE__AUTO:
                                                 speed_mode = "auto";
                                                 break;
-                                        case SDMMC_SPEED_MODE_HIGH:
+                                        case SDMMC_SPEED_MODE__HIGH:
                                                 speed_mode = "high";
                                                 break;
-                                        case SDMMC_SPEED_MODE_DDR:
+                                        case SDMMC_SPEED_MODE__MMC_DDR:
                                                 speed_mode = "DDR";
                                                 break;
                                         }
 
-                                        err = HAL_MMC_ConfigSpeedBusOperation(
-                                                &hdl->handle.mmc,
-                                                SDMMC[hdl->major].speed_mode);
+                                        err = HAL_MMC_ConfigSpeedBusOperation(&hdl->handle.mmc,
+                                                SPEED_MODE[hdl->config.speed_mode]);
                                         if (not err) {
-                                                dev_dbg(hdl, "switched to %s speed mode",
-                                                        speed_mode);
+                                                dev_dbg(hdl, "switched to %s speed mode", speed_mode);
                                         } else {
-                                                dev_dbg(hdl, "%s speed mode error: %d",
-                                                        speed_mode, err);
-                                                HAL_MMC_ConfigSpeedBusOperation(
-                                                        &hdl->handle.mmc,
+                                                dev_dbg(hdl, "%s speed mode error: %d", speed_mode, err);
+                                                HAL_MMC_ConfigSpeedBusOperation(&hdl->handle.mmc,
                                                         SDMMC_SPEED_MODE_DEFAULT);
                                         }
                                 }
@@ -762,15 +795,11 @@ static int card_initialize(SDMMC_t *hdl)
                                 if (!err) {
 
                                         dev_dbg(hdl, "found %s capacity MMC card",
-                                                info.CardType == MMC_LOW_CAPACITY_CARD
-                                                        ? "low"
-                                                        : "high");
+                                                info.CardType == MMC_LOW_CAPACITY_CARD ? "low" : "high");
 
-                                        dev_dbg(hdl, "%d %u-byte logical blocks",
-                                                info.BlockNbr, info.BlockSize);
+                                        dev_dbg(hdl, "%d %u-byte logical blocks", info.BlockNbr, info.BlockSize);
 
-                                        hdl->card_size = cast(u64_t, info.BlockSize) *
-                                                cast(u64_t, info.BlockNbr);
+                                        hdl->card_size = cast(u64_t, info.BlockSize) * cast(u64_t, info.BlockNbr);
                                 }
                         }
 
@@ -781,7 +810,12 @@ static int card_initialize(SDMMC_t *hdl)
                                 break;
                         }
                 }
+#else
+                dev_dbg(hdl, "MMC support not enabled!");
+                err = ENOTSUP;
 #endif
+        } else {
+                dev_dbg(hdl, "unknown device type: %d!", hdl->config.device_type);
         }
 
         return err;
@@ -798,22 +832,21 @@ static int card_initialize(SDMMC_t *hdl)
 //==============================================================================
 static int card_wait_ready(SDMMC_t *hdl)
 {
-        clock_t timeout = sys_get_uptime_ms() +
-                max(SDMMC[hdl->major].card_timeout / 10, 100);
+        clock_t timeout = sys_get_uptime_ms() + max(hdl->config.card_timeout / 10, 100);
 
         while (sys_get_uptime_ms() < timeout) {
 
-                uint32_t state          = 0;
+                uint32_t state = 0;
                 uint32_t expected_state = 0;
 
-                if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
-#if IS_SD_USING
-                        state          = HAL_SD_GetCardState(&hdl->handle.sd);
+                if (hdl->config.device_type == SDMMC_DEVICE_TYPE__SD) {
+#if SD_ENABLED
+                        state = HAL_SD_GetCardState(&hdl->handle.sd);
                         expected_state = HAL_SD_CARD_TRANSFER;
 #endif
-                } else {
-#if IS_MMC_USING
-                        state          = HAL_MMC_GetCardState(&hdl->handle.mmc);
+                } else if (hdl->config.device_type == SDMMC_DEVICE_TYPE__MMC) {
+#if MMC_ENABLED
+                        state = HAL_MMC_GetCardState(&hdl->handle.mmc);
                         expected_state = HAL_MMC_CARD_TRANSFER;
 #endif
                 }
@@ -841,12 +874,12 @@ static int card_check_sdmmc_error(SDMMC_t *hdl)
 {
         u32_t hal_err = HAL_SD_ERROR_NONE;
 
-        if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
-#if IS_SD_USING
+        if (hdl->config.device_type == SDMMC_DEVICE_TYPE__SD) {
+#if SD_ENABLED
                 hal_err = HAL_SD_GetError(&hdl->handle.sd);
 #endif
-        } else {
-#if IS_MMC_USING
+        } else if (hdl->config.device_type == SDMMC_DEVICE_TYPE__MMC) {
+#if MMC_ENABLED
                 hal_err = HAL_MMC_GetError(&hdl->handle.mmc);
 #endif
         }
@@ -937,8 +970,7 @@ static int card_check_sdmmc_error(SDMMC_t *hdl)
         }
 
         if (hal_err & HAL_SD_ERROR_STREAM_WRITE_OVERRUN) {
-                dev_dbg(hdl,
-                        "The card could not sustain data programming in stream mode", );
+                dev_dbg(hdl, "The card could not sustain data programming in stream mode", );
         }
 
         if (hal_err & HAL_SD_ERROR_CID_CSD_OVERWRITE) {
@@ -1012,23 +1044,20 @@ static int card_check_sdmmc_error(SDMMC_t *hdl)
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-static int card_write_blocks(SDMMC_t *hdl, const u8_t *src, uint32_t block_address,
-        uint32_t blocks)
+static int card_write_blocks(SDMMC_t *hdl, const u8_t *src, uint32_t block_address, uint32_t blocks)
 {
         int err = EFAULT;
 
-        if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
-#if IS_SD_USING
-                err = HAL_SD_WriteBlocks(&hdl->handle.sd, src, block_address, blocks,
-                        SDMMC[hdl->major].card_timeout);
+        if (hdl->config.device_type == SDMMC_DEVICE_TYPE__SD) {
+#if SD_ENABLED
+                err = HAL_SD_WriteBlocks(&hdl->handle.sd, src, block_address, blocks, hdl->config.card_timeout);
                 if (err) {
                         err = card_check_sdmmc_error(hdl);
                 }
 #endif
-        } else {
-#if IS_MMC_USING
-                err = HAL_MMC_WriteBlocks(&hdl->handle.mmc, src, block_address, blocks,
-                        SDMMC[hdl->major].card_timeout);
+        } else if (hdl->config.device_type == SDMMC_DEVICE_TYPE__MMC) {
+#if MMC_ENABLED
+                err = HAL_MMC_WriteBlocks(&hdl->handle.mmc, src, block_address, blocks, hdl->config.card_timeout);
                 if (err) {
                         err = card_check_sdmmc_error(hdl);
                 }
@@ -1051,25 +1080,22 @@ static int card_write_blocks(SDMMC_t *hdl, const u8_t *src, uint32_t block_addre
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-static int card_write_blocks_IT(SDMMC_t *hdl, const u8_t *src, uint32_t block_address,
-        uint32_t blocks)
+static int card_write_blocks_IT(SDMMC_t *hdl, const u8_t *src, uint32_t block_address, uint32_t blocks)
 {
         int err = EFAULT;
 
-        if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
-#if IS_SD_USING
+        if (hdl->config.device_type == SDMMC_DEVICE_TYPE__SD) {
+#if SD_ENABLED
                 err = HAL_SD_WriteBlocks_IT(&hdl->handle.sd, src, block_address, blocks);
 #endif
-        } else {
-#if IS_MMC_USING
-                err = HAL_MMC_WriteBlocks_IT(&hdl->handle.mmc, src, block_address,
-                        blocks);
+        } else if (hdl->config.device_type == SDMMC_DEVICE_TYPE__MMC) {
+#if MMC_ENABLED
+                err = HAL_MMC_WriteBlocks_IT(&hdl->handle.mmc, src, block_address, blocks);
 #endif
         }
 
         if (!err) {
-                err = sys_semaphore_wait(hdl->sem_xfer_complete,
-                        SDMMC[hdl->major].card_timeout);
+                err = sys_semaphore_wait(hdl->sem_xfer_complete, hdl->config.card_timeout);
                 if (err) {
                         dev_dbg(hdl, "write timeout");
                         card_check_sdmmc_error(hdl);
@@ -1096,44 +1122,36 @@ static int card_write_blocks_IT(SDMMC_t *hdl, const u8_t *src, uint32_t block_ad
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-static int card_write_blocks_DMA(SDMMC_t *hdl, const u8_t *src, uint32_t block_address,
-        uint32_t blocks)
+static int card_write_blocks_DMA(SDMMC_t *hdl, const u8_t *src, uint32_t block_address, uint32_t blocks)
 {
         int err = EFAULT;
 
-        bool mem_dma = sys_is_mem_dma_capable(src) &&
-                (((uintptr_t)src % _HEAP_ALIGN_) == 0);
+        bool mem_dma = sys_is_mem_dma_capable(src) && (((uintptr_t)src % _HEAP_ALIGN_) == 0);
 
         if (mem_dma) {
-                _cpuctl_clean_invalidate_dcache_by_addr(const_cast(src),
-                        blocks * SDMMC_BLOCKSIZE);
+                _cpuctl_clean_invalidate_dcache_by_addr(const_cast(src), blocks * SDMMC_BLOCKSIZE);
         }
 
-        if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
-#if IS_SD_USING
+        if (hdl->config.device_type == SDMMC_DEVICE_TYPE__SD) {
+#if SD_ENABLED
                 if (mem_dma) {
-                        err = HAL_SD_WriteBlocks_DMA(&hdl->handle.sd, src, block_address,
-                                blocks);
+                        err = HAL_SD_WriteBlocks_DMA(&hdl->handle.sd, src, block_address, blocks);
                 } else {
-                        err = HAL_SD_WriteBlocks_IT(&hdl->handle.sd, src, block_address,
-                                blocks);
+                        err = HAL_SD_WriteBlocks_IT(&hdl->handle.sd, src, block_address, blocks);
                 }
 #endif
-        } else {
-#if IS_MMC_USING
+        } else if (hdl->config.device_type == SDMMC_DEVICE_TYPE__MMC) {
+#if MMC_ENABLED
                 if (mem_dma) {
-                        err = HAL_MMC_WriteBlocks_DMA(&hdl->handle.mmc, src,
-                                block_address, blocks);
+                        err = HAL_MMC_WriteBlocks_DMA(&hdl->handle.mmc, src, block_address, blocks);
                 } else {
-                        err = HAL_MMC_WriteBlocks_IT(&hdl->handle.mmc, src, block_address,
-                                blocks);
+                        err = HAL_MMC_WriteBlocks_IT(&hdl->handle.mmc, src, block_address, blocks);
                 }
 #endif
         }
 
         if (!err) {
-                err = sys_semaphore_wait(hdl->sem_xfer_complete,
-                        SDMMC[hdl->major].card_timeout);
+                err = sys_semaphore_wait(hdl->sem_xfer_complete, hdl->config.card_timeout);
                 if (err) {
                         dev_dbg(hdl, "write timeout");
                         card_check_sdmmc_error(hdl);
@@ -1159,20 +1177,17 @@ static int card_write_blocks_DMA(SDMMC_t *hdl, const u8_t *src, uint32_t block_a
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-static int card_read_blocks(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
-        uint32_t blocks)
+static int card_read_blocks(SDMMC_t *hdl, u8_t *dst, uint32_t block_address, uint32_t blocks)
 {
         int err = EFAULT;
 
-        if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
-#if IS_SD_USING
-                err = HAL_SD_ReadBlocks(&hdl->handle.sd, dst, block_address, blocks,
-                        SDMMC[hdl->major].card_timeout);
+        if (hdl->config.device_type == SDMMC_DEVICE_TYPE__SD) {
+#if SD_ENABLED
+                err = HAL_SD_ReadBlocks(&hdl->handle.sd, dst, block_address, blocks, hdl->config.card_timeout);
 #endif
-        } else {
-#if IS_MMC_USING
-                err = HAL_MMC_ReadBlocks(&hdl->handle.mmc, dst, block_address, blocks,
-                        SDMMC[hdl->major].card_timeout);
+        } else if (hdl->config.device_type == SDMMC_DEVICE_TYPE__MMC) {
+#if MMC_ENABLED
+                err = HAL_MMC_ReadBlocks(&hdl->handle.mmc, dst, block_address, blocks, hdl->config.card_timeout);
 #endif
         }
 
@@ -1196,24 +1211,22 @@ static int card_read_blocks(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-static int card_read_blocks_IT(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
-        uint32_t blocks)
+static int card_read_blocks_IT(SDMMC_t *hdl, u8_t *dst, uint32_t block_address, uint32_t blocks)
 {
         int err = EFAULT;
 
-        if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
-#if IS_SD_USING
+        if (hdl->config.device_type == SDMMC_DEVICE_TYPE__SD) {
+#if SD_ENABLED
                 err = HAL_SD_ReadBlocks_IT(&hdl->handle.sd, dst, block_address, blocks);
 #endif
-        } else {
-#if IS_MMC_USING
+        } else if (hdl->config.device_type == SDMMC_DEVICE_TYPE__MMC) {
+#if MMC_ENABLED
                 err = HAL_MMC_ReadBlocks_IT(&hdl->handle.mmc, dst, block_address, blocks);
 #endif
         }
 
         if (!err) {
-                err = sys_semaphore_wait(hdl->sem_xfer_complete,
-                        SDMMC[hdl->major].card_timeout);
+                err = sys_semaphore_wait(hdl->sem_xfer_complete, hdl->config.card_timeout);
                 if (err) {
                         dev_dbg(hdl, "read timeout");
                         card_check_sdmmc_error(hdl);
@@ -1239,39 +1252,32 @@ static int card_read_blocks_IT(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-static int card_read_blocks_DMA(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
-        uint32_t blocks)
+static int card_read_blocks_DMA(SDMMC_t *hdl, u8_t *dst, uint32_t block_address, uint32_t blocks)
 {
         int err = EFAULT;
 
-        bool mem_dma = sys_is_mem_dma_capable(dst) &&
-                (((uintptr_t)dst % _HEAP_ALIGN_) == 0);
+        bool mem_dma = sys_is_mem_dma_capable(dst) && (((uintptr_t)dst % _HEAP_ALIGN_) == 0);
 
-        if (SDMMC[hdl->major].card_type == _SDMMC_TYPE_SDCARD) {
-#if IS_SD_USING
+        if (hdl->config.device_type == SDMMC_DEVICE_TYPE__SD) {
+#if SD_ENABLED
                 if (mem_dma) {
-                        err = HAL_SD_ReadBlocks_DMA(&hdl->handle.sd, dst, block_address,
-                                blocks);
+                        err = HAL_SD_ReadBlocks_DMA(&hdl->handle.sd, dst, block_address, blocks);
                 } else {
-                        err = HAL_SD_ReadBlocks_IT(&hdl->handle.sd, dst, block_address,
-                                blocks);
+                        err = HAL_SD_ReadBlocks_IT(&hdl->handle.sd, dst, block_address, blocks);
                 }
 #endif
-        } else {
-#if IS_MMC_USING
+        } else if (hdl->config.device_type == SDMMC_DEVICE_TYPE__MMC) {
+#if MMC_ENABLED
                 if (mem_dma) {
-                        err = HAL_MMC_ReadBlocks_DMA(&hdl->handle.mmc, dst, block_address,
-                                blocks);
+                        err = HAL_MMC_ReadBlocks_DMA(&hdl->handle.mmc, dst, block_address, blocks);
                 } else {
-                        err = HAL_MMC_ReadBlocks_IT(&hdl->handle.mmc, dst, block_address,
-                                blocks);
+                        err = HAL_MMC_ReadBlocks_IT(&hdl->handle.mmc, dst, block_address, blocks);
                 }
 #endif
         }
 
         if (!err) {
-                err = sys_semaphore_wait(hdl->sem_xfer_complete,
-                        SDMMC[hdl->major].card_timeout);
+                err = sys_semaphore_wait(hdl->sem_xfer_complete, hdl->config.card_timeout);
                 if (err) {
                         dev_dbg(hdl, "read timeout");
                         card_check_sdmmc_error(hdl);
@@ -1372,7 +1378,7 @@ void HAL_MMC_MspDeInit(MMC_HandleTypeDef *hmmc)
         HAL_SDMMC_MspDeInit(hmmc->CtxPtr);
 }
 
-#if IS_SD_USING
+#if SD_ENABLED
 //==============================================================================
 /**
  * @brief  Rx complete callback.
@@ -1413,7 +1419,7 @@ void HAL_SD_ErrorCallback(SD_HandleTypeDef *hsd)
 }
 #endif
 
-#if IS_MMC_USING
+#if MMC_ENABLED
 //==============================================================================
 /**
  * @brief  Rx complete callback.
@@ -1463,12 +1469,12 @@ void HAL_MMC_ErrorCallback(MMC_HandleTypeDef *hmmc)
 void SDMMC1_IRQHandler(void)
 {
         if (sdmmc[SDMMC_1]) {
-                if (SDMMC[SDMMC_1].card_type == _SDMMC_TYPE_SDCARD) {
-#if IS_SD_USING
+                if (sdmmc[SDMMC_1]->config.device_type == SDMMC_DEVICE_TYPE__SD) {
+#if SD_ENABLED
                         HAL_SD_IRQHandler(&sdmmc[SDMMC_1]->handle.sd);
 #endif
-                } else {
-#if IS_MMC_USING
+                } else if (sdmmc[SDMMC_1]->config.device_type == SDMMC_DEVICE_TYPE__MMC) {
+#if MMC_ENABLED
                         HAL_MMC_IRQHandler(&sdmmc[SDMMC_1]->handle.mmc);
 #endif
                 }
@@ -1487,12 +1493,12 @@ void SDMMC1_IRQHandler(void)
 void SDMMC2_IRQHandler(void)
 {
         if (sdmmc[SDMMC_2]) {
-                if (SDMMC[SDMMC_2].card_type == _SDMMC_TYPE_SDCARD) {
-#if IS_SD_USING
+                if (sdmmc[SDMMC_2]->config.device_type == SDMMC_DEVICE_TYPE__SD) {
+#if SD_ENABLED
                         HAL_SD_IRQHandler(&sdmmc[SDMMC_2]->handle.sd);
 #endif
-                } else {
-#if IS_MMC_USING
+                } else if (sdmmc[SDMMC_2]->config.device_type == SDMMC_DEVICE_TYPE__MMC) {
+#if MMC_ENABLED
                         HAL_MMC_IRQHandler(&sdmmc[SDMMC_2]->handle.mmc);
 #endif
                 }

@@ -1244,6 +1244,38 @@ int tty_ucs4_to_utf8(int32_t ucs4, char *utf8)
         return -1;
 }
 
+//==============================================================================
+/**
+ * @brief  Calculate size of utf8 code of selected UCS4 character.
+ *
+ * @param  ucs4         ucs4 character
+ *
+ * @return Size of UTF8 code, negative on error.
+ */
+//==============================================================================
+int tty_ucs4_to_utf8_size(int32_t ucs4)
+{
+        REJECT_FFFF(ucs4);
+
+        if (ucs4 < 0x80) {
+                return 1;
+        }
+
+        if (ucs4 < 0x800) {
+                return 2;
+        }
+
+        if (ucs4 < 0xFFFF) {
+                return 3;
+        }
+
+        if (ucs4 <= UNICODE_UTF8_4) {
+                return 4;
+        }
+
+        return -1;
+}
+
 /*==============================================================================
   End of file
 ==============================================================================*/

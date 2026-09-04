@@ -117,6 +117,7 @@ extern bool ttycmd_is_idle(ttycmd_t *);
 
 extern int32_t tty_utf8_to_ucs4(const char **text, size_t len);
 extern int tty_ucs4_to_utf8(int32_t ucs4, char *utf8);
+extern int tty_ucs4_to_utf8_size(int32_t ucs4);
 
 /*==============================================================================
   Exported inline functions
