@@ -26,7 +26,7 @@
 
 ==============================================================================*/
 
-#pragma GCC optimize("Ofast")
+#pragma GCC optimize("O3")
 
 /*==============================================================================
   Include files
@@ -63,15 +63,15 @@ static bool assert_hook_suspend;
 #endif
 
 static StaticTask_t xIdleTaskTCB[_CPUCTL_CORE_NUM];
-static StackType_t  uxIdleTaskStack[_CPUCTL_CORE_NUM][_STACK_DEPTH_MINIMAL];
+static StackType_t uxIdleTaskStack[_CPUCTL_CORE_NUM][_STACK_DEPTH_MINIMAL];
 
 /*==============================================================================
   Exported object definitions
 ==============================================================================*/
-u32_t              _uptime_counter_sec = 0;
-u64_t              _tick_counter       = 0;
+u32_t _uptime_counter_sec = 0;
+u64_t _tick_counter = 0;
 extern _process_t *_kernel_panic_trap_proc;
-extern CPU_load_t  CPU_load[_CPUCTL_CORE_NUM];
+extern CPU_load_t CPU_load[_CPUCTL_CORE_NUM];
 
 /*==============================================================================
   Function definitions
@@ -178,9 +178,8 @@ void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackTyp
  * @return ?
  */
 //==============================================================================
-void vApplicationGetPassiveIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
-        StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize,
-        BaseType_t xPassiveIdleTaskIndex)
+void vApplicationGetPassiveIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer,
+        uint32_t *pulIdleTaskStackSize, BaseType_t xPassiveIdleTaskIndex)
 {
         BaseType_t cpu_id = xPassiveIdleTaskIndex + 1;
 

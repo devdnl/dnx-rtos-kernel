@@ -26,7 +26,7 @@
 
 ==============================================================================*/
 
-#pragma GCC optimize("Ofast")
+#pragma GCC optimize("O3")
 
 /*==============================================================================
   Include files
@@ -54,7 +54,7 @@
 #define FS_CACHE_SYNC_PERIOD_MS (1000 * __OS_SYSTEM_CACHE_SYNC_PERIOD__)
 
 /* Stack size declared by linker script */
-#define STACK_SIZE ((size_t) & __stack_size - 512)
+#define STACK_SIZE ((size_t)&__stack_size - 512)
 
 /* Stack start declared by linker script */
 #define STACK_START ((void *)&__stack_start)
@@ -73,18 +73,18 @@
 static _mm_region_t stack_region;
 
 static const _process_attr_t kworker_attr = {
-        .at_init      = NULL,
-        .at_init_ctx  = NULL,
-        .cwd          = "/",
+        .at_init = NULL,
+        .at_init_ctx = NULL,
+        .cwd = "/",
         .app_ctx_size = 128,
-        .fd_stdin     = -1,
-        .fd_stdout    = -1,
-        .fd_stderr    = -1,
-        .p_stdin      = NULL,
-        .p_stdout     = NULL,
-        .p_stderr     = NULL,
-        .priority     = _PRIORITY_NORMAL,
-        .detached     = true,
+        .fd_stdin = -1,
+        .fd_stdout = -1,
+        .fd_stderr = -1,
+        .p_stdin = NULL,
+        .p_stdout = NULL,
+        .p_stderr = NULL,
+        .priority = _PRIORITY_NORMAL,
+        .detached = true,
 };
 
 /*==============================================================================

@@ -43,6 +43,7 @@ The library contains system types.
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdalign.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,6 +52,15 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
+#define char_aligned_t   char alignas(int)
+#define uint_aligned8_t  uint8_t alignas(int)
+#define int_aligned8_t   int8_t alignas(int)
+#define uint_aligned16_t uint16_t alignas(int)
+#define int_aligned16_t  int16_t alignas(int)
+#define uint_aligned32_t uint16_t alignas(uint32_t)
+#define int_aligned32_t  int16_t alignas(uint32_t)
+#define uint_aligned64_t uint16_t alignas(uint64_t)
+#define int_aligned64_t  int16_t alignas(uint64_t)
 
 /*==============================================================================
   Exported object types

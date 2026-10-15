@@ -532,7 +532,13 @@ static int eth_start(struct eth *hdl)
                                 ? ETH_MODE_FULLDUPLEX
                                 : ETH_MODE_HALFDUPLEX;
                         hdl->eth.Init.RxMode = ETH_RXINTERRUPT_MODE;
+
+                        /*
+                         * NOTE: software MUST set checksum value to 0 for all packets: IPv4, TCP, UDP, ICMP
+                         *       If checksum is calculated by software then 0 value is send to cable!
+                         */
                         hdl->eth.Init.ChecksumMode = ETH_CHECKSUM_BY_HARDWARE;
+
                         hdl->eth.Init.PhyAddress = __ETH_PHY_ADDRESS__;
 
                         err = HAL_ETH_Init(&hdl->eth);

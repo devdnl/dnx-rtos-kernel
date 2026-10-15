@@ -26,7 +26,7 @@
 
 ==============================================================================*/
 
-#pragma GCC optimize("Ofast")
+#pragma GCC optimize("O3")
 
 /*==============================================================================
   Include files
@@ -57,20 +57,20 @@
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define GETARG(type, var)          type var = va_arg(rq->args, type)
-#define LOADARG(type)              va_arg(rq->args, type)
-#define GETRETURN(type, var)       type var = rq->retptr
-#define GETTASKHDL()               rq->task
-#define GETPROCESS()               (rq->client_proc)
-#define GETTHREAD(_tid)            _process_thread_get_container(GETPROCESS(), _tid)
-#define UNUSED_RQ()                UNUSED_ARG1(rq)
+#define GETARG(type, var)    type var = va_arg(rq->args, type)
+#define LOADARG(type)        va_arg(rq->args, type)
+#define GETRETURN(type, var) type var = rq->retptr
+#define GETTASKHDL()         rq->task
+#define GETPROCESS()         (rq->client_proc)
+#define GETTHREAD(_tid)      _process_thread_get_container(GETPROCESS(), _tid)
+#define UNUSED_RQ()          UNUSED_ARG1(rq)
 
 #define is_proc_valid(proc)        (_mm_is_object_in_heap(proc) && ((res_header_t *)proc)->type == RES_TYPE_PROCESS)
 #define is_tid_in_range(proc, tid) (tid < _process_get_max_threads(proc))
 
-#define STDIN_FD                   0
-#define STDOUT_FD                  1
-#define STDERR_FD                  2
+#define STDIN_FD  0
+#define STDOUT_FD 1
+#define STDERR_FD 2
 
 /*==============================================================================
   Local object types
@@ -483,7 +483,7 @@ static const syscallfunc_t syscalltab[] = {
 /*==============================================================================
   Exported objects
 ==============================================================================*/
-const char *const dnx_RTOS_version = "3.9.4";
+const char *const dnx_RTOS_version = "3.10.0";
 const char *const dnx_RTOS_name = "dnx RTOS";
 const char *const dnx_RTOS_commit_hash = COMMIT_HASH;
 const char *const dnx_RTOS_platform_name = _CPUCTL_PLATFORM_NAME;
@@ -962,8 +962,7 @@ static int syscall_open(syscallrq_t *rq)
                 kfile_t *file;
                 err = _vfs_fopen(&path, *flags, *mode, &file);
                 if (!err) {
-                        err = _process_descriptor_allocate(GETPROCESS(), &desc, &file->header,
-                                *flags & O_SHARED);
+                        err = _process_descriptor_allocate(GETPROCESS(), &desc, &file->header, *flags & O_SHARED);
                         if (err) {
                                 _vfs_fclose(file);
                         } else {
@@ -2299,8 +2298,7 @@ static int syscall_netaccept(syscallrq_t *rq)
                 ksocket_t *socknew;
                 err = _net_socket_accept(res->self, &socknew);
                 if (!err) {
-                        err = _process_descriptor_allocate(GETPROCESS(), new_fd,
-                                cast(res_header_t *, socknew), false);
+                        err = _process_descriptor_allocate(GETPROCESS(), new_fd, cast(res_header_t *, socknew), false);
                         if (err) {
                                 _net_socket_destroy(socknew);
                         }

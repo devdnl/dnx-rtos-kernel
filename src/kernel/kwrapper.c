@@ -26,7 +26,7 @@
 
 ==============================================================================*/
 
-#pragma GCC optimize("Ofast")
+#pragma GCC optimize("O3")
 
 /*==============================================================================
   Include files
@@ -79,8 +79,8 @@ extern u64_t _tick_counter;
 //==============================================================================
 static bool is_semaphore_valid(ksem_t *sem)
 {
-        return _mm_is_object_in_heap(sem) && (sem->header.self == sem) &&
-                (sem->header.type == RES_TYPE_SEMAPHORE) && sem->object;
+        return _mm_is_object_in_heap(sem) && (sem->header.self == sem) && (sem->header.type == RES_TYPE_SEMAPHORE) &&
+                sem->object;
 }
 
 //==============================================================================
@@ -92,8 +92,8 @@ static bool is_semaphore_valid(ksem_t *sem)
 //==============================================================================
 static bool is_mutex_valid(kmtx_t *mtx)
 {
-        return _mm_is_object_in_heap(mtx) && (mtx->header.self == mtx) &&
-                (mtx->header.type == RES_TYPE_MUTEX) && mtx->object;
+        return _mm_is_object_in_heap(mtx) && (mtx->header.self == mtx) && (mtx->header.type == RES_TYPE_MUTEX) &&
+                mtx->object;
 }
 
 //==============================================================================
@@ -131,8 +131,8 @@ static bool is_queue_valid(kqueue_t *queue)
 //==============================================================================
 static bool is_flag_valid(kflag_t *flag)
 {
-        return _mm_is_object_in_heap(flag) && (flag->header.self == flag) &&
-                (flag->header.type == RES_TYPE_FLAG) && flag->object;
+        return _mm_is_object_in_heap(flag) && (flag->header.self == flag) && (flag->header.type == RES_TYPE_FLAG) &&
+                flag->object;
 }
 
 //==============================================================================
@@ -267,9 +267,8 @@ int _task_create(task_func_t func, const char *name, const size_t stack_depth, v
                         vTaskPrioritySet(_THIS_TASK, configMAX_PRIORITIES - 1);
                 }
 
-                UBaseType_t child_priority = parent_priority == (configMAX_PRIORITIES - 1)
-                        ? parent_priority - 1
-                        : parent_priority;
+                UBaseType_t child_priority = parent_priority == (configMAX_PRIORITIES - 1) ? parent_priority - 1
+                                                                                           : parent_priority;
 
                 TaskHandle_t tsk = NULL;
                 if (xTaskCreate(func, name, stack_depth, argv, child_priority, &tsk) == pdPASS) {
@@ -553,8 +552,7 @@ int _semaphore_create(size_t cnt_max, size_t cnt_init, ksem_t **sem)
                                         }
                                 }
                         } else {
-                                (*sem)->object = xSemaphoreCreateCountingStatic(cnt_max, cnt_init,
-                                        &(*sem)->buffer);
+                                (*sem)->object = xSemaphoreCreateCountingStatic(cnt_max, cnt_init, &(*sem)->buffer);
                         }
 
                         if ((*sem)->object) {
@@ -1179,8 +1177,8 @@ int _queue_create(size_t length, size_t item_size, kqueue_t **queue)
                 err = _kzalloc(_MM_KRN, sizeof(kqueue_t) + (length * item_size), _cpuctl_fast_mem, 0, 0,
                         cast(void **, queue));
                 if (err == ESUCC) {
-                        (*queue)->object = xQueueCreateStatic(length, item_size,
-                                cast(uint8_t *, &(*queue)[1]), &(*queue)->buffer);
+                        (*queue)->object = xQueueCreateStatic(length, item_size, cast(uint8_t *, &(*queue)[1]),
+                                &(*queue)->buffer);
                         if ((*queue)->object) {
                                 (*queue)->header.self = *queue;
                                 (*queue)->header.type = RES_TYPE_QUEUE;
