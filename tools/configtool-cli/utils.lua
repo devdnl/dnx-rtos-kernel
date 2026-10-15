@@ -33,6 +33,11 @@
 --==============================================================================
 local cwd = ""
 
+-- runtime modes used by the command line (non-interactive) operations
+local headless = false -- dialog windows are not shown
+local quiet = false -- messages are not printed
+local readonly = false -- files are not modified (KeyWrite() does nothing)
+
 --==============================================================================
 -- LOCAL FUNCTIONS
 --==============================================================================
@@ -157,6 +162,97 @@ function GetConfigPath()
 end
 
 --------------------------------------------------------------------------------
+-- @brief  Enable/disable headless mode (no dialog windows, used by CLI).
+-- @param  enable       true to enable
+-- @return None
+--------------------------------------------------------------------------------
+function SetHeadlessMode(enable)
+    headless = enable == true
+end
+
+--------------------------------------------------------------------------------
+-- @brief  Check if headless mode is enabled.
+-- @return true if enabled
+--------------------------------------------------------------------------------
+function IsHeadlessMode()
+    return headless
+end
+
+--------------------------------------------------------------------------------
+-- @brief  Enable/disable quiet mode (messages are not printed).
+-- @param  enable       true to enable
+-- @return None
+--------------------------------------------------------------------------------
+function SetQuietMode(enable)
+    quiet = enable == true
+end
+
+--------------------------------------------------------------------------------
+-- @brief  Check if quiet mode is enabled.
+-- @return true if enabled
+--------------------------------------------------------------------------------
+function IsQuietMode()
+    return quiet
+end
+
+--------------------------------------------------------------------------------
+-- @brief  Enable/disable read-only mode (KeyWrite() does not modify files).
+-- @param  enable       true to enable
+-- @return None
+--------------------------------------------------------------------------------
+function SetReadOnlyMode(enable)
+    readonly = enable == true
+end
+
+--------------------------------------------------------------------------------
+-- @brief  Check if read-only mode is enabled.
+-- @return true if enabled
+--------------------------------------------------------------------------------
+function IsReadOnlyMode()
+    return readonly
+end
+
+--------------------------------------------------------------------------------
+-- @brief  Normalize path: unix separators, without "." and "dir/.." parts and
+--         without trailing slash.
+-- @param  path     path
+-- @return Normalized path.
+--------------------------------------------------------------------------------
+function NormalizePath(path)
+    path = Dos2UnixFilename(path)
+
+    local absolute = path:sub(1, 1) == "/"
+    local parts = {}
+
+    for part in path:gmatch("[^/]+") do
+        if part == "." then
+            -- skip
+        elseif part == ".." and #parts > 0 and parts[#parts] ~= ".." then
+            table.remove(parts)
+        else
+            table.insert(parts, part)
+        end
+    end
+
+    return (absolute and "/" or "") .. table.concat(parts, "/")
+end
+
+--------------------------------------------------------------------------------
+-- @brief  Check if file exists.
+-- @param  path     file path
+-- @return true if exists
+--------------------------------------------------------------------------------
+function FileExists(path)
+    local file = io.open(path, "rb")
+    if file then
+        file:close()
+        return true
+    end
+
+    return false
+end
+
+--------------------------------------------------------------------------------
 -- @brief  Function shows error dialog. Function kills entire wizard.
 -- @param  title        window title
 -- @param  caption      window caption
@@ -165,7 +261,9 @@ end
 -- @return None
 --------------------------------------------------------------------------------
 function ShowErrorMessage(title, caption, doexit)
-    print(title, caption)
+    if not quiet then
+        print(title, caption)
+    end
 
     if doexit ~= false then
         os.exit(0)
@@ -180,7 +278,9 @@ end
 -- @return None
 --------------------------------------------------------------------------------
 function ShowInfoMessage(title, caption)
-    print(title, caption)
+    if not quiet then
+        print(title, caption)
+    end
 end
 
 --------------------------------------------------------------------------------
@@ -214,6 +314,11 @@ function KeyWrite(filename, key, value)
             false,
             "KeyWrite(): Invalid type of 'key' <" .. type(key) .. ">\n" .. "'key' shall be the table or string."
         )
+    end
+
+    -- files are not modified in read-only mode
+    if readonly then
+        return true
     end
 
     -- read and modify file
@@ -734,6 +839,11 @@ table.load = LoadTable
 -- @return None
 --------------------------------------------------------------------------------
 function RunDialog(command)
+    -- no dialog windows in headless mode (command line operations)
+    if headless then
+        return false, ""
+    end
+
     local full_cmd = "dialog " .. command .. " --stdout"
     local handle = io.popen(full_cmd)
     if handle == nil then

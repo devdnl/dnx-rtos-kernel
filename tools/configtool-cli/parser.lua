@@ -54,11 +54,19 @@ end
 -- @return None
 --------------------------------------------------------------------------------
 local function PrintError(self, msg)
-    print(GetErrorMsg(self, msg))
-    ShowErrorMessage("Parsing error", GetErrorMsg(self, msg), false)
+    self._ErrorCount = self._ErrorCount + 1
 
-    local scr = '--title "Script error!" --msgbox ' .. "'\n" .. msg .. "' 0 0"
-    RunDialog(scr)
+    if IsHeadlessMode() then
+        if not IsQuietMode() then
+            io.stderr:write(GetErrorMsg(self, msg), "\n")
+        end
+    else
+        print(GetErrorMsg(self, msg))
+        ShowErrorMessage("Parsing error", GetErrorMsg(self, msg), false)
+
+        local scr = '--title "Script error!" --msgbox ' .. "'\n" .. msg .. "' 0 0"
+        RunDialog(scr)
+    end
 
     self._script.finish = true
 end
@@ -69,11 +77,17 @@ end
 -- @return None
 --------------------------------------------------------------------------------
 local function PrintWarning(self, msg)
-    print(GetWarningMsg(self, msg))
-    ShowInfoMessage("Parsing warning", GetWarningMsg(self, msg))
+    if IsHeadlessMode() then
+        if not IsQuietMode() then
+            io.stderr:write(GetWarningMsg(self, msg), "\n")
+        end
+    else
+        print(GetWarningMsg(self, msg))
+        ShowInfoMessage("Parsing warning", GetWarningMsg(self, msg))
 
-    local scr = '--title "Script warning!" --msgbox ' .. "'\n" .. msg .. "' 10 40"
-    RunDialog(scr)
+        local scr = '--title "Script warning!" --msgbox ' .. "'\n" .. msg .. "' 10 40"
+        RunDialog(scr)
+    end
 end
 
 --------------------------------------------------------------------------------
@@ -83,8 +97,13 @@ end
 --------------------------------------------------------------------------------
 local function ParserAssert(self, test, msg)
     if test == false then
-        print(GetErrorMsg(self, msg))
-        os.exit()
+        if IsHeadlessMode() then
+            -- error is caught by ExecuteScript() and reported as script error
+            error(msg, 0)
+        else
+            print(GetErrorMsg(self, msg))
+            os.exit()
+        end
     end
 end
 
@@ -303,12 +322,13 @@ local function ManageGUI(self, startEntry)
 end
 
 --------------------------------------------------------------------------------
--- @brief  Function parse selected file
+-- @brief  Function read selected file and execute all scripts (creates flags,
+--         widgets and events). No GUI is shown.
 -- @param  self         class object
--- @param  startEntry   start entry
--- @return None
+-- @return nil if file does not exist, true if no error occurred, false if
+--         script error occurred.
 --------------------------------------------------------------------------------
-local function RunParser(self, startEntry)
+local function LoadScripts(self)
     _SCRIPT_SELF = self._script
 
     self._ui = {}
@@ -316,6 +336,7 @@ local function RunParser(self, startEntry)
     local file = io.open(GetConfigPath() .. self._FileName, "rb")
     if file == nil then
         PrintError(self, "File not exist: " .. self._FileName)
+        _SCRIPT_SELF = nil
         return nil
     end
 
@@ -329,14 +350,18 @@ local function RunParser(self, startEntry)
             self._CurrentFlag = currentFlag
 
             if self._CurrentFlag ~= nil or value ~= nil then
-                self._Flag[self._CurrentFlag] = {}
-                self._Flag[self._CurrentFlag].Value = value
-                self._Flag[self._CurrentFlag].OrginalValue = value
-                self._Flag[self._CurrentFlag].GetValue = function()
-                    return self._Flag[self._CurrentFlag].Value
+                -- flag object captured by closures (self._CurrentFlag changes
+                -- with each next #define, so it cannot be used inside them)
+                local flag = {}
+                self._Flag[self._CurrentFlag] = flag
+                flag.Value = value
+                flag.OrginalValue = value
+                flag.Defined = true
+                flag.GetValue = function()
+                    return flag.Value
                 end
-                self._Flag[self._CurrentFlag].SetValue = function(value)
-                    self._Flag[self._CurrentFlag].Value = value
+                flag.SetValue = function(value)
+                    flag.Value = value
                 end
 
                 script = ExecuteScript(self, script)
@@ -372,6 +397,20 @@ local function RunParser(self, startEntry)
     file:close()
 
     _SCRIPT_SELF = nil
+
+    return self._ErrorCount == 0
+end
+
+--------------------------------------------------------------------------------
+-- @brief  Function parse selected file
+-- @param  self         class object
+-- @param  startEntry   start entry
+-- @return None
+--------------------------------------------------------------------------------
+local function RunParser(self, startEntry)
+    if LoadScripts(self) == nil then
+        return nil
+    end
 
     if self._ui then
         return ManageGUI(self, startEntry)
@@ -788,7 +827,13 @@ end
 local function Debug(this, msg)
     local self = this.self
 
-    RunDialog("--title Debug --msgbox '" .. msg .. "' 0 0")
+    if IsHeadlessMode() then
+        if not IsQuietMode() then
+            io.stderr:write("[Debug] " .. tostring(self._FileName) .. ": " .. tostring(msg), "\n")
+        end
+    else
+        RunDialog("--title Debug --msgbox '" .. msg .. "' 0 0")
+    end
 end
 
 --------------------------------------------------------------------------------
@@ -1058,6 +1103,321 @@ local function IsModified(self)
     return false
 end
 
+--============================================================================--
+-- HEADLESS (COMMAND LINE) OPERATIONS
+--============================================================================--
+--------------------------------------------------------------------------------
+-- @brief  Find widget that represents selected flag.
+-- @param  self         parser
+-- @param  flag         flag object
+-- @return Widget or nil.
+--------------------------------------------------------------------------------
+local function FindWidget(self, flag)
+    for _, w in ipairs(self._ui) do
+        if w.flag == flag then
+            return w
+        end
+    end
+
+    return nil
+end
+
+--------------------------------------------------------------------------------
+-- @brief  Set flag value the same way as user does it in the TUI: value is
+--         validated according to widget type and "clicked" event is called.
+-- @param  self         parser (scripts must be loaded)
+-- @param  key          flag name (or extra widget name)
+-- @param  value        new value
+-- @return true on success, otherwise false and error message.
+--------------------------------------------------------------------------------
+local function ApplyValue(self, key, value)
+    local flag = self._Flag[key]
+    if flag == nil then
+        return false, "key '" .. key .. "' does not exist in file '" .. self._FileName .. "'"
+    end
+
+    local w = FindWidget(self, flag)
+    local wtype = w and w.WidgetType
+
+    if wtype == "Combobox" then
+        if flag.Item:GetIdxByValue(value) == 0 then
+            -- item name (text visible in TUI) is accepted as well
+            local idx = flag.Item:GetIdxByName(value)
+            if idx > 0 then
+                value = flag.Item:GetValueByIdx(idx)
+            else
+                local allowed = {}
+                for i = 1, flag.Item:GetCount() do
+                    table.insert(
+                        allowed,
+                        "  " .. flag.Item:GetValueByIdx(i) .. "  (" .. flag.Item:GetNameByIdx(i) .. ")"
+                    )
+                end
+
+                return false,
+                    "value '"
+                        .. value
+                        .. "' is not allowed for '"
+                        .. key
+                        .. "' ("
+                        .. w.text
+                        .. "). Allowed values:\n"
+                        .. table.concat(allowed, "\n")
+            end
+        end
+    elseif wtype == "Spinbox" then
+        local num = tonumber(value)
+        if num == nil then
+            return false, "value of '" .. key .. "' must be a number (" .. w.min .. ".." .. w.max .. ")"
+        end
+
+        if num < w.min or num > w.max then
+            local clamped = tostring(iff(num < w.min, w.min, w.max))
+            PrintWarning(
+                self,
+                key .. ": value " .. value .. " out of range " .. w.min .. ".." .. w.max .. ", set to " .. clamped
+            )
+            value = clamped
+        end
+    elseif wtype == "Editline" then
+        if w.quotation and not value:match('^".*"$') then
+            value = '"' .. value .. '"'
+        end
+    elseif flag.Defined then
+        PrintWarning(self, key .. ": flag is not editable in the TUI (no widget), value is set without events")
+    else
+        return false, "'" .. key .. "' is not an editable widget"
+    end
+
+    flag.SetValue(value)
+
+    -- the same events as in the TUI after value change
+    if wtype == "Combobox" or wtype == "Spinbox" or wtype == "Editline" then
+        local errors = self._ErrorCount
+
+        _SCRIPT_SELF = self._script
+        local ok, err = pcall(CallFlagEvent, flag, "clicked")
+        _SCRIPT_SELF = nil
+
+        if not ok then
+            return false, "'clicked' event of '" .. key .. "' failed: " .. tostring(err)
+        elseif self._ErrorCount > errors then
+            return false, "'clicked' event of '" .. key .. "' reported an error"
+        end
+    end
+
+    return true
+end
+
+--------------------------------------------------------------------------------
+-- @brief  Return list of modified flags.
+-- @param  self         parser
+-- @return List of {key, old, new} sorted by key.
+--------------------------------------------------------------------------------
+local function GetChanges(self)
+    local changes = {}
+
+    for key, val in pairs(self._Flag) do
+        if val.Defined and key:match("(" .. self._KeyRegExp .. ")") and val.OrginalValue ~= val.Value then
+            table.insert(changes, { key = key, old = val.OrginalValue, new = val.Value })
+        end
+    end
+
+    table.sort(changes, function(a, b)
+        return a.key < b.key
+    end)
+
+    return changes
+end
+
+--------------------------------------------------------------------------------
+-- @brief  Find menu path (chain of submenus) from root file to target file.
+--         Files are parsed in read-only and quiet mode.
+-- @param  rootFile     root configuration file (relative to config path)
+-- @param  targetFile   target file (relative to config path)
+-- @return List of {file, entry} (entry = submenu text) or nil if not found.
+--------------------------------------------------------------------------------
+local function FindMenuPath(rootFile, targetFile)
+    local target = NormalizePath(targetFile)
+    local visited = {}
+    local state = {}
+
+    local function visit(file)
+        local norm = NormalizePath(file)
+        if visited[norm] then
+            return nil
+        end
+        visited[norm] = true
+
+        local parser = CreateParser(file, state)
+        if LoadScripts(parser) == nil then
+            return nil
+        end
+
+        local submenus = {}
+        for _, w in ipairs(parser._ui) do
+            if w.WidgetType == "Submenu" then
+                table.insert(submenus, w)
+            end
+        end
+
+        -- direct link to target file
+        for _, w in ipairs(submenus) do
+            if NormalizePath(w.link) == target then
+                return { { file = file, entry = w.text } }
+            end
+        end
+
+        -- deeper levels
+        for _, w in ipairs(submenus) do
+            _SCRIPT_SELF = parser._script
+            pcall(CallFlagEvent, w.flag, "clicked")
+            _SCRIPT_SELF = nil
+
+            local path = visit(w.link)
+            if path then
+                table.insert(path, 1, { file = file, entry = w.text })
+                return path
+            end
+        end
+
+        return nil
+    end
+
+    local wasQuiet = IsQuietMode()
+    local wasReadOnly = IsReadOnlyMode()
+    SetQuietMode(true)
+    SetReadOnlyMode(true)
+
+    local ok, path = pcall(visit, rootFile)
+
+    SetQuietMode(wasQuiet)
+    SetReadOnlyMode(wasReadOnly)
+
+    return ok and path or nil
+end
+
+--------------------------------------------------------------------------------
+-- @brief  Load file in headless mode. If root file is given then all menus
+--         from root to selected file are executed first (as user navigates in
+--         the TUI), so global objects created by parent menus are available.
+-- @param  rootFile     root configuration file or nil
+-- @param  file         file to load
+-- @return Parser or nil on error.
+--------------------------------------------------------------------------------
+local function LoadHeadless(rootFile, file)
+    local state = {}
+
+    if rootFile and NormalizePath(rootFile) ~= NormalizePath(file) then
+        local path = FindMenuPath(rootFile, file)
+
+        if path == nil then
+            io.stderr:write(
+                "[Warning] '" .. file .. "' is not reachable from menu '" .. rootFile .. "', file loaded alone\n"
+            )
+        else
+            for _, step in ipairs(path) do
+                local parser = CreateParser(step.file, state)
+                if not LoadScripts(parser) then
+                    io.stderr:write("[Error] script error in parent menu '" .. step.file .. "'\n")
+                    return nil
+                end
+
+                for _, w in ipairs(parser._ui) do
+                    if w.WidgetType == "Submenu" and w.text == step.entry then
+                        _SCRIPT_SELF = parser._script
+                        local ok, err = pcall(CallFlagEvent, w.flag, "clicked")
+                        _SCRIPT_SELF = nil
+
+                        if not ok then
+                            io.stderr:write("[Error] " .. step.file .. ": submenu '" .. w.text .. "': " .. err .. "\n")
+                            return nil
+                        end
+                        break
+                    end
+                end
+            end
+        end
+    end
+
+    local parser = CreateParser(file, state)
+    local status = LoadScripts(parser)
+
+    if status == nil then
+        return nil
+    elseif status == false then
+        if rootFile == nil then
+            io.stderr:write(
+                "[Hint] scripts may depend on objects created by parent menus (e.g. 'uC');"
+                    .. " pass the main configuration file as the last argument\n"
+            )
+        end
+        return nil
+    end
+
+    return parser
+end
+
+--------------------------------------------------------------------------------
+-- @brief  Set values from command line. For each value the same scripts are
+--         executed as in TUI (value validation, "clicked" event, PreSave and
+--         PostSave events) and all modified flags are saved.
+-- @param  rootFile     root configuration file (relative to config path) or nil
+-- @param  assignments  list of {file, key, value} (file relative to config path)
+-- @return Exit code: 0 on success, 1 on error.
+--------------------------------------------------------------------------------
+function SetValuesFromCommandLine(rootFile, assignments)
+    SetHeadlessMode(true)
+
+    -- group assignments by file (order of keys in file is preserved)
+    local files = {}
+    local byFile = {}
+    for _, a in ipairs(assignments) do
+        local norm = NormalizePath(a.file)
+        if byFile[norm] == nil then
+            byFile[norm] = { file = a.file, list = {} }
+            table.insert(files, norm)
+        end
+        table.insert(byFile[norm].list, a)
+    end
+
+    for _, norm in ipairs(files) do
+        local entry = byFile[norm]
+
+        local parser = LoadHeadless(rootFile, entry.file)
+        if parser == nil then
+            io.stderr:write("[Error] " .. entry.file .. ": cannot load configuration, nothing saved\n")
+            return 1
+        end
+
+        for _, a in ipairs(entry.list) do
+            local ok, err = ApplyValue(parser, a.key, a.value)
+            if not ok then
+                io.stderr:write("[Error] " .. entry.file .. ": " .. err .. "\n")
+                io.stderr:write("[Error] " .. entry.file .. ": nothing saved\n")
+                return 1
+            end
+        end
+
+        local changes = GetChanges(parser)
+
+        if parser:Save() == false then
+            io.stderr:write("[Error] " .. entry.file .. ": save rejected by PreSave event\n")
+            return 1
+        end
+
+        if #changes == 0 then
+            print(entry.file .. ": no changes")
+        else
+            for _, c in ipairs(changes) do
+                print(entry.file .. ": " .. c.key .. ": " .. c.old .. " -> " .. c.new)
+            end
+        end
+    end
+
+    return 0
+end
+
 --------------------------------------------------------------------------------
 -- @brief  Function create new configuration parser
 -- @param  None
@@ -1079,6 +1439,7 @@ function CreateParser(fileName, state)
     self._ImportEvent = function() end
     self._ExportEvent = function() end
     self._Layout = { Title = "Menu", Brief = "" }
+    self._ErrorCount = 0
 
     -- script functions
     self._script = {}

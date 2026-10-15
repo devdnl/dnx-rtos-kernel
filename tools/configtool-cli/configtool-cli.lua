@@ -48,16 +48,61 @@ local json = require("json")
 -- LOCAL FUNCTIONS
 --==============================================================================
 --------------------------------------------------------------------------------
+-- @brief  Find main configuration file in arguments (argument without option).
+-- @param  None
+-- @return Config directory and root file name (relative to config directory)
+--         or nil if not given.
+--------------------------------------------------------------------------------
+local function FindRootConfigFile()
+    for i = 1, #arg do
+        if not arg[i]:match("^%a+%=") and not arg[i]:match("help") then
+            local path = Dos2UnixFilename(arg[i])
+            return dirname(path) or "", basename(path) or path
+        end
+    end
+
+    return nil, nil
+end
+
+--------------------------------------------------------------------------------
+-- @brief  Convert file path given in command line to path relative to config
+--         directory. Path relative to the current directory or to the config
+--         directory is accepted.
+-- @param  file         file path
+-- @param  configDir    configuration directory
+-- @return File path relative to config directory.
+--------------------------------------------------------------------------------
+local function ToConfigRelativePath(file, configDir)
+    file = Dos2UnixFilename(file)
+
+    local ndir = NormalizePath(configDir)
+    if ndir ~= "" then
+        local nfile = NormalizePath(file)
+        if nfile:sub(1, #ndir + 1) == ndir .. "/" then
+            return nfile:sub(#ndir + 2)
+        end
+    end
+
+    return file
+end
+
+--------------------------------------------------------------------------------
 -- @brief  Function create widgets
 -- @param  None
 -- @return None
 --------------------------------------------------------------------------------
 local function CheckArguments()
+    local assignments = {}
+
     for i = 1, #arg do
         if arg[i]:match("help") then
             print("Usage: configtool [options] <config-file>")
             print("  getvalue=<file>:<key>          get value of <key> from <file>")
-            print("  setvalue=<file>:<key>=<value>  set <value> of <key> in <file>")
+            print("  setvalue=<file>:<key>=<value>  set <value> of <key> in <file>; scripts of the")
+            print("                                 file are executed as in the TUI (validation,")
+            print("                                 'clicked' events, PreSave/PostSave). Option can")
+            print("                                 be used many times. If <config-file> is given,")
+            print("                                 menus from it to <file> are executed first.")
             print("  tolua=<file>                   read selected file and print as Lua table")
             print("  tojson=<file>                  read selected file and print as JSON")
             print("  import=<file>:<workdir>        import selected configuration from <file> to <workdir>")
@@ -96,21 +141,21 @@ local function CheckArguments()
 
             print("Configuration exported.")
             os.exit(0)
-        elseif arg[1]:match("tolua%=.*") then
+        elseif arg[i]:match("tolua%=.*") then
             local file = Dos2UnixFilename(arg[i]:match("tolua%=(.*)"))
 
             local config = {}
             CollectSettingsFromFile(config, file, file)
             print(SerializeTable(config[file], false))
             os.exit(0)
-        elseif arg[1]:match("tojson%=.*") then
+        elseif arg[i]:match("tojson%=.*") then
             local file = Dos2UnixFilename(arg[i]:match("tojson%=(.*)"))
 
             local config = {}
             CollectSettingsFromFile(config, file, file)
             print(json.encode(config[file]))
             os.exit(0)
-        elseif arg[1]:match("getvalue%=.*") then
+        elseif arg[i]:match("getvalue%=.*") then
             local arg = arg[i]:match("getvalue%=(.*)")
             local file, key = arg:match("^(.*):(.*)$")
             file = Dos2UnixFilename(file)
@@ -119,19 +164,31 @@ local function CheckArguments()
             CollectSettingsFromFile(config, file, file)
             print(config[file][key])
             os.exit(0)
-        elseif arg[1]:match("setvalue%=.*") then
+        elseif arg[i]:match("setvalue%=.*") then
             local arg = arg[i]:match("setvalue%=(.*)")
-            local file, key, value = arg:match("^(.*):(.*)=(.*)$")
-            file = Dos2UnixFilename(file)
+            local file, key, value = arg:match("^(.*):([^:=]+)=(.*)$")
+            if file == nil then
+                io.stderr:write("[Error] incorrect format, use: setvalue=<file>:<key>=<value>\n")
+                os.exit(1)
+            end
 
-            local config = {}
-            CollectSettingsFromFile(config, file, file)
-            config[file][key] = value
-            ApplySettings(config)
-            os.exit(0)
+            table.insert(assignments, { file = file, key = key, value = value })
         else
-            SetConfigPath(dirname(arg[i]))
+            SetConfigPath(dirname(arg[i]) or "")
         end
+    end
+
+    -- values are set after all arguments are read (config file can be given
+    -- as the last argument)
+    if #assignments > 0 then
+        local configDir, rootFile = FindRootConfigFile()
+        SetConfigPath(configDir or "")
+
+        for _, a in ipairs(assignments) do
+            a.file = ToConfigRelativePath(a.file, GetConfigPath())
+        end
+
+        os.exit(SetValuesFromCommandLine(rootFile, assignments))
     end
 end
 
