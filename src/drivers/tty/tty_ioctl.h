@@ -48,31 +48,35 @@ Device (drivers) connection table
 
 \section drv-tty-ddesc Details
 \subsection drv-tty-ddesc-num Meaning of major and minor numbers
-The major number determine number of terminal. The minor number should be set
-always to 0.
+The minor number determines the number of terminal. All terminals share one input/output (configured by any
+of them) and one input thread owned by terminal 0.
 
 \subsubsection drv-tty-ddesc-numres Numeration restrictions
-Major number should be used in range from 0 to maximum number of terminals
-configured in module options. Minor number should be always 0.
+Minor number should be used in range from 0 to maximum number of terminals
+configured in module options. Terminal 0 must be initialized first and released last.
 
 \subsection drv-tty-ddesc-init Driver initialization
 To initialize driver the following code can be used:
 
 @code
-driver_init("TTY", 0, 0, "/dev/tty0");          // terminal 0
-driver_init("TTY", 1, 0, "/dev/tty1");          // terminal 1
+driver_init("TTY", 0, 0, "/dev/tty0");          // terminal 0 (io with e.g. /dev/ttyS0)
+driver_init("TTY", 0, 1, "/dev/tty1");          // terminal 1 (io with e.g. /dev/ttyS0)
+driver_init("TTY", 1, 0, "/dev/tty10");         // terminal 0 (io with e.g. /dev/ttyS1)
+driver_init("TTY", 1, 1, "/dev/tty11");         // terminal 1 (io with e.g. /dev/ttyS1)
 @endcode
 
 \subsection drv-tty-ddesc-release Driver release
 To release driver the following code can be used:
 @code
+driver_release("TTY", 0, 1);
 driver_release("TTY", 0, 0);
-driver_release("TTY", 1, 0);
 @endcode
 
 \subsection drv-tty-ddesc-cfg Driver configuration
 Driver can be configured by using IOCTL_TTY_CONFIGURE request. The configuration
-is passed by TTY_config_t type.
+is passed by TTY_config_t type. If input and output paths are the same the
+file is opened once in read/write mode, otherwise input is opened read-only
+and output write-only.
 
 \subsection drv-tty-ddesc-write Data write
 Writing data to device is the same as writing data to regular file.
@@ -81,7 +85,8 @@ Writing data to device is the same as writing data to regular file.
 Reading data from device is the same as reading data from regular file.
 
 \subsection drv-tty-ddesc-switch Terminal switching
-Terminals can be switched by using F1 - F4 keys or by using ioctl() function.
+Terminals can be switched by using F1 - F12 keys (only to initialized
+terminals) or by using ioctl() function.
 
 @{
 */
@@ -156,6 +161,7 @@ extern "C" {
 
 /**
  *  @brief  Set edit line to specified user's text (string).
+ *          Text longer than edit line is truncated.
  *  @param  [WR] const char * string passed to edit line
  *  @return On success 0 is returned, otherwise -1.
  */
@@ -175,7 +181,8 @@ extern "C" {
 #define IOCTL_TTY__REFRESH_LAST_LINE            _IO(TTY, 0x0A)
 
 /**
- *  @brief  Read buffer.
+ *  @brief  Read buffer. Lines are separated by '\n', output is always
+ *          terminated by '\0' and truncated if buffer is too small.
  *  @param  [RD, WR] TTY_buffer_t*      buffer descriptor
  *  @return On success 0 is returned, otherwise -1.
  */
@@ -191,7 +198,7 @@ typedef struct {
 
 typedef struct {
         char  *ptr;     //!< pointer to buffer
-        size_t size;    //!< buffer size and bytes left after ioctl()
+        size_t size;    //!< [in] buffer size, [out] free bytes left (excluding '\0')
 } TTY_buffer_t;
 
 /*==============================================================================

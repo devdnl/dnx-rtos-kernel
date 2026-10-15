@@ -33,7 +33,6 @@
 ==============================================================================*/
 #include "drivers/driver.h"
 #include "tty.h"
-#include "tty_cfg.h"
 
 /*==============================================================================
   Local macros
@@ -44,24 +43,29 @@
 ==============================================================================*/
 struct ttybfr {
         void *self;
+        u8_t major;
+        u8_t minor;
 
         struct {
-                char *line[_TTY_TERMINAL_ROWS];
+                char *line[__TTY_TERM_ROWS__];
+                bool fresh_line[__TTY_TERM_ROWS__];
                 u16_t line_head;
-                bool fresh_line[_TTY_TERMINAL_ROWS];
         } screen;
 
         struct {
-                u32_t buf[_TTY_TERMINAL_COLUMNS * 2];
+                char buf[__TTY_LINE_BUF_SIZE__ + 1];
                 u16_t length;
-                u16_t carriage;
         } new_line;
+
+        /* CR received, its effect is deferred until next character */
+        bool pending_cr;
 };
 
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
 static void new_line_clear(ttybfr_t *this);
+static void screen_clear(ttybfr_t *this);
 
 /*==============================================================================
   Local objects
@@ -103,10 +107,27 @@ static bool is_valid(ttybfr_t *this)
 static uint screen_get_line_index(ttybfr_t *this, uint go_back)
 {
         if (this->screen.line_head < go_back) {
-                return _TTY_TERMINAL_ROWS - (go_back - this->screen.line_head);
+                return __TTY_TERM_ROWS__ - (go_back - this->screen.line_head);
         } else {
                 return this->screen.line_head - go_back;
         }
+}
+
+//==============================================================================
+/**
+ * @brief  Free selected screen slot.
+ * @param  this          buffer object
+ * @param  idx           slot index
+ */
+//==============================================================================
+static void screen_free_slot(ttybfr_t *this, uint idx)
+{
+        if (this->screen.line[idx]) {
+                sys_free(cast(void **, &this->screen.line[idx]));
+                this->screen.line[idx] = NULL;
+        }
+
+        this->screen.fresh_line[idx] = false;
 }
 
 //==============================================================================
@@ -119,21 +140,14 @@ static uint screen_get_line_index(ttybfr_t *this, uint go_back)
 //==============================================================================
 static void screen_link_line(ttybfr_t *this, char *line)
 {
-        if (this->screen.line[this->screen.line_head]) {
-                sys_free(cast(void **, &this->screen.line[this->screen.line_head]));
-                this->screen.line[this->screen.line_head] = NULL;
-        }
+        screen_free_slot(this, this->screen.line_head);
 
         this->screen.line[this->screen.line_head] = line;
         this->screen.fresh_line[this->screen.line_head] = true;
 
         if (LAST_CHARACTER(line) == '\n') {
-                this->screen.line_head = (this->screen.line_head + 1) % _TTY_TERMINAL_ROWS;
-
-                if (this->screen.line[this->screen.line_head]) {
-                        sys_free(cast(void **, &this->screen.line[this->screen.line_head]));
-                        this->screen.line[this->screen.line_head] = NULL;
-                }
+                this->screen.line_head = (this->screen.line_head + 1) % __TTY_TERM_ROWS__;
+                screen_free_slot(this, this->screen.line_head);
         }
 }
 
@@ -146,9 +160,56 @@ static void screen_link_line(ttybfr_t *this, char *line)
 //==============================================================================
 static void screen_clear_last_line(ttybfr_t *this)
 {
-        if (this->screen.line[this->screen.line_head]) {
-                sys_free(cast(void **, &this->screen.line[this->screen.line_head]));
-                this->screen.line[this->screen.line_head] = NULL;
+        screen_free_slot(this, this->screen.line_head);
+}
+
+//==============================================================================
+/**
+ * @brief  Clear screen lines (new line buffer is not touched).
+ * @param  this          buffer object
+ */
+//==============================================================================
+static void screen_clear(ttybfr_t *this)
+{
+        for (int i = 0; i < __TTY_TERM_ROWS__; i++) {
+                screen_free_slot(this, i);
+        }
+
+        this->screen.line_head = 0;
+}
+
+//==============================================================================
+/**
+ * @brief  Truncate to last clear screen command.
+ *
+ * @param  this         buffer object
+ */
+//==============================================================================
+static void truncate_to_last_clrscr(ttybfr_t *this)
+{
+        this->new_line.buf[this->new_line.length] = '\0';
+
+        if (this->new_line.length == 0) {
+                return;
+        }
+
+        char *last_clrscr = NULL;
+        char *current_clrsrc = this->new_line.buf;
+
+        while ((current_clrsrc = strstr(current_clrsrc, VT100_CLEAR_SCREEN)) != NULL) {
+                last_clrscr = current_clrsrc;
+                current_clrsrc += strlen(VT100_CLEAR_SCREEN);
+        }
+
+        if (last_clrscr != NULL) {
+                size_t offset = last_clrscr - this->new_line.buf;
+
+                if (offset <= this->new_line.length) {
+                        this->new_line.length = this->new_line.length - offset;
+                        memmove(this->new_line.buf, last_clrscr, this->new_line.length);
+                        this->new_line.buf[this->new_line.length] = '\0';
+                        screen_clear(this);
+                }
         }
 }
 
@@ -162,19 +223,9 @@ static void screen_clear_last_line(ttybfr_t *this)
 //==============================================================================
 static void screen_put_new_line_buffer(ttybfr_t *this, bool add_cr_lf)
 {
-        size_t buf_utf8_len = 0;
-        for (size_t i = 0; i < this->new_line.length; i++) {
-                int size = tty_ucs4_to_utf8_size(this->new_line.buf[i]);
-                if (size <= 0) {
-                        this->new_line.buf[i] = 0xFFFD;
-                        size = 3;
-                }
-                buf_utf8_len += size;
-        }
+        truncate_to_last_clrscr(this);
 
-        if (add_cr_lf) {
-                buf_utf8_len += 2;
-        }
+        size_t buf_utf8_len = this->new_line.length + (add_cr_lf ? 2 : 0);
 
         size_t last_line_len = 0;
         char *last_line = this->screen.line[screen_get_line_index(this, 0)];
@@ -189,16 +240,12 @@ static void screen_put_new_line_buffer(ttybfr_t *this, bool add_cr_lf)
         if (!err && line) {
 
                 if (last_line_len) {
-                        strcpy(line, last_line);
+                        memcpy(line, last_line, last_line_len);
                 }
 
                 size_t idx = last_line_len;
-                for (size_t i = 0; i < this->new_line.length; i++) {
-                        char utf8[8];
-                        int len = tty_ucs4_to_utf8(this->new_line.buf[i], utf8);
-                        memcpy(&line[idx], utf8, len);
-                        idx += len;
-                }
+                memcpy(&line[idx], this->new_line.buf, this->new_line.length);
+                idx += this->new_line.length;
 
                 if (add_cr_lf) {
                         line[idx++] = '\r';
@@ -206,13 +253,6 @@ static void screen_put_new_line_buffer(ttybfr_t *this, bool add_cr_lf)
                 }
 
                 line[idx] = '\0';
-
-                char *clrscr = line;
-                while ((clrscr = strstr(clrscr, VT100_CLEAR_SCREEN))) {
-                        ttybfr_clear(this);
-                        memmove(line, clrscr, (buf_utf8_len + 1) - (clrscr - line));
-                        clrscr += strlen(VT100_CLEAR_SCREEN);
-                }
 
                 screen_link_line(this, line);
         }
@@ -230,48 +270,62 @@ static void screen_put_new_line_buffer(ttybfr_t *this, bool add_cr_lf)
 static void new_line_clear(ttybfr_t *this)
 {
         this->new_line.length = 0;
-        this->new_line.carriage = 0;
+        this->new_line.buf[0] = '\0';
 }
 
 //==============================================================================
 /**
- * @brief  Put string buffer to the line
+ * @brief  Put character to the new line buffer
  *
  * @param  this         buffer object
  * @param  chr          character
  */
 //==============================================================================
-static void new_line_put_char(ttybfr_t *this, uint32_t chr)
+static void new_line_put_char(ttybfr_t *this, char chr)
 {
-        if (this->new_line.length >= ARRAY_SIZE(this->new_line.buf)) {
+        if (this->new_line.length >= ARRAY_SIZE(this->new_line.buf) - 1) {
                 return;
         }
 
-        this->new_line.buf[this->new_line.carriage++] = chr;
-
-        if (this->new_line.carriage > this->new_line.length) {
-                this->new_line.length = this->new_line.carriage;
-        }
+        this->new_line.buf[this->new_line.length++] = chr;
+        this->new_line.buf[this->new_line.length] = '\0';
 }
 
-/*------------------------------------------------------------------------------
- * INTERFACES
- *----------------------------------------------------------------------------*/
+//==============================================================================
+/**
+ * @brief  Apply carriage return: line that is not finished is discarded.
+ *
+ * @param  this         buffer object
+ */
+//==============================================================================
+static void apply_carriage_return(ttybfr_t *this)
+{
+        new_line_clear(this);
+
+        const char *line = this->screen.line[this->screen.line_head];
+        if (line && (LAST_CHARACTER(line) != '\n')) {
+                screen_clear_last_line(this);
+        }
+}
 
 //==============================================================================
 /**
  * @brief  Initialize buffer
  *
  * @param  bfr          pointer to buffer pointer
+ * @param  major        major number
+ * @param  minor        minor number
  *
  * @return One of errno value
  */
 //==============================================================================
-int ttybfr_create(ttybfr_t **bfr)
+int ttybfr_create(ttybfr_t **bfr, u8_t major, u8_t minor)
 {
         int err = sys_zalloc(sizeof(ttybfr_t), cast(void **, bfr));
         if (err == ESUCC) {
                 (*bfr)->self = *bfr;
+                (*bfr)->major = major;
+                (*bfr)->minor = minor;
         }
 
         return err;
@@ -289,6 +343,7 @@ int ttybfr_create(ttybfr_t **bfr)
 int ttybfr_destroy(ttybfr_t *this)
 {
         if (is_valid(this)) {
+                ttybfr_clear(this);
                 this->self = NULL;
                 sys_free(cast(void **, &this));
                 return ESUCC;
@@ -300,6 +355,11 @@ int ttybfr_destroy(ttybfr_t *this)
 //==============================================================================
 /**
  * @brief  Put string buffer to the line
+ *
+ * All bytes are consumed. NUL bytes are ignored. "\r\n" (also split between
+ * calls) is handled as a single new line, a lone '\r' discards the line that
+ * is not finished yet.
+ *
  * @param  this          buffer object
  * @param  src           source
  * @param  len           length
@@ -308,55 +368,45 @@ int ttybfr_destroy(ttybfr_t *this)
 //==============================================================================
 void ttybfr_put(ttybfr_t *this, const char *src, size_t len)
 {
-        if (is_valid(this)) {
-                bool VT100_cmd = false;
-                int32_t chr;
-                const char *e = src + len;
+        if (not is_valid(this) or not src) {
+                return;
+        }
 
-                while (true) {
+        for (; len > 0; len--) {
 
-                        chr = tty_utf8_to_ucs4(&src, e - src);
-                        if (chr <= 0) {
-                                chr = 0xFFFD;
+                char chr = *src++;
+
+                if (chr == '\0') {
+                        continue;
+                }
+
+                if (this->pending_cr) {
+                        this->pending_cr = false;
+
+                        if (chr != '\n') {
+                                apply_carriage_return(this);
+                        }
+                }
+
+                if (chr == '\r') {
+                        this->pending_cr = true;
+
+                } else if (chr == '\n') {
+                        screen_put_new_line_buffer(this, true);
+
+                } else {
+                        if (this->new_line.length >= ARRAY_SIZE(this->new_line.buf) - 1) {
+                                screen_put_new_line_buffer(this, false);
                         }
 
-                        if (chr == '\r') {
-                                this->new_line.carriage = 0;
-
-                                if (this->screen.line[this->screen.line_head]) {
-                                        if (LAST_CHARACTER(this->screen.line[this->screen.line_head]) != '\n') {
-                                                screen_clear_last_line(this);
-                                        }
-                                }
-
-                        } else if (chr == '\n') {
-                                screen_put_new_line_buffer(this, true);
-
-                        } else if (chr == '\e') {
-                                VT100_cmd = true;
-                                new_line_put_char(this, chr);
-
-                        } else if (VT100_cmd) {
-                                new_line_put_char(this, chr);
-
-                                if (strchr("hlHKCDm", chr)) {
-                                        VT100_cmd = false;
-                                }
-
-                        } else if (this->new_line.carriage >= _TTY_TERMINAL_COLUMNS) {
-                                screen_put_new_line_buffer(this, true);
-                                new_line_put_char(this, chr);
-
-                        } else {
-                                new_line_put_char(this, chr);
-                        }
+                        new_line_put_char(this, chr);
                 }
         }
 }
 
 //==============================================================================
 /**
- * @brief  Clear whole terminal
+ * @brief  Clear whole terminal (screen lines and not flushed data)
  * @param  this          buffer object
  * @return None
  */
@@ -364,16 +414,9 @@ void ttybfr_put(ttybfr_t *this, const char *src, size_t len)
 void ttybfr_clear(ttybfr_t *this)
 {
         if (is_valid(this)) {
-                for (int i = 0; i < _TTY_TERMINAL_ROWS; i++) {
-                        if (this->screen.line[i]) {
-                                sys_free(cast(void **, &this->screen.line[i]));
-                                this->screen.line[i] = NULL;
-                        }
-
-                        this->screen.fresh_line[i] = false;
-                }
-
-                this->screen.line_head = 0;
+                screen_clear(this);
+                new_line_clear(this);
+                this->pending_cr = false;
         }
 }
 
@@ -387,7 +430,7 @@ void ttybfr_clear(ttybfr_t *this)
 //==============================================================================
 const char *ttybfr_get_line(ttybfr_t *this, int n)
 {
-        if (is_valid(this) && n >= 0 && n < _TTY_TERMINAL_ROWS) {
+        if (is_valid(this) && n >= 0 && n < __TTY_TERM_ROWS__) {
                 return this->screen.line[screen_get_line_index(this, n)];
         }
 
@@ -404,11 +447,14 @@ const char *ttybfr_get_line(ttybfr_t *this, int n)
 const char *ttybfr_get_fresh_line(ttybfr_t *this)
 {
         if (is_valid(this)) {
-                for (int i = _TTY_TERMINAL_ROWS - 1; i >= 0; i--) {
+                for (int i = __TTY_TERM_ROWS__ - 1; i >= 0; i--) {
                         uint idx = screen_get_line_index(this, i);
                         if (this->screen.fresh_line[idx]) {
                                 this->screen.fresh_line[idx] = false;
-                                return this->screen.line[idx];
+
+                                if (this->screen.line[idx]) {
+                                        return this->screen.line[idx];
+                                }
                         }
                 }
         }
@@ -426,7 +472,7 @@ const char *ttybfr_get_fresh_line(ttybfr_t *this)
 void ttybfr_clear_fresh_line_counter(ttybfr_t *this)
 {
         if (is_valid(this)) {
-                for (int i = 0; i < _TTY_TERMINAL_ROWS; i++) {
+                for (int i = 0; i < __TTY_TERM_ROWS__; i++) {
                         this->screen.fresh_line[i] = false;
                 }
         }
@@ -444,7 +490,6 @@ void ttybfr_flush(ttybfr_t *this)
         if (is_valid(this)) {
                 if (this->new_line.length) {
                         screen_put_new_line_buffer(this, false);
-                        new_line_clear(this);
                 }
         }
 }

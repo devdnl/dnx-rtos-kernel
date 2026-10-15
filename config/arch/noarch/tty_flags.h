@@ -41,9 +41,9 @@ this:SetTitle("Home > Microcontroller > TTY", "The TTY module configuration.")
 ++*/
 
 /*--
-this:AddWidget("Spinbox", 20, 300, "Number of terminal columns")
+this:AddWidget("Spinbox", 64, 4096, "Line buffer size in bytes")
 --*/
-#define __TTY_TERM_COLS__ 80
+#define __TTY_LINE_BUF_SIZE__ 80
 
 /*--
 this:AddWidget("Spinbox", 1, 1000, "Number of terminal rows")

@@ -84,7 +84,7 @@ typedef enum ttycmd_resp {
 /*==============================================================================
   Exported functions
 ==============================================================================*/
-extern int ttybfr_create(ttybfr_t **);
+extern int ttybfr_create(ttybfr_t **bfr, u8_t major, u8_t minor);
 extern int ttybfr_destroy(ttybfr_t *);
 extern void ttybfr_put(ttybfr_t *, const char *, size_t);
 extern void ttybfr_flush(ttybfr_t *);
