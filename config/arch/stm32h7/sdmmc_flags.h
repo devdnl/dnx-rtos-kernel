@@ -41,9 +41,9 @@ this:SetTitle("Home > Microcontroller > SDMMC", "The SDMMC module configuration.
 
 /*--
 this:AddWidget("Combobox", "SDMMC1 Device type")
-this:AddItem("SD Card", "_SDMMC_TYPE_SD")
-this:AddItem("MMC/eMMC", "_SDMMC_TYPE_MMC")
-this:AddItem("MMC/eMMC/SD", "_SDMMC_TYPE_BOTH")
+this:AddItem("SD", "_SDMMC_TYPE_SD")
+this:AddItem("MMC", "_SDMMC_TYPE_MMC")
+this:AddItem("MMC/SD", "_SDMMC_TYPE_BOTH")
 --*/
 #define __SDMMC_CFG_SDMMC1_TYPE__ _SDMMC_TYPE_BOTH
 
@@ -66,9 +66,9 @@ uC.AddPriorityItems(this, false)
 /*--
 this:AddExtraWidget("Label", "SD2_GAP", "")
 this:AddWidget("Combobox", "SDMMC2 Device type")
-this:AddItem("SD Card", "_SDMMC_TYPE_SD")
-this:AddItem("MMC/eMMC", "_SDMMC_TYPE_MMC")
-this:AddItem("MMC/eMMC/SD", "_SDMMC_TYPE_BOTH")
+this:AddItem("SD", "_SDMMC_TYPE_SD")
+this:AddItem("MMC", "_SDMMC_TYPE_MMC")
+this:AddItem("MMC/SD", "_SDMMC_TYPE_BOTH")
 --*/
 #define __SDMMC_CFG_SDMMC2_TYPE__ _SDMMC_TYPE_BOTH
 

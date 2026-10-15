@@ -25,7 +25,7 @@ Brief   SD/MMC/eMMC Card Driver.
 
 ==============================================================================*/
 
-#pragma GCC optimize("Os")
+#pragma GCC optimize("O3")
 
 /*==============================================================================
   Include files
@@ -36,18 +36,6 @@ Brief   SD/MMC/eMMC Card Driver.
 #include "stm32h7/dma_ddi.h"
 #include "stm32h7xx_hal_mmc.h"
 #include "stm32h7xx_hal_sd.h"
-
-// TEST
-//#ifndef SDMMC1
-//#define SDMMC1
-//#endif
-//#ifndef SDMMC2
-//#define SDMMC2
-//#endif
-//#ifndef __SDMMC_CFG_SDMMC1_TYPE__
-//#define __SDMMC_CFG_SDMMC1_TYPE__ _SDMMC_TYPE_BOTH
-//#endif
-// TEST
 
 /*==============================================================================
   Local macros
@@ -175,12 +163,28 @@ static const u32_t BUS_WIDE[] = {
         [SDMMC_BUS_WIDE__8BIT] = SDMMC_BUS_WIDE_8B,
 };
 
+static const u32_t BUS_WIDE_BITS[] = {
+        [SDMMC_BUS_WIDE__1BIT] = 1,
+        [SDMMC_BUS_WIDE__4BIT] = 4,
+        [SDMMC_BUS_WIDE__8BIT] = 8,
+};
+
 static const u32_t SPEED_MODE[] = {
         [SDMMC_SPEED_MODE__DEFAULT] = SDMMC_SPEED_MODE_DEFAULT,
         [SDMMC_SPEED_MODE__AUTO] = SDMMC_SPEED_MODE_AUTO,
         [SDMMC_SPEED_MODE__HIGH] = SDMMC_SPEED_MODE_HIGH,
         [SDMMC_SPEED_MODE__MMC_DDR] = SDMMC_SPEED_MODE_DDR,
         [SDMMC_SPEED_MODE__SD_ULTRA] = SDMMC_SPEED_MODE_ULTRA,
+};
+
+static const u32_t CLOCK_POWER_SAVE[] = {
+        [false] = SDMMC_CLOCK_POWER_SAVE_DISABLE,
+        [true] = SDMMC_CLOCK_POWER_SAVE_ENABLE,
+};
+
+static const u32_t HARDWARE_FLOW_CONTROL[] = {
+        [false] = SDMMC_HARDWARE_FLOW_CONTROL_DISABLE,
+        [true] = SDMMC_HARDWARE_FLOW_CONTROL_ENABLE,
 };
 
 /*==============================================================================
@@ -264,11 +268,11 @@ API_MOD_RELEASE(SDMMC, void *device_handle)
                 hdl->mtx = NULL;
                 sys_sleep_ms(MTX_TIMEOUT + 500);
 
-                if (hdl->config.device_type == _SDMMC_TYPE_SD) {
+                if (hdl->config.device_type == SDMMC_DEVICE_TYPE__SD) {
 #if SD_ENABLED
                         HAL_SD_DeInit(&hdl->handle.sd);
 #endif
-                } else if (hdl->config.device_type == _SDMMC_TYPE_MMC) {
+                } else if (hdl->config.device_type == SDMMC_DEVICE_TYPE__MMC) {
 #if MMC_ENABLED
                         HAL_MMC_DeInit(&hdl->handle.mmc);
 #endif
@@ -351,7 +355,7 @@ API_MOD_WRITE(SDMMC, void *device_handle, const u8_t *src, size_t count, fpos_t 
 
         u32_t mode = hdl->mode;
 
-        if (hdl->major == 0) {
+        if ((hdl->major == 0) and (hdl->mode == _SDMMC_MODE_DMA)) {
                 if (not sys_is_mem_region(src, SDMMC1_RAM)) {
                         dev_dbg(hdl, "address %08lXh out of DMA range - using IRQ mode", src);
                         mode = _SDMMC_MODE_IRQ;
@@ -438,7 +442,7 @@ API_MOD_READ(SDMMC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, 
 
         u32_t mode = hdl->mode;
 
-        if (hdl->major == 0) {
+        if ((hdl->major == 0) and (hdl->mode == _SDMMC_MODE_DMA)) {
                 if (not sys_is_mem_region(dst, SDMMC1_RAM)) {
                         dev_dbg(hdl, "address %08lXh out of DMA range - using IRQ mode", dst);
                         mode = _SDMMC_MODE_IRQ;
@@ -627,9 +631,9 @@ static int card_initialize(SDMMC_t *hdl)
 
                 hdl->handle.sd.Instance = SDMMC[hdl->major].instance;
                 hdl->handle.sd.Init.ClockEdge = CLOCK_EDGE[hdl->config.clock_edge];
-                hdl->handle.sd.Init.ClockPowerSave = hdl->config.clock_power_save;
+                hdl->handle.sd.Init.ClockPowerSave = CLOCK_POWER_SAVE[hdl->config.clock_power_save];
                 hdl->handle.sd.Init.BusWide = SDMMC_BUS_WIDE_1B;
-                hdl->handle.sd.Init.HardwareFlowControl = hdl->config.hardware_flow_ctrl;
+                hdl->handle.sd.Init.HardwareFlowControl = HARDWARE_FLOW_CONTROL[hdl->config.hardware_flow_ctrl];
                 hdl->handle.sd.Init.ClockDiv = hdl->config.clock_div;
 
                 for (int i = 0; i < 3; i++) {
@@ -651,18 +655,13 @@ static int card_initialize(SDMMC_t *hdl)
                                         break;
                                 }
 
-                                dev_dbg(hdl, "using %s mode", mode);
+                                dev_dbg(hdl, "using SD in %s mode", mode);
 
-                                if (hdl->config.bus_wide != SDMMC_BUS_WIDE__1BIT) {
-                                        if (HAL_SD_ConfigWideBusOperation(&hdl->handle.sd, SDMMC_BUS_WIDE_4B) ==
-                                                HAL_OK) {
-                                                dev_dbg(hdl, "using 4-bit wide bus");
-                                        } else {
-                                                dev_dbg(hdl, "4-bit wide bus not supported");
-                                                dev_dbg(hdl, "using 1-bit wide bus");
-                                        }
+                                if (HAL_SD_ConfigWideBusOperation(&hdl->handle.sd, BUS_WIDE[hdl->config.bus_wide]) ==
+                                        HAL_OK) {
+                                        dev_dbg(hdl, "switched to %u-bit bus", BUS_WIDE_BITS[hdl->config.bus_wide]);
                                 } else {
-                                        dev_dbg(hdl, "using 1-bit wide bus");
+                                        dev_dbg(hdl, "%u-bit bus not supported", BUS_WIDE_BITS[hdl->config.bus_wide]);
                                 }
 
                                 if (hdl->config.speed_mode != SDMMC_SPEED_MODE__DEFAULT) {
@@ -724,9 +723,9 @@ static int card_initialize(SDMMC_t *hdl)
 
                 hdl->handle.mmc.Instance = SDMMC[hdl->major].instance;
                 hdl->handle.mmc.Init.ClockEdge = CLOCK_EDGE[hdl->config.clock_edge];
-                hdl->handle.mmc.Init.ClockPowerSave = hdl->config.clock_power_save;
+                hdl->handle.mmc.Init.ClockPowerSave = CLOCK_POWER_SAVE[hdl->config.clock_power_save];
                 hdl->handle.mmc.Init.BusWide = SDMMC_BUS_WIDE_1B;
-                hdl->handle.mmc.Init.HardwareFlowControl = hdl->config.hardware_flow_ctrl;
+                hdl->handle.mmc.Init.HardwareFlowControl = HARDWARE_FLOW_CONTROL[hdl->config.hardware_flow_ctrl];
                 hdl->handle.mmc.Init.ClockDiv = hdl->config.clock_div;
 
                 for (int i = 0; i < 3; i++) {
@@ -747,17 +746,13 @@ static int card_initialize(SDMMC_t *hdl)
                                         mode = "DMA";
                                         break;
                                 }
-                                dev_dbg(hdl, "using %s mode", mode);
+                                dev_dbg(hdl, "using MMC in %s mode", mode);
 
-                                if (hdl->config.bus_wide != SDMMC_BUS_WIDE_1B) {
-                                        u8_t bits = hdl->config.bus_wide == SDMMC_BUS_WIDE__4BIT ? 4 : 8;
-
-                                        if (HAL_MMC_ConfigWideBusOperation(&hdl->handle.mmc,
-                                                    BUS_WIDE[hdl->config.bus_wide]) == HAL_OK) {
-                                                dev_dbg(hdl, "switched to %u-bit bus", bits);
-                                        } else {
-                                                dev_dbg(hdl, "%u-bit bus not supported", bits);
-                                        }
+                                if (HAL_MMC_ConfigWideBusOperation(&hdl->handle.mmc, BUS_WIDE[hdl->config.bus_wide]) ==
+                                        HAL_OK) {
+                                        dev_dbg(hdl, "switched to %u-bit bus", BUS_WIDE_BITS[hdl->config.bus_wide]);
+                                } else {
+                                        dev_dbg(hdl, "%u-bit bus not supported", BUS_WIDE_BITS[hdl->config.bus_wide]);
                                 }
 
                                 if (hdl->config.speed_mode != SDMMC_SPEED_MODE_DEFAULT) {
