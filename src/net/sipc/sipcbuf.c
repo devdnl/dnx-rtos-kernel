@@ -37,6 +37,13 @@ Brief   SIPC Network management - buffer.
 /*==============================================================================
   Local macros
 ==============================================================================*/
+/*
+ * Hard limit multiplier. When the buffer already reached soft capacity
+ * (receiver reported BUSY), further writes are accepted only while total size
+ * stays below soft_max_capacity * HARD_LIMIT_MULTIPLIER. This protects the
+ * system against a remote side that ignores the BUSY state.
+ */
+#define HARD_LIMIT_MULTIPLIER 2
 
 /*==============================================================================
   Local object types
@@ -49,12 +56,13 @@ typedef struct data_chain {
 } data_chain_t;
 
 struct sipcbuf {
-        kmtx_t       *access;
+        kmtx_t *access;
         data_chain_t *begin;
         data_chain_t *end;
-        size_t        total_size;
-        size_t        seek;
-        size_t        soft_max_capacity;
+        size_t total_size;
+        size_t seek;
+        size_t soft_max_capacity;
+        size_t hard_max_capacity;
 };
 
 /*==============================================================================
@@ -89,18 +97,23 @@ struct sipcbuf {
 //==============================================================================
 int sipcbuf__create(sipcbuf_t **sipcbuf, size_t max_capacity)
 {
+        if (!sipcbuf) {
+                return EINVAL;
+        }
+
         sipcbuf_t *this = NULL;
 
-        int err = _kzalloc(_MM_NET, sizeof(sipcbuf_t), NULL, 0, 0, (void*)&this);
+        int err = _kzalloc(_MM_NET, sizeof(sipcbuf_t), NULL, 0, 0, (void *)&this);
 
         if (!err) {
                 err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &this->access);
 
                 if (!err) {
                         this->soft_max_capacity = max(256, max_capacity);
+                        this->hard_max_capacity = this->soft_max_capacity * HARD_LIMIT_MULTIPLIER;
                         *sipcbuf = this;
                 } else {
-                        _kfree(_MM_NET, (void*)&this);
+                        _kfree(_MM_NET, (void *)&this);
                 }
         }
 
@@ -111,27 +124,23 @@ int sipcbuf__create(sipcbuf_t **sipcbuf, size_t max_capacity)
 /**
  * @brief  Destroy selected buffer.
  *
+ * @note   Caller must guarantee that no other thread uses the buffer
+ *         during and after this call.
+ *
  * @param  sipcbuf      buffer instance
  */
 //==============================================================================
 void sipcbuf__destroy(sipcbuf_t *sipcbuf)
 {
         if (sipcbuf) {
-                kmtx_t *mtx = sipcbuf->access;
+                sipcbuf__clear(sipcbuf);
 
-                if (sys_mutex_lock(sipcbuf->access, _WAIT_FOREVER_MS)) {
-                        sipcbuf__clear(sipcbuf);
+                if (sipcbuf->access) {
+                        sys_mutex_destroy(sipcbuf->access);
                         sipcbuf->access = NULL;
-                        sys_mutex_unlock(mtx);
                 }
 
-                if (sys_mutex_lock(mtx, _WAIT_FOREVER_MS)) {
-                        sys_mutex_unlock(mtx);
-                }
-
-                sys_mutex_destroy(mtx);
-
-                _kfree(_MM_NET, (void*)&sipcbuf);
+                _kfree(_MM_NET, (void *)&sipcbuf);
         }
 }
 
@@ -139,12 +148,15 @@ void sipcbuf__destroy(sipcbuf_t *sipcbuf)
 /**
  * @brief  Function write data to buffer.
  *
+ * When reference is false then buffer takes ownership of data only on
+ * success. On error the caller is responsible for freeing data.
+ *
  * @param  sipcbuf      buffer instance
  * @param  data         data source pointer
  * @param  size         data size
  * @param  reference    buffer is reference (no copy)
  *
- * @return One of errno value.
+ * @return One of errno value. ENOSPC when hard capacity limit is exceeded.
  */
 //==============================================================================
 int sipcbuf__write(sipcbuf_t *sipcbuf, const u8_t *data, size_t size, bool reference)
@@ -154,24 +166,32 @@ int sipcbuf__write(sipcbuf_t *sipcbuf, const u8_t *data, size_t size, bool refer
         if (sipcbuf && data && size) {
                 err = sys_mutex_lock(sipcbuf->access, _WAIT_FOREVER_MS);
                 if (!err) {
-                        data_chain_t *chain = NULL;
+                        if ((sipcbuf->total_size >= sipcbuf->soft_max_capacity) &&
+                                (sipcbuf->total_size + size > sipcbuf->hard_max_capacity)) {
 
-                        err = _kzalloc(_MM_NET, sizeof(data_chain_t), NULL, 0, 0, (void*)&chain);
+                                err = ENOSPC;
 
-                        if (!err) {
-                                chain->len = size;
-                                chain->reference = reference;
-                                chain->buf = data;
+                        } else {
+                                data_chain_t *chain = NULL;
 
-                                if (sipcbuf->begin == NULL) {
-                                        sipcbuf->begin = chain;
-                                        sipcbuf->end   = chain;
-                                } else {
-                                        sipcbuf->end->next = chain;
-                                        sipcbuf->end = chain;
+                                err = _kzalloc(_MM_NET, sizeof(data_chain_t), NULL, 0, 0, (void *)&chain);
+
+                                if (!err) {
+                                        chain->next = NULL;
+                                        chain->len = size;
+                                        chain->reference = reference;
+                                        chain->buf = data;
+
+                                        if (sipcbuf->begin == NULL) {
+                                                sipcbuf->begin = chain;
+                                                sipcbuf->end = chain;
+                                        } else {
+                                                sipcbuf->end->next = chain;
+                                                sipcbuf->end = chain;
+                                        }
+
+                                        sipcbuf->total_size += size;
                                 }
-
-                                sipcbuf->total_size += size;
                         }
 
                         sys_mutex_unlock(sipcbuf->access);
@@ -208,12 +228,12 @@ int sipcbuf__read(sipcbuf_t *sipcbuf, u8_t *data, size_t size, size_t *rdctr)
                                 data_chain_t *next = chain->next;
 
                                 size_t tocpy = chain->len - sipcbuf->seek;
-                                       tocpy = min(tocpy, size);
+                                tocpy = min(tocpy, size);
 
                                 memcpy(data, &chain->buf[sipcbuf->seek], tocpy);
-                                data   += tocpy;
+                                data += tocpy;
                                 *rdctr += tocpy;
-                                size   -= tocpy;
+                                size -= tocpy;
 
                                 sipcbuf->seek += tocpy;
                                 sipcbuf->total_size -= tocpy;
@@ -223,10 +243,10 @@ int sipcbuf__read(sipcbuf_t *sipcbuf, u8_t *data, size_t size, size_t *rdctr)
                                         sipcbuf->seek = 0;
 
                                         if (!chain->reference) {
-                                                _kfree(_MM_NET, (void*)&chain->buf);
+                                                _kfree(_MM_NET, (void *)&chain->buf);
                                         }
 
-                                        _kfree(_MM_NET, (void*)&chain);
+                                        _kfree(_MM_NET, (void *)&chain);
 
                                         sipcbuf->begin = next;
 
@@ -254,7 +274,7 @@ int sipcbuf__read(sipcbuf_t *sipcbuf, u8_t *data, size_t size, size_t *rdctr)
 //==============================================================================
 void sipcbuf__clear(sipcbuf_t *sipcbuf)
 {
-        if (sipcbuf) {
+        if (sipcbuf && sipcbuf->access) {
                 int err = sys_mutex_lock(sipcbuf->access, _WAIT_FOREVER_MS);
                 if (!err) {
                         data_chain_t *data = sipcbuf->begin;
@@ -263,17 +283,17 @@ void sipcbuf__clear(sipcbuf_t *sipcbuf)
                                 data_chain_t *next = data->next;
 
                                 if (!data->reference) {
-                                        _kfree(_MM_NET, (void*)&data->buf);
+                                        _kfree(_MM_NET, (void *)&data->buf);
                                 }
 
-                                _kfree(_MM_NET, (void*)&data);
+                                _kfree(_MM_NET, (void *)&data);
 
                                 data = next;
                         }
 
-                        sipcbuf->begin      = NULL;
-                        sipcbuf->end        = NULL;
-                        sipcbuf->seek       = 0;
+                        sipcbuf->begin = NULL;
+                        sipcbuf->end = NULL;
+                        sipcbuf->seek = 0;
                         sipcbuf->total_size = 0;
 
                         sys_mutex_unlock(sipcbuf->access);

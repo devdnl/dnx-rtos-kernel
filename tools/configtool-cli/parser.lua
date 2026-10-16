@@ -171,7 +171,7 @@ local function ManageGUI(self, startEntry)
             .. self._FileName
             .. "\n\n"
             .. self._Layout.Brief
-            .. "' 0 0 0 "
+            .. "' 0 0 " .. #self._ui .. " "
 
         for _, w in ipairs(self._ui) do
             if w.WidgetType == "Label" then
@@ -224,7 +224,7 @@ local function ManageGUI(self, startEntry)
                         local scr = '--no-tags --ok-label Save --cancel-label Back --radiolist "'
                             .. w.text
                             .. '" '
-                            .. "0 0 0 "
+                            .. "0 0 " .. w.flag.Item:GetCount() .. " "
 
                         local entries = ""
                         local defaultItem = "~"

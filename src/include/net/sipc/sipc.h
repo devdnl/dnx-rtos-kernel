@@ -56,13 +56,13 @@ extern "C" {
 ==============================================================================*/
 typedef struct SIPC_socket {
         kqueue_t *ansq;
-        void    *rxbuf;
-        u32_t    recv_timeout;
-        u32_t    send_timeout;
-        u16_t    seq;
-        u8_t     port;
-        bool     busy;
-        bool     waiting_for_data_ack;
+        void *rxbuf;
+        u32_t recv_timeout;
+        u32_t send_timeout;
+        u16_t seq;
+        u8_t port;
+        bool busy;
+        bool waiting_for_data_ack;
 } SIPC_socket_t;
 
 /*==============================================================================
@@ -72,29 +72,31 @@ typedef struct SIPC_socket {
 /*==============================================================================
   Exported functions
 ==============================================================================*/
-extern int   SIPC_ifinit(void**, const char*);
-extern int   SIPC_ifdeinit(void*);
-extern int   SIPC_ifup(void*, const NETM_SIPC_config_t*, size_t);
-extern int   SIPC_ifdown(void*);
-extern int   SIPC_ifstatus(void*, NETM_SIPC_status_t*, size_t);
-extern int   SIPC_socket_create(void*, NETM_socket_type_t, u8_t, SIPC_socket_t*);
-extern int   SIPC_socket_destroy(void*, SIPC_socket_t*);
-extern int   SIPC_socket_connect(void*, SIPC_socket_t*, const NETM_SIPC_sockaddr_t*, size_t);
-extern int   SIPC_socket_disconnect(void*, SIPC_socket_t*);
-extern int   SIPC_socket_shutdown(void*, SIPC_socket_t*, NETM_shut_t);
-extern int   SIPC_socket_bind(void*, SIPC_socket_t*, const NETM_SIPC_sockaddr_t*, size_t);
-extern int   SIPC_socket_listen(void*, SIPC_socket_t*);
-extern int   SIPC_socket_accept(void*, SIPC_socket_t*, SIPC_socket_t*);
-extern int   SIPC_socket_recv(void*, SIPC_socket_t*, void*, size_t, NETM_flags_t, size_t*);
-extern int   SIPC_socket_recvfrom(void*, SIPC_socket_t*, void*, size_t, NETM_flags_t, NETM_SIPC_sockaddr_t*, size_t, size_t*);
-extern int   SIPC_socket_send(void*, SIPC_socket_t*, const void*, size_t, NETM_flags_t, size_t*);
-extern int   SIPC_socket_sendto(void*, SIPC_socket_t*, const void*, size_t, NETM_flags_t, const NETM_SIPC_sockaddr_t*, size_t, size_t*);
-extern int   SIPC_gethostbyname(void*, const char*, NETM_SIPC_sockaddr_t*, size_t);
-extern int   SIPC_socket_set_recv_timeout(void*, SIPC_socket_t*, uint32_t);
-extern int   SIPC_socket_set_send_timeout(void*, SIPC_socket_t*, uint32_t);
-extern int   SIPC_socket_get_recv_timeout(void*, SIPC_socket_t*, uint32_t*);
-extern int   SIPC_socket_get_send_timeout(void*, SIPC_socket_t*, uint32_t*);
-extern int   SIPC_socket_getaddress(void*, SIPC_socket_t*, NETM_SIPC_sockaddr_t*, size_t);
+extern int SIPC_ifinit(void **, const char *);
+extern int SIPC_ifdeinit(void *);
+extern int SIPC_ifup(void *, const NETM_SIPC_config_t *, size_t);
+extern int SIPC_ifdown(void *);
+extern int SIPC_ifstatus(void *, NETM_SIPC_status_t *, size_t);
+extern int SIPC_socket_create(void *, NETM_socket_type_t, u8_t, SIPC_socket_t *);
+extern int SIPC_socket_destroy(void *, SIPC_socket_t *);
+extern int SIPC_socket_connect(void *, SIPC_socket_t *, const NETM_SIPC_sockaddr_t *, size_t);
+extern int SIPC_socket_disconnect(void *, SIPC_socket_t *);
+extern int SIPC_socket_shutdown(void *, SIPC_socket_t *, NETM_shut_t);
+extern int SIPC_socket_bind(void *, SIPC_socket_t *, const NETM_SIPC_sockaddr_t *, size_t);
+extern int SIPC_socket_listen(void *, SIPC_socket_t *);
+extern int SIPC_socket_accept(void *, SIPC_socket_t *, SIPC_socket_t *);
+extern int SIPC_socket_recv(void *, SIPC_socket_t *, void *, size_t, NETM_flags_t, size_t *);
+extern int SIPC_socket_recvfrom(void *, SIPC_socket_t *, void *, size_t, NETM_flags_t, NETM_SIPC_sockaddr_t *, size_t,
+        size_t *);
+extern int SIPC_socket_send(void *, SIPC_socket_t *, const void *, size_t, NETM_flags_t, size_t *);
+extern int SIPC_socket_sendto(void *, SIPC_socket_t *, const void *, size_t, NETM_flags_t, const NETM_SIPC_sockaddr_t *,
+        size_t, size_t *);
+extern int SIPC_gethostbyname(void *, const char *, NETM_SIPC_sockaddr_t *, size_t);
+extern int SIPC_socket_set_recv_timeout(void *, SIPC_socket_t *, uint32_t);
+extern int SIPC_socket_set_send_timeout(void *, SIPC_socket_t *, uint32_t);
+extern int SIPC_socket_get_recv_timeout(void *, SIPC_socket_t *, uint32_t *);
+extern int SIPC_socket_get_send_timeout(void *, SIPC_socket_t *, uint32_t *);
+extern int SIPC_socket_getaddress(void *, SIPC_socket_t *, NETM_SIPC_sockaddr_t *, size_t);
 extern u16_t SIPC_hton_u16(u16_t);
 extern u32_t SIPC_hton_u32(u32_t);
 extern u64_t SIPC_hton_u64(u64_t);
