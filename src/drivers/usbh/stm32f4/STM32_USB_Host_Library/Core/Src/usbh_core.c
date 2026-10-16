@@ -812,6 +812,8 @@ static USBH_StatusTypeDef USBH_HandleEnum(USBH_HandleTypeDef *phost)
   USBH_StatusTypeDef Status = USBH_BUSY;
   USBH_StatusTypeDef ReqStatus = USBH_BUSY;
 
+  USBH_Delay(2U);
+
   switch (phost->EnumState)
   {
     case ENUM_IDLE:
