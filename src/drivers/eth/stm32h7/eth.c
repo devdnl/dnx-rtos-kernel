@@ -39,10 +39,10 @@
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define DEBUG                  0
+#define DEBUG 0
 
-#define MUTEX_TIMEOUT          10000
-#define PHY_BSR_LINK_STATUS    (1 << 2)
+#define MUTEX_TIMEOUT       10000
+#define PHY_BSR_LINK_STATUS (1 << 2)
 
 #define AHBxENR                AHB1ENR
 #define RCC_AHBxENR_ETHMACRXEN RCC_AHB1ENR_ETH1RXEN
@@ -54,9 +54,9 @@
 #error "CPU cache alignments are different!"
 #endif
 
-#define DMA_BUFFER_MASK    (CPU_CACHE_ALIGN - 1)
-#define DMA_ALIGN_UP(n)    (((n) + DMA_BUFFER_MASK) & ~DMA_BUFFER_MASK)
-#define DMA_ALIGN_DOWN(n)  ((n) & ~DMA_BUFFER_MASK)
+#define DMA_BUFFER_MASK   (CPU_CACHE_ALIGN - 1)
+#define DMA_ALIGN_UP(n)   (((n) + DMA_BUFFER_MASK) & ~DMA_BUFFER_MASK)
+#define DMA_ALIGN_DOWN(n) ((n) & ~DMA_BUFFER_MASK)
 
 #define RX_DESC_ARRAY_SIZE DMA_ALIGN_UP(sizeof(ETH_DMADescTypeDef) * __ETH_RXBUFNB__)
 #define TX_DESC_ARRAY_SIZE DMA_ALIGN_UP(sizeof(ETH_DMADescTypeDef) * __ETH_TXBUFNB__)
@@ -177,8 +177,8 @@ API_MOD_INIT(ETH, void **device_handle, u8_t major, u8_t minor, const void *conf
                                  */
                                 hdl->DMA_rx_desc = (void *)DMA_ALIGN_DOWN(
                                         (u32_t)hdl->descs_and_buffs + CPU_CACHE_ALIGN - 1);
-                                hdl->DMA_tx_desc = (void *)DMA_ALIGN_DOWN((u32_t)hdl->descs_and_buffs +
-                                        RX_DESC_ARRAY_SIZE + CPU_CACHE_ALIGN - 1);
+                                hdl->DMA_tx_desc = (void *)DMA_ALIGN_DOWN(
+                                        (u32_t)hdl->descs_and_buffs + RX_DESC_ARRAY_SIZE + CPU_CACHE_ALIGN - 1);
 
                                 /*
                                  * Each RX/TX buffer (even for single packet) is aligned to
@@ -194,10 +194,8 @@ API_MOD_INIT(ETH, void **device_handle, u8_t major, u8_t minor, const void *conf
                                         (u32_t)hdl->DMA_rx_desc - (u32_t)hdl->descs_and_buffs);
                                 dev_dbg(hdl, "hdl->descs_and_buffs: %p %u", hdl->descs_and_buffs,
                                         sizeof(hdl->descs_and_buffs));
-                                dev_dbg(hdl, "hdl->DMA_rx_desc    : %p %u", hdl->DMA_rx_desc,
-                                        RX_DESC_ARRAY_SIZE);
-                                dev_dbg(hdl, "hdl->DMA_tx_desc    : %p %u", hdl->DMA_tx_desc,
-                                        TX_DESC_ARRAY_SIZE);
+                                dev_dbg(hdl, "hdl->DMA_rx_desc    : %p %u", hdl->DMA_rx_desc, RX_DESC_ARRAY_SIZE);
+                                dev_dbg(hdl, "hdl->DMA_tx_desc    : %p %u", hdl->DMA_tx_desc, TX_DESC_ARRAY_SIZE);
                                 dev_dbg(hdl, "hdl->rx_buff        : %p %u", hdl->rx_buff, RX_BUF_ARRAY_SIZE);
                                 dev_dbg(hdl, "hdl->tx_buff        : %p %u", hdl->tx_buff, TX_BUF_ARRAY_SIZE);
 #endif
@@ -255,8 +253,7 @@ API_MOD_RELEASE(ETH, void *device_handle)
                         HAL_ETH_DeInit(&hdl->eth);
                         NVIC_DisableIRQ(ETH_IRQn);
 
-                        CLEAR_BIT(RCC->AHBxENR,
-                                RCC_AHBxENR_ETHMACRXEN | RCC_AHBxENR_ETHMACTXEN | RCC_AHBxENR_ETHMACEN);
+                        CLEAR_BIT(RCC->AHBxENR, RCC_AHBxENR_ETHMACRXEN | RCC_AHBxENR_ETHMACTXEN | RCC_AHBxENR_ETHMACEN);
 
                         sys_mutex_destroy(mtx);
                         sys_semaphore_destroy(hdl->rx_semaphore);
@@ -361,8 +358,7 @@ API_MOD_WRITE(ETH, void *device_handle, const u8_t *src, size_t count, fpos_t *f
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(ETH, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdctr,
-        struct vfs_fattr fattr)
+API_MOD_READ(ETH, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdctr, struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fpos, fattr);
 
@@ -650,6 +646,45 @@ static int eth_flush(struct eth *hdl)
 
 //==============================================================================
 /**
+ * @brief  Clear packet's checksums.
+ *
+ * @note   This function is clearing IP, TCP, UDP, and ICMP packets checksums
+ *         because are calculated by hardware. If software calculate that
+ *         checksums then hardware is adding 0 to every output packet.
+ *
+ * @param  pkt          packet
+ */
+//==============================================================================
+static void clear_packet_checksum(uint8_t *pkt)
+{
+        if (!pkt || pkt[12] != 0x08 || pkt[13] != 0x00) {
+                return;
+        }
+
+        // IPv4 checksum
+        uint8_t *ip = pkt + 14;
+        ip[10] = 0;
+        ip[11] = 0;
+
+        uint32_t ip_len = (ip[0] & 0x0F) * 4;
+
+        uint8_t *l4 = ip + ip_len;
+        uint8_t proto = ip[9];
+
+        if (proto == 6) { // TCP checksum
+                l4[16] = 0;
+                l4[17] = 0;
+        } else if (proto == 17) { // UDP checksum
+                l4[6] = 0;
+                l4[7] = 0;
+        } else if (proto == 1) { // ICMP checksum
+                l4[2] = 0;
+                l4[3] = 0;
+        }
+}
+
+//==============================================================================
+/**
  * @brief  Send packet.
  *
  * @param  hdl          device handle
@@ -668,6 +703,7 @@ static int packet_send(struct eth *hdl, const ETHIF_packet_t *pkt)
         if (!err) {
                 uint8_t *buffer = hdl->tx_buff + (hdl->eth.TxDescList.CurTxDesc * ETH_TX_BUF_SIZE_ALIGN);
                 memcpy(buffer, pkt->payload, pkt->length);
+                clear_packet_checksum(buffer);
                 _cpuctl_clean_dcache_by_addr((uint32_t *)buffer, pkt->length);
 
                 ETH_BufferTypeDef tx_buffer;
@@ -873,8 +909,7 @@ static int configure_PHY(struct eth *hdl)
                 }
         } else {
                 for (size_t i = 0; i < ARRAY_SIZE(PHY_ADDR); i++) {
-                        err = HAL_ETH_WritePHYRegister(&eth->eth, PHY_ADDR[i], PHY_BCR,
-                                (speed << 13) | (duplex << 8));
+                        err = HAL_ETH_WritePHYRegister(&eth->eth, PHY_ADDR[i], PHY_BCR, (speed << 13) | (duplex << 8));
                 }
         }
 
@@ -885,8 +920,7 @@ static int configure_PHY(struct eth *hdl)
                 HAL_ETH_GetMACConfig(&hdl->eth, &MACConf);
 
                 MACConf.Speed = (speed == ETHIF_SPEED__100Mbps) ? ETH_SPEED_100M : ETH_SPEED_10M;
-                MACConf.DuplexMode = (duplex == ETHIF_DUPLEX__FULL) ? ETH_FULLDUPLEX_MODE
-                                                                    : ETH_HALFDUPLEX_MODE;
+                MACConf.DuplexMode = (duplex == ETHIF_DUPLEX__FULL) ? ETH_FULLDUPLEX_MODE : ETH_HALFDUPLEX_MODE;
 
                 HAL_ETH_SetMACConfig(&hdl->eth, &MACConf);
         }
@@ -928,8 +962,7 @@ static void get_phy_status(struct eth *hdl, ETHIF_status_t *status)
                         }
 
                         hdl->stats.link_up[i] = linked;
-                        status->link_status = linked ? ETHIF_LINK_STATUS__CONNECTED
-                                                     : ETHIF_LINK_STATUS__DISCONNECTED;
+                        status->link_status = linked ? ETHIF_LINK_STATUS__CONNECTED : ETHIF_LINK_STATUS__DISCONNECTED;
                 } else {
                         hdl->stats.link_up[i] = false;
                         status->link_status = ETHIF_LINK_STATUS__PHY_ERROR;
