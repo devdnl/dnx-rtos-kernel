@@ -149,10 +149,11 @@ enum SYS_FS_TYPE {
  * @param fsname        file system name
  * @param fs_handle     [<b>void *</b>]         file system memory handler
  * @param fhdl          [<b>void *</b>]         file handle (user defined)
- * @param force         [<b>bool</b>]           force file close (system request)
  * @return One of @ref errno value.
+ *
+ * @note The VFS releases its file object even if this function returns an error.
  */
-#define API_FS_CLOSE(fsname, fs_handle, fhdl, force)
+#define API_FS_CLOSE(fsname, fs_handle, fhdl)
 #else
 #define API_FS_CLOSE(fsname, ...) int _##fsname##_close(__VA_ARGS__)
 #endif
@@ -171,7 +172,10 @@ enum SYS_FS_TYPE {
  * @param fhdl          [<b>void *</b>]         file handle (user defined)
  * @param src           [<b>const u8_t *</b>]   source buffer
  * @param count         [<b>size_t</b>]         bytes to write
- * @param fpos          [<b>fpos_t *</b>]       file position indicator (can be modified)
+ * @param fpos          [<b>fpos_t *</b>]       file position indicator. If the file system
+ *                                              sets a new value, the VFS uses it as the new
+ *                                              file position; if left unchanged, the VFS
+ *                                              advances the position by *wrcnt.
  * @param wrcnt         [<b>size_t *</b>]       number of wrote bytes
  * @param fattr         [<b>struct vfs_fattr</b>] file access attributes
  * @return One of @ref errno value.
@@ -197,7 +201,10 @@ enum SYS_FS_TYPE {
  * @param fhdl          [<b>void *</b>]         file handle (user defined)
  * @param dst           [<b>u8_t *</b>]         destination buffer
  * @param count         [<b>size_t</b>]         bytes to read
- * @param fpos          [<b>fpos_t *</b>]       file position indicator (can be modified)
+ * @param fpos          [<b>fpos_t *</b>]       file position indicator. If the file system
+ *                                              sets a new value, the VFS uses it as the new
+ *                                              file position; if left unchanged, the VFS
+ *                                              advances the position by *rdcnt.
  * @param rdcnt         [<b>size_t *</b>]       number of read bytes
  * @param fattr         [<b>struct vfs_fattr</b>] file access attributes
  * @return One of @ref errno value.
@@ -501,14 +508,13 @@ enum SYS_FS_TYPE {
  *
  * @param fsname        file system name
  * @param fs_handle     [<b>void *</b>]         file system memory handler
- * @param fhdl          [<b>void *</b>]         file handle (user defined)
  * @param path          [<b>const char *</b>]   file path
  * @param stat          [<b>struct stat *</b>]  file information
  * @return One of @ref errno value.
  *
  * @see struct stat
  */
-#define API_FS_STAT(fsname, fs_handle, fhdl, path, stat)
+#define API_FS_STAT(fsname, fs_handle, path, stat)
 #else
 #define API_FS_STAT(fsname, ...) int _##fsname##_stat(__VA_ARGS__)
 #endif
@@ -561,6 +567,7 @@ enum SYS_FS_TYPE {
  */
 struct vfs_fattr {
         bool non_blocking_rd; /*!< Non-blocking file read access.*/
+        bool non_strict_rd;   /*!< Non-strict file read access (short read is not EOF).*/
         bool non_blocking_wr; /*!< Non-blocking file write access.*/
 };
 

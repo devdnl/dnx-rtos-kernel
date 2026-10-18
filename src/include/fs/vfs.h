@@ -109,6 +109,11 @@ extern "C" {
 #define O_SHARED 0400000
 #endif
 
+/* mask of access mode bits (O_RDONLY, O_WRONLY, O_RDWR) */
+#ifndef O_ACCMODE
+#define O_ACCMODE 03
+#endif
+
 /* modes */
 #define S_IRWXU 0000700 /* RWX mask for owner */
 #define S_IRUSR 0000400 /* R for owner */
@@ -252,6 +257,7 @@ typedef struct vfs_file {
         fpos_t f_lseek;
         vfs_file_flags_t f_flag;
         int references;
+        void *FS_entry;  //!< VFS mount entry that holds a reference (NULL for direct device files)
 } kfile_t;
 
 /** directory type */
@@ -259,6 +265,7 @@ typedef struct vfs_dir {
         res_header_t header;
         void *FS_hdl;
         const vfs_FS_itf_t *FS_if;
+        void *FS_entry;  //!< VFS mount entry that holds a reference
         void *d_hdl;     //!< Directory descriptor
         size_t d_items;  //!< number of items
         size_t d_seek;   //!< seek
