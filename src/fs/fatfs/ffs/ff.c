@@ -3781,8 +3781,6 @@ FRESULT f_open (
 				}
 			}
 		}
-		fp->obj.ftime = ld_word(dj.dir + DIR_ModTime + 0);        /* Time */
-		fp->obj.fdate = ld_word(dj.dir + DIR_ModTime + 2);        /* Date */
 		if (res == FR_OK) {
 			if (mode & FA_CREATE_ALWAYS) mode |= FA_MODIFIED;	/* Set file change flag if created or overwritten */
 			fp->dir_sect = fs->winsect;			/* Pointer to the directory entry */
@@ -3811,12 +3809,25 @@ FRESULT f_open (
 				fp->obj.c_size = ((DWORD)dj.obj.objsize & 0xFFFFFF00) | dj.obj.stat;
 				fp->obj.c_ofs = dj.blk_ofs;
 				init_alloc_info(fs, &fp->obj);
+				fp->obj.attr = fs->dirbuf[XDIR_Attr] & AM_MASK;			/* dnx RTOS extension: attribute */
+				fp->obj.ftime = ld_word(fs->dirbuf + XDIR_ModTime + 0);	/* dnx RTOS extension: modified time */
+				fp->obj.fdate = ld_word(fs->dirbuf + XDIR_ModTime + 2);	/* dnx RTOS extension: modified date */
 			} else
 #endif
 			{
 				fp->obj.sclust = ld_clust(fs, dj.dir);					/* Get object allocation info */
 				fp->obj.objsize = ld_dword(dj.dir + DIR_FileSize);
+				fp->obj.attr = dj.dir[DIR_Attr] & AM_MASK;				/* dnx RTOS extension: attribute */
+				fp->obj.ftime = ld_word(dj.dir + DIR_ModTime + 0);		/* dnx RTOS extension: modified time */
+				fp->obj.fdate = ld_word(dj.dir + DIR_ModTime + 2);		/* dnx RTOS extension: modified date */
 			}
+#if !FF_FS_READONLY
+			if (mode & FA_CREATE_ALWAYS) {	/* dnx RTOS extension: new/truncated file, time is set by f_sync() */
+				DWORD tm = GET_FATTIME();
+				fp->obj.fdate = (WORD)(tm >> 16);
+				fp->obj.ftime = (WORD)tm;
+			}
+#endif
 #if FF_USE_FASTSEEK
 			fp->cltbl = 0;			/* Disable fast seek mode */
 #endif
@@ -4139,6 +4150,8 @@ FRESULT f_sync (
 						if (res == FR_OK) {
 							res = sync_fs(fs);
 							fp->flag &= (BYTE)~FA_MODIFIED;
+							fp->obj.fdate = (WORD)(tm >> 16);	/* dnx RTOS extension */
+							fp->obj.ftime = (WORD)tm;
 						}
 					}
 					FREE_NAMBUF();
@@ -4157,6 +4170,8 @@ FRESULT f_sync (
 					fs->wflag = 1;
 					res = sync_fs(fs);					/* Restore it to the directory */
 					fp->flag &= (BYTE)~FA_MODIFIED;
+					fp->obj.fdate = (WORD)(tm >> 16);	/* dnx RTOS extension */
+					fp->obj.ftime = (WORD)tm;
 				}
 			}
 		}
@@ -4764,6 +4779,50 @@ FRESULT f_stat (
 	}
 
 	LEAVE_FF(dj.obj.fs, res);
+}
+
+
+
+/*-----------------------------------------------------------------------*/
+/* dnx RTOS extension: Get object identity                               */
+/*-----------------------------------------------------------------------*/
+/* Returns the same identity that is used by the file lock table: start  */
+/* cluster of the containing directory and offset of the entry in it.    */
+/* The identity does not depend on the name spelling (case, SFN alias).  */
+/* Root directory returns dclu = 0, dofs = 0xFFFFFFFF.                   */
+
+FRESULT f_getid (
+	FATFS* fs,
+	const TCHAR* path,	/* Pointer to the object path */
+	DWORD* dclu,		/* Containing directory start cluster */
+	DWORD* dofs,		/* Entry offset in the containing directory */
+	BYTE* attr			/* Object attribute (can be NULL) */
+)
+{
+	FRESULT res;
+	FDIR dj;
+	DEF_NAMBUF
+
+	res = mount_volume(fs, 0);
+	if (res == FR_OK) {
+		dj.obj.fs = fs;
+		INIT_NAMBUF(fs);
+		res = follow_path(&dj, path);
+		if (res == FR_OK) {
+			if (dj.fn[NSFLAG] & NS_NONAME) {	/* Root directory */
+				*dclu = 0;
+				*dofs = 0xFFFFFFFF;
+				if (attr) *attr = AM_DIR;
+			} else {
+				*dclu = dj.obj.sclust;
+				*dofs = dj.dptr;
+				if (attr) *attr = dj.obj.attr;
+			}
+		}
+		FREE_NAMBUF();
+	}
+
+	LEAVE_FF(fs, res);
 }
 
 

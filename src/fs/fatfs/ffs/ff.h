@@ -321,6 +321,7 @@ FRESULT f_mkdir (FATFS* fs, const TCHAR* path);								/* Create a sub directory
 FRESULT f_unlink (FATFS* fs, const TCHAR* path);								/* Delete an existing file or directory */
 FRESULT f_rename (FATFS* fs, const TCHAR* path_old, const TCHAR* path_new);	/* Rename/Move a file or directory */
 FRESULT f_stat (FATFS* fs, const TCHAR* path, FILINFO* fno);					/* Get file status */
+FRESULT f_getid (FATFS* fs, const TCHAR* path, DWORD* dclu, DWORD* dofs, BYTE* attr);	/* dnx RTOS extension: get object identity */
 FRESULT f_chmod (FATFS* fs, const TCHAR* path, BYTE attr, BYTE mask);			/* Change attribute of a file/dir */
 FRESULT f_utime (FATFS* fs, const TCHAR* path, const FILINFO* fno);			/* Change timestamp of a file/dir */
 FRESULT f_chdir (const TCHAR* path);								/* Change current directory */

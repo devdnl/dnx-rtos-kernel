@@ -10,10 +10,26 @@
 #include "ff.h"			/* Obtains integer types */
 #include "diskio.h"		/* Declarations of disk functions */
 
-/* Definitions of physical drive number for each drive */
-#define DEV_RAM		0	/* Example: Map Ramdisk to physical drive 0 */
-#define DEV_MMC		1	/* Example: Map MMC/SD card to physical drive 1 */
-#define DEV_USB		2	/* Example: Map USB MSD to physical drive 2 */
+#if FF_MIN_SS != FF_MAX_SS
+#error "diskio.c supports fixed sector size only (FF_MIN_SS == FF_MAX_SS)"
+#endif
+
+#define SECTOR_SIZE		FF_MAX_SS
+
+
+/*-----------------------------------------------------------------------*/
+/* Convert errno to disk result                                          */
+/*-----------------------------------------------------------------------*/
+
+static DRESULT errno_2_dresult (int err)
+{
+        switch (err) {
+        case ESUCC: return RES_OK;
+        case EROFS: return RES_WRPRT;
+        default:    return RES_ERROR;
+        }
+}
+
 
 
 /*-----------------------------------------------------------------------*/
@@ -55,10 +71,18 @@ DRESULT disk_read (
 	UINT count		/* Number of sectors to read */
 )
 {
+        const size_t len = (size_t)count * SECTOR_SIZE;
         size_t rdcnt = 0;
-        sys_fseek(pdrv, sector * FF_MIN_SS, SEEK_SET);
-        return sys_fread(buff, count * FF_MIN_SS, &rdcnt, pdrv) == ESUCC ?
-                         RES_OK : RES_ERROR;
+
+        int err = sys_fseek(pdrv, (i64_t)(sector * SECTOR_SIZE), SEEK_SET);
+        if (!err) {
+                err = sys_fread(buff, len, &rdcnt, pdrv);
+                if (!err && (rdcnt != len)) {
+                        err = EIO;
+                }
+        }
+
+        return errno_2_dresult(err);
 }
 
 
@@ -76,10 +100,18 @@ DRESULT disk_write (
 	UINT count			/* Number of sectors to write */
 )
 {
+        const size_t len = (size_t)count * SECTOR_SIZE;
         size_t wrcnt = 0;
-        sys_fseek(pdrv, sector * FF_MIN_SS, SEEK_SET);
-        return sys_fwrite(buff, count * FF_MIN_SS, &wrcnt, pdrv) == ESUCC ?
-                          RES_OK : RES_ERROR;
+
+        int err = sys_fseek(pdrv, (i64_t)(sector * SECTOR_SIZE), SEEK_SET);
+        if (!err) {
+                err = sys_fwrite(buff, len, &wrcnt, pdrv);
+                if (!err && (wrcnt != len)) {
+                        err = EIO;
+                }
+        }
+
+        return errno_2_dresult(err);
 }
 
 #endif
@@ -95,8 +127,17 @@ DRESULT disk_ioctl (
 	void *buff		/* Buffer to send/receive control data */
 )
 {
-        UNUSED_ARG3(pdrv, cmd, buff);
+        UNUSED_ARG1(buff);
 
-        return RES_OK;
+        switch (cmd) {
+        case CTRL_SYNC: {
+                /* data written by FatFs must reach the medium */
+                int err = sys_fflush(pdrv);
+                return errno_2_dresult((err == ENOTSUP) ? ESUCC : err);
+        }
+
+        default:
+                return RES_PARERR;
+        }
 }
 

@@ -129,7 +129,7 @@
 /  When LFN is not enabled, this option has no effect. */
 
 
-#define FF_LFN_BUF		255
+#define FF_LFN_BUF		512
 #define FF_SFN_BUF		12
 /* This set of options defines size of file name members in the FILINFO structure
 /  which is used to read out directory items. These values should be suffcient for
@@ -260,7 +260,7 @@
 */
 
 
-#define FF_FS_LOCK		0
+#define FF_FS_LOCK		16	/* max. open files + sub-directories on all FAT volumes */
 /* The option FF_FS_LOCK switches file lock function to control duplicated file open
 /  and illegal operation to open objects. This option must be 0 when FF_FS_READONLY
 /  is 1.
@@ -275,7 +275,7 @@
 /* #include <somertos.h>	// O/S definitions */
 #include "fs/fs.h"
 #define FF_FS_REENTRANT	1
-#define FF_FS_TIMEOUT	1000
+#define FF_FS_TIMEOUT	5000	/* ms (sys_mutex_lock() in ff_req_grant()) */
 #define FF_SYNC_t		kmtx_t*
 /* The option FF_FS_REENTRANT switches the re-entrancy (thread safe) of the FatFs
 /  module itself. Note that regardless of this option, file access to different

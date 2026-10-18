@@ -31,7 +31,9 @@ void ff_memfree (
 	void* mblock	/* Pointer to the memory block to free (nothing to do if null) */
 )
 {
-        sys_free(&mblock);
+        if (mblock) {
+                sys_free(&mblock);
+        }
 }
 
 #endif
@@ -122,21 +124,51 @@ void ff_rel_grant (
 // +-+-+-+-+-+-+-+-+ +-+-+-+-+-+-+-+-+ +-+-+-+-+-+-+-+-+ +-+-+-+-+-+-+-+-+
 //  \___________/\________/\_________/ \________/\____________/\_________/
 //     year        month       day      hour       minute        second
+//
+// Timestamp is stored in UTC. The same interpretation is used when reading
+// (time_fat2unix() in fatfs.c). Range of FAT format is 1980..2107, time out
+// of range (e.g. RTC not set) is clamped.
 
 DWORD get_fattime (void)
 {
-        time_t t;
+        time_t t = 0;
         struct tm tm;
 
-        sys_gettime(&t);
+        memset(&tm, 0, sizeof(tm));
+
+        if (sys_gettime(&t) != ESUCC) {
+                t = 0;
+        }
+
         sys_gmtime_r(&t, &tm);
 
-        DWORD fattime = (((tm.tm_year - 80) << 25) & 0xFE000000)
-                      | (((tm.tm_mon+1) << 21) & 0x01E00000)
-                      | ((tm.tm_mday << 16) & 0x001F0000)
-                      | ((tm.tm_hour << 11) & 0x0000F800)
-                      | ((tm.tm_min << 5) & 0x000007E0)
-                      | ((tm.tm_sec >> 1) & 0x0000001F);
+        if (tm.tm_year < 80) {
+                tm.tm_year = 80;
+                tm.tm_mon  = 0;
+                tm.tm_mday = 1;
+                tm.tm_hour = 0;
+                tm.tm_min  = 0;
+                tm.tm_sec  = 0;
+
+        } else if (tm.tm_year > 207) {
+                tm.tm_year = 207;
+                tm.tm_mon  = 11;
+                tm.tm_mday = 31;
+                tm.tm_hour = 23;
+                tm.tm_min  = 59;
+                tm.tm_sec  = 59;
+        }
+
+        if (tm.tm_sec > 59) {   /* leap second */
+                tm.tm_sec = 59;
+        }
+
+        DWORD fattime = ((DWORD)(tm.tm_year - 80) << 25)
+                      | ((DWORD)(tm.tm_mon + 1)   << 21)
+                      | ((DWORD)tm.tm_mday        << 16)
+                      | ((DWORD)tm.tm_hour        << 11)
+                      | ((DWORD)tm.tm_min         << 5)
+                      | ((DWORD)tm.tm_sec         >> 1);
 
         return fattime;
 }
