@@ -44,6 +44,7 @@
 
 #define FILE_BUFFER 384
 #define PID_STR_LEN 12
+#define LINE_LEN 128
 
 /*==============================================================================
   Local types, enums definitions
@@ -64,7 +65,7 @@ enum path_content {
 
 struct file_info {
         enum path_content content;
-        int16_t arg;
+        i32_t arg; /* -1: directory, >= 0: file argument */
 };
 
 struct dir_info {
@@ -78,10 +79,13 @@ struct dir_info {
 static int procfs_readdir_root(struct procfs *hdl, kdir_t *dir);
 static int procfs_readdir_pid(struct procfs *hdl, kdir_t *dir);
 static int procfs_readdir_bin(struct procfs *hdl, kdir_t *dir);
-static int add_file_to_list(struct procfs *hdl, int16_t arg, enum path_content content, void **object);
+static int add_file_to_list(struct procfs *hdl, i32_t arg, enum path_content content, void **object);
 static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size, i32_t seek);
 static void buf_snprintf(u8_t *buf, size_t *size, size_t *clen, i32_t *seek, const char *fmt, ...);
 static size_t get_file_size(struct file_info *file);
+static int build_path(struct procfs *hdl, const char *path, char **opath);
+static void strip_trailing_slashes(char *path);
+static bool is_number(const char *str);
 
 /*==============================================================================
   Local object definitions
@@ -125,23 +129,22 @@ API_FS_INIT(procfs, void **fs_handle, const char *src_path, const char *opts)
                 }
 
                 if (!isstrempty(opts)) {
-
-                        if (!(isstreq(opts, PATH_ROOT) || isstreq(opts, PATH_ROOT_BIN) ||
-                                    isstreq(opts, PATH_ROOT_PID))) {
-
-                                err = ENOENT;
-                                goto finish;
-                        }
-
                         err = sys_zalloc(strsize(opts), cast(void *, &procfs->offset_path));
                         if (err) {
                                 goto finish;
-                        } else {
-                                strcpy(procfs->offset_path, opts);
+                        }
 
-                                if (LAST_CHARACTER(procfs->offset_path) == '/') {
-                                        LAST_CHARACTER(procfs->offset_path) = '\0';
-                                }
+                        strcpy(procfs->offset_path, opts);
+                        strip_trailing_slashes(procfs->offset_path);
+
+                        if (isstrempty(procfs->offset_path)) {
+                                // offset "/" is equal to no offset
+                                sys_free(cast(void *, &procfs->offset_path));
+
+                        } else if (!(isstreq(procfs->offset_path, PATH_ROOT_BIN) ||
+                                           isstreq(procfs->offset_path, PATH_ROOT_PID))) {
+                                err = ENOENT;
+                                goto finish;
                         }
                 }
 
@@ -187,7 +190,9 @@ API_FS_RELEASE(procfs, void *fs_handle)
                 } else {
                         sys_llist_destroy(procfs->file_list);
                         kmtx_t *mtx = procfs->resource_mtx;
-                        sys_free(cast(void *, &procfs->offset_path));
+                        if (procfs->offset_path) {
+                                sys_free(cast(void *, &procfs->offset_path));
+                        }
                         memset(procfs, 0, sizeof(struct procfs));
                         sys_mutex_unlock(mtx);
                         sys_mutex_destroy(mtx);
@@ -219,76 +224,67 @@ API_FS_OPEN(procfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
                 return EROFS;
         }
 
-        int err = ENOENT;
-
         *fpos = 0;
 
-        // create path with offset
-        char *opath = const_cast(path);
-
-        if (hdl->offset_path) {
-                err = sys_malloc(strlen(hdl->offset_path) + strsize(path), cast(void *, &opath));
-
-                if (!err) {
-                        strcpy(opath, hdl->offset_path);
-                        strcat(opath, path);
-                } else {
-                        return err;
-                }
+        char *opath = NULL;
+        int err = build_path(hdl, path, &opath);
+        if (err) {
+                return err;
         }
-
-        // pointer for modification
-        char *mpath = opath;
 
         err = ENOENT;
 
-        // "/pid" path
-        if (isstreq(mpath, PATH_ROOT_PID)) {
+        if (isstreq(opath, PATH_ROOT)) {
+                // "/" path
+                err = add_file_to_list(hdl, -1, FILE_CONTENT_ROOT, fhdl);
+
+        } else if (isstreq(opath, PATH_ROOT_PID)) {
+                // "/pid" path
                 err = add_file_to_list(hdl, -1, FILE_CONTENT_PID, fhdl);
 
+        } else if (isstreqn(opath, PATH_ROOT_PID "/", strlen(PATH_ROOT_PID) + 1)) {
                 // "/pid/<pid>" path
-        } else if (isstreqn(mpath, PATH_ROOT_PID "/", strlen(PATH_ROOT_PID) + 1)) {
-                mpath += strlen(PATH_ROOT_PID) + 1;
+                const char *mpath = opath + strlen(PATH_ROOT_PID) + 1;
 
-                i32_t pid = 0;
-                sys_strtoi32(mpath, 10, &pid);
+                if (is_number(mpath)) {
+                        i32_t pid = 0;
+                        sys_strtoi32(mpath, 10, &pid);
 
-                _process_stat_t stat = {0};
-                if (sys_process_get_stat_pid(pid, &stat) == ESUCC) {
-                        err = add_file_to_list(hdl, pid, FILE_CONTENT_PID, fhdl);
-                } else {
-                        err = ENOENT;
+                        _process_stat_t stat = {0};
+                        if ((pid >= 0) && (sys_process_get_stat_pid(pid, &stat) == ESUCC)) {
+                                err = add_file_to_list(hdl, pid, FILE_CONTENT_PID, fhdl);
+                        }
                 }
 
+        } else if (isstreq(opath, PATH_ROOT_BIN)) {
                 // "/bin" path
-        } else if (isstreq(mpath, PATH_ROOT_BIN)) {
                 err = add_file_to_list(hdl, -1, FILE_CONTENT_BIN, fhdl);
 
+        } else if (isstreqn(opath, PATH_ROOT_BIN "/", strlen(PATH_ROOT_BIN) + 1)) {
                 // "/bin/<prog>" path
-        } else if (isstreqn(mpath, PATH_ROOT_BIN "/", strlen(PATH_ROOT_BIN) + 1)) {
-                mpath += strlen(PATH_ROOT_BIN) + 1;
+                const char *mpath = opath + strlen(PATH_ROOT_BIN) + 1;
 
-                for (const appset_table_t *appset = sys_get_program_table(); appset; appset = appset->next) {
+                // global program index (across all application sets)
+                i32_t idx = 0;
+                bool found = false;
 
-                        for (size_t i = 0; i < appset->table->number_of_programs; i++) {
+                for (const appset_table_t *appset = sys_get_program_table(); appset && !found; appset = appset->next) {
+
+                        for (size_t i = 0; i < appset->table->number_of_programs; i++, idx++) {
                                 if (isstreq(mpath, appset->table->program_entry[i].name)) {
-                                        err = add_file_to_list(hdl, i, FILE_CONTENT_BIN, fhdl);
+                                        err = add_file_to_list(hdl, idx, FILE_CONTENT_BIN, fhdl);
+                                        found = true;
                                         break;
                                 }
                         }
                 }
 
+        } else if (isstreq(opath, PATH_ROOT_CPUINFO)) {
                 // "/cpuinfo" path
-        } else if (isstreq(mpath, PATH_ROOT_CPUINFO)) {
                 err = add_file_to_list(hdl, 0, FILE_CONTENT_CPUINFO, fhdl);
-
-        } else {
-                err = ENOENT;
         }
 
-        if (opath != path) {
-                sys_free(cast(void *, &opath));
-        }
+        sys_free(cast(void *, &opath));
 
         return err;
 }
@@ -313,7 +309,7 @@ API_FS_CLOSE(procfs, void *fs_handle, void *fhdl)
         int err = sys_mutex_lock(fsctx->resource_mtx, _WAIT_FOREVER_MS);
         if (!err) {
                 int pos = sys_llist_find_begin(fsctx->file_list, fhdl);
-                err = sys_llist_erase(fsctx->file_list, pos) ? ESUCC : ENOENT;
+                err = ((pos >= 0) && sys_llist_erase(fsctx->file_list, pos)) ? ESUCC : ENOENT;
                 if (err) {
                         printk("PROCFS: no such descriptor!");
                 }
@@ -371,8 +367,15 @@ API_FS_READ(procfs, void *fs_handle, void *fhdl, u8_t *dst, size_t count, fpos_t
         int err = ENOENT;
 
         if (file && file->content < _FILE_CONTENT_COUNT) {
-                *rdcnt = get_file_content(file, dst, count, *fpos);
-                err = 0;
+                if (file->arg < 0) {
+                        err = EISDIR;
+                } else if (*fpos > INT32_MAX) {
+                        *rdcnt = 0;
+                        err = ESUCC;
+                } else {
+                        *rdcnt = get_file_content(file, dst, count, cast(i32_t, *fpos));
+                        err = ESUCC;
+                }
         }
 
         return err;
@@ -430,6 +433,10 @@ API_FS_FSTAT(procfs, void *fs_handle, void *fhdl, struct stat *stat)
         UNUSED_ARG1(fs_handle);
 
         struct file_info *file = fhdl;
+
+        if (!file) {
+                return EINVAL;
+        }
 
         stat->st_dev = 0;
         stat->st_mode = S_IRUSR | S_IRGRP | S_IROTH;
@@ -563,20 +570,11 @@ API_FS_MKNOD(procfs, void *fs_handle, const char *path, const dev_t dev)
 API_FS_OPENDIR(procfs, void *fs_handle, const char *path, kdir_t *dir)
 {
         struct procfs *hdl = fs_handle;
-        int err;
 
-        // create path with offset
-        char *opath = const_cast(path);
-
-        if (hdl->offset_path) {
-                err = sys_malloc(strlen(hdl->offset_path) + strsize(path), cast(void *, &opath));
-
-                if (!err) {
-                        strcpy(opath, hdl->offset_path);
-                        strcat(opath, path);
-                } else {
-                        return err;
-                }
+        char *opath = NULL;
+        int err = build_path(hdl, path, &opath);
+        if (err) {
+                return err;
         }
 
         dir->d_seek = 0;
@@ -589,16 +587,15 @@ API_FS_OPENDIR(procfs, void *fs_handle, const char *path, kdir_t *dir)
                         dirinfo->dir_name = PATH_ROOT;
                         dir->d_items = 3;
 
-                } else if (isstreq(opath, PATH_ROOT_PID "/")) {
+                } else if (isstreq(opath, PATH_ROOT_PID)) {
                         dirinfo->dir_name = PATH_ROOT_PID;
                         dir->d_items = sys_process_get_count();
 
-                } else if (isstreq(opath, PATH_ROOT_BIN "/")) {
+                } else if (isstreq(opath, PATH_ROOT_BIN)) {
                         dirinfo->dir_name = PATH_ROOT_BIN;
                         dir->d_items = 0;
 
                         for (const appset_table_t *appset = sys_get_program_table(); appset; appset = appset->next) {
-
                                 dir->d_items += appset->table->number_of_programs;
                         }
 
@@ -608,9 +605,7 @@ API_FS_OPENDIR(procfs, void *fs_handle, const char *path, kdir_t *dir)
                 }
         }
 
-        if (opath != path) {
-                sys_free(cast(void *, &opath));
-        }
+        sys_free(cast(void *, &opath));
 
         return err;
 }
@@ -780,7 +775,7 @@ API_FS_SYNC(procfs, void *fs_handle)
 
 //==============================================================================
 /**
- * @brief Read directory
+ * @brief Read root directory
  *
  * @param[in ]          *hdl                    file system allocated memory
  * @param[in,out]       *dir                    directory object
@@ -797,7 +792,7 @@ static int procfs_readdir_root(struct procfs *hdl, kdir_t *dir)
         dir->dirent.dev = 0;
         dir->dirent.size = 0;
 
-        switch (dir->d_seek++) {
+        switch (dir->d_seek) {
         case 0:
                 dir->dirent.d_name = "bin";
                 dir->dirent.mode = S_IRUSR | S_IRGRP | S_IROTH | S_IFDIR;
@@ -821,12 +816,16 @@ static int procfs_readdir_root(struct procfs *hdl, kdir_t *dir)
                 break;
         }
 
+        if (!err) {
+                dir->d_seek++;
+        }
+
         return err;
 }
 
 //==============================================================================
 /**
- * @brief Read directory
+ * @brief Read /pid directory
  *
  * @param[in ]          *hdl                    file system allocated memory
  * @param[in,out]       *dir                    directory object
@@ -838,9 +837,10 @@ static int procfs_readdir_pid(struct procfs *hdl, kdir_t *dir)
 {
         UNUSED_ARG1(hdl);
 
-        _process_stat_t stat;
-        int err = sys_process_get_stat_seek(dir->d_seek++, &stat);
+        _process_stat_t stat = {0};
+        int err = sys_process_get_stat_seek(dir->d_seek, &stat);
         if (!err) {
+                dir->d_seek++;
 
                 struct dir_info *dirinfo = dir->d_hdl;
 
@@ -859,7 +859,7 @@ static int procfs_readdir_pid(struct procfs *hdl, kdir_t *dir)
 
 //==============================================================================
 /**
- * @brief Read directory
+ * @brief Read /bin directory
  *
  * @param[in ]          *hdl                    file system allocated memory
  * @param[in,out]       *dir                    directory object
@@ -880,9 +880,11 @@ static int procfs_readdir_bin(struct procfs *hdl, kdir_t *dir)
                 if (seek < appset->table->number_of_programs) {
                         dir->dirent.d_name = appset->table->program_entry[seek].name;
                         dir->dirent.mode = S_IRUSR | S_IRGRP | S_IROTH | S_IXUSR | S_IFPROG;
+                        dir->dirent.dev = 0;
 
+                        // global index is required by get_file_content()
                         struct file_info file = {
-                                .arg = seek,
+                                .arg = cast(i32_t, dir->d_seek),
                                 .content = FILE_CONTENT_BIN,
                         };
                         dir->dirent.size = get_file_size(&file);
@@ -911,7 +913,7 @@ static int procfs_readdir_bin(struct procfs *hdl, kdir_t *dir)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-static int add_file_to_list(struct procfs *hdl, int16_t arg, enum path_content content, void **object)
+static int add_file_to_list(struct procfs *hdl, i32_t arg, enum path_content content, void **object)
 {
         struct file_info *file;
         int err = sys_zalloc(sizeof(struct file_info), cast(void **, &file));
@@ -929,6 +931,8 @@ static int add_file_to_list(struct procfs *hdl, int16_t arg, enum path_content c
                         }
 
                         sys_mutex_unlock(hdl->resource_mtx);
+                } else {
+                        sys_free(cast(void **, &file));
                 }
         }
 
@@ -937,11 +941,80 @@ static int add_file_to_list(struct procfs *hdl, int16_t arg, enum path_content c
 
 //==============================================================================
 /**
+ * @brief Build normalized path: offset + path, without trailing slashes.
+ *        Root directory is always returned as "/". Result must be freed.
+ */
+//==============================================================================
+static int build_path(struct procfs *hdl, const char *path, char **opath)
+{
+        if (!path) {
+                path = "";
+        }
+
+        size_t olen = hdl->offset_path ? strlen(hdl->offset_path) : 0;
+
+        // offset + optional '/' + path + '\0'
+        int err = sys_malloc(olen + strsize(path) + 1, cast(void *, opath));
+        if (!err) {
+                char *p = *opath;
+                p[0] = '\0';
+
+                if (olen) {
+                        strcpy(p, hdl->offset_path);
+                }
+
+                if (path[0] != '/') {
+                        strcat(p, "/");
+                }
+
+                strcat(p, path);
+
+                strip_trailing_slashes(p);
+
+                if (p[0] == '\0') {
+                        strcpy(p, PATH_ROOT);
+                }
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief Remove trailing slashes. Path "/" becomes empty string.
+ */
+//==============================================================================
+static void strip_trailing_slashes(char *path)
+{
+        size_t len = strlen(path);
+        while ((len > 0) && (path[len - 1] == '/')) {
+                path[--len] = '\0';
+        }
+}
+
+//==============================================================================
+/**
+ * @brief Check if string is non-empty decimal number.
+ */
+//==============================================================================
+static bool is_number(const char *str)
+{
+        if (isstrempty(str)) {
+                return false;
+        }
+
+        for (; *str; str++) {
+                if ((*str < '0') || (*str > '9')) {
+                        return false;
+                }
+        }
+
+        return true;
+}
+
+//==============================================================================
+/**
  * @brief  Return file size
- *
- * @param  file         file info
- *
- * @return File content size.
  */
 //==============================================================================
 static size_t get_file_size(struct file_info *file)
@@ -955,8 +1028,9 @@ static size_t get_file_size(struct file_info *file)
  * @brief Function return file content and size
  *
  * @param file          file information
- * @param buff          buffer
+ * @param buff          buffer (can be NULL)
  * @param size          buffer size
+ * @param seek          file position
  *
  * @return number of bytes written to buffer
  */
@@ -965,9 +1039,15 @@ static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size, 
 {
         size_t clen = 0;
 
+        if (file->arg < 0) {
+                return 0;
+        }
+
         switch (file->content) {
         case FILE_CONTENT_PID: {
-                char cmdline[128];
+                // cmdline + '\n' + '\0' must fit in a single LINE_LEN line,
+                // otherwise sys_vsnprintf() truncates the line and '\n' is lost
+                char cmdline[LINE_LEN - 1];
 
                 _process_stat_t stat = {0};
                 stat.cmdline_buf = cmdline;
@@ -976,7 +1056,10 @@ static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size, 
                 if (sys_process_get_stat_pid(file->arg, &stat) == ESUCC) {
 
                         if (size) {
-                                buf_snprintf(buff, &size, &clen, &seek, "Command: %s\n", stat.cmdline_buf);
+                                buf_snprintf(buff, &size, &clen, &seek, "Command: ");
+                        }
+                        if (size) {
+                                buf_snprintf(buff, &size, &clen, &seek, "%s\n", stat.cmdline_buf);
                         }
                         if (size) {
                                 buf_snprintf(buff, &size, &clen, &seek, "PID: %d\n", stat.pid);
@@ -1029,7 +1112,7 @@ static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size, 
                 break;
         }
 
-        case FILE_CONTENT_CPUINFO:
+        case FILE_CONTENT_CPUINFO: {
                 buf_snprintf(buff, &size, &clen, &seek,
                         "CPU name  : %s\n"
                         "CPU vendor: %s\n"
@@ -1054,6 +1137,7 @@ static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size, 
                                 "Warning: no '" CLK_FILE_PATH "' file to read clocks\n");
                 }
                 break;
+        }
 
 #if __OS_SYSTEM_SHEBANG_ENABLE__ > 0
         case FILE_CONTENT_BIN: {
@@ -1095,12 +1179,20 @@ static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size, 
 //==============================================================================
 static void buf_snprintf(u8_t *buf, size_t *size, size_t *clen, i32_t *seek, const char *fmt, ...)
 {
-        char line[128];
+        char line[LINE_LEN];
 
         va_list arg;
         va_start(arg, fmt);
         i32_t len = sys_vsnprintf(line, sizeof(line), fmt, arg);
         va_end(arg);
+
+        if (len <= 0) {
+                return;
+        }
+
+        if (len >= cast(i32_t, sizeof(line))) {
+                len = sizeof(line) - 1;
+        }
 
         if (len - *seek > 0) {
                 len -= *seek;
