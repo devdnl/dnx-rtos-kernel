@@ -53,26 +53,40 @@ Brief   Daniel Zorychta
 #define BLOCK_SIZE            512
 #define CRC32_INIT            0xFFFFFFFF
 
-#define MAX_FILE_NAME_LEN     (BLOCK_SIZE - offsetof(blk_file_t, name))
+/* Number of non-file blocks: FS descriptor + 2x bitmap */
+#define SYSTEM_BLOCKS         3
 
+/* Maximum length of stored name (with NUL), equal to blk_file_t::name size. */
+#define MAX_FILE_NAME_LEN     sizeof(((blk_file_t *)0)->name)
+
+#define BIT(_n)               (1u << (_n))
+#define BITMAP_WORD_BITS      (ARRAY_ITEM_SIZE(((blk_bitmap_t *)0)->word) * 8)
+#define BITMAP_BITS           (sizeof(((blk_bitmap_t *)0)->word) * 8)
+
+/*
+ * Iterate over file nodes starting from _start_node up to last node of volume.
+ *
+ * NOTE: macro is built from nested loops - `break` inside loop body works like
+ *       `continue`! Use `goto` to leave the loop. Macro declares local
+ *       variables, so use it only once in the scope (put it in a block `{}`).
+ */
 #define foreach_file_node(_hdl, _start_node)                                                    \
-        u32_t _max_files = _hdl->total_files;                                                   \
-        size_t i = (_start_node) / 32;                                                          \
-        size_t bit = (_start_node) % 32;                                                        \
-        for (; i < ARRAY_SIZE(_hdl->bitmap.word); i++, bit = 0)                                 \
-                for (; (bit < ARRAY_ITEM_SIZE(_hdl->bitmap.word) * 8) and (_max_files > 0);     \
-                        bit++, _max_files--)                                                    \
-                        for (u32_t node = ((ARRAY_ITEM_SIZE(_hdl->bitmap.word) * 8) * i) + bit; \
-                                node < sizeof(_hdl->bitmap.word) * 8; node = UINT32_MAX)
+        u32_t _start = (_start_node);                                                           \
+        u32_t _max_files = (_start < (_hdl)->total_files) ? ((_hdl)->total_files - _start) : 0; \
+        size_t i = _start / BITMAP_WORD_BITS;                                                   \
+        size_t bit = _start % BITMAP_WORD_BITS;                                                 \
+        for (; (i < ARRAY_SIZE((_hdl)->bitmap.word)) and (_max_files > 0); i++, bit = 0)        \
+                for (; (bit < BITMAP_WORD_BITS) and (_max_files > 0); bit++, _max_files--)      \
+                        for (u32_t node = (BITMAP_WORD_BITS * i) + bit; node < BITMAP_BITS;     \
+                                node = UINT32_MAX)
 
 #define foreach_used_file_node(hdl, start_node) \
-        foreach_file_node(hdl, start_node) if (hdl->bitmap.word[i] & (1 << bit))
+        foreach_file_node(hdl, start_node) if ((hdl)->bitmap.word[i] & BIT(bit))
 
 #define FIND_ANY_NODE     UINT32_MAX
-#define MAX_FILE_NAME_LEN (BLOCK_SIZE - offsetof(blk_file_t, name))
 
 #define INDEX_HIT_MAX     (100 * __OS_SYSTEM_CACHE_SYNC_PERIOD__)
-#define INDEX_HIT_MIN     -INDEX_HIT_MAX
+#define INDEX_HIT_MIN     (-INDEX_HIT_MAX)
 
 /*==============================================================================
   Local object types
@@ -119,13 +133,17 @@ typedef union {
 } blk_file_t;
 
 static_assert(sizeof(blk_file_t) == BLOCK_SIZE, "blk_file_t is bigger than BLOCK_SIZE!");
+static_assert(sizeof(mode_t) >= sizeof(u32_t), "FIND_ANY_NODE requires at least 32-bit mode_t!");
 
 /*
- * File data descriptor block. (not implemented)
+ * File data descriptor block.
+ *
+ * Reserved for future use: chaining of data nodes when file size exceeds
+ * capacity of a single file node (see blk_file_t::next_data_node).
  */
 typedef union {
         struct {
-                u32_t magic;          // Block magic number: MAGIC_BLOCK_FILE
+                u32_t magic;          // Block magic number: MAGIC_BLOCK_FILE_DATA
                 u32_t crc;            // CRC32 calculated starting from field below up to block end
                 u32_t next_data_node; // next data node
         };
@@ -187,22 +205,12 @@ typedef struct {
         u32_t first_file_node_address;
         blk_bitmap_t bitmap;
         char tmp_path[MAX_FILE_NAME_LEN];
-        u8_t block[2][BLOCK_SIZE];
+        u8_t block[2][BLOCK_SIZE] __attribute__((aligned(8))); // casted to blk_file_t (u64_t fields)
 
 #if __FLATFS_INDEX_SIZE__ > 0
         path_index_t path_index[__FLATFS_INDEX_SIZE__];
 #endif
 } flatfs_t;
-
-/*
- * Readdir specified dir entry
- */
-typedef struct {
-        u64_t size;  //!< File size in bytes
-        mode_t mode; //!< File mode (protection, file type)
-        dev_t dev;   //!< Device address (if file type is driver)
-        char name[]; //!< File name placeholder
-} readdir_dirent_t;
 
 /*==============================================================================
   Local function prototypes
@@ -213,20 +221,24 @@ static int block_write(flatfs_t *hdl, u32_t address, const void *src, size_t blo
 static int mount(flatfs_t *hdl);
 static int check_first_sector_coherency(flatfs_t *hdl);
 static int check_bitmaps_coherency_and_repair(flatfs_t *hdl);
-static int check_file_block_coherency(flatfs_t *hdl, const blk_file_t *blk);
+static int check_file_block_coherency(flatfs_t *hdl, u32_t node_num, const blk_file_t *blk);
 static u32_t node_get_blkaddr(flatfs_t *hdl, u32_t node_num);
-static int node_find(flatfs_t *hdl, const char *name, size_t name_len, mode_t mode_mask, blk_file_t *blk,
-        u32_t *node_num);
+static u64_t node_max_file_size(flatfs_t *hdl, u32_t node_num);
+static int node_find(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t *blk, u32_t *node_num);
+static int node_find_any(flatfs_t *hdl, const char *path, blk_file_t *blk, u32_t *node_num);
 static int node_create(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t *blk, u32_t *node_num,
         time_t time);
 static int node_remove(flatfs_t *hdl, u32_t node_num);
+static bool node_is_open(flatfs_t *hdl, u32_t node_num);
+static int check_path(const char *path);
+static const char *make_dir_path(flatfs_t *hdl, const char *path);
+static int parent_dir_check(flatfs_t *hdl, const char *path, blk_file_t *blk);
 static void set_bitmap_bit(flatfs_t *hdl, u32_t node_num, bool set);
 static u32_t calc_blk_crc(const void *blk);
 static int file_block_read(flatfs_t *hdl, u32_t node_num, blk_file_t *blk);
 static int file_block_write(flatfs_t *hdl, u32_t node_num, blk_file_t *blk);
 static void index_remove(flatfs_t *hdl, u32_t node_num);
-static bool index_find(flatfs_t *hdl, const char *name, size_t name_len, mode_t mode, blk_file_t *blk,
-        u32_t *node_num);
+static bool index_find(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t *blk, u32_t *node_num);
 static bool index_get(flatfs_t *hdl, u32_t node_num, blk_file_t *blk);
 static void index_add(flatfs_t *hdl, u32_t node_num, const blk_file_t *blk);
 
@@ -332,6 +344,8 @@ API_FS_INIT(flatfs, void **fs_handle, const char *src_path, const char *opts)
                                         if (!err) {
                                                 return err;
                                         }
+
+                                        sys_fclose(hdl->disc);
                                 }
 
                                 sys_llist_destroy(hdl->open_files);
@@ -377,6 +391,7 @@ API_FS_RELEASE(flatfs, void *fs_handle)
                         sys_free(&fs_handle);
                 } else {
                         err = EBUSY;
+                        sys_mutex_unlock(mtx);
                 }
         }
 
@@ -400,8 +415,13 @@ API_FS_OPEN(flatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
 {
         flatfs_t *hdl = fs_handle;
 
+        int err = check_path(path);
+        if (err) {
+                return err;
+        }
+
         file_t *file;
-        int err = sys_zalloc(sizeof(file_t), cast(void **, &file));
+        err = sys_zalloc(sizeof(file_t), cast(void **, &file));
         if (!err) {
                 *fhdl = file;
                 *fpos = 0;
@@ -412,56 +432,40 @@ API_FS_OPEN(flatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
                 err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
                 if (!err) {
                         blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
+                        u32_t node_num;
 
                         /*
-                         * Try to open directory that should contains selected file
+                         * Directory that should contain selected file must exist
                          */
-                        sys_strlcpy(hdl->tmp_path, path, sizeof(hdl->tmp_path));
-                        char *slash = strrchr(hdl->tmp_path, '/');
-                        if (slash) {
-                                *slash = '\0';
-
-                                if (not isstrempty(hdl->tmp_path)) {
-                                        *slash++ = '/';
-                                        *slash++ = '\0';
-
-                                        err = node_find(hdl, hdl->tmp_path, MAX_FILE_NAME_LEN, S_IFDIR, blk,
-                                                &file->node_num);
-
-                                        if (err) {
-                                                goto finish;
-                                        }
-                                } else {
-                                        // root dir always exists (without any node)
-                                }
-
-                        } else {
-                                err = ENOENT;
+                        err = parent_dir_check(hdl, path, blk);
+                        if (err) {
                                 goto finish;
                         }
 
                         /*
-                         * Try to open path as is to check if is a directory
+                         * Check if path is a directory
                          */
-                        sys_strlcpy(hdl->tmp_path, path, sizeof(hdl->tmp_path));
-                        sys_strlcat(hdl->tmp_path, "/", sizeof(hdl->tmp_path));
-
-                        err = node_find(hdl, hdl->tmp_path, MAX_FILE_NAME_LEN, S_IFDIR, blk, &file->node_num);
-                        if (not err) {
+                        err = node_find(hdl, make_dir_path(hdl, path), S_IFDIR, blk, &node_num);
+                        if (err == ESUCC) {
                                 err = EISDIR;
+                                goto finish;
+                        } else if (err != ENOENT) {
                                 goto finish;
                         }
 
                         /*
                          * Try to open/create file in selected directory
                          */
-                        err = node_find(hdl, path, MAX_FILE_NAME_LEN, S_IFREG, blk, &file->node_num);
+                        err = node_find(hdl, path, S_IFREG, blk, &node_num);
 
-                        if (err == ENOENT) {
-                                if (flags & O_CREAT) {
-                                        err = node_create(hdl, path, S_IFREG | 0666, blk, &file->node_num,
-                                                mtime);
+                        if (err == ESUCC) {
+#ifdef O_EXCL
+                                if ((flags & O_CREAT) and (flags & O_EXCL)) {
+                                        err = EEXIST;
                                 }
+#endif
+                        } else if ((err == ENOENT) and (flags & O_CREAT)) {
+                                err = node_create(hdl, path, S_IFREG | 0666, blk, &node_num, mtime);
                         }
 
                         if (err) {
@@ -472,31 +476,25 @@ API_FS_OPEN(flatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
                          * Opened block should be a regular file
                          */
                         if (S_ISREG(blk->mode)) {
-                                if (flags & O_TRUNC) {
+                                if ((flags & O_TRUNC) and (blk->size > 0)) {
 
                                         blk->size = 0;
                                         blk->mtime = mtime;
 
-                                        err = file_block_write(hdl, file->node_num, blk);
+                                        err = file_block_write(hdl, node_num, blk);
                                         if (err) {
                                                 goto finish;
                                         }
                                 }
 
                                 if (flags & O_APPEND) {
-
-                                        blk->mtime = mtime;
-
-                                        err = file_block_write(hdl, file->node_num, blk);
-                                        if (err) {
-                                                goto finish;
-                                        }
-
                                         *fpos = blk->size;
                                 }
 
+                                file->node_num = node_num;
+
                                 if (sys_llist_push_back(hdl->open_files, file) == file) {
-                                        err = 0;
+                                        err = ESUCC;
                                 } else {
                                         err = ENOMEM;
                                 }
@@ -539,6 +537,7 @@ API_FS_CLOSE(flatfs, void *fs_handle, void *fhdl)
 
                 int pos = sys_llist_find_begin(hdl->open_files, file);
                 if (pos >= 0) {
+                        // NOTE: list created with NULL destructor - erase releases object by default
                         sys_llist_erase(hdl->open_files, pos);
                         err = ESUCC;
 
@@ -576,6 +575,8 @@ API_FS_WRITE(flatfs, void *fs_handle, void *fhdl, const u8_t *src, size_t count,
         flatfs_t *hdl = fs_handle;
         file_t *file = fhdl;
 
+        *wrctr = 0;
+
         if (hdl->read_only) {
                 return EROFS;
         }
@@ -584,98 +585,124 @@ API_FS_WRITE(flatfs, void *fs_handle, void *fhdl, const u8_t *src, size_t count,
         sys_gettime(&now);
 
         int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
-        if (!err) {
+        if (err) {
+                return err;
+        }
 
-                u32_t seek = *fpos;
-                *wrctr = 0;
+        blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
+        err = file_block_read(hdl, file->node_num, blk);
+        if (err) {
+                goto finish;
+        }
 
-                blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
-                err = file_block_read(hdl, file->node_num, blk);
+        /*
+         * Seek must be inside of file node area, otherwise data of next
+         * node would be overwritten.
+         */
+        u64_t max_file_size = node_max_file_size(hdl, file->node_num);
+        if (cast(u64_t, *fpos) >= max_file_size) {
+                err = (count > 0) ? EFBIG : ESUCC;
+                goto finish;
+        }
 
-                if (!err) {
-                        // fill by zeros void between seek and file size
-                        if (seek > blk->size) {
-                                u32_t zeros = seek - blk->size;
-                                u32_t wrpos = blk->size;
-                                u32_t block_address = (node_get_blkaddr(hdl, file->node_num) + 1) +
-                                        (wrpos / BLOCK_SIZE);
+        u32_t seek = *fpos;
+        u32_t data_address = node_get_blkaddr(hdl, file->node_num) + 1;
 
-                                while (!err and (zeros > 0)) {
-                                        u32_t bytes = min(zeros, BLOCK_SIZE - (wrpos % BLOCK_SIZE));
+        /*
+         * Fill by zeros void between file size and seek.
+         */
+        if (seek > blk->size) {
+                u32_t wrpos = blk->size;
 
-                                        if (wrpos % BLOCK_SIZE != 0) {
-                                                err = block_read(hdl, block_address, hdl->block[1], 1);
-                                        }
+                while (!err and (wrpos < seek)) {
+                        u32_t offset = wrpos % BLOCK_SIZE;
+                        u32_t bytes = min(seek - wrpos, BLOCK_SIZE - offset);
+                        u32_t address = data_address + (wrpos / BLOCK_SIZE);
 
-                                        if (!err) {
-                                                memset(&hdl->block[1][(wrpos % BLOCK_SIZE)], 0, bytes);
-                                                err = block_write(hdl, block_address, hdl->block[1], 1);
-                                        }
-
-                                        if (!err) {
-                                                zeros -= bytes;
-                                                wrpos += bytes;
-                                                block_address++;
-                                        }
-                                }
+                        if (offset != 0) {
+                                err = block_read(hdl, address, hdl->block[1], 1);
+                        } else {
+                                memset(hdl->block[1], 0, BLOCK_SIZE);
                         }
 
-                        // write data buffer
-                        u32_t file_blocks = (file->node_num == (hdl->total_files - 1))
-                                ? hdl->last_file_node_blocks
-                                : hdl->file_node_blocks;
-                        u64_t max_file_size = cast(u64_t, file_blocks - 1) * BLOCK_SIZE;
-                        u32_t bytes_to_write = min(max_file_size - seek, count);
-                        u32_t block_address = (node_get_blkaddr(hdl, file->node_num) + 1) +
-                                (seek / BLOCK_SIZE);
-
-                        while (!err and (bytes_to_write > 0)) {
-
-                                u32_t blocks = 0;
-                                u32_t bytes = 0;
-                                const u8_t *buf = NULL;
-
-                                if ((seek % BLOCK_SIZE == 0) and (bytes_to_write >= BLOCK_SIZE)) {
-                                        blocks = bytes_to_write / BLOCK_SIZE;
-                                        bytes = blocks * BLOCK_SIZE;
-                                        buf = src;
-
-                                } else {
-                                        blocks = 1;
-                                        bytes = BLOCK_SIZE - (seek % BLOCK_SIZE);
-                                        bytes = min(bytes, bytes_to_write);
-                                        buf = hdl->block[1];
-
-                                        err = block_read(hdl, block_address, hdl->block[1], blocks);
-                                        if (!err) {
-                                                memcpy(&hdl->block[1][(seek % BLOCK_SIZE)], src, bytes);
-                                        }
-                                }
-
-                                if (!err) {
-                                        err = block_write(hdl, block_address, buf, blocks);
-                                }
-
-                                if (!err) {
-                                        block_address += blocks;
-                                        bytes_to_write -= bytes;
-                                        seek += bytes;
-                                        src += bytes;
-                                        *wrctr += bytes;
-                                }
+                        if (!err) {
+                                memset(&hdl->block[1][offset], 0, bytes);
+                                err = block_write(hdl, address, hdl->block[1], 1);
                         }
 
-                        if (*wrctr > 0) {
-                                if ((blk->size < seek) or (not hdl->noatime)) {
-                                        blk->mtime = now;
-                                        blk->size = max(blk->size, seek);
-                                        err = file_block_write(hdl, file->node_num, blk);
-                                }
+                        if (!err) {
+                                wrpos += bytes;
+                        }
+                }
+        }
+
+        /*
+         * Write data buffer.
+         */
+        u32_t bytes_to_write = min(max_file_size - seek, cast(u64_t, count));
+        u32_t block_address = data_address + (seek / BLOCK_SIZE);
+
+        while (!err and (bytes_to_write > 0)) {
+
+                u32_t blocks = 0;
+                u32_t bytes = 0;
+                const u8_t *buf = NULL;
+
+                if ((seek % BLOCK_SIZE == 0) and (bytes_to_write >= BLOCK_SIZE)) {
+                        blocks = bytes_to_write / BLOCK_SIZE;
+                        bytes = blocks * BLOCK_SIZE;
+                        buf = src;
+
+                } else {
+                        blocks = 1;
+                        bytes = BLOCK_SIZE - (seek % BLOCK_SIZE);
+                        bytes = min(bytes, bytes_to_write);
+                        buf = hdl->block[1];
+
+                        if ((seek % BLOCK_SIZE == 0) and (seek >= blk->size)) {
+                                // block beyond end of file: nothing to preserve
+                                memset(hdl->block[1], 0, BLOCK_SIZE);
+                        } else {
+                                err = block_read(hdl, block_address, hdl->block[1], blocks);
+                        }
+
+                        if (!err) {
+                                memcpy(&hdl->block[1][(seek % BLOCK_SIZE)], src, bytes);
                         }
                 }
 
-                sys_mutex_unlock(hdl->mtx);
+                if (!err) {
+                        err = block_write(hdl, block_address, buf, blocks);
+                }
+
+                if (!err) {
+                        block_address += blocks;
+                        bytes_to_write -= bytes;
+                        seek += bytes;
+                        src += bytes;
+                        *wrctr += bytes;
+                }
         }
+
+        /*
+         * Update file descriptor. Option noatime is used here to reduce
+         * medium wear: descriptor is not updated (mtime) when data was
+         * overwritten in place without file size change.
+         */
+        if (*wrctr > 0) {
+                if ((blk->size < seek) or (not hdl->noatime)) {
+                        blk->mtime = now;
+                        blk->size = max(blk->size, seek);
+
+                        int wrerr = file_block_write(hdl, file->node_num, blk);
+                        if (!err) {
+                                err = wrerr;
+                        }
+                }
+        }
+
+finish:
+        sys_mutex_unlock(hdl->mtx);
 
         return err;
 }
@@ -703,16 +730,16 @@ API_FS_READ(flatfs, void *fs_handle, void *fhdl, u8_t *dst, size_t count, fpos_t
         flatfs_t *hdl = fs_handle;
         file_t *file = fhdl;
 
+        *rdctr = 0;
+
         int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (!err) {
 
-                u32_t seek = *fpos;
-                *rdctr = 0;
-
                 blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
                 err = file_block_read(hdl, file->node_num, blk);
-                if (!err and (seek < blk->size)) {
+                if (!err and (cast(u64_t, *fpos) < blk->size)) {
 
+                        u32_t seek = *fpos;
                         u32_t bytes_to_read = min(blk->size - seek, count);
                         u32_t block_address = (node_get_blkaddr(hdl, file->node_num) + 1) +
                                 (seek / BLOCK_SIZE);
@@ -842,47 +869,29 @@ API_FS_STAT(flatfs, void *fs_handle, const char *path, struct stat *stat)
 {
         flatfs_t *hdl = fs_handle;
 
-        int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
+        /*
+         * Root directory always exists (without any node).
+         */
+        if (isstreq(path, "/")) {
+                memset(stat, 0, sizeof(*stat));
+                stat->st_mode = S_IFDIR | 0777;
+                return ESUCC;
+        }
+
+        int err = check_path(path);
         if (err) {
                 return err;
         }
 
-        err = ENOENT;
-
-        sys_strlcpy(hdl->tmp_path, path, sizeof(hdl->tmp_path));
-        sys_strlcat(hdl->tmp_path, "/", sizeof(hdl->tmp_path));
+        err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
+        if (err) {
+                return err;
+        }
 
         blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
-
         u32_t node_num;
-        bool found = index_find(hdl, path, MAX_FILE_NAME_LEN, FIND_ANY_NODE, blk, &node_num);
-        if (not found) {
-                found = index_find(hdl, hdl->tmp_path, MAX_FILE_NAME_LEN, FIND_ANY_NODE, blk, &node_num);
-        }
 
-        if (found) {
-                err = 0;
-
-        } else {
-                foreach_used_file_node(hdl, 0)
-                {
-
-                        err = file_block_read(hdl, node, blk);
-                        if (err) {
-                                goto finish;
-                        }
-
-                        if (isstreq(blk->name, path) or isstreq(blk->name, hdl->tmp_path)) {
-                                err = 0;
-                                goto finish;
-
-                        } else {
-                                err = ENOENT;
-                        }
-                }
-        }
-
-finish:
+        err = node_find_any(hdl, path, blk, &node_num);
         if (not err) {
                 stat->st_ctime = blk->ctime;
                 stat->st_mtime = blk->mtime;
@@ -914,7 +923,7 @@ API_FS_STATFS(flatfs, void *fs_handle, struct statfs *statfs)
 
         statfs->f_bsize = BLOCK_SIZE;
         statfs->f_blocks = hdl->total_volume_blocks;
-        statfs->f_bfree = hdl->total_volume_blocks - hdl->total_files - 3; /* FS + 2*BMP */
+        statfs->f_bfree = hdl->total_volume_blocks - hdl->total_files - SYSTEM_BLOCKS;
         statfs->f_ffree = hdl->total_files;
         statfs->f_files = hdl->total_files;
         statfs->f_type = SYS_FS_TYPE__SOLID;
@@ -923,22 +932,22 @@ API_FS_STATFS(flatfs, void *fs_handle, struct statfs *statfs)
         int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (!err) {
 
-                foreach_file_node(hdl, 0)
+                blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
+
+                foreach_used_file_node(hdl, 0)
                 {
-                        if (hdl->bitmap.word[i] & (1 << bit)) {
+                        statfs->f_ffree--;
 
-                                blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
-                                err = file_block_read(hdl, node, blk);
-                                if (!err) {
-                                        statfs->f_ffree--;
-                                        statfs->f_bfree -= CEILING(blk->size, BLOCK_SIZE);
+                        int rderr = file_block_read(hdl, node, blk);
+                        if (!rderr) {
+                                statfs->f_bfree -= CEILING(blk->size, BLOCK_SIZE);
 
-                                } else if (err == EILSEQ) {
-                                        DBG("incoherent node %u in block %u", node,
-                                                node_get_blkaddr(hdl, node));
-                                } else {
-                                        goto finish;
-                                }
+                        } else if (rderr == EILSEQ) {
+                                DBG("incoherent node %lu in block %lu", cast(unsigned long, node),
+                                        cast(unsigned long, node_get_blkaddr(hdl, node)));
+                        } else {
+                                err = rderr;
+                                goto finish;
                         }
                 }
 
@@ -964,56 +973,57 @@ API_FS_MKDIR(flatfs, void *fs_handle, const char *path, mode_t mode)
 {
         flatfs_t *hdl = fs_handle;
 
+        if (isstreq(path, "/")) {
+                return EEXIST;
+        }
+
+        int err = check_path(path);
+        if (err) {
+                return err;
+        }
+
         time_t now = 0;
         sys_gettime(&now);
 
-        int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
+        err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (!err) {
                 blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
                 u32_t node_num;
 
                 /*
-                 * Try to open root directory
+                 * Directory that should contain created directory must exist
                  */
-                sys_strlcpy(hdl->tmp_path, path, sizeof(hdl->tmp_path));
-                if (not isstreq(hdl->tmp_path, "/")) {
-                        char *slash = strrchr(hdl->tmp_path, '/');
-                        if (slash) {
-                                slash++;
-                                *slash = '\0';
-
-                                if (not isstreq(hdl->tmp_path, "/")) {
-                                        err = node_find(hdl, hdl->tmp_path, MAX_FILE_NAME_LEN, FIND_ANY_NODE,
-                                                blk, &node_num);
-                                        if (err) {
-                                                err = ENOENT;
-                                                goto finish;
-                                        }
-                                }
-                        }
-                }
-
-                /*
-                 * Try to open directory that should contains selected dir
-                 */
-                sys_strlcpy(hdl->tmp_path, path, sizeof(hdl->tmp_path));
-
-                if (isstreq(hdl->tmp_path, "/")) {
+                err = parent_dir_check(hdl, path, blk);
+                if (err) {
                         goto finish;
-
-                } else {
-                        if (LAST_CHARACTER(hdl->tmp_path) != '/') {
-                                sys_strlcat(hdl->tmp_path, "/", sizeof(hdl->tmp_path));
-                        }
                 }
 
                 /*
-                 * Try to open path as is to check if object exists
+                 * Regular file with the same name cannot exist
                  */
-                err = node_find(hdl, hdl->tmp_path, MAX_FILE_NAME_LEN, FIND_ANY_NODE, blk, &node_num);
+                sys_strlcpy(hdl->tmp_path, path, sizeof(hdl->tmp_path));
+                size_t len = strlen(hdl->tmp_path);
+                if (hdl->tmp_path[len - 1] == '/') {
+                        hdl->tmp_path[--len] = '\0';
+                }
 
+                err = node_find(hdl, hdl->tmp_path, S_IFREG, blk, &node_num);
+                if (err == ESUCC) {
+                        err = EEXIST;
+                        goto finish;
+                } else if (err != ENOENT) {
+                        goto finish;
+                }
+
+                /*
+                 * Directory cannot exist
+                 */
+                hdl->tmp_path[len++] = '/';
+                hdl->tmp_path[len] = '\0';
+
+                err = node_find(hdl, hdl->tmp_path, FIND_ANY_NODE, blk, &node_num);
                 if (err == ENOENT) {
-                        err = node_create(hdl, hdl->tmp_path, mode | S_IFDIR, blk, &node_num, now);
+                        err = node_create(hdl, hdl->tmp_path, (mode & S_IPMT) | S_IFDIR, blk, &node_num, now);
 
                 } else if (err == ESUCC) {
                         err = EEXIST;
@@ -1079,10 +1089,38 @@ API_FS_OPENDIR(flatfs, void *fs_handle, const char *path, kdir_t *kdir)
         kdir->d_items = 0;
         kdir->d_seek = 0;
 
-        dir_t *dir;
-        int err = sys_zalloc(sizeof(*dir), cast(void **, &dir));
+        int err = check_path(path);
         if (err) {
                 return err;
+        }
+
+        size_t path_len = strlen(path);
+
+        dir_t *dir;
+        err = sys_zalloc(sizeof(*dir), cast(void **, &dir));
+        if (err) {
+                return err;
+        }
+
+        /*
+         * Directory root always ends with '/' (place for '/' and '\0').
+         */
+        err = sys_zalloc(path_len + 2, cast(void **, &dir->dir_root));
+        if (err) {
+                goto error;
+        }
+
+        memcpy(dir->dir_root, path, path_len);
+
+        if (dir->dir_root[path_len - 1] != '/') {
+                dir->dir_root[path_len] = '/';
+        }
+
+        dir->dir_root_len = strlen(dir->dir_root);
+
+        err = sys_strdup("", &dir->item_name);
+        if (err) {
+                goto error;
         }
 
         err = sys_llist_create(sys_llist_functor_cmp_strings, NULL, &dir->last_dirs);
@@ -1090,70 +1128,62 @@ API_FS_OPENDIR(flatfs, void *fs_handle, const char *path, kdir_t *kdir)
                 goto error;
         }
 
-        size_t path_len = strlen(path);
-
-        err = sys_strndup(path, path_len + 2, &dir->dir_root);
+        err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (err) {
                 goto error;
         }
 
-        err = sys_strdup("", &dir->item_name);
-        if (err) {
-                goto error;
+        if (isstreq(dir->dir_root, "/")) {
+                err = ESUCC;
+
+        } else {
+                err = ENOENT;
+
+                blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
+
+                foreach_used_file_node(hdl, 0)
+                {
+                        int rderr = file_block_read(hdl, node, blk);
+                        if (rderr == EILSEQ) {
+                                continue;
+                        } else if (rderr) {
+                                err = rderr;
+                                goto finish;
+                        }
+
+                        if (strncmp(blk->name, dir->dir_root, dir->dir_root_len) == 0) {
+                                err = ESUCC;
+                                goto finish;
+                        }
+                }
         }
 
-        strcpy(dir->dir_root, path);
-
-        if (dir->dir_root[path_len - 1] != '/') {
-                dir->dir_root[path_len - 1] = '/';
-        }
-
-        dir->dir_root_len = strlen(dir->dir_root);
-
-        if (isstreq(path, "/")) {
+finish:
+        if (not err) {
                 kdir->d_hdl = dir;
                 kdir->d_items = 0; // FIXME count number of files
                 kdir->d_seek = 0;
 
                 hdl->open_dirs_ctr++;
-                return 0;
         }
 
-        err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
-        if (not err) {
-                err = ENOENT;
-
-                foreach_used_file_node(hdl, 0)
-                {
-                        DBG("diropen() node: %lu", node);
-
-                        blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
-                        err = file_block_read(hdl, node, blk);
-                        if (err) {
-                                goto finish;
-                        }
-
-                        if (strncmp(blk->name, dir->dir_root, dir->dir_root_len) == 0) {
-                                kdir->d_hdl = dir;
-                                kdir->d_items = 0; // FIXME count number of files
-                                kdir->d_seek = 0;
-
-                                hdl->open_dirs_ctr++;
-                                goto finish;
-                        } else {
-                                err = ENOENT;
-                        }
-                }
-
-        finish:
-                sys_mutex_unlock(hdl->mtx);
-        }
+        sys_mutex_unlock(hdl->mtx);
 
 error:
         if (err) {
-                sys_free(cast(void *, &dir->dir_root));
-                sys_llist_destroy(dir->last_dirs);
-                sys_free(cast(void *, &dir));
+                if (dir->dir_root) {
+                        sys_free(cast(void **, &dir->dir_root));
+                }
+
+                if (dir->item_name) {
+                        sys_free(cast(void **, &dir->item_name));
+                }
+
+                if (dir->last_dirs) {
+                        sys_llist_destroy(dir->last_dirs);
+                }
+
+                sys_free(cast(void **, &dir));
         }
 
         return err;
@@ -1175,14 +1205,18 @@ API_FS_CLOSEDIR(flatfs, void *fs_handle, kdir_t *kdir)
 
         dir_t *dir = kdir->d_hdl;
 
-        sys_free(cast(void *, &dir->dir_root));
-        sys_free(cast(void *, &dir->item_name));
+        sys_free(cast(void **, &dir->dir_root));
+        sys_free(cast(void **, &dir->item_name));
         sys_llist_destroy(dir->last_dirs);
-        sys_free(cast(void *, &dir));
+        sys_free(cast(void **, &dir));
 
-        int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
+        kdir->d_hdl = NULL;
+
+        int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (not err) {
-                hdl->open_dirs_ctr--;
+                if (hdl->open_dirs_ctr > 0) {
+                        hdl->open_dirs_ctr--;
+                }
                 sys_mutex_unlock(hdl->mtx);
         }
 
@@ -1208,73 +1242,86 @@ API_FS_READDIR(flatfs, void *fs_handle, kdir_t *kdir)
                 dir->seek = kdir->d_seek;
         }
 
-        int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
+        int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (err) {
                 return err;
         }
 
         err = ENOENT;
 
+        blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
+
         foreach_used_file_node(hdl, dir->seek)
         {
-                blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
-                err = file_block_read(hdl, node, blk);
-                if (err) {
+                dir->seek = node + 1;
+                kdir->d_seek = dir->seek;
+
+                int rderr = file_block_read(hdl, node, blk);
+                if (rderr == EILSEQ) {
+                        continue;
+                } else if (rderr) {
+                        err = rderr;
                         goto finish;
                 }
 
                 index_add(hdl, node, blk);
 
-                DBG("diropen() node: %lu: '%s'", node, blk->name);
+                DBG("readdir() node: %lu: '%s'", cast(unsigned long, node), blk->name);
 
-                dir->seek = node + 1;
-                kdir->d_seek = dir->seek;
+                /*
+                 * Node must be located in selected directory
+                 */
+                if (strncmp(blk->name, dir->dir_root, dir->dir_root_len) != 0) {
+                        continue;
+                }
 
                 char *item_name = blk->name + dir->dir_root_len;
+                if (isstrempty(item_name)) {
+                        continue; // directory node itself
+                }
+
+                mode_t mode;
+                u64_t size;
 
                 char *slash = strchr(item_name, '/');
                 if (slash) {
+                        bool own_node = (slash[1] == '\0'); // node of subdirectory itself
                         *slash = '\0';
-                        kdir->dirent.mode = S_IFDIR;
-                        kdir->dirent.size = 0;
+                        mode = S_IFDIR | (own_node ? (blk->mode & S_IPMT) : 0777);
+                        size = 0;
                 } else {
-                        kdir->dirent.mode = S_IFREG | blk->mode;
-                        kdir->dirent.size = blk->size;
+                        mode = blk->mode;
+                        size = blk->size;
                 }
 
-                if ((strncmp(blk->name, dir->dir_root, strlen(dir->dir_root)) == 0) and
-                        not isstrempty(item_name) and
-                        (sys_llist_find_begin(dir->last_dirs, item_name) == -1)) {
+                if (sys_llist_find_begin(dir->last_dirs, item_name) != -1) {
+                        continue; // directory already reported
+                }
 
-                        if (S_ISDIR(kdir->dirent.mode)) {
-                                if (not sys_llist_push_emplace_front(dir->last_dirs, strsize(item_name),
-                                            item_name)) {
-                                        goto finish;
-                                }
+                if (S_ISDIR(mode)) {
+                        if (not sys_llist_push_emplace_front(dir->last_dirs, strsize(item_name), item_name)) {
+                                err = ENOMEM;
+                                goto finish;
                         }
+                }
 
-                        err = sys_free(cast(void *, &dir->item_name));
-                        if (err) {
-                                break;
-                        }
-
-                        err = sys_strdup(item_name, &dir->item_name);
-                        if (err) {
-                                break;
-                        }
-
-                        kdir->dirent.dev = 0;
-                        kdir->dirent.mode |= blk->mode;
-                        kdir->dirent.d_name = dir->item_name;
-
-                        if (S_ISDIR(kdir->dirent.mode)) {
-                                sys_strlcat(blk->name, "/", sizeof(blk->name));
-                        }
-
+                err = sys_free(cast(void **, &dir->item_name));
+                if (err) {
                         goto finish;
-                } else {
-                        err = ENOENT;
                 }
+
+                err = sys_strdup(item_name, &dir->item_name);
+                if (err) {
+                        goto finish;
+                }
+
+                kdir->dirent.dev = 0;
+                kdir->dirent.mode = mode;
+                kdir->dirent.size = size;
+                kdir->dirent.d_name = dir->item_name;
+
+                err = ESUCC;
+                goto finish;
         }
 
 finish:
@@ -1286,6 +1333,8 @@ finish:
 //==============================================================================
 /**
  * @brief Remove file/directory.
+ *
+ * Note: only empty directory can be removed (ENOTEMPTY otherwise).
  *
  * @param[in ]          *fs_handle              file system allocated memory
  * @param[in ]          *path                   name of removed file/directory
@@ -1301,74 +1350,62 @@ API_FS_REMOVE(flatfs, void *fs_handle, const char *path)
                 return EROFS;
         }
 
-        int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
+        if (isstreq(path, "/")) {
+                return EBUSY;
+        }
+
+        int err = check_path(path);
+        if (err) {
+                return err;
+        }
+
+        err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (!err) {
 
-                blk_file_t *file = cast(blk_file_t *, hdl->block[0]);
+                blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
+                blk_file_t *child = cast(blk_file_t *, hdl->block[1]);
                 u32_t df_node_num = 0;
 
-                sys_strlcpy(hdl->tmp_path, path, sizeof(hdl->tmp_path));
-
-                if (LAST_CHARACTER(hdl->tmp_path) != '/') {
-                        sys_strlcat(hdl->tmp_path, "/", sizeof(hdl->tmp_path));
-                }
-
-                err = node_find(hdl, path, MAX_FILE_NAME_LEN, FIND_ANY_NODE, file, &df_node_num);
+                err = node_find_any(hdl, path, blk, &df_node_num);
                 if (err) {
-                        err = node_find(hdl, hdl->tmp_path, MAX_FILE_NAME_LEN, FIND_ANY_NODE, file,
-                                &df_node_num);
+                        goto finish;
                 }
 
-                if (not err) {
-                        sys_llist_foreach (file_t *, file, hdl->open_files) {
-                                if (file->node_num == df_node_num) {
-                                        err = EBUSY;
-                                        break;
+                if (node_is_open(hdl, df_node_num)) {
+                        err = EBUSY;
+                        goto finish;
+                }
+
+                /*
+                 * Directory can be removed only if it is empty (POSIX: ENOTEMPTY).
+                 */
+                if (S_ISDIR(blk->mode)) {
+
+                        sys_strlcpy(hdl->tmp_path, blk->name, sizeof(hdl->tmp_path));
+                        size_t dir_name_len = strlen(hdl->tmp_path);
+
+                        foreach_used_file_node(hdl, 0)
+                        {
+                                if (node == df_node_num) {
+                                        continue;
+                                }
+
+                                int rderr = file_block_read(hdl, node, child);
+                                if (rderr == EILSEQ) {
+                                        continue;
+                                } else if (rderr) {
+                                        err = rderr;
+                                        goto finish;
+                                }
+
+                                if (strncmp(child->name, hdl->tmp_path, dir_name_len) == 0) {
+                                        err = ENOTEMPTY;
+                                        goto finish;
                                 }
                         }
                 }
 
-                if (not err) {
-                        bool remove_node = true;
-
-                        if (S_ISDIR(file->mode)) {
-
-                                size_t dir_name_len = strlen(hdl->tmp_path);
-
-                                foreach_used_file_node(hdl, 0)
-                                {
-                                        blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
-                                        err = file_block_read(hdl, node, blk);
-                                        if (!err) {
-                                                if ((strncmp(blk->name, hdl->tmp_path, dir_name_len) == 0) and
-                                                        (strcmp(blk->name, hdl->tmp_path) != 0)) {
-
-                                                        bool file_open = false;
-
-                                                        sys_llist_foreach (file_t *, file, hdl->open_files) {
-                                                                if (file->node_num == node) {
-                                                                        file_open = true;
-                                                                        remove_node = false;
-                                                                        break;
-                                                                }
-                                                        }
-
-                                                        if (not file_open) {
-                                                                if (node_remove(hdl, node) != 0) {
-                                                                        remove_node = false;
-                                                                }
-                                                        }
-                                                }
-                                        } else {
-                                                goto finish;
-                                        }
-                                }
-                        }
-
-                        if (not err and remove_node) {
-                                err = node_remove(hdl, df_node_num);
-                        }
-                }
+                err = node_remove(hdl, df_node_num);
 
         finish:
                 sys_mutex_unlock(hdl->mtx);
@@ -1396,28 +1433,156 @@ API_FS_RENAME(flatfs, void *fs_handle, const char *old_name, const char *new_nam
                 return EROFS;
         }
 
-        int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
+        if (isstreq(old_name, "/") or isstreq(new_name, "/")) {
+                return EBUSY;
+        }
+
+        int err = check_path(old_name);
         if (!err) {
-                blk_file_t *file = cast(blk_file_t *, hdl->block[0]);
-                u32_t node_num;
-                err = node_find(hdl, new_name, MAX_FILE_NAME_LEN, FIND_ANY_NODE, file, &node_num);
+                err = check_path(new_name);
+        }
 
-                if (err == ENOENT) {
+        if (err) {
+                return err;
+        }
 
-                        u32_t node;
-                        err = node_find(hdl, old_name, MAX_FILE_NAME_LEN, FIND_ANY_NODE, file, &node);
+        /* length of new name without trailing slash */
+        size_t new_len = strlen(new_name);
+        bool new_is_dir_path = (new_name[new_len - 1] == '/');
+        if (new_is_dir_path) {
+                new_len--;
+        }
 
-                        if (!err) {
-                                sys_strlcpy(file->name, new_name, MAX_FILE_NAME_LEN);
-                                err = file_block_write(hdl, node, file);
-                        }
+        err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
+        if (err) {
+                return err;
+        }
 
-                } else {
-                        err = EEXIST;
+        blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
+        blk_file_t *child = cast(blk_file_t *, hdl->block[1]);
+        u32_t obj_node;
+
+        /*
+         * Destination cannot exist (neither as file nor as directory).
+         */
+        err = node_find_any(hdl, new_name, blk, &obj_node);
+        if (err == ESUCC) {
+                err = EEXIST;
+                goto finish;
+        } else if (err != ENOENT) {
+                goto finish;
+        }
+
+        /*
+         * Destination directory must exist.
+         */
+        err = parent_dir_check(hdl, new_name, blk);
+        if (err) {
+                goto finish;
+        }
+
+        /*
+         * Find source object.
+         */
+        err = node_find_any(hdl, old_name, blk, &obj_node);
+        if (err) {
+                goto finish;
+        }
+
+        if (S_ISDIR(blk->mode)) {
+                sys_strlcpy(hdl->tmp_path, blk->name, sizeof(hdl->tmp_path));
+                size_t old_len = strlen(hdl->tmp_path); // with trailing slash
+
+                /*
+                 * Directory cannot be moved into itself.
+                 */
+                if ((new_len >= old_len) and (strncmp(new_name, hdl->tmp_path, old_len) == 0)) {
+                        err = EINVAL;
+                        goto finish;
                 }
 
-                sys_mutex_unlock(hdl->mtx);
+                /*
+                 * Pass 1: check if all new names fit in name field.
+                 */
+                {
+                        foreach_used_file_node(hdl, 0)
+                        {
+                                if (node == obj_node) {
+                                        continue;
+                                }
+
+                                int rderr = file_block_read(hdl, node, child);
+                                if (rderr == EILSEQ) {
+                                        continue;
+                                } else if (rderr) {
+                                        err = rderr;
+                                        goto finish;
+                                }
+
+                                if (strncmp(child->name, hdl->tmp_path, old_len) == 0) {
+                                        size_t tail_len = strlen(&child->name[old_len]);
+                                        if ((new_len + 1 + tail_len) >= sizeof(child->name)) {
+                                                err = ENAMETOOLONG;
+                                                goto finish;
+                                        }
+                                }
+                        }
+                }
+
+                /*
+                 * Pass 2: rename directory content.
+                 */
+                {
+                        foreach_used_file_node(hdl, 0)
+                        {
+                                if (node == obj_node) {
+                                        continue;
+                                }
+
+                                int rderr = file_block_read(hdl, node, child);
+                                if (rderr == EILSEQ) {
+                                        continue;
+                                } else if (rderr) {
+                                        err = rderr;
+                                        goto finish;
+                                }
+
+                                if (strncmp(child->name, hdl->tmp_path, old_len) == 0) {
+                                        size_t tail_len = strlen(&child->name[old_len]);
+
+                                        memmove(&child->name[new_len + 1], &child->name[old_len], tail_len + 1);
+                                        memcpy(child->name, new_name, new_len);
+                                        child->name[new_len] = '/';
+
+                                        size_t name_len = new_len + 1 + tail_len;
+                                        memset(&child->name[name_len], 0, sizeof(child->name) - name_len);
+
+                                        err = file_block_write(hdl, node, child);
+                                        if (err) {
+                                                goto finish;
+                                        }
+                                }
+                        }
+                }
+
+                memset(blk->name, 0, sizeof(blk->name));
+                memcpy(blk->name, new_name, new_len);
+                blk->name[new_len] = '/';
+
+        } else {
+                if (new_is_dir_path) {
+                        err = ENOTDIR;
+                        goto finish;
+                }
+
+                memset(blk->name, 0, sizeof(blk->name));
+                memcpy(blk->name, new_name, new_len);
         }
+
+        err = file_block_write(hdl, obj_node, blk);
+
+finish:
+        sys_mutex_unlock(hdl->mtx);
 
         return err;
 }
@@ -1441,18 +1606,17 @@ API_FS_CHMOD(flatfs, void *fs_handle, const char *path, mode_t mode)
                 return EROFS;
         }
 
-        int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
+        int err = check_path(path);
+        if (err) {
+                return err;
+        }
+
+        err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (!err) {
                 blk_file_t *file = cast(blk_file_t *, hdl->block[0]);
                 u32_t node;
 
-                err = node_find(hdl, path, MAX_FILE_NAME_LEN, FIND_ANY_NODE, file, &node);
-                if (err) {
-                        sys_strlcpy(hdl->tmp_path, path, sizeof(hdl->tmp_path));
-                        sys_strlcat(hdl->tmp_path, "/", sizeof(hdl->tmp_path));
-                        err = node_find(hdl, hdl->tmp_path, MAX_FILE_NAME_LEN, FIND_ANY_NODE, file, &node);
-                }
-
+                err = node_find_any(hdl, path, file, &node);
                 if (!err) {
                         file->mode = (file->mode & S_IFMT) | (mode & S_IPMT);
                         err = file_block_write(hdl, node, file);
@@ -1484,12 +1648,17 @@ API_FS_CHOWN(flatfs, void *fs_handle, const char *path, uid_t owner, gid_t group
                 return EROFS;
         }
 
-        int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
+        int err = check_path(path);
+        if (err) {
+                return err;
+        }
+
+        err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (!err) {
                 blk_file_t *file = cast(blk_file_t *, hdl->block[0]);
                 u32_t node;
 
-                err = node_find(hdl, path, MAX_FILE_NAME_LEN, FIND_ANY_NODE, file, &node);
+                err = node_find_any(hdl, path, file, &node);
                 if (!err) {
                         file->uid = owner;
                         file->gid = group;
@@ -1525,10 +1694,9 @@ API_FS_SYNC(flatfs, void *fs_handle)
 
                         path_index_t *index = &hdl->path_index[i];
 
-                        if (not isstrempty(index->blk.name)) {
-                                if (hdl->path_index[i].hit >
-                                        (INDEX_HIT_MIN + __OS_SYSTEM_CACHE_SYNC_PERIOD__)) {
-                                        hdl->path_index[i].hit -= __OS_SYSTEM_CACHE_SYNC_PERIOD__;
+                        if (index->node != UINT32_MAX) {
+                                if (index->hit > (INDEX_HIT_MIN + __OS_SYSTEM_CACHE_SYNC_PERIOD__)) {
+                                        index->hit -= __OS_SYSTEM_CACHE_SYNC_PERIOD__;
                                 }
                         }
                 }
@@ -1580,12 +1748,16 @@ static u32_t calc_crc32(const void *buf, size_t buflen, u32_t init)
 //==============================================================================
 static int block_read(flatfs_t *hdl, u32_t address, void *dst, size_t blocks)
 {
-        int err = sys_fseek(hdl->disc, address * BLOCK_SIZE, VFS_SEEK_SET);
+        int err = sys_fseek(hdl->disc, cast(i64_t, address) * BLOCK_SIZE, VFS_SEEK_SET);
         if (!err) {
-                size_t rdctr;
+                size_t rdctr = 0;
                 err = sys_fread(dst, BLOCK_SIZE * blocks, &rdctr, hdl->disc);
+                if (!err and (rdctr != BLOCK_SIZE * blocks)) {
+                        err = EIO;
+                }
+
                 if (err) {
-                        DBG("block_read: disc read error %d", err);
+                        DBG("block_read: disc read error %d @ %lu", err, cast(unsigned long, address));
                 }
         } else {
                 DBG("block_read: fseek error %d", err);
@@ -1600,8 +1772,8 @@ static int block_read(flatfs_t *hdl, u32_t address, void *dst, size_t blocks)
  *
  * @param  hdl          file system handle
  * @param  address      block start address
- * @param  dst          destination buffer
- * @param  blocks       number of blocks to read
+ * @param  src          source buffer
+ * @param  blocks       number of blocks to write
  *
  * @return One of errno value (errno.h).
  */
@@ -1612,12 +1784,16 @@ static int block_write(flatfs_t *hdl, u32_t address, const void *src, size_t blo
                 return EROFS;
         }
 
-        int err = sys_fseek(hdl->disc, address * BLOCK_SIZE, VFS_SEEK_SET);
+        int err = sys_fseek(hdl->disc, cast(i64_t, address) * BLOCK_SIZE, VFS_SEEK_SET);
         if (!err) {
-                size_t wrctr;
+                size_t wrctr = 0;
                 err = sys_fwrite(src, BLOCK_SIZE * blocks, &wrctr, hdl->disc);
+                if (!err and (wrctr != BLOCK_SIZE * blocks)) {
+                        err = EIO;
+                }
+
                 if (err) {
-                        DBG("block_write: disc write error %d", err);
+                        DBG("block_write: disc write error %d @ %lu", err, cast(unsigned long, address));
                 }
         } else {
                 DBG("block_write: fseek error %d", err);
@@ -1662,51 +1838,66 @@ static int mount(flatfs_t *hdl)
 static int check_first_sector_coherency(flatfs_t *hdl)
 {
         int err = block_read(hdl, 0, hdl->block[0], 1);
-        if (!err) {
-                blk_fs_t *blk = cast(blk_fs_t *, hdl->block[0]);
-
-                if (blk->magic == MAGIC_BLOCK_FS) {
-
-                        u32_t crc = calc_crc32(&blk->total_volume_blocks,
-                                BLOCK_SIZE - offsetof(blk_fs_t, total_volume_blocks), CRC32_INIT);
-
-                        u32_t max_files = CEILING(blk->total_volume_blocks - 3 /* FS + 2xBMP */,
-                                blk->file_node_blocks);
-
-                        if ((blk->crc == crc) and (blk->total_files == max_files) and
-                                (blk->total_files <= (BLOCK_SIZE * 8)) and (blk->total_volume_blocks >= 3) and
-                                (blk->file_node_blocks > 1) and
-                                (blk->file_node_blocks < blk->total_volume_blocks - 3) and
-                                (blk->last_file_node_blocks <= blk->file_node_blocks) and
-                                (blk->bitmap_address_primary < blk->total_volume_blocks) and
-                                (blk->bitmap_address_secondary < blk->total_volume_blocks) and
-                                (blk->bitmap_address_primary != blk->bitmap_address_secondary) and
-                                (blk->first_file_node_address < blk->total_volume_blocks) and
-                                (blk->first_file_node_address != blk->bitmap_address_primary) and
-                                (blk->first_file_node_address != blk->bitmap_address_secondary)) {
-
-                                hdl->total_files = blk->total_files;
-                                hdl->total_volume_blocks = blk->total_volume_blocks;
-                                hdl->file_node_blocks = blk->file_node_blocks;
-                                hdl->last_file_node_blocks = blk->last_file_node_blocks;
-                                hdl->first_file_node_address = blk->first_file_node_address;
-                                hdl->bitmap_address_primary = blk->bitmap_address_primary;
-                                hdl->bitmap_address_secondary = blk->bitmap_address_secondary;
-
-                                err = ESUCC;
-
-                        } else {
-                                DBG("file system parameters not coherent or CRC error");
-                                err = EILSEQ;
-                        }
-
-                } else {
-                        DBG("unknown file system signature");
-                        err = EMEDIUMTYPE;
-                }
+        if (err) {
+                return err;
         }
 
-        return err;
+        blk_fs_t *blk = cast(blk_fs_t *, hdl->block[0]);
+
+        if (blk->magic != MAGIC_BLOCK_FS) {
+                DBG("unknown file system signature");
+                return EMEDIUMTYPE;
+        }
+
+        if (blk->crc != calc_blk_crc(blk)) {
+                DBG("file system descriptor CRC error");
+                return EILSEQ;
+        }
+
+        /*
+         * Basic parameters must be checked before any calculation
+         * (division by zero, underflow).
+         */
+        if ((blk->total_volume_blocks < SYSTEM_BLOCKS) or (blk->file_node_blocks <= 1) or
+                (blk->file_node_blocks >= (blk->total_volume_blocks - SYSTEM_BLOCKS))) {
+                DBG("file system parameters not coherent");
+                return EILSEQ;
+        }
+
+        u32_t max_files = CEILING(blk->total_volume_blocks - SYSTEM_BLOCKS, blk->file_node_blocks);
+
+        u64_t node_area_end = cast(u64_t, blk->first_file_node_address) +
+                (cast(u64_t, blk->total_files - 1) * blk->file_node_blocks) + blk->last_file_node_blocks;
+
+        bool bmp_pri_in_node_area = (blk->bitmap_address_primary >= blk->first_file_node_address) and
+                (blk->bitmap_address_primary < node_area_end);
+
+        bool bmp_sec_in_node_area = (blk->bitmap_address_secondary >= blk->first_file_node_address) and
+                (blk->bitmap_address_secondary < node_area_end);
+
+        if ((blk->total_files == max_files) and (blk->total_files > 0) and (blk->total_files <= BITMAP_BITS) and
+                (blk->last_file_node_blocks >= 1) and (blk->last_file_node_blocks <= blk->file_node_blocks) and
+                (blk->first_file_node_address > 0) and (node_area_end <= blk->total_volume_blocks) and
+                (blk->bitmap_address_primary > 0) and (blk->bitmap_address_secondary > 0) and
+                (blk->bitmap_address_primary < blk->total_volume_blocks) and
+                (blk->bitmap_address_secondary < blk->total_volume_blocks) and
+                (blk->bitmap_address_primary != blk->bitmap_address_secondary) and
+                (not bmp_pri_in_node_area) and (not bmp_sec_in_node_area)) {
+
+                hdl->total_files = blk->total_files;
+                hdl->total_volume_blocks = blk->total_volume_blocks;
+                hdl->file_node_blocks = blk->file_node_blocks;
+                hdl->last_file_node_blocks = blk->last_file_node_blocks;
+                hdl->first_file_node_address = blk->first_file_node_address;
+                hdl->bitmap_address_primary = blk->bitmap_address_primary;
+                hdl->bitmap_address_secondary = blk->bitmap_address_secondary;
+
+                return ESUCC;
+
+        } else {
+                DBG("file system parameters not coherent");
+                return EILSEQ;
+        }
 }
 
 //==============================================================================
@@ -1736,71 +1927,75 @@ static int check_bitmaps_coherency_and_repair(flatfs_t *hdl)
         bool bmp_pri_dirty = false;
         bool bmp_sec_dirty = false;
 
-        for (size_t i = 0; i < ARRAY_SIZE(bmp_pri->word); i++) {
+        for (u32_t node = 0; node < BITMAP_BITS; node++) {
 
-                if ((bmp_pri->word[i] != bmp_sec->word[i]) or hdl->force_check) {
+                size_t i = node / BITMAP_WORD_BITS;
+                u32_t mask = BIT(node % BITMAP_WORD_BITS);
 
-                        u32_t mask = 1;
-                        for (size_t bit = 0; bit < sizeof(bmp_pri->word[i]) * 8; bit++) {
+                bool pri = bmp_pri->word[i] & mask;
+                bool sec = bmp_sec->word[i] & mask;
 
-                                u32_t node = ((sizeof(bmp_pri->word[i]) * 8) * i) + bit;
+                /*
+                 * Nodes outside of volume cannot be used.
+                 */
+                if (node >= hdl->total_files) {
+                        if (pri) {
+                                bmp_pri->word[i] &= ~mask;
+                                bmp_pri_dirty = true;
+                        }
 
-                                u32_t address = node * hdl->file_node_blocks + hdl->first_file_node_address;
+                        if (sec) {
+                                bmp_sec->word[i] &= ~mask;
+                                bmp_sec_dirty = true;
+                        }
 
-                                if ((bmp_pri->word[i] & mask) != (bmp_sec->word[i] & mask)) {
+                        continue;
+                }
 
-                                        err = block_read(hdl, address, file, 1);
-                                        if (err) {
-                                                goto finish;
-                                        }
+                /*
+                 * Node block is checked only if bitmaps are different or
+                 * force check is enabled for used node.
+                 */
+                if ((pri == sec) and not(hdl->force_check and pri)) {
+                        continue;
+                }
 
-                                        if (check_file_block_coherency(hdl, file) == 0) {
+                u32_t address = node_get_blkaddr(hdl, node);
 
-                                                if ((bmp_pri->word[i] & mask) == 0) {
-                                                        bmp_pri->word[i] |= mask;
-                                                        bmp_pri_dirty = true;
-                                                }
+                err = block_read(hdl, address, file, 1);
+                if (err) {
+                        goto finish;
+                }
 
-                                                if ((bmp_sec->word[i] & mask) == 0) {
-                                                        bmp_sec->word[i] |= mask;
-                                                        bmp_sec_dirty = true;
-                                                }
-                                        } else {
-                                                if (bmp_pri->word[i] & mask) {
-                                                        bmp_pri->word[i] &= ~mask;
-                                                        bmp_pri_dirty = true;
-                                                }
+                bool coherent = (check_file_block_coherency(hdl, node, file) == ESUCC);
 
-                                                if (bmp_sec->word[i] & mask) {
-                                                        bmp_sec->word[i] &= ~mask;
-                                                        bmp_sec_dirty = true;
-                                                }
-                                        }
+                if (coherent) {
+                        if (not pri) {
+                                bmp_pri->word[i] |= mask;
+                                bmp_pri_dirty = true;
+                        }
 
-                                        MSG("fixed incoherent node %u in block %u", node, address);
-                                }
+                        if (not sec) {
+                                bmp_sec->word[i] |= mask;
+                                bmp_sec_dirty = true;
+                        }
 
-                                if (hdl->force_check and (bmp_pri->word[i] & mask)) {
+                        if (pri != sec) {
+                                MSG("fixed incoherent bitmap of node %lu in block %lu", cast(unsigned long, node),
+                                        cast(unsigned long, address));
+                        }
 
-                                        err = block_read(hdl, address, file, 1);
-                                        if (err) {
-                                                goto finish;
-                                        }
+                        /*
+                         * Directory name must end with slash.
+                         */
+                        if (S_ISDIR(file->mode) and (LAST_CHARACTER(file->name) != '/')) {
+                                size_t len = strlen(file->name);
 
-                                        if (check_file_block_coherency(hdl, file) != 0) {
+                                if ((len + 1) < sizeof(file->name)) {
+                                        file->name[len] = '/';
+                                        file->name[len + 1] = '\0';
 
-                                                bmp_pri->word[i] &= ~mask;
-                                                bmp_pri_dirty = true;
-
-                                                bmp_sec->word[i] &= ~mask;
-                                                bmp_sec_dirty = true;
-
-                                                MSG("removed incoherent node %u in block %u", node, address);
-                                        }
-
-                                        if (S_ISDIR(file->mode) and (LAST_CHARACTER(file->name) != '/')) {
-                                                sys_strlcat(file->name, "/", sizeof(file->name));
-
+                                        if (not hdl->read_only) {
                                                 file->crc = calc_blk_crc(file);
 
                                                 err = block_write(hdl, address, file, 1);
@@ -1808,16 +2003,31 @@ static int check_bitmaps_coherency_and_repair(flatfs_t *hdl)
                                                         goto finish;
                                                 }
 
-                                                MSG("fixed incorrect directory name in node %u in block %u",
-                                                        node, address);
+                                                MSG("fixed incorrect directory name in node %lu in block %lu",
+                                                        cast(unsigned long, node), cast(unsigned long, address));
                                         }
                                 }
-
-                                mask <<= 1;
                         }
+
+                } else {
+                        if (pri) {
+                                bmp_pri->word[i] &= ~mask;
+                                bmp_pri_dirty = true;
+                        }
+
+                        if (sec) {
+                                bmp_sec->word[i] &= ~mask;
+                                bmp_sec_dirty = true;
+                        }
+
+                        MSG("removed incoherent node %lu in block %lu", cast(unsigned long, node),
+                                cast(unsigned long, address));
                 }
         }
 
+        /*
+         * In read-only mode bitmap is repaired only in memory.
+         */
         if (not hdl->read_only) {
                 if (!err and bmp_pri_dirty) {
                         err = block_write(hdl, hdl->bitmap_address_primary, bmp_pri, 1);
@@ -1837,25 +2047,32 @@ finish:
  * @brief  Function check if file block is consistent.
  *
  * @param  hdl          file system handle
+ * @param  node_num     node number
+ * @param  blk          file block
  *
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-static int check_file_block_coherency(flatfs_t *hdl, const blk_file_t *blk)
+static int check_file_block_coherency(flatfs_t *hdl, u32_t node_num, const blk_file_t *blk)
 {
+        const char *errmsg = NULL;
+
         if (blk->magic != MAGIC_BLOCK_FILE) {
-                MSG("file block error: '%.*s'", strnlen(blk->name, sizeof(blk->name)), blk->name);
-                MSG("incorrect magic number of file block");
-                return EILSEQ;
+                errmsg = "incorrect magic number of file block";
 
         } else if (blk->crc != calc_blk_crc(blk)) {
-                MSG("file block error: '%.*s'", strnlen(blk->name, sizeof(blk->name)), blk->name);
-                MSG("incorrect file block CRC");
-                return EILSEQ;
+                errmsg = "incorrect file block CRC";
 
-        } else if (blk->size > ((hdl->file_node_blocks - 1) * BLOCK_SIZE)) {
-                MSG("file block error: '%.*s'", strnlen(blk->name, sizeof(blk->name)), blk->name);
-                MSG("file size not coherent with number of used blocks");
+        } else if ((blk->name[0] == '\0') or (blk->name[sizeof(blk->name) - 1] != '\0')) {
+                errmsg = "incorrect file name";
+
+        } else if (blk->size > node_max_file_size(hdl, node_num)) {
+                errmsg = "file size not coherent with number of used blocks";
+        }
+
+        if (errmsg) {
+                MSG("file block error: '%.*s'", cast(int, strnlen(blk->name, sizeof(blk->name))), blk->name);
+                MSG("%s", errmsg);
                 return EILSEQ;
 
         } else {
@@ -1880,57 +2097,115 @@ static u32_t node_get_blkaddr(flatfs_t *hdl, u32_t node_num)
 
 //==============================================================================
 /**
+ * @brief  Return maximum file size of selected node (last node can be smaller).
+ *
+ * @param  hdl          file system handle
+ * @param  node_num     node number
+ *
+ * @return Maximum file size in bytes.
+ */
+//==============================================================================
+static u64_t node_max_file_size(flatfs_t *hdl, u32_t node_num)
+{
+        u32_t blocks = (node_num == (hdl->total_files - 1)) ? hdl->last_file_node_blocks : hdl->file_node_blocks;
+
+        u64_t size = (blocks > 0) ? cast(u64_t, blocks - 1) * BLOCK_SIZE : 0;
+
+        return min(size, cast(u64_t, UINT32_MAX)); // blk_file_t::size is 32-bit
+}
+
+//==============================================================================
+/**
  * @brief  Find node by name.
  *
  * @param  hdl          file system handle
  * @param  name         node name
- * @param  name_len     node name length
- * @param  mode         mode
+ * @param  mode         node type (S_IFMT part) or FIND_ANY_NODE
  * @param  blk          block buffer
  * @param  node_num     node number
  *
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-static int node_find(flatfs_t *hdl, const char *name, size_t name_len, mode_t mode, blk_file_t *blk,
-        u32_t *node_num)
+static int node_find(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t *blk, u32_t *node_num)
 {
         /*
          * Try find node in index
          */
-        bool found = index_find(hdl, name, name_len, mode, blk, node_num);
+        bool found = index_find(hdl, name, mode, blk, node_num);
         if (found) {
-                return 0;
+                return ESUCC;
         }
 
         /*
          * Try to find path in storage
          */
-        foreach_file_node(hdl, 0)
+        foreach_used_file_node(hdl, 0)
         {
-                if (hdl->bitmap.word[i] & (1 << bit)) {
+                int err = block_read(hdl, node_get_blkaddr(hdl, node), blk, 1);
+                if (err) {
+                        return err;
+                }
 
-                        *node_num = node;
+                if (check_file_block_coherency(hdl, node, blk) == ESUCC) {
+                        if (isstreq(name, blk->name) and
+                                (((blk->mode & S_IFMT) == mode) or (mode == FIND_ANY_NODE))) {
 
-                        int err = block_read(hdl, node_get_blkaddr(hdl, node), blk, 1);
-                        if (err) {
-                                return err;
+                                DBG("found file '%s' in node %lu in block %lu", name, cast(unsigned long, node),
+                                        cast(unsigned long, node_get_blkaddr(hdl, node)));
+
+                                index_add(hdl, node, blk);
+
+                                *node_num = node;
+
+                                return ESUCC;
                         }
 
-                        if (check_file_block_coherency(hdl, blk) == 0) {
-                                if ((strncmp(name, blk->name, name_len) == 0) and
-                                        (((blk->mode & S_IFMT) == mode) or (mode == FIND_ANY_NODE))) {
+                } else {
+                        DBG("incoherent node %lu in block %lu", cast(unsigned long, node),
+                                cast(unsigned long, node_get_blkaddr(hdl, node)));
+                }
+        }
 
-                                        DBG("found file '%s' in node %u in block %u", name, node,
-                                                node_get_blkaddr(hdl, node));
+        return ENOENT;
+}
 
-                                        index_add(hdl, node, blk);
+//==============================================================================
+/**
+ * @brief  Find file or directory node (path with or without trailing slash).
+ *         Single storage scan is performed.
+ *
+ * @note   Function uses hdl->tmp_path.
+ *
+ * @param  hdl          file system handle
+ * @param  path         object path
+ * @param  blk          block buffer
+ * @param  node_num     node number
+ *
+ * @return One of errno value (errno.h).
+ */
+//==============================================================================
+static int node_find_any(flatfs_t *hdl, const char *path, blk_file_t *blk, u32_t *node_num)
+{
+        const char *dir_path = make_dir_path(hdl, path);
 
-                                        return ESUCC;
-                                }
+        if (index_find(hdl, path, FIND_ANY_NODE, blk, node_num) or
+                index_find(hdl, dir_path, S_IFDIR, blk, node_num)) {
+                return ESUCC;
+        }
 
-                        } else {
-                                DBG("incoherent node %u in block %u", node, node_get_blkaddr(hdl, node));
+        foreach_used_file_node(hdl, 0)
+        {
+                int err = block_read(hdl, node_get_blkaddr(hdl, node), blk, 1);
+                if (err) {
+                        return err;
+                }
+
+                if (check_file_block_coherency(hdl, node, blk) == ESUCC) {
+                        if (isstreq(blk->name, path) or (S_ISDIR(blk->mode) and isstreq(blk->name, dir_path))) {
+                                index_add(hdl, node, blk);
+                                *node_num = node;
+                                return ESUCC;
                         }
                 }
         }
@@ -1959,9 +2234,13 @@ static int node_create(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t 
                 return EROFS;
         }
 
+        if ((strlen(name) + 1) > sizeof(blk->name)) {
+                return ENAMETOOLONG;
+        }
+
         foreach_file_node(hdl, 0)
         {
-                u32_t mask = (1 << bit);
+                u32_t mask = BIT(bit);
 
                 if ((hdl->bitmap.word[i] & mask) == 0) {
 
@@ -1975,9 +2254,12 @@ static int node_create(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t 
                         blk->uid = 0;
                         blk->gid = 0;
                         blk->size = 0;
-                        memset(blk->name, 0, sizeof(blk->name));
-                        sys_strlcpy(blk->name, name, MAX_FILE_NAME_LEN);
+                        strcpy(blk->name, name);
 
+                        /*
+                         * Write order: primary bitmap, file block, secondary
+                         * bitmap. Bitmap repair at mount relies on it.
+                         */
                         hdl->bitmap.word[i] |= mask;
                         int err = block_write(hdl, hdl->bitmap_address_primary, &hdl->bitmap, 1);
                         if (!err) {
@@ -1989,8 +2271,8 @@ static int node_create(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t 
                         }
 
                         if (!err) {
-                                DBG("created new file '%s' in node %u in block %u", name, node,
-                                        node_get_blkaddr(hdl, node));
+                                DBG("created new file '%s' in node %lu in block %lu", name,
+                                        cast(unsigned long, node), cast(unsigned long, node_get_blkaddr(hdl, node)));
                         } else {
                                 DBG("node '%s' create error %d", name, err);
                         }
@@ -2006,8 +2288,9 @@ static int node_create(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t 
 /**
  * @brief  Remove selected node number.
  *
+ * @note   Function uses hdl->block[0] buffer.
+ *
  * @param  hdl          file system handle
- * @param  blk_addr     block address
  * @param  node_num     node number
  *
  * @return One of errno value (errno.h).
@@ -2034,6 +2317,113 @@ static int node_remove(flatfs_t *hdl, u32_t node_num)
 
 //==============================================================================
 /**
+ * @brief  Check if selected node is opened.
+ *
+ * @param  hdl          file system handle
+ * @param  node_num     node number
+ *
+ * @return True if node is open, otherwise false.
+ */
+//==============================================================================
+static bool node_is_open(flatfs_t *hdl, u32_t node_num)
+{
+        bool open = false;
+
+        sys_llist_foreach (file_t *, file, hdl->open_files) {
+                if (file->node_num == node_num) {
+                        open = true;
+                        break;
+                }
+        }
+
+        return open;
+}
+
+//==============================================================================
+/**
+ * @brief  Check if path is correct (not empty, fits in name field with
+ *         additional trailing slash).
+ *
+ * @param  path         path
+ *
+ * @return One of errno value (errno.h).
+ */
+//==============================================================================
+static int check_path(const char *path)
+{
+        if ((path == NULL) or isstrempty(path)) {
+                return ENOENT;
+        }
+
+        /* place for additional '/' and '\0' */
+        if (strnlen(path, MAX_FILE_NAME_LEN) > (MAX_FILE_NAME_LEN - 2)) {
+                return ENAMETOOLONG;
+        }
+
+        return ESUCC;
+}
+
+//==============================================================================
+/**
+ * @brief  Create directory path (with trailing slash) in hdl->tmp_path.
+ *
+ * @param  hdl          file system handle
+ * @param  path         path (checked by check_path())
+ *
+ * @return Pointer to hdl->tmp_path.
+ */
+//==============================================================================
+static const char *make_dir_path(flatfs_t *hdl, const char *path)
+{
+        sys_strlcpy(hdl->tmp_path, path, sizeof(hdl->tmp_path));
+
+        size_t len = strlen(hdl->tmp_path);
+        if ((len == 0) or (hdl->tmp_path[len - 1] != '/')) {
+                sys_strlcat(hdl->tmp_path, "/", sizeof(hdl->tmp_path));
+        }
+
+        return hdl->tmp_path;
+}
+
+//==============================================================================
+/**
+ * @brief  Check if directory that contains selected path exists.
+ *
+ * @note   Function uses hdl->tmp_path and overwrites blk.
+ *
+ * @param  hdl          file system handle
+ * @param  path         path (checked by check_path())
+ * @param  blk          block buffer
+ *
+ * @return One of errno value (errno.h).
+ */
+//==============================================================================
+static int parent_dir_check(flatfs_t *hdl, const char *path, blk_file_t *blk)
+{
+        sys_strlcpy(hdl->tmp_path, path, sizeof(hdl->tmp_path));
+
+        size_t len = strlen(hdl->tmp_path);
+        if ((len > 1) and (hdl->tmp_path[len - 1] == '/')) {
+                hdl->tmp_path[len - 1] = '\0';
+        }
+
+        char *slash = strrchr(hdl->tmp_path, '/');
+        if (slash == NULL) {
+                return ENOENT;
+        }
+
+        slash[1] = '\0';
+
+        if (isstreq(hdl->tmp_path, "/")) {
+                return ESUCC; // root dir always exists (without any node)
+        }
+
+        u32_t node_num;
+        return node_find(hdl, hdl->tmp_path, S_IFDIR, blk, &node_num);
+}
+
+//==============================================================================
+/**
  * @brief  Set selected bit in bitmap.
  *
  * @param  hdl          file system handle
@@ -2043,13 +2433,12 @@ static int node_remove(flatfs_t *hdl, u32_t node_num)
 //==============================================================================
 static void set_bitmap_bit(flatfs_t *hdl, u32_t node_num, bool set)
 {
-        u32_t bits = ARRAY_ITEM_SIZE(hdl->bitmap.word) * 8;
-        u32_t mask = (1 << (node_num % bits));
+        u32_t mask = BIT(node_num % BITMAP_WORD_BITS);
 
         if (set) {
-                hdl->bitmap.word[node_num / bits] |= mask;
+                hdl->bitmap.word[node_num / BITMAP_WORD_BITS] |= mask;
         } else {
-                hdl->bitmap.word[node_num / bits] &= ~mask;
+                hdl->bitmap.word[node_num / BITMAP_WORD_BITS] &= ~mask;
         }
 }
 
@@ -2064,6 +2453,9 @@ static void set_bitmap_bit(flatfs_t *hdl, u32_t node_num, bool set)
 //==============================================================================
 static u32_t calc_blk_crc(const void *blk)
 {
+        static_assert(offsetof(blk_fs_t, total_volume_blocks) == offsetof(blk_file_t, ctime),
+                "CRC area of FS and file block must start at the same offset!");
+
         const blk_fs_t *fsblk = blk;
 
         return calc_crc32(&fsblk->total_volume_blocks, BLOCK_SIZE - offsetof(blk_fs_t, total_volume_blocks),
@@ -2085,12 +2477,12 @@ static int file_block_read(flatfs_t *hdl, u32_t node_num, blk_file_t *blk)
 {
         bool found = index_get(hdl, node_num, blk);
         if (found) {
-                return 0;
+                return ESUCC;
         }
 
         int err = block_read(hdl, node_get_blkaddr(hdl, node_num), blk, 1);
         if (!err) {
-                err = check_file_block_coherency(hdl, blk);
+                err = check_file_block_coherency(hdl, node_num, blk);
         }
 
         return err;
@@ -2111,9 +2503,14 @@ static int file_block_write(flatfs_t *hdl, u32_t node_num, blk_file_t *blk)
 {
         blk->crc = calc_blk_crc(blk);
 
-        index_add(hdl, node_num, blk);
+        int err = block_write(hdl, node_get_blkaddr(hdl, node_num), blk, 1);
+        if (!err) {
+                index_add(hdl, node_num, blk);
+        } else {
+                index_remove(hdl, node_num); // medium state unknown
+        }
 
-        return block_write(hdl, node_get_blkaddr(hdl, node_num), blk, 1);
+        return err;
 }
 
 //==============================================================================
@@ -2122,31 +2519,30 @@ static int file_block_write(flatfs_t *hdl, u32_t node_num, blk_file_t *blk)
  *
  * @param  hdl          file system handle
  * @param  name         node name
- * @param  name_len     node name length
- * @param  mode         mode
+ * @param  mode         node type (S_IFMT part) or FIND_ANY_NODE
  * @param  blk          block buffer
  * @param  node_num     node number
  *
  * @return True if node found, otherwise false.
  */
 //==============================================================================
-static bool index_find(flatfs_t *hdl, const char *name, size_t name_len, mode_t mode, blk_file_t *blk,
-        u32_t *node_num)
+static bool index_find(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t *blk, u32_t *node_num)
 {
 #if __FLATFS_INDEX_SIZE__ > 0
         for (size_t i = 0; i < ARRAY_SIZE(hdl->path_index); i++) {
 
                 path_index_t *index = &hdl->path_index[i];
 
-                if (not isstrempty(index->blk.name)) {
+                if (index->node != UINT32_MAX) {
 
-                        if ((strncmp(name, index->blk.name, name_len) == 0) and
+                        if (isstreq(name, index->blk.name) and
                                 (((index->blk.mode & S_IFMT) == mode) or (mode == FIND_ANY_NODE))) {
 
-                                DBG("index hit [%li]: '%s' @ %lu", index->hit, name, index->node);
+                                DBG("index hit [%li]: '%s' @ %lu", cast(long, index->hit), name,
+                                        cast(unsigned long, index->node));
 
-                                if (hdl->path_index[i].hit < INDEX_HIT_MAX) {
-                                        hdl->path_index[i].hit++;
+                                if (index->hit < INDEX_HIT_MAX) {
+                                        index->hit++;
                                 }
 
                                 memcpy(blk, &index->blk, sizeof(*blk));
@@ -2159,7 +2555,7 @@ static bool index_find(flatfs_t *hdl, const char *name, size_t name_len, mode_t 
         }
 
 #else
-        UNUSED_ARG6(hdl, name, name_len, mode, blk, node_num);
+        UNUSED_ARG5(hdl, name, mode, blk, node_num);
 #endif
 
         return false;
@@ -2185,10 +2581,11 @@ static bool index_get(flatfs_t *hdl, u32_t node_num, blk_file_t *blk)
 
                 if (index->node == node_num) {
 
-                        DBG("index hit [%li]: '%s' @ %lu", index->hit, index->blk.name, index->node);
+                        DBG("index hit [%li]: '%s' @ %lu", cast(long, index->hit), index->blk.name,
+                                cast(unsigned long, index->node));
 
-                        if (hdl->path_index[i].hit < INT32_MAX) {
-                                hdl->path_index[i].hit++;
+                        if (index->hit < INDEX_HIT_MAX) {
+                                index->hit++;
                         }
 
                         memcpy(blk, &index->blk, sizeof(*blk));
@@ -2228,20 +2625,21 @@ static void index_add(flatfs_t *hdl, u32_t node_num, const blk_file_t *blk)
 
                 if (index->node == node_num) {
                         index->blk = *blk;
-                        index->hit++;
+                        if (index->hit < INDEX_HIT_MAX) {
+                                index->hit++;
+                        }
                         return;
 
                 } else if (index->node == UINT32_MAX) {
-                        index->hit = INT32_MIN;
-                        min_hit = INT32_MIN;
-                        entry_num = i;
-                        break;
-
-                } else {
-                        if (index->hit < min_hit) {
-                                min_hit = index->hit;
+                        // empty slot: use it, but continue looking for existing entry of node
+                        if (min_hit != INT32_MIN) {
+                                min_hit = INT32_MIN;
                                 entry_num = i;
                         }
+
+                } else if (index->hit < min_hit) {
+                        min_hit = index->hit;
+                        entry_num = i;
                 }
         }
 
