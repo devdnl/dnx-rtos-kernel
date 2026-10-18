@@ -1,193 +1,174 @@
 #!/usr/bin/env python3
+"""
+Create FPKG container (dnx RTOS romfs image) from a directory tree.
 
-# This script create fpkg container by using selected files.
+Container layout (little endian):
+    0x00            "FPKG\\n" + padding to 64 bytes
+    0x40            u32 total file size
+    0x44            [descriptor 32 B][name][content]   (each aligned to 4 B)
+    ...             file entries, 16 B each            (aligned to 4 B)
+    EOF-24          container header, 20 B
+    EOF-4           u32 CRC32 of entire file
 
-import sys, os
-from struct import *
+File names are absolute paths ("/dir/file"), UTF-8 (raw bytes on POSIX), and
+entries are sorted by name bytes (FLAG_SORTED), so romfs can use binary search.
+
+NOTE: -e is an obfuscation only. All seeds are stored in the container and no
+      key is needed to decode it.
+"""
+
+import argparse
 import binascii
-import time
-import os.path
-import random
+import os
+import secrets
+import sys
+from struct import pack
 
-random.seed(time.time())
-
-encrypted  = False
-desc_seed  = random.randint(0, (1<<32))
-file_list  = []
-
-
-CRC32_INIT             = 0xFFFFFFFF
 FILE_DESCRIPTOR_MAGIC  = 0x43534446
 FILE_ENTRY_MAGIC       = 0x544E4546
 CONTAINER_HEADER_MAGIC = 0x474B5046
 HEADER_SIZE            = 64
+ALIGN                  = 4
+
+FLAG_ENCRYPTED         = 1 << 0
+FLAG_SORTED            = 1 << 1
+
+MAX_NAME_LEN           = 510            # romfs: NAME_BUF_LEN (512) - '/' - '\0'
+U32_MASK               = 0xFFFFFFFF
 
 
-def rand(seed):
-    a = 1103515245
-    c = 12345
-    m = (1 << 32)
-    seed = ((a * seed + c) % m) & 0xFFFFFFFF
-    return seed
+def crc32(data):
+    return binascii.crc32(data) & U32_MASK
 
 
-def encdec(buf, seed):
-    out = bytearray()
-
-    for byte in buf:
-        seed = rand(seed)
-        out.append(byte ^ (seed & 0xFF))
-
-    return out
+def prng(seed):
+    return (1103515245 * seed + 12345) & U32_MASK
 
 
-def make_file_descriptor(file_size, file_crc32, prng_seed, file_name, file_data, fout):
+def xcrypt(data, seed):
+    out = bytearray(len(data))
+    for i, byte in enumerate(data):
+        seed = prng(seed)
+        out[i] = byte ^ (seed & 0xFF)
+    return bytes(out)
 
-    flags = 0
+
+def random_seed():
+    # seed 0 means "not encrypted" in container header
+    while True:
+        seed = secrets.randbits(32)
+        if seed:
+            return seed
+
+
+def pad_to_align(img):
+    img += bytes((-len(img)) % ALIGN)
+
+
+def collect_files(root, exclude):
+    files = []
+
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames.sort()
+
+        if not dirnames and not filenames and os.path.abspath(dirpath) != os.path.abspath(root):
+            print('warning: empty directory skipped (not representable): ' + dirpath, file=sys.stderr)
+
+        for filename in filenames:
+            path = os.path.join(dirpath, filename)
+
+            if os.path.abspath(path) == exclude:
+                continue
+
+            rel = os.path.relpath(path, root).replace(os.sep, '/')
+            name = b'/' + os.fsencode(rel)
+
+            if len(name) > MAX_NAME_LEN:
+                sys.exit('error: name too long ({} > {} bytes): {}'.format(len(name), MAX_NAME_LEN, path))
+
+            files.append((name, path))
+
+    # byte order, the same as strcmp() in romfs
+    files.sort(key=lambda f: f[0])
+
+    return files
+
+
+def make_image(files, encrypted):
+    desc_seed = random_seed() if encrypted else 0
+    flags = FLAG_SORTED | (FLAG_ENCRYPTED if encrypted else 0)
+    desc_flags = FLAG_ENCRYPTED if encrypted else 0
+
+    img = bytearray(b'FPKG\n')
+    img += bytes(HEADER_SIZE - len(img))
+    img += bytes(4)                                     # total size, set later
+
+    entries = bytearray()
+
+    for n, (name, path) in enumerate(files):
+        with open(path, 'rb') as f:
+            data = f.read()
+
+        # unencrypted image is reproducible
+        seed = random_seed() if encrypted else 0
+
+        pad_to_align(img)
+        address = len(img)
+
+        desc_data = pack('<IIIIII', len(name), crc32(name), len(data), crc32(data), seed, desc_flags)
+        desc = pack('<II', FILE_DESCRIPTOR_MAGIC, crc32(desc_data)) + desc_data
+
+        entry_data = pack('<II', address, 0)
+        entry = pack('<II', FILE_ENTRY_MAGIC, crc32(entry_data)) + entry_data
+
+        if encrypted:
+            desc  = xcrypt(desc, desc_seed)
+            name  = xcrypt(name, seed)
+            data  = xcrypt(data, seed)
+            entry = xcrypt(entry, (desc_seed + n) & U32_MASK)
+
+        img += desc + name + data
+        entries += entry
+
+    pad_to_align(img)
+    img += entries
+
+    hdr_data = pack('<III', desc_seed, len(files), flags)
+    hdr_crc = crc32(hdr_data)
+
     if encrypted:
-        flags = flags | (1 << 0)
+        hdr_data = pack('<III', desc_seed,
+                        len(files) ^ prng((desc_seed + 1) & U32_MASK),
+                        flags ^ prng((desc_seed + 2) & U32_MASK))
 
-    desc_data = pack('<IIIIII', len(file_name),  binascii.crc32(bytes(file_name.encode('utf-8'))), file_size,
-         file_crc32, prng_seed, flags)
+    img += pack('<II', CONTAINER_HEADER_MAGIC, hdr_crc) + hdr_data
 
-    struct_format = '<' + str(len(file_name)) + 's'
-    desc_file_name = pack(struct_format, bytes(file_name.encode('utf-8')))
+    total_size = len(img) + 4
+    if total_size > U32_MASK:
+        sys.exit('error: image too big ({} bytes)'.format(total_size))
 
-    desc_hdr = pack('<II', FILE_DESCRIPTOR_MAGIC, binascii.crc32(desc_data))
+    img[HEADER_SIZE:HEADER_SIZE + 4] = pack('<I', total_size)
+    img += pack('<I', crc32(img))
 
-    if encrypted:
-        desc = encdec(desc_hdr + desc_data, desc_seed)
-        desc_file_name = encdec(desc_file_name, prng_seed)
-        file_data = encdec(file_data, prng_seed)
-    else:
-        desc = desc_hdr + desc_data
-
-    fout.write(desc)
-    fout.write(desc_file_name)
-    fout.write(file_data)
+    return img
 
 
-def make_file_entry(file_absolute_address, n_entry):
+def main():
+    parser = argparse.ArgumentParser(description='Create FPKG container (romfs image) from selected directory.')
+    parser.add_argument('-e', action='store_true', help='encrypted (obfuscated) container')
+    parser.add_argument('search_path', help='directory with files')
+    parser.add_argument('output_file', help='output container')
+    args = parser.parse_args()
 
-    entry_data = pack('<II', file_absolute_address, 0)
+    if not os.path.isdir(args.search_path):
+        sys.exit('error: not a directory: ' + args.search_path)
 
-    entry_hdr = pack('<II', FILE_ENTRY_MAGIC, binascii.crc32(entry_data))
+    files = collect_files(args.search_path, os.path.abspath(args.output_file))
+    img = make_image(files, args.e)
 
-    entry = entry_hdr + entry_data
-
-    if encrypted:
-        entry = encdec(entry, desc_seed + n_entry)
-
-    return entry;
-
-
-def make_container_header(number_of_files):
-    global desc_seed
-
-    desc = bytearray()
-
-    flags = 0;
-
-    if encrypted:
-        flags = (1 << 0)
-    else:
-        desc_seed = 0
-
-    desc = pack('<III', desc_seed, number_of_files, flags)
-    crc  = binascii.crc32(desc)
-
-    if encrypted:
-        desc = pack('<III', desc_seed,
-            number_of_files ^ rand(desc_seed + 1),
-            flags ^ rand(desc_seed + 2) )
-
-    desc_hdr = pack('<II', CONTAINER_HEADER_MAGIC, crc)
-
-    return desc_hdr + desc;
+    with open(args.output_file, 'wb') as fout:
+        fout.write(img)
 
 
-if __name__ == "__main__":
-
-    if len(sys.argv) < 3:
-        print('Usage: ' + sys.argv[0] + ' [-e] <search-path> <output-file>')
-        print('  -e         encrypted')
-        sys.exit(1)
-
-    for opt in sys.argv[1:]:
-        if opt == '-e':
-            encrypted = True
-
-    # collect files in selected directory
-    walk_dir = sys.argv[-2]
-    output = sys.argv[-1]
-    file_list = []
-
-    for root, subdirs, files in os.walk(walk_dir):
-        for filename in files:
-            file_path = os.path.join(root, filename)
-            file_list.append(file_path)
-
-    file_list.sort()
-
-    # create output file
-    with open(output, "wb") as fout:
-
-        entry_list = []
-
-        # fpkg header
-        fout.write(b"FPKG\n")
-
-        # skip header
-        fout.seek(HEADER_SIZE)
-
-        # skip file size 4 bytes
-        fout.seek(4, os.SEEK_CUR)
-
-        n_entry = 0
-
-        for file_name in file_list:
-
-            with open(file_name, "rb") as fin:
-
-                data      = fin.read()
-                file_crc  = binascii.crc32(data)
-                file_size = fin.tell()
-                prng_seed = random.randint(0, (1<<32))
-
-                write_pointer = fout.tell()
-                if write_pointer % 4 != 0:
-                    write_pointer = (write_pointer + 4) & 0xFFFFFFFC
-                    fout.seek(write_pointer)
-
-                make_file_descriptor(file_size, file_crc, prng_seed,
-                    file_name.replace(walk_dir, ""), data, fout)
-
-                entry = make_file_entry(write_pointer, n_entry)
-                entry_list.append(entry)
-
-                n_entry = n_entry + 1
-
-        write_pointer = fout.tell()
-        if write_pointer % 4 != 0:
-            write_pointer = (write_pointer + 4) & 0xFFFFFFFC
-            fout.seek(write_pointer)
-
-        for entry in entry_list:
-            fout.write(entry)
-
-        hdr = make_container_header(len(file_list))
-        fout.write(hdr)
-
-    # get total file size
-    with open(output, "r+b") as fout:
-        fout.seek(0, os.SEEK_END)
-        file_size = fout.tell() + 4 # + CRC32 size
-        fout.seek(HEADER_SIZE)
-        fout.write(pack('<I', file_size))
-
-    # calculate CRC32 from entire file and put at the end of file
-    with open(output, "r+b") as fout:
-        data = fout.read()
-        file_crc = pack('<I', binascii.crc32(data))
-        fout.seek(len(data))
-        fout.write(file_crc)
+if __name__ == '__main__':
+    main()
