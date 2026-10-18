@@ -3483,10 +3483,6 @@ static int file_write(EEFS_t *hdl, const u8_t *src, size_t count, fpos_t *fpos, 
 {
         *wrcnt = 0;
 
-        if (*fpos < 0) {
-                return EINVAL;
-        }
-
         if (count == 0) {
                 return ESUCC;
         }
@@ -3546,7 +3542,7 @@ static int file_read(EEFS_t *hdl, u8_t *dst, size_t count, fpos_t *fpos, size_t 
 
         *rdcnt = 0;
 
-        if ((*fpos < 0) || (*fpos >= size)) {
+        if (*fpos >= size) {
                 return ESUCC;
         }
 
