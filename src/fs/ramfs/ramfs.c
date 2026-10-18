@@ -40,6 +40,39 @@
 #define PIPE_READ_TIMEOUT  MAX_DELAY
 #define DATA_CHAIN_SIZE    __RAMFS_FILE_CHAIN_SIZE__
 
+/*
+ * Memory accounting estimates. RAMFS counts memory of its content (nodes,
+ * names, file data, list items, pipes, open file descriptors). Allocations
+ * made by other modules (llist, pipe) cannot be measured exactly, so fixed
+ * costs are used. Values should be calibrated against the dnx heap manager.
+ */
+#ifndef RAMFS_ALLOC_ALIGN
+#define RAMFS_ALLOC_ALIGN       sizeof(size_t)          //!< heap block alignment
+#endif
+
+#ifndef RAMFS_ALLOC_OVERHEAD
+#define RAMFS_ALLOC_OVERHEAD    (2 * sizeof(size_t))    //!< heap header per block
+#endif
+
+#ifndef RAMFS_LLIST_COST
+#define RAMFS_LLIST_COST        mem_cost(8 * sizeof(void*))     //!< empty list object
+#endif
+
+#ifndef RAMFS_LLIST_ITEM_COST
+#define RAMFS_LLIST_ITEM_COST   mem_cost(3 * sizeof(void*))     //!< single list item
+#endif
+
+#ifndef RAMFS_PIPE_COST
+#define RAMFS_PIPE_COST         (mem_cost(PIPE_LENGTH) + mem_cost(16 * sizeof(void*)))
+#endif
+
+/** cost of single entry on list of opened files */
+#define OPENED_FILE_COST        (mem_cost(sizeof(struct opened_file_info)) + RAMFS_LLIST_ITEM_COST)
+
+#ifndef RAMFS_AVG_NAME_LEN
+#define RAMFS_AVG_NAME_LEN      16                      //!< used to estimate f_ffree
+#endif
+
 /*==============================================================================
   Local types, enums definitions
 ==============================================================================*/
@@ -58,6 +91,7 @@ typedef struct node {
         size_t size;  //!< file size
         time_t mtime; //!< time of last modification
         time_t ctime; //!< time of creation
+        u32_t opendir_cnt; //!< number of open directory handles (dirs only)
 
         union {
                 pipe_t *pipe_t;
@@ -80,6 +114,9 @@ struct RAMFS {
         kmtx_t *resource_mtx;   //!< lock mutex
         llist_t *opended_files; //!< list with opened files
         size_t file_count;      //!< number of files
+        u32_t opendir_count;    //!< number of all open directory handles
+        size_t used_mem;        //!< memory used by file system content [B]
+        size_t limit;           //!< size limit from "size=" option (0 = no limit) [B]
 };
 
 /*==============================================================================
@@ -90,9 +127,19 @@ static int delete_node(struct RAMFS *hdl, node_t *base, node_t *target, u32_t po
 static int get_node(const char *path, node_t *startnode, i32_t deep, i32_t *item, node_t **node);
 static uint get_path_deep(const char *path);
 static int add_node_to_open_files_list(struct RAMFS *hdl, node_t *parent, node_t *child);
-static void clear_regular_file(node_t *node);
-static int write_regular_file(node_t *node, const u8_t *src, size_t count, fpos_t fpos, size_t *wrcnt);
+static void clear_regular_file(struct RAMFS *hdl, node_t *node);
+static int write_regular_file(struct RAMFS *hdl, node_t *node, const u8_t *src, size_t count, fpos_t fpos, size_t *wrcnt);
 static int read_regular_file(node_t *node, u8_t *dst, size_t count, fpos_t fpos, size_t *rdcnt);
+static int copy_basename(struct RAMFS *hdl, const char *path, char **name);
+static int find_child_index(node_t *parent, node_t *child);
+static int release_tree(struct RAMFS *hdl);
+static size_t mem_cost(size_t size);
+static int mem_reserve(struct RAMFS *hdl, size_t cost);
+static void mem_release(struct RAMFS *hdl, size_t cost);
+static int mem_zalloc(struct RAMFS *hdl, size_t size, void **mem);
+static void mem_free(struct RAMFS *hdl, void **mem, size_t size);
+static void free_name(struct RAMFS *hdl, char **name);
+static int parse_options(const char *opts, size_t *limit);
 
 /*==============================================================================
   Local object definitions
@@ -109,16 +156,27 @@ static int read_regular_file(node_t *node, u8_t *dst, size_t count, fpos_t fpos,
  * @param[in ]           *src_path              file source path
  * @param[in ]           *opts                  file system options (can be NULL)
  *
+ * Supported options (comma separated):
+ *      size=<n>[K|M]   limit of file system content size in bytes/KiB/MiB
+ *      size=<n>%       limit as percent of total system memory
+ *
  * @return One of errno value (errno.h)
  */
 //==============================================================================
 API_FS_INIT(ramfs, void **fs_handle, const char *src_path, const char *opts)
 {
-        UNUSED_ARG2(src_path, opts);
+        UNUSED_ARG1(src_path);
 
-        int err = sys_zalloc(sizeof(struct RAMFS), fs_handle);
+        size_t limit = 0;
+        int err = parse_options(opts, &limit);
+        if (err) {
+                return err;
+        }
+
+        err = sys_zalloc(sizeof(struct RAMFS), fs_handle);
         if (!err) {
                 struct RAMFS *hdl = *fs_handle;
+                hdl->limit = limit;
 
                 err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &hdl->resource_mtx);
                 if (err) {
@@ -164,21 +222,55 @@ API_FS_INIT(ramfs, void **fs_handle, const char *src_path, const char *opts)
 /**
  * @brief Release file system
  *
+ * Function releases all nodes (files, directories, pipes, device nodes),
+ * file data, internal lists, mutex and the file system handle itself.
+ * Release is refused when any file or directory is still open.
+ *
+ * @note Device nodes are only removed from the tree; drivers are not released.
+ *
  * @param[in ]          *fs_handle              file system allocated memory
  *
+ * @retval EBUSY        file or directory is still open
  * @return One of errno value (errno.h)
  */
 //==============================================================================
 API_FS_RELEASE(ramfs, void *fs_handle)
 {
-        UNUSED_ARG1(fs_handle);
+        struct RAMFS *hdl = fs_handle;
 
-        /*
-         * Here the LFS should delete all lists and free all allocated buffers.
-         * If will be necessary should be implemented in the future.
-         */
+        int err = sys_mutex_lock(hdl->resource_mtx, MTX_TIMEOUT);
+        if (err) {
+                return err;
+        }
 
-        return ENOTSUP;
+        /* file system in use */
+        if (sys_llist_size(hdl->opended_files) > 0 || hdl->opendir_count > 0) {
+                sys_mutex_unlock(hdl->resource_mtx);
+                return EBUSY;
+        }
+
+        /* remove all nodes except root */
+        err = release_tree(hdl);
+        if (err) {
+                sys_mutex_unlock(hdl->resource_mtx);
+                return err;
+        }
+
+        sys_llist_destroy(hdl->root_dir.data.llist_t);
+        hdl->root_dir.data.llist_t = NULL;
+
+        sys_llist_destroy(hdl->opended_files);
+        hdl->opended_files = NULL;
+
+        /* mutex cannot be destroyed while locked */
+        kmtx_t *mtx = hdl->resource_mtx;
+        hdl->resource_mtx = NULL;
+        sys_mutex_unlock(mtx);
+        sys_mutex_destroy(mtx);
+
+        sys_free(cast(void **, &hdl));
+
+        return ESUCC;
 }
 
 //==============================================================================
@@ -196,6 +288,11 @@ API_FS_MKNOD(ramfs, void *fs_handle, const char *path, const dev_t dev)
 {
         struct RAMFS *hdl = fs_handle;
 
+        /* trailing slash is allowed only for directories */
+        if (!path || path[0] == '\0' || strlch(path) == '/') {
+                return EINVAL;
+        }
+
         int err = sys_mutex_lock(hdl->resource_mtx, MTX_TIMEOUT);
         if (!err) {
 
@@ -204,20 +301,16 @@ API_FS_MKNOD(ramfs, void *fs_handle, const char *path, const dev_t dev)
                 err = get_node(path, &hdl->root_dir, -1, NULL, &parent);
                 if (!err) {
                         // create new node
-                        char *basename = strrchr(path, '/') + 1;
-
                         char *child_name;
-                        err = sys_zalloc(strsize(basename), cast(void **, &child_name));
+                        err = copy_basename(hdl, path, &child_name);
                         if (!err) {
-                                strcpy(child_name, basename);
-
                                 node_t *child;
                                 err = new_node(hdl, parent, child_name, S_IRWXU | S_IRGRP | S_IROTH | S_IFDEV, NULL,
                                         &child);
                                 if (!err) {
                                         child->data.dev_t = dev;
                                 } else {
-                                        sys_free(cast(void **, &child_name));
+                                        free_name(hdl, &child_name);
                                 }
                         }
                 }
@@ -255,17 +348,13 @@ API_FS_MKDIR(ramfs, void *fs_handle, const char *path, mode_t mode)
                 err = get_node(path, &hdl->root_dir, -1, NULL, &parent);
                 if (!err) {
                         // create new node
-                        char *basename = strrchr(path, '/') + 1;
-
                         char *child_name;
-                        err = sys_zalloc(strsize(basename), cast(void **, &child_name));
+                        err = copy_basename(hdl, path, &child_name);
                         if (!err) {
-                                strcpy(child_name, basename);
-
                                 node_t *child;
                                 err = new_node(hdl, parent, child_name, (mode & S_IPMT) | S_IFDIR, NULL, &child);
                                 if (err) {
-                                        sys_free(cast(void **, &child_name));
+                                        free_name(hdl, &child_name);
                                 }
                         }
                 }
@@ -291,6 +380,11 @@ API_FS_MKFIFO(ramfs, void *fs_handle, const char *path, mode_t mode)
 {
         struct RAMFS *hdl = fs_handle;
 
+        /* trailing slash is allowed only for directories */
+        if (!path || path[0] == '\0' || strlch(path) == '/') {
+                return EINVAL;
+        }
+
         int err = sys_mutex_lock(hdl->resource_mtx, MTX_TIMEOUT);
         if (!err) {
 
@@ -299,17 +393,13 @@ API_FS_MKFIFO(ramfs, void *fs_handle, const char *path, mode_t mode)
                 err = get_node(path, &hdl->root_dir, -1, NULL, &parent);
                 if (!err) {
                         // create new node
-                        char *basename = strrchr(path, '/') + 1;
-
                         char *child_name;
-                        err = sys_zalloc(strsize(basename), cast(void **, &child_name));
+                        err = copy_basename(hdl, path, &child_name);
                         if (!err) {
-                                strcpy(child_name, basename);
-
                                 node_t *child;
                                 err = new_node(hdl, parent, child_name, (mode & S_IPMT) | S_IFIFO, NULL, &child);
                                 if (err) {
-                                        sys_free(cast(void **, &child_name));
+                                        free_name(hdl, &child_name);
                                 }
                         }
                 }
@@ -345,6 +435,8 @@ API_FS_OPENDIR(ramfs, void *fs_handle, const char *path, kdir_t *dir)
                                 dir->d_items = sys_llist_size(parent->data.llist_t);
                                 dir->d_seek = 0;
                                 dir->d_hdl = parent;
+                                parent->opendir_cnt++; // protect against removal while open
+                                hdl->opendir_count++;  // protect against release while open
                         } else {
                                 err = ENOTDIR;
                         }
@@ -368,8 +460,25 @@ API_FS_OPENDIR(ramfs, void *fs_handle, const char *path, kdir_t *dir)
 //==============================================================================
 API_FS_CLOSEDIR(ramfs, void *fs_handle, kdir_t *dir)
 {
-        UNUSED_ARG2(fs_handle, dir);
-        return ESUCC;
+        struct RAMFS *hdl = fs_handle;
+
+        int err = sys_mutex_lock(hdl->resource_mtx, MTX_TIMEOUT);
+        if (!err) {
+                node_t *node = dir->d_hdl;
+                if (node && node->opendir_cnt > 0) {
+                        node->opendir_cnt--;
+
+                        if (hdl->opendir_count > 0) {
+                                hdl->opendir_count--;
+                        }
+                }
+
+                dir->d_hdl = NULL;
+
+                sys_mutex_unlock(hdl->resource_mtx);
+        }
+
+        return err;
 }
 
 //==============================================================================
@@ -399,18 +508,20 @@ API_FS_READDIR(ramfs, void *fs_handle, kdir_t *dir)
                         dir->dirent.size = child->size;
 
                         if (S_ISDEV(child->mode)) {
+                                /* copy data before unlock: child can be removed meanwhile */
+                                dev_t dev = child->data.dev_t;
+                                dir->dirent.dev = dev;
+
                                 sys_mutex_unlock(hdl->resource_mtx);
 
                                 struct vfs_dev_stat dev_stat;
-                                err = sys_driver_stat(child->data.dev_t, &dev_stat);
+                                err = sys_driver_stat(dev, &dev_stat);
                                 if (!err) {
                                         dir->dirent.size = dev_stat.st_size;
                                 } else if (err == ENODEV) {
                                         dir->dirent.size = 0;
                                         err = ESUCC;
                                 }
-
-                                dir->dirent.dev = child->data.dev_t;
 
                                 return err;
                         } else {
@@ -495,12 +606,19 @@ API_FS_REMOVE(ramfs, void *fs_handle, const char *path)
 
 //==============================================================================
 /**
- * @brief Rename file/directory
+ * @brief Rename (move) file/directory
+ *
+ * Object can be moved to other directory of the same file system. Node is
+ * relinked (not copied), so open file handles and open directory handles stay
+ * valid.
  *
  * @param[in ]          *fs_handle              file system allocated memory
  * @param[in ]          *old_name               old object name
  * @param[in ]          *new_name               new object name
  *
+ * @retval EEXIST       object new_name already exists
+ * @retval EINVAL       directory would be moved into itself or its subdirectory
+ * @retval ENOTDIR      parent of new_name is not a directory
  * @return One of errno value (errno.h)
  */
 //==============================================================================
@@ -515,28 +633,86 @@ API_FS_RENAME(ramfs, void *fs_handle, const char *old_name, const char *new_name
         int err = sys_mutex_lock(hdl->resource_mtx, MTX_TIMEOUT);
         if (!err) {
 
-                node_t *target;
-                err = get_node(new_name, &hdl->root_dir, 0, NULL, &target);
-                if (err == ENOENT) {
+                node_t *old_parent, *new_parent, *target;
+                i32_t item;
 
-                        err = get_node(old_name, &hdl->root_dir, 0, NULL, &target);
-                        if (!err) {
-                                char *basename = strrchr(new_name, '/') + 1;
+                err = get_node(old_name, &hdl->root_dir, -1, NULL, &old_parent);
+                if (err) {
+                        goto finish;
+                }
 
-                                char *newname;
-                                err = sys_zalloc(strsize(basename), cast(void **, &newname));
-                                if (!err) {
-                                        strcpy(newname, basename);
+                err = get_node(old_name, &hdl->root_dir, 0, &item, &target);
+                if (err) {
+                        goto finish;
+                }
 
-                                        if (target->name) {
-                                                sys_free(cast(void **, target->name));
-                                        }
+                if (target == &hdl->root_dir) {
+                        err = EPERM;
+                        goto finish;
+                }
 
-                                        target->name = newname;
+                err = get_node(new_name, &hdl->root_dir, -1, NULL, &new_parent);
+                if (err) {
+                        goto finish;
+                }
+
+                if (!S_ISDIR(new_parent->mode)) {
+                        err = ENOTDIR;
+                        goto finish;
+                }
+
+                node_t *existing;
+                err = get_node(new_name, &hdl->root_dir, 0, NULL, &existing);
+                if (err == ESUCC) {
+                        /* renaming to the same object is a no-op */
+                        err = (existing == target) ? ESUCC : EEXIST;
+                        goto finish;
+                } else if (err != ENOENT) {
+                        goto finish;
+                }
+
+                /* directory cannot be moved into itself or its subdirectory */
+                if (S_ISDIR(target->mode) && old_parent != new_parent) {
+                        int path_deep = get_path_deep(new_name);
+                        for (int up = 1; up <= path_deep; up++) {
+                                node_t *ancestor;
+                                if (get_node(new_name, &hdl->root_dir, -up, NULL, &ancestor) == ESUCC
+                                   && ancestor == target) {
+                                        err = EINVAL;
+                                        goto finish;
                                 }
                         }
                 }
 
+                char *newname;
+                err = copy_basename(hdl, new_name, &newname);
+                if (err) {
+                        goto finish;
+                }
+
+                if (old_parent != new_parent) {
+                        /* link in new directory first, then unlink from old one */
+                        if (!sys_llist_push_back(new_parent->data.llist_t, target)) {
+                                free_name(hdl, &newname);
+                                err = ENOMEM;
+                                goto finish;
+                        }
+
+                        /* take does not destroy object (in contrast to erase) */
+                        sys_llist_take(old_parent->data.llist_t, item);
+
+                        /* open handles keep parent to locate node at close */
+                        sys_llist_foreach (struct opened_file_info *, file, hdl->opended_files) {
+                                if (file->child == target) {
+                                        file->parent = new_parent;
+                                }
+                        }
+                }
+
+                free_name(hdl, &target->name);
+                target->name = newname;
+
+        finish:
                 sys_mutex_unlock(hdl->resource_mtx);
         }
 
@@ -699,6 +875,12 @@ API_FS_STAT(ramfs, void *fs_handle, const char *path, struct stat *stat)
 /**
  * @brief Return file system status
  *
+ * Used space is the memory allocated by this RAMFS instance (f_blocks - f_bfree).
+ * Without size limit the capacity follows the free system memory:
+ *      f_blocks = used + free memory, f_bfree = free memory.
+ * With size limit:
+ *      f_blocks = limit, f_bfree = min(limit - used, free memory).
+ *
  * @param[in ]          *fs_handle              file system allocated memory
  * @param[out]          *statfs                 file system status
  *
@@ -709,12 +891,39 @@ API_FS_STATFS(ramfs, void *fs_handle, struct statfs *statfs)
 {
         struct RAMFS *hdl = fs_handle;
 
-        statfs->f_bfree = cast(u32_t, sys_get_free_mem());
-        statfs->f_blocks = cast(u32_t, sys_get_mem_size());
-        statfs->f_bsize = 1;
-        statfs->f_ffree = cast(u32_t, sys_get_free_mem() / sizeof(node_t));
-        statfs->f_files = hdl->file_count;
-        statfs->f_type = SYS_FS_TYPE__RAM;
+        int err = sys_mutex_lock(hdl->resource_mtx, MTX_TIMEOUT);
+        if (err) {
+                return err;
+        }
+
+        size_t used  = hdl->used_mem;
+        size_t limit = hdl->limit;
+        size_t files = hdl->file_count;
+
+        sys_mutex_unlock(hdl->resource_mtx);
+
+        size_t free_mem = sys_get_free_mem();
+        size_t blocks, bfree;
+
+        if (limit) {
+                blocks = limit;
+                bfree  = min(limit - min(used, limit), free_mem);
+        } else {
+                blocks = used + free_mem;
+                bfree  = free_mem;
+        }
+
+        /* estimated cost of a new file: node, name and parent's list item */
+        size_t file_cost = mem_cost(sizeof(node_t))
+                         + mem_cost(RAMFS_AVG_NAME_LEN + 1)
+                         + RAMFS_LLIST_ITEM_COST;
+
+        statfs->f_bsize  = 1;
+        statfs->f_blocks = cast(u32_t, blocks);
+        statfs->f_bfree  = cast(u32_t, bfree);
+        statfs->f_ffree  = cast(u32_t, bfree / file_cost);
+        statfs->f_files  = cast(u32_t, files);
+        statfs->f_type   = SYS_FS_TYPE__RAM;
         statfs->f_fsname = "ramfs";
 
         return ESUCC;
@@ -750,6 +959,7 @@ API_FS_OPEN(ramfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
                 // try to open selected file, if not exist then try create if O_CREAT flag is set
                 i32_t item;
                 node_t *child;
+                bool created = false;
                 err = get_node(path, &hdl->root_dir, 0, &item, &child);
                 if (err == ENOENT) {
                         // check that file should be created
@@ -757,22 +967,35 @@ API_FS_OPEN(ramfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
                                 goto finish;
                         }
 
-                        char *basename = strrchr(path, '/') + 1;
-
-                        char *file_name;
-                        err = sys_zalloc(strsize(basename), cast(void **, &file_name));
-                        if (err) {
+                        /* "path/" names a directory, regular file cannot be created */
+                        if (strlch(path) == '/') {
+                                err = EISDIR;
                                 goto finish;
                         }
 
-                        strcpy(file_name, basename);
+                        char *file_name;
+                        err = copy_basename(hdl, path, &file_name);
+                        if (err) {
+                                goto finish;
+                        }
 
                         err = new_node(hdl, parent, file_name, 0666 | S_IFREG, &item, &child);
                         if (err) {
-                                sys_free(cast(void **, &file_name));
+                                free_name(hdl, &file_name);
                                 goto finish;
                         }
+
+                        created = true;
+
+                } else if (err) {
+                        goto finish;
+
                 } else {
+                        if ((flags & O_CREAT) && (flags & O_EXCL)) {
+                                err = EEXIST;
+                                goto finish;
+                        }
+
                         if (S_ISDIR(child->mode)) {
                                 err = EISDIR;
                                 goto finish;
@@ -782,6 +1005,10 @@ API_FS_OPEN(ramfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
                 /* add file to list of open files */
                 err = add_node_to_open_files_list(hdl, parent, child);
                 if (err) {
+                        /* do not leave an empty, just created file behind */
+                        if (created) {
+                                delete_node(hdl, parent, child, item);
+                        }
                         goto finish;
                 }
 
@@ -792,7 +1019,7 @@ API_FS_OPEN(ramfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
                 if (S_ISREG(child->mode)) {
                         // truncate file if requested
                         if (flags & O_TRUNC) {
-                                clear_regular_file(child);
+                                clear_regular_file(hdl, child);
                         }
 
                         if (flags & O_APPEND) {
@@ -808,6 +1035,8 @@ API_FS_OPEN(ramfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
                         } else {
                                 int pos = sys_llist_find_end(hdl->opended_files, *fhdl);
                                 sys_llist_erase(hdl->opended_files, pos);
+                                mem_release(hdl, OPENED_FILE_COST);
+                                *fhdl = NULL;
                         }
                 }
 
@@ -852,27 +1081,32 @@ API_FS_CLOSE(ramfs, void *fs_handle, void *fhdl)
                                 err = sys_pipe_close(target->data.pipe_t);
 
                         } else {
-                                /* file to remove, check if other task does not opens this file */
-                                if (opened_file->remove_at_close) {
-                                        bool remove = true;
+                                err = ESUCC;
+                        }
 
-                                        sys_llist_foreach (struct opened_file_info *, file, hdl->opended_files) {
-                                                if (file->child == target) {
-                                                        remove = false;
-                                                        break;
-                                                }
-                                        }
+                        /* file to remove (any type), check that no other handle still uses it */
+                        if (opened_file->remove_at_close) {
+                                bool remove = true;
 
-                                        if (remove) {
-                                                delete_node(hdl, opened_file->parent, opened_file->child, pos);
+                                sys_llist_foreach (struct opened_file_info *, file, hdl->opended_files) {
+                                        if (file != opened_file && file->child == target) {
+                                                remove = false;
+                                                break;
                                         }
-                                } else {
-                                        err = ESUCC;
+                                }
+
+                                if (remove) {
+                                        /* position of node in PARENT list, not in opened files list */
+                                        int item = find_child_index(opened_file->parent, target);
+                                        if (item >= 0) {
+                                                delete_node(hdl, opened_file->parent, target, item);
+                                        }
                                 }
                         }
 
-                        /* remove file from list */
+                        /* remove file from list (opened_file is freed here) */
                         sys_llist_erase(hdl->opended_files, pos);
+                        mem_release(hdl, OPENED_FILE_COST);
                 } else {
                         err = ENOENT;
                 }
@@ -930,7 +1164,7 @@ API_FS_WRITE(ramfs, void *fs_handle, void *fhdl, const u8_t *src, size_t count, 
                 } else if (S_ISREG(node->mode)) {
                         err = sys_mutex_lock(hdl->resource_mtx, MTX_TIMEOUT);
                         if (!err) {
-                                err = write_regular_file(node, src, count, *fpos, wrcnt);
+                                err = write_regular_file(hdl, node, src, count, *fpos, wrcnt);
                                 sys_mutex_unlock(hdl->resource_mtx);
                         }
                 }
@@ -1042,6 +1276,9 @@ API_FS_IOCTL(ramfs, void *fs_handle, void *fhdl, int request, void *arg)
                                 err = EBADRQC;
                                 break;
                         }
+
+                } else {
+                        err = EBADRQC; // file exists, request not supported for this type
                 }
         }
 
@@ -1114,26 +1351,30 @@ static int delete_node(struct RAMFS *hdl, node_t *base, node_t *target, u32_t po
         if (S_ISDIR(target->mode)) {
                 if (sys_llist_size(target->data.llist_t) > 0) {
                         return ENOTEMPTY;
+                } else if (target->opendir_cnt > 0) {
+                        return EBUSY;
                 } else {
                         sys_llist_destroy(target->data.llist_t);
                         target->data.llist_t = NULL;
+                        mem_release(hdl, RAMFS_LLIST_COST);
                 }
 
         } else if (S_ISFIFO(target->mode)) {
                 if (target->data.pipe_t) {
                         sys_pipe_destroy(target->data.pipe_t);
                         target->data.pipe_t = NULL;
+                        mem_release(hdl, RAMFS_PIPE_COST);
                 }
 
         } else if (S_ISREG(target->mode)) {
-                clear_regular_file(target);
+                clear_regular_file(hdl, target);
         }
 
-        if (target->name) {
-                sys_free(cast(void **, &target->name));
-        }
+        free_name(hdl, &target->name);
 
+        /* list destructor frees the node itself */
         sys_llist_erase(base->data.llist_t, position);
+        mem_release(hdl, mem_cost(sizeof(node_t)) + RAMFS_LLIST_ITEM_COST);
 
         hdl->file_count--;
 
@@ -1210,6 +1451,11 @@ static int get_node(const char *path, node_t *startnode, i32_t deep, i32_t *item
                 char *path_end = strchr(path, '/');
                 uint path_length = !path_end ? strlen(path) : (size_t)path_end - (size_t)path;
 
+                /* only directory can be traversed (data union holds llist only for dirs) */
+                if (!S_ISDIR(current_node->mode)) {
+                        return ENOTDIR;
+                }
+
                 /* get number of list items */
                 int list_size = sys_llist_size(current_node->data.llist_t);
 
@@ -1219,7 +1465,8 @@ static int get_node(const char *path, node_t *startnode, i32_t deep, i32_t *item
                         node_t *next_node = sys_llist_at(current_node->data.llist_t, i++);
 
                         if (next_node == NULL) {
-                                dir_deep = 1 - deep;
+                                /* list inconsistency: treat as not found */
+                                list_size = 0;
                                 break;
                         }
 
@@ -1281,13 +1528,26 @@ static int new_node(struct RAMFS *hdl, node_t *parent, char *filename, mode_t mo
         }
 
         sys_llist_foreach (node_t *, node, parent->data.llist_t) {
-                if (strncmp(node->name, filename, 255) == 0) {
+                if (strcmp(node->name, filename) == 0) {
                         return EEXIST;
                 }
         }
 
+        /* reserve memory for node, parent's list item and node's own object */
+        size_t cost = mem_cost(sizeof(node_t)) + RAMFS_LLIST_ITEM_COST;
+        if (S_ISDIR(mode)) {
+                cost += RAMFS_LLIST_COST;
+        } else if (S_ISFIFO(mode)) {
+                cost += RAMFS_PIPE_COST;
+        }
+
+        int err = mem_reserve(hdl, cost);
+        if (err) {
+                return err;
+        }
+
         node_t *node;
-        int err = sys_zalloc(sizeof(node_t), cast(void **, &node));
+        err = sys_zalloc(sizeof(node_t), cast(void **, &node));
         if (!err) {
 
                 time_t tm = 0;
@@ -1320,12 +1580,23 @@ static int new_node(struct RAMFS *hdl, node_t *parent, char *filename, mode_t mo
                                 hdl->file_count++;
                         } else {
                                 err = ENOMEM;
+
+                                /* release objects created above */
+                                if (S_ISDIR(mode) && node->data.llist_t) {
+                                        sys_llist_destroy(node->data.llist_t);
+                                } else if (S_ISFIFO(mode) && node->data.pipe_t) {
+                                        sys_pipe_destroy(node->data.pipe_t);
+                                }
                         }
                 }
 
                 if (err) {
                         sys_free(cast(void **, &node));
                 }
+        }
+
+        if (err) {
+                mem_release(hdl, cost);
         }
 
         return err;
@@ -1347,6 +1618,9 @@ static int add_node_to_open_files_list(struct RAMFS *hdl, node_t *parent, node_t
         struct opened_file_info *opened_file_info;
         int err = sys_zalloc(sizeof(struct opened_file_info), cast(void **, &opened_file_info));
         if (!err) {
+                /* accounted, but not limited: opening a file must not fail on full FS */
+                hdl->used_mem += OPENED_FILE_COST;
+
                 opened_file_info->remove_at_close = false;
                 opened_file_info->child = child;
                 opened_file_info->parent = parent;
@@ -1362,6 +1636,7 @@ static int add_node_to_open_files_list(struct RAMFS *hdl, node_t *parent, node_t
                 /* add open file info to list */
                 if (!sys_llist_push_back(hdl->opended_files, opened_file_info)) {
                         sys_free(cast(void **, &opened_file_info));
+                        mem_release(hdl, OPENED_FILE_COST);
                         err = ENOMEM;
                 }
         }
@@ -1376,13 +1651,13 @@ static int add_node_to_open_files_list(struct RAMFS *hdl, node_t *parent, node_t
  * @param node                  node to write
  */
 //==============================================================================
-static void clear_regular_file(node_t *node)
+static void clear_regular_file(struct RAMFS *hdl, node_t *node)
 {
         data_chain_t *chain = node->data.data_chain_t;
 
         while (chain) {
                 data_chain_t *next = chain->next;
-                sys_free(cast(void **, &chain));
+                mem_free(hdl, cast(void **, &chain), sizeof(data_chain_t));
                 chain = next;
         }
 
@@ -1400,18 +1675,27 @@ static void clear_regular_file(node_t *node)
  * @param fpos                  file seek
  * @param wrcnt                 write counter
  *
+ * @note When the limit is reached after part of data was written, the write is
+ *       short (ESUCC with *wrcnt < count); next write returns ENOSPC.
+ *
+ * @retval ENOSPC               file system size limit reached, nothing written
  * @retval One of errno value (errno.h)
  */
 //==============================================================================
-static int write_regular_file(node_t *node, const u8_t *src, size_t count, fpos_t fpos, size_t *wrcnt)
+static int write_regular_file(struct RAMFS *hdl, node_t *node, const u8_t *src, size_t count, fpos_t fpos, size_t *wrcnt)
 {
+        if (count == 0) {
+                return ESUCC;
+        }
+
         int err = ESUCC;
+        size_t wrcnt_start = *wrcnt;
         data_chain_t *chain = node->data.data_chain_t;
         size_t depth = fpos / DATA_CHAIN_SIZE;
         size_t seek = fpos - (depth * DATA_CHAIN_SIZE);
 
         if (chain == NULL) {
-                err = sys_zalloc(sizeof(data_chain_t), cast(void **, &chain));
+                err = mem_zalloc(hdl, sizeof(data_chain_t), cast(void **, &chain));
                 if (!err) {
                         node->data.data_chain_t = chain;
                 }
@@ -1420,7 +1704,7 @@ static int write_regular_file(node_t *node, const u8_t *src, size_t count, fpos_
         // travel to selected chain
         while (!err && depth) {
                 if (chain->next == NULL) {
-                        err = sys_zalloc(sizeof(data_chain_t), cast(void **, &chain->next));
+                        err = mem_zalloc(hdl, sizeof(data_chain_t), cast(void **, &chain->next));
                 }
 
                 chain = chain->next;
@@ -1439,7 +1723,7 @@ static int write_regular_file(node_t *node, const u8_t *src, size_t count, fpos_
 
                 if (count) {
                         if (chain->next == NULL) {
-                                err = sys_zalloc(sizeof(data_chain_t), cast(void **, &chain->next));
+                                err = mem_zalloc(hdl, sizeof(data_chain_t), cast(void **, &chain->next));
                         }
 
                         chain = chain->next;
@@ -1449,6 +1733,11 @@ static int write_regular_file(node_t *node, const u8_t *src, size_t count, fpos_
         // calculate file size
         if (depth == 0) {
                 node->size = max(node->size, fpos);
+        }
+
+        // short write if part of data was stored before limit was reached
+        if (err == ENOSPC && *wrcnt > wrcnt_start) {
+                err = ESUCC;
         }
 
         return err;
@@ -1493,6 +1782,320 @@ static int read_regular_file(node_t *node, u8_t *dst, size_t count, fpos_t fpos,
         }
 
         return err;
+}
+
+//==============================================================================
+/**
+ * @brief Function allocate copy of last path component (basename).
+ *
+ * @param hdl                   file system handle (memory accounting)
+ * @param path                  path
+ * @param name                  allocated name (free by free_name())
+ *
+ * @retval EINVAL               path is not absolute or basename is empty
+ * @retval One of errno value (errno.h)
+ */
+//==============================================================================
+static int copy_basename(struct RAMFS *hdl, const char *path, char **name)
+{
+        if (!path || path[0] != '/') {
+                return EINVAL;
+        }
+
+        /* ignore single trailing slash ("/dir/" -> "dir") */
+        size_t end = strlen(path);
+        if (end > 1 && path[end - 1] == '/') {
+                end--;
+        }
+
+        size_t begin = end;
+        while (begin > 0 && path[begin - 1] != '/') {
+                begin--;
+        }
+
+        size_t len = end - begin;
+        if (len == 0) {
+                return EINVAL;
+        }
+
+        int err = mem_zalloc(hdl, len + 1, cast(void **, name));
+        if (!err) {
+                memcpy(*name, &path[begin], len);
+                (*name)[len] = '\0';
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief Function find position of child in parent's list.
+ *
+ * Position is searched by pointer manually because directory lists are
+ * created without compare functor.
+ *
+ * @param parent                parent directory node
+ * @param child                 child node
+ *
+ * @return child position or -1 if not found
+ */
+//==============================================================================
+static int find_child_index(node_t *parent, node_t *child)
+{
+        if (!parent || !S_ISDIR(parent->mode) || !parent->data.llist_t) {
+                return -1;
+        }
+
+        int size = sys_llist_size(parent->data.llist_t);
+        for (int i = 0; i < size; i++) {
+                if (sys_llist_at(parent->data.llist_t, i) == child) {
+                        return i;
+                }
+        }
+
+        return -1;
+}
+
+//==============================================================================
+/**
+ * @brief Function removes all nodes from the tree (root stays).
+ *
+ * Implementation is iterative (no recursion) to keep stack usage constant
+ * regardless of directory depth. In each step the first leaf (file or empty
+ * directory) reachable by first-child links is removed. Complexity is
+ * O(nodes * depth), which is acceptable for a RAM file system.
+ *
+ * @param hdl                   file system handle
+ *
+ * @return One of errno value (errno.h)
+ */
+//==============================================================================
+static int release_tree(struct RAMFS *hdl)
+{
+        node_t *root = &hdl->root_dir;
+
+        while (sys_llist_size(root->data.llist_t) > 0) {
+                node_t *parent = root;
+                node_t *child  = sys_llist_at(parent->data.llist_t, 0);
+
+                /* descend to the first leaf */
+                while (child && S_ISDIR(child->mode) && child->data.llist_t
+                      && sys_llist_size(child->data.llist_t) > 0) {
+                        parent = child;
+                        child  = sys_llist_at(parent->data.llist_t, 0);
+                }
+
+                if (child == NULL) {
+                        return EFAULT; // list inconsistency
+                }
+
+                int err = delete_node(hdl, parent, child, 0);
+                if (err) {
+                        return err;
+                }
+        }
+
+        return ESUCC;
+}
+
+//==============================================================================
+/**
+ * @brief Function calculates estimated heap cost of allocation.
+ *
+ * @param size                  requested size
+ *
+ * @return estimated number of bytes taken from heap
+ */
+//==============================================================================
+static size_t mem_cost(size_t size)
+{
+        size_t align = RAMFS_ALLOC_ALIGN;
+        return ((size + align - 1) / align) * align + RAMFS_ALLOC_OVERHEAD;
+}
+
+//==============================================================================
+/**
+ * @brief Function reserves memory in accounting (checks size limit).
+ *
+ * @param hdl                   file system handle
+ * @param cost                  number of bytes to reserve
+ *
+ * @retval ENOSPC               size limit would be exceeded
+ * @retval ESUCC                memory reserved
+ */
+//==============================================================================
+static int mem_reserve(struct RAMFS *hdl, size_t cost)
+{
+        if (hdl->limit && (cost > hdl->limit || hdl->used_mem > hdl->limit - cost)) {
+                return ENOSPC;
+        }
+
+        hdl->used_mem += cost;
+
+        return ESUCC;
+}
+
+//==============================================================================
+/**
+ * @brief Function releases memory from accounting.
+ *
+ * @param hdl                   file system handle
+ * @param cost                  number of bytes to release
+ */
+//==============================================================================
+static void mem_release(struct RAMFS *hdl, size_t cost)
+{
+        hdl->used_mem = (hdl->used_mem > cost) ? hdl->used_mem - cost : 0;
+}
+
+//==============================================================================
+/**
+ * @brief Function allocates accounted memory.
+ *
+ * @param hdl                   file system handle
+ * @param size                  size to allocate
+ * @param mem                   allocated memory
+ *
+ * @retval ENOSPC               size limit reached
+ * @retval One of errno value (errno.h)
+ */
+//==============================================================================
+static int mem_zalloc(struct RAMFS *hdl, size_t size, void **mem)
+{
+        size_t cost = mem_cost(size);
+
+        int err = mem_reserve(hdl, cost);
+        if (!err) {
+                err = sys_zalloc(size, mem);
+                if (err) {
+                        mem_release(hdl, cost);
+                }
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief Function frees memory allocated by mem_zalloc().
+ *
+ * @param hdl                   file system handle
+ * @param mem                   memory to free (set to NULL)
+ * @param size                  size used at allocation
+ */
+//==============================================================================
+static void mem_free(struct RAMFS *hdl, void **mem, size_t size)
+{
+        if (*mem) {
+                sys_free(mem);
+                mem_release(hdl, mem_cost(size));
+        }
+}
+
+//==============================================================================
+/**
+ * @brief Function frees node name allocated by copy_basename().
+ *
+ * @param hdl                   file system handle
+ * @param name                  name to free (set to NULL)
+ */
+//==============================================================================
+static void free_name(struct RAMFS *hdl, char **name)
+{
+        if (*name) {
+                mem_free(hdl, cast(void **, name), strsize(*name));
+        }
+}
+
+//==============================================================================
+/**
+ * @brief Function parses mount options.
+ *
+ * Options are comma separated. Unknown options are ignored.
+ *      size=<n>        limit in bytes
+ *      size=<n>K       limit in KiB
+ *      size=<n>M       limit in MiB
+ *      size=<n>%       limit in percent of total memory (1..100)
+ *
+ * @param opts                  options string (can be NULL)
+ * @param limit                 parsed limit (0 = no limit)
+ *
+ * @retval EINVAL               invalid size option
+ * @retval ESUCC                options parsed
+ */
+//==============================================================================
+static int parse_options(const char *opts, size_t *limit)
+{
+        *limit = 0;
+
+        if (!opts) {
+                return ESUCC;
+        }
+
+        const char *opt = opts;
+
+        while (*opt) {
+                const char *end = strchr(opt, ',');
+                size_t len = end ? (size_t)(end - opt) : strlen(opt);
+
+                if (len >= 5 && strncmp(opt, "size=", 5) == 0) {
+                        const char *p = opt + 5;
+                        const char *e = opt + len;
+                        u64_t val = 0;
+
+                        if (p == e || *p < '0' || *p > '9') {
+                                return EINVAL;
+                        }
+
+                        while (p < e && *p >= '0' && *p <= '9') {
+                                val = val * 10 + (u64_t)(*p - '0');
+                                if (val > SIZE_MAX) {
+                                        return EINVAL;
+                                }
+                                p++;
+                        }
+
+                        if (p < e) {
+                                switch (*p) {
+                                case 'k': case 'K':
+                                        if (val > SIZE_MAX / 1024) {
+                                                return EINVAL;
+                                        }
+                                        val *= 1024;
+                                        break;
+                                case 'm': case 'M':
+                                        if (val > SIZE_MAX / (1024 * 1024)) {
+                                                return EINVAL;
+                                        }
+                                        val *= 1024 * 1024;
+                                        break;
+                                case '%':
+                                        if (val < 1 || val > 100) {
+                                                return EINVAL;
+                                        }
+                                        val = ((u64_t)sys_get_mem_size() * val) / 100;
+                                        break;
+                                default:
+                                        return EINVAL;
+                                }
+                                p++;
+                        }
+
+                        if (p != e || val == 0 || val > SIZE_MAX) {
+                                return EINVAL;
+                        }
+
+                        *limit = (size_t)val;
+                }
+
+                if (!end) {
+                        break;
+                }
+
+                opt = end + 1;
+        }
+
+        return ESUCC;
 }
 
 /*==============================================================================
