@@ -238,11 +238,6 @@ int _vfs_mount(const struct vfs_path *src_path, const struct vfs_path *mount_poi
                  * mount FS if created
                  */
                 if (!err) {
-                        // source "/" is presented as "-" (the same buffer size)
-                        if (isstreq(cwd_src_path, "/")) {
-                                cwd_src_path[0] = '-';
-                        }
-
                         if (sys_llist_push_back(VFS.mnt_list, new_fs)) {
                                 if (base_fs) {
                                         base_fs->children_cnt++;
