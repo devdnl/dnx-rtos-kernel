@@ -52,7 +52,8 @@ Development happens on the `develop` branch.
 ## Build
 
 Requirements: `arm-none-eabi-gcc` (10.3-2021.10 in the reference Docker image),
-GNU make, Python 3, Lua 5.5 and `dialog` (configtool). The supported
+GNU make, Python 3, Lua 5.4 or newer with LuaFileSystem (`lfs`) and `dialog`
+(configtool). The supported
 environment is the Docker image from the workspace (`tools/Dockerfile` there).
 
 ```sh
@@ -84,10 +85,10 @@ If the toolchain is not available in your environment, do not install a
 different GCC or modify the Makefiles to work around it. Say that the build
 could not be verified.
 
-Known legacy items: the `flash`/`install`/`reset` targets in `make help` refer
-to scripts that do not exist in this repository. `make quickcheck`,
-`tools/tests.sh` and `tools/releasepkg.sh` reference outdated paths. Verify
-them before relying on them.
+`tools/tests.sh` builds the kernel for every configuration in
+`tools/test_bsp/` (stm32f1, stm32f3, stm32f4, stm32f7, stm32h7) and restores
+the current `config/` at the end. Use it to check changes in shared code across
+architectures. There is no test BSP for `rpcm0` yet.
 
 ## Configuration files (important)
 

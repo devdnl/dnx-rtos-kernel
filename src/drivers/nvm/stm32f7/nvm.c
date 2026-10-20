@@ -354,10 +354,12 @@ API_MOD_IOCTL(NVM, void *device_handle, int request, void *arg)
                         if (!err) {
                                 FLASH_unlock();
 
-                                size_t sector = *cast(size_t*, arg) + hdl->start_sector;
+                                size_t sector = *cast(size_t*, arg);
 
-                                if (sector < ARRAY_SIZE(SECTOR_INFO)) {
-                                        err = FLASH_erase_sector(sector);
+                                if (sector < hdl->sector_count) {
+                                        err = FLASH_erase_sector(sector + hdl->start_sector);
+                                } else {
+                                        err = ESPIPE;
                                 }
 
                                 FLASH_lock();
@@ -395,7 +397,7 @@ API_MOD_IOCTL(NVM, void *device_handle, int request, void *arg)
 
                         size_t sector = secsz->sector + hdl->start_sector;
 
-                        if (sector < (hdl->start_sector + hdl->sector_count)) {
+                        if (secsz->sector < hdl->sector_count) {
                                 secsz->size = SECTOR_INFO[sector].size;
                                 err = ESUCC;
                         }

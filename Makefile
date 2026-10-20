@@ -240,9 +240,6 @@ CXXSRC           = $(_CXXSRC_PROGRAMS) $(_CXXSRC_LIB) $(_CXXSRC_CORE) $(_CXXSRC_
 
 # defines all assembler sources
 ASRC             = $(foreach file, $(ASRC_ARCH),$(SYS_LOC)/$(file))
-# functions
-FIND_GLOBAL_VARS_LIBS_PROGS = if [[ "$@" =~ $(APP_PRG_LOC) ]] || [[ "$@" =~ $(APP_LIB_LOC) ]]; then $(FINDGVAR) $@ || ($(RM) $@; exit 1); fi
-
 # convert source files names to objects
 CSRCCOREOBJ            = $(_CSRC_CORE:.$(C_EXT)=.$(OBJ_EXT))
 CSRCNOARCHOBJ          = $(_CSRC_NOARCH:.$(C_EXT)=.$(OBJ_EXT))
@@ -286,6 +283,7 @@ build_start : buildobjects linkobjects hex status
 help :
 	@$(ECHO) "This is help for this $(THIS_MAKEFILE)"
 	@$(ECHO) "Possible targets:"
+	@$(ECHO) "   all                 build project (default)"
 	@$(ECHO) "   help                this help"
 	@$(ECHO) "   config              project configuration (text mode)"
 	@$(ECHO) "   clean               clean project"
@@ -293,8 +291,6 @@ help :
 	@$(ECHO) "Non-build targets:"
 	@$(ECHO) "   check               static code analyze by using cppcheck"
 	@$(ECHO) "   quickcheck          quick static code analyze by using cppcheck"
-	@$(ECHO) "   flash, install      flash target CPU by using ./tools/flash.sh script"
-	@$(ECHO) "   reset               reset target CPU by using ./tools/reset.sh script"
 	@$(ECHO) "   release             create Release package"
 	@$(ECHO) "   doc                 create documentation (Doxygen)"
 	@$(ECHO) "   rungens             start generator scripts"
@@ -304,32 +300,24 @@ help :
 ####################################################################################################
 .PHONY : config
 config : clean apply_git_hooks
-	@$(CONFIGTOOL) ./config/config.h
+	@$(CONFIGTOOL) $(CONFIG)
 
 ####################################################################################################
 # analisis
 ####################################################################################################
-.PHONY : check checkprog quickcheck appsyntaxcheck
+.PHONY : check quickcheck
 check :
 	@$(CODECHECK) -j $(THREAD) -q --std=c99 --std=c++11 \
 	              --enable=warning,style,performance,portability,information,missingInclude \
 	              --force --inconclusive \
-	              --include=./config/project/flags.h \
+	              --include=$(CONFIG) -I$(CONFIG_DIR) \
 	              $(SEARCHPATH) $(CSRC) $(CXXSRC)
-
-checkprog :
-	@$(CODECHECK) -j $(THREAD) -q --std=c99 --std=c++11 --enable=warning,style,missingInclude \
-	              --inconclusive \
-	              -DCOMPILE_EPOCH_TIME=0 \
-	              $(SEARCHPATH)\
-	              $(foreach file, $(CSRC_PROGRAMS),$(APP_PRG_LOC)/$(file))
 
 quickcheck :
 	@$(CODECHECK) -j $(THREAD) -q --std=c99 --std=c++11 \
 	              --enable=warning,style,performance,portability,missingInclude \
 	              --force --inconclusive \
-	              --include=./config/project/flags.h \
-	              -I src/system/include/libc/dnx \
+	              --include=$(CONFIG) -I$(CONFIG_DIR) -Isrc/include \
 	              $(CSRC) $(CXXSRC)
 
 ####################################################################################################

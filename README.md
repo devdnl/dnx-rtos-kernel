@@ -152,11 +152,13 @@ Other targets:
 - `make clean` – remove build files,
 - `make doc` – create Doxygen documentation,
 - `make check`, `make quickcheck` – static code analysis by using cppcheck,
+- `./tools/tests.sh` – build the kernel for all test configurations
+  (`tools/test_bsp`); the current configuration is restored afterwards,
 - `make help` – list of all targets.
 
-Required tools: GNU make, `arm-none-eabi-` toolchain, Python 3, Lua 5.5 and
-`dialog` (configuration tool). All of them are included in the Docker image
-provided by the workspace.
+Required tools: GNU make, `arm-none-eabi-` toolchain, Python 3, Lua 5.4 or newer
+with LuaFileSystem (`lfs`) and `dialog` (configuration tool). All of them are
+included in the Docker image provided by the workspace.
 
 ## Adding drivers and file systems
 Drivers and file systems are added to the build automatically – each driver is

@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 if ! command -v dialog >/dev/null 2>&1; then
     echo "The 'dialog' command is not available."
@@ -25,7 +25,7 @@ if (( major > 5 || (major == 5 && minor >= 4) )); then
     SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
     export CONFIGTOOL_DIR="$SCRIPT_DIR"
 
-    lua "${SCRIPT_DIR}/configtool-cli.lua" $@
+    lua "${SCRIPT_DIR}/configtool-cli.lua" "$@"
 else
     echo "Lua must be version 5.4 or newer."
     exit 1

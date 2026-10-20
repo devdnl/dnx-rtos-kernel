@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-sh "${SCRIPT_DIR}/configtool-cli/configtool-cli" $@
+bash "${SCRIPT_DIR}/configtool-cli/configtool-cli" "$@"

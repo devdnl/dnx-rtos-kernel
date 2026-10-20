@@ -426,11 +426,11 @@ API_MOD_IOCTL(NVM, void *device_handle, int request, void *arg)
                         break;
                 }
 
-                size_t sector = *cast(size_t *, arg) + hdl->start_sector;
-                u8_t   bank   = SECTOR_INFO[sector].bank;
+                size_t sector = *cast(size_t *, arg);
 
-                if (sector < ARRAY_SIZE(SECTOR_INFO)) {
-                        err = FLASH_erase_sector(hdl, bank, SECTOR_INFO[sector].sector);
+                if (sector < hdl->sector_count) {
+                        sector += hdl->start_sector;
+                        err = FLASH_erase_sector(hdl, SECTOR_INFO[sector].bank, SECTOR_INFO[sector].sector);
 
                 } else {
                         err = ESPIPE;
@@ -445,13 +445,11 @@ API_MOD_IOCTL(NVM, void *device_handle, int request, void *arg)
                         break;
                 }
 
-                for (size_t i = hdl->start_sector;
-                        i < (hdl->start_sector + hdl->sector_count); i++) {
+                for (size_t i = 0; i < hdl->sector_count; i++) {
 
                         size_t sector = i + hdl->start_sector;
-                        u8_t   bank   = SECTOR_INFO[sector].bank;
 
-                        err = FLASH_erase_sector(hdl, bank, SECTOR_INFO[sector].sector);
+                        err = FLASH_erase_sector(hdl, SECTOR_INFO[sector].bank, SECTOR_INFO[sector].sector);
 
                         if (err) {
                                 break;
@@ -467,7 +465,7 @@ API_MOD_IOCTL(NVM, void *device_handle, int request, void *arg)
 
                         size_t sector = secsz->sector + hdl->start_sector;
 
-                        if (sector < (hdl->start_sector + hdl->sector_count)) {
+                        if (secsz->sector < hdl->sector_count) {
                                 secsz->size = SECTOR_INFO[sector].size;
                                 err         = ESUCC;
                         }
