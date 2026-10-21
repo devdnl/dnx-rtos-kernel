@@ -35,6 +35,7 @@
 #include "lib/vsnprintf.h"
 #include "lib/cast.h"
 #include "mm/mm.h"
+#include "kernel/errno.h"
 
 /*==============================================================================
   Local macros
@@ -66,13 +67,14 @@
 
 //==============================================================================
 /**
- * @brief Function write to file formatted string
+ * @brief Function write to file formatted string. The message is written by
+ *        single write operation.
  *
  * @param file                file
  * @param format              formated text
  * @param arg                 arguments
  *
- * @retval number of written characters
+ * @return Number of characters written to the file.
  */
 //==============================================================================
 int _vfprintf(kfile_t *file, const char *format, va_list arg)
@@ -82,19 +84,22 @@ int _vfprintf(kfile_t *file, const char *format, va_list arg)
         if (file && format) {
                 va_list carg;
                 va_copy(carg, arg);
-                u32_t size = _vsnprintf(NULL, 0, format, carg) + 1;
+                int len = _vsnprintf(NULL, 0, format, carg);
                 va_end(carg);
 
-                char *str = NULL;
-                int err = _kzalloc(_MM_KRN, size, NULL, _MM_FLAG__DMA,
-                                   _MM_FLAG__DMA, cast(void*, &str));
-                if (!err && str) {
-                        n = _vsnprintf(str, size, format, arg);
+                if (len > 0) {
+                        char *str = NULL;
+                        int err = _kmalloc(_MM_KRN, len + 1, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, cast(void *, &str));
+                        if (!err && str) {
+                                _vsnprintf(str, len + 1, format, arg);
 
-                        size_t wrcnt;
-                        _vfs_fwrite(str, n, &wrcnt, file);
+                                size_t wrcnt = 0;
+                                if (_vfs_fwrite(str, len, &wrcnt, file) == ESUCC) {
+                                        n = wrcnt;
+                                }
 
-                        _kfree(_MM_KRN, cast(void*, &str));
+                                _kfree(_MM_KRN, cast(void *, &str));
+                        }
                 }
         }
 

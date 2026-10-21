@@ -2599,7 +2599,7 @@ static void process_get_stat(_process_t *proc, _process_stat_t *stat)
                 size_t n = 0;
 
                 for (size_t i = 0; i < proc->argc; i++) {
-                        n += sys_snprintf(&stat->cmdline_buf[n], stat->cmdline_len - n, "%s ", proc->argv[i]);
+                        n += sys_scnprintf(&stat->cmdline_buf[n], stat->cmdline_len - n, "%s ", proc->argv[i]);
                 }
 
                 stat->cmdline_buf[n] = '\0';

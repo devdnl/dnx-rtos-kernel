@@ -161,7 +161,7 @@ void _printk(const char *format, ...)
         {
                 va_list args;
                 va_start(args, format);
-                int len = _vsnprintf(printk.line, sizeof(printk.line), format, args);
+                int len = _vscnprintf(printk.line, sizeof(printk.line), format, args);
                 va_end(args);
 
                 if ((len >= 1) and (printk.line[len - 1] == '\n')) {

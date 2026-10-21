@@ -2358,49 +2358,25 @@ static inline void sys_sync(void)
  * numbers which determine e.g. buffer length, number of digits, etc. When
  * next character is <i>%</i> then per cent is printed.
  *
- * Supported flags:@n
- *   %%         - print % character
- *                @code printf("%%"); //=> % @endcode
+ * The format string follows POSIX (C99) rules. A conversion specification is:
+ * <b>%[flags][width][.precision][length]conversion</b>@n
+ *   flags:      <b>-</b> left-justify, <b>+</b> always print sign, <b>space</b>
+ *               prefix positive value with space, <b>#</b> alternative form,
+ *               <b>0</b> pad with zeros@n
+ *   width:      decimal number or <b>*</b> (taken from argument, negative value
+ *               means <b>-</b> flag)@n
+ *   precision:  <b>.</b> followed by decimal number or <b>*</b>@n
+ *   length:     hh, h, l, ll, j, z, t, L@n
+ *   conversion: d, i, o, u, x, X, f, F, e, E, g, G, c, s, p, %@n
  *
- *   %c         - print selected character (the \0 character is skipped)@n
- *                @code printf("_%c_", 'x');  //=> _x_ @endcode
- *                @code printf("_%c_", '\0'); //=> __ @endcode
+ *   @code printf("[%-*s|%+5d|%08.3f|%#x|%.2e]", 6, "ab", 42, 3.14159, 255, 1234.5);
+ *   //=> [ab    |  +42|0003.142|0xff|1.23e+03] @endcode
  *
- *   %s         - print selected string
- *                @code printf("%s", "Foobar"); //=> Foobar @endcode
- *
- *   %.*s       - print selected string but only the length passed by argument
- *                @code printf("%.*s\n", 3, "Foobar"); //=> Foo @endcode
- *
- *   %.ns       - print selected string but only the n length
- *                @code printf("%.3s\n", "Foobar"); //=> Foo @endcode
- *
- *   %d, %i     - print decimal integer values
- *                @code printf("%d, %i", -5, 10); //=> -5, 10 @endcode
- *
- *   %u         - print unsigned decimal integer values
- *                @code printf("%u, %u", -1, 10); //=> 4294967295, 10 @endcode
- *
- *   %x, %X     - print hexadecimal values ('x' for lower characters, 'X' for upper
- characters)
- *                @code printf("0x%x, 0x%X", 0x5A, 0xfa); //=> 0x5a, 0xFA @endcode
- *
- *   %0x?       - print decimal (d, i, u) or hex (x, X) values with leading zeros.
- *                The number of characters (at least) is determined by x. The ?
- *                means d, i, u, x, or X value representations.
- *                @code printf("0x02X, 0x03X", 0x5, 0x1F43); //=> 0x05, 0x1F43 % @endcode
- *
- *   %f         - print float number. Note: make sure that input value is the float!
- *                @code printf("Foobar: %f", 1.0); //=> Foobar: 1.000000 @endcode
- *
- *   %l?        - print long values, where ? means d, i, u, x, or X.
- *                printf("32-bit value: %lu\n", 4561); => 32-bit value: 4561
- *
- *   %ll?       - print long long values, where ? means d, i, u, x, or X.
- *                printf("64-bit value: %llu\n", 4561); => 64-bit value: 4561
- *
- *   %p         - print pointer
- *                @code printf("Pointer: %p", main); //=> Pointer: 0x4028B4 @endcode
+ * Not supported (to keep kernel small): %a, %A, %ls, %n and positional
+ * arguments (%n$). Such conversion specification is printed as is and its
+ * argument is skipped. %lc is printed as %c. Floating point values from about
+ * 1e-6 to 1e38 are correctly rounded up to 17 significant digits, other values
+ * up to about 15 digits.
  *
  * @note Function can be used only by file system or driver code.
  *
@@ -2420,7 +2396,7 @@ static inline void sys_sync(void)
         // ...
    @endcode
  *
- * @see sys_vsnprintf(), sys_snprintf(), sys_vfprintf(), sys_fprintf()
+ * @see sys_vscnprintf(), sys_scnprintf(), sys_vfprintf(), sys_fprintf()
  */
 //==============================================================================
 #ifndef DOXYGEN
@@ -2437,49 +2413,25 @@ static inline void printk(const char *format, ...);
  * The function write output pointed to by <i>buf</i> of size <i>size</i>.
  * An arguments are passed by list <i>args</i>.<p>
  *
- * Supported flags:@n
- *   %%         - print % character
- *                @code printf("%%"); //=> % @endcode
+ * The format string follows POSIX (C99) rules. A conversion specification is:
+ * <b>%[flags][width][.precision][length]conversion</b>@n
+ *   flags:      <b>-</b> left-justify, <b>+</b> always print sign, <b>space</b>
+ *               prefix positive value with space, <b>#</b> alternative form,
+ *               <b>0</b> pad with zeros@n
+ *   width:      decimal number or <b>*</b> (taken from argument, negative value
+ *               means <b>-</b> flag)@n
+ *   precision:  <b>.</b> followed by decimal number or <b>*</b>@n
+ *   length:     hh, h, l, ll, j, z, t, L@n
+ *   conversion: d, i, o, u, x, X, f, F, e, E, g, G, c, s, p, %@n
  *
- *   %c         - print selected character (the \0 character is skipped)@n
- *                @code printf("_%c_", 'x');  //=> _x_ @endcode
- *                @code printf("_%c_", '\0'); //=> __ @endcode
+ *   @code printf("[%-*s|%+5d|%08.3f|%#x|%.2e]", 6, "ab", 42, 3.14159, 255, 1234.5);
+ *   //=> [ab    |  +42|0003.142|0xff|1.23e+03] @endcode
  *
- *   %s         - print selected string
- *                @code printf("%s", "Foobar"); //=> Foobar @endcode
- *
- *   %.*s       - print selected string but only the length passed by argument
- *                @code printf("%.*s\n", 3, "Foobar"); //=> Foo @endcode
- *
- *   %.ns       - print selected string but only the n length
- *                @code printf("%.3s\n", "Foobar"); //=> Foo @endcode
- *
- *   %d, %i     - print decimal integer values
- *                @code printf("%d, %i", -5, 10); //=> -5, 10 @endcode
- *
- *   %u         - print unsigned decimal integer values
- *                @code printf("%u, %u", -1, 10); //=> 4294967295, 10 @endcode
- *
- *   %x, %X     - print hexadecimal values ('x' for lower characters, 'X' for upper
- characters)
- *                @code printf("0x%x, 0x%X", 0x5A, 0xfa); //=> 0x5a, 0xFA @endcode
- *
- *   %0x?       - print decimal (d, i, u) or hex (x, X) values with leading zeros.
- *                The number of characters (at least) is determined by x. The ?
- *                means d, i, u, x, or X value representations.
- *                @code printf("0x02X, 0x03X", 0x5, 0x1F43); //=> 0x05, 0x1F43 % @endcode
- *
- *   %f         - print float number. Note: make sure that input value is the float!
- *                @code printf("Foobar: %f", 1.0); //=> Foobar: 1.000000 @endcode
- *
- *   %l?        - print long values, where ? means d, i, u, x, or X.
- *                printf("32-bit value: %lu\n", 4561); => 32-bit value: 4561
- *
- *   %ll?       - print long long values, where ? means d, i, u, x, or X.
- *                printf("64-bit value: %llu\n", 4561); => 64-bit value: 4561
- *
- *   %p         - print pointer
- *                @code printf("Pointer: %p", main); //=> Pointer: 0x4028B4 @endcode
+ * Not supported (to keep kernel small): %a, %A, %ls, %n and positional
+ * arguments (%n$). Such conversion specification is printed as is and its
+ * argument is skipped. %lc is printed as %c. Floating point values from about
+ * 1e-6 to 1e38 are correctly rounded up to 17 significant digits, other values
+ * up to about 15 digits.
  *
  * @note Function can be used only by file system or driver code.
  *
@@ -2488,9 +2440,10 @@ static inline void printk(const char *format, ...);
  * @param format        formatting string
  * @param args          argument list
  *
- * @return Upon successful return, these functions return the number of
- * characters printed (excluding the null byte used to end output to strings).
- * If an output error is encountered, a negative value is returned.
+ * @return Number of characters written to the buffer, excluding the terminating
+ * null byte. The output is truncated if it does not fit to the buffer, so the
+ * value is always in range 0..size-1 (0 if size is 0). This is different than
+ * POSIX snprintf(), the function works as scnprintf() in Linux kernel.
  *
  * @b Example
  * @code
@@ -2501,17 +2454,17 @@ static inline void printk(const char *format, ...);
         // ...
 
         char buffer[20];
-        sys_vsnprintf(buffer, 20, "foo is %d; bar is 0x%x\n", args);
+        sys_vscnprintf(buffer, 20, "foo is %d; bar is 0x%x\n", args);
 
         // ...
    @endcode
  *
- * @see sys_snprintf(), sys_vfprintf(), sys_fprintf()
+ * @see sys_scnprintf(), sys_vfprintf(), sys_fprintf()
  */
 //==============================================================================
-static inline int sys_vsnprintf(char *buf, size_t size, const char *format, va_list args)
+static inline int sys_vscnprintf(char *buf, size_t size, const char *format, va_list args)
 {
-        return _vsnprintf(buf, size, format, args);
+        return _vscnprintf(buf, size, format, args);
 }
 
 //==============================================================================
@@ -2521,49 +2474,25 @@ static inline int sys_vsnprintf(char *buf, size_t size, const char *format, va_l
  * The function produce output according to a <i>format</i> as described below.
  * The function write output pointed to by <i>bfr</i> of size <i>size</i>.<p>
  *
- * Supported flags:@n
- *   %%         - print % character
- *                @code printf("%%"); //=> % @endcode
+ * The format string follows POSIX (C99) rules. A conversion specification is:
+ * <b>%[flags][width][.precision][length]conversion</b>@n
+ *   flags:      <b>-</b> left-justify, <b>+</b> always print sign, <b>space</b>
+ *               prefix positive value with space, <b>#</b> alternative form,
+ *               <b>0</b> pad with zeros@n
+ *   width:      decimal number or <b>*</b> (taken from argument, negative value
+ *               means <b>-</b> flag)@n
+ *   precision:  <b>.</b> followed by decimal number or <b>*</b>@n
+ *   length:     hh, h, l, ll, j, z, t, L@n
+ *   conversion: d, i, o, u, x, X, f, F, e, E, g, G, c, s, p, %@n
  *
- *   %c         - print selected character (the \0 character is skipped)@n
- *                @code printf("_%c_", 'x');  //=> _x_ @endcode
- *                @code printf("_%c_", '\0'); //=> __ @endcode
+ *   @code printf("[%-*s|%+5d|%08.3f|%#x|%.2e]", 6, "ab", 42, 3.14159, 255, 1234.5);
+ *   //=> [ab    |  +42|0003.142|0xff|1.23e+03] @endcode
  *
- *   %s         - print selected string
- *                @code printf("%s", "Foobar"); //=> Foobar @endcode
- *
- *   %.*s       - print selected string but only the length passed by argument
- *                @code printf("%.*s\n", 3, "Foobar"); //=> Foo @endcode
- *
- *   %.ns       - print selected string but only the n length
- *                @code printf("%.3s\n", "Foobar"); //=> Foo @endcode
- *
- *   %d, %i     - print decimal integer values
- *                @code printf("%d, %i", -5, 10); //=> -5, 10 @endcode
- *
- *   %u         - print unsigned decimal integer values
- *                @code printf("%u, %u", -1, 10); //=> 4294967295, 10 @endcode
- *
- *   %x, %X     - print hexadecimal values ('x' for lower characters, 'X' for upper
- characters)
- *                @code printf("0x%x, 0x%X", 0x5A, 0xfa); //=> 0x5a, 0xFA @endcode
- *
- *   %0x?       - print decimal (d, i, u) or hex (x, X) values with leading zeros.
- *                The number of characters (at least) is determined by x. The ?
- *                means d, i, u, x, or X value representations.
- *                @code printf("0x02X, 0x03X", 0x5, 0x1F43); //=> 0x05, 0x1F43 % @endcode
- *
- *   %f         - print float number. Note: make sure that input value is the float!
- *                @code printf("Foobar: %f", 1.0); //=> Foobar: 1.000000 @endcode
- *
- *   %l?        - print long values, where ? means d, i, u, x, or X.
- *                printf("32-bit value: %lu\n", 4561); => 32-bit value: 4561
- *
- *   %ll?       - print long long values, where ? means d, i, u, x, or X.
- *                printf("64-bit value: %llu\n", 4561); => 64-bit value: 4561
- *
- *   %p         - print pointer
- *                @code printf("Pointer: %p", main); //=> Pointer: 0x4028B4 @endcode
+ * Not supported (to keep kernel small): %a, %A, %ls, %n and positional
+ * arguments (%n$). Such conversion specification is printed as is and its
+ * argument is skipped. %lc is printed as %c. Floating point values from about
+ * 1e-6 to 1e38 are correctly rounded up to 17 significant digits, other values
+ * up to about 15 digits.
  *
  * @note Function can be used only by file system or driver code.
  *
@@ -2572,9 +2501,10 @@ static inline int sys_vsnprintf(char *buf, size_t size, const char *format, va_l
  * @param format        formatting string
  * @param ...           argument sequence
  *
- * @return Upon successful return, these functions return the number of
- * characters printed (excluding the null byte used to end output to strings).
- * If an output error is encountered, a negative value is returned.
+ * @return Number of characters written to the buffer, excluding the terminating
+ * null byte. The output is truncated if it does not fit to the buffer, so the
+ * value is always in range 0..size-1 (0 if size is 0). This is different than
+ * POSIX snprintf(), the function works as scnprintf() in Linux kernel.
  *
  * @b Example
  * @code
@@ -2583,19 +2513,19 @@ static inline int sys_vsnprintf(char *buf, size_t size, const char *format, va_l
         char buffer[20];
         int foo = 12;
         int bar = 0x12;
-        sys_snprintf(buffer, 20, "foo is %d; bar is 0x%x\n", foo, bar);
+        sys_scnprintf(buffer, 20, "foo is %d; bar is 0x%x\n", foo, bar);
 
         // ...
    @endcode
  *
- * @see sys_vsnprintf(), sys_vfprintf(), sys_fprintf()
+ * @see sys_vscnprintf(), sys_vfprintf(), sys_fprintf()
  */
 //==============================================================================
-static inline int sys_snprintf(char *bfr, size_t size, const char *format, ...)
+static inline int sys_scnprintf(char *bfr, size_t size, const char *format, ...)
 {
         va_list arg;
         va_start(arg, format);
-        int r = _vsnprintf(bfr, size, format, arg);
+        int r = _vscnprintf(bfr, size, format, arg);
         va_end(arg);
         return r;
 }
@@ -2608,49 +2538,25 @@ static inline int sys_snprintf(char *bfr, size_t size, const char *format, ...)
  * The function write output to <i>file</i>.
  * An arguments are passed by list <i>args</i>.<p>
  *
- * Supported flags:@n
- *   %%         - print % character
- *                @code printf("%%"); //=> % @endcode
+ * The format string follows POSIX (C99) rules. A conversion specification is:
+ * <b>%[flags][width][.precision][length]conversion</b>@n
+ *   flags:      <b>-</b> left-justify, <b>+</b> always print sign, <b>space</b>
+ *               prefix positive value with space, <b>#</b> alternative form,
+ *               <b>0</b> pad with zeros@n
+ *   width:      decimal number or <b>*</b> (taken from argument, negative value
+ *               means <b>-</b> flag)@n
+ *   precision:  <b>.</b> followed by decimal number or <b>*</b>@n
+ *   length:     hh, h, l, ll, j, z, t, L@n
+ *   conversion: d, i, o, u, x, X, f, F, e, E, g, G, c, s, p, %@n
  *
- *   %c         - print selected character (the \0 character is skipped)@n
- *                @code printf("_%c_", 'x');  //=> _x_ @endcode
- *                @code printf("_%c_", '\0'); //=> __ @endcode
+ *   @code printf("[%-*s|%+5d|%08.3f|%#x|%.2e]", 6, "ab", 42, 3.14159, 255, 1234.5);
+ *   //=> [ab    |  +42|0003.142|0xff|1.23e+03] @endcode
  *
- *   %s         - print selected string
- *                @code printf("%s", "Foobar"); //=> Foobar @endcode
- *
- *   %.*s       - print selected string but only the length passed by argument
- *                @code printf("%.*s\n", 3, "Foobar"); //=> Foo @endcode
- *
- *   %.ns       - print selected string but only the n length
- *                @code printf("%.3s\n", "Foobar"); //=> Foo @endcode
- *
- *   %d, %i     - print decimal integer values
- *                @code printf("%d, %i", -5, 10); //=> -5, 10 @endcode
- *
- *   %u         - print unsigned decimal integer values
- *                @code printf("%u, %u", -1, 10); //=> 4294967295, 10 @endcode
- *
- *   %x, %X     - print hexadecimal values ('x' for lower characters, 'X' for upper
- characters)
- *                @code printf("0x%x, 0x%X", 0x5A, 0xfa); //=> 0x5a, 0xFA @endcode
- *
- *   %0x?       - print decimal (d, i, u) or hex (x, X) values with leading zeros.
- *                The number of characters (at least) is determined by x. The ?
- *                means d, i, u, x, or X value representations.
- *                @code printf("0x02X, 0x03X", 0x5, 0x1F43); //=> 0x05, 0x1F43 % @endcode
- *
- *   %f         - print float number. Note: make sure that input value is the float!
- *                @code printf("Foobar: %f", 1.0); //=> Foobar: 1.000000 @endcode
- *
- *   %l?        - print long values, where ? means d, i, u, x, or X.
- *                printf("32-bit value: %lu\n", 4561); => 32-bit value: 4561
- *
- *   %ll?       - print long long values, where ? means d, i, u, x, or X.
- *                printf("64-bit value: %llu\n", 4561); => 64-bit value: 4561
- *
- *   %p         - print pointer
- *                @code printf("Pointer: %p", main); //=> Pointer: 0x4028B4 @endcode
+ * Not supported (to keep kernel small): %a, %A, %ls, %n and positional
+ * arguments (%n$). Such conversion specification is printed as is and its
+ * argument is skipped. %lc is printed as %c. Floating point values from about
+ * 1e-6 to 1e38 are correctly rounded up to 17 significant digits, other values
+ * up to about 15 digits.
  *
  * @note Function can be used only by file system or driver code.
  *
@@ -2658,9 +2564,7 @@ static inline int sys_snprintf(char *bfr, size_t size, const char *format, ...)
  * @param format        formatting string
  * @param args          argument list
  *
- * @return Upon successful return, these functions return the number of
- * characters printed (excluding the null byte used to end output to strings).
- * If an output error is encountered, a negative value is returned.
+ * @return Number of characters written to the file. On error 0 is returned.
  *
  * @b Example
  * @code
@@ -2676,7 +2580,7 @@ static inline int sys_snprintf(char *bfr, size_t size, const char *format, ...)
         // ...
    @endcode
  *
- * @see sys_vsnprintf(), sys_snprintf(), sys_fprintf()
+ * @see sys_vscnprintf(), sys_scnprintf(), sys_fprintf()
  */
 //==============================================================================
 static inline int sys_vfprintf(kfile_t *file, const char *format, va_list args)
@@ -2691,49 +2595,25 @@ static inline int sys_vfprintf(kfile_t *file, const char *format, va_list args)
  * The function produce output according to a <i>format</i> as described below.
  * The function write output to <i>file</i>.<p>
  *
- * Supported flags:@n
- *   %%         - print % character
- *                @code printf("%%"); //=> % @endcode
+ * The format string follows POSIX (C99) rules. A conversion specification is:
+ * <b>%[flags][width][.precision][length]conversion</b>@n
+ *   flags:      <b>-</b> left-justify, <b>+</b> always print sign, <b>space</b>
+ *               prefix positive value with space, <b>#</b> alternative form,
+ *               <b>0</b> pad with zeros@n
+ *   width:      decimal number or <b>*</b> (taken from argument, negative value
+ *               means <b>-</b> flag)@n
+ *   precision:  <b>.</b> followed by decimal number or <b>*</b>@n
+ *   length:     hh, h, l, ll, j, z, t, L@n
+ *   conversion: d, i, o, u, x, X, f, F, e, E, g, G, c, s, p, %@n
  *
- *   %c         - print selected character (the \0 character is skipped)@n
- *                @code printf("_%c_", 'x');  //=> _x_ @endcode
- *                @code printf("_%c_", '\0'); //=> __ @endcode
+ *   @code printf("[%-*s|%+5d|%08.3f|%#x|%.2e]", 6, "ab", 42, 3.14159, 255, 1234.5);
+ *   //=> [ab    |  +42|0003.142|0xff|1.23e+03] @endcode
  *
- *   %s         - print selected string
- *                @code printf("%s", "Foobar"); //=> Foobar @endcode
- *
- *   %.*s       - print selected string but only the length passed by argument
- *                @code printf("%.*s\n", 3, "Foobar"); //=> Foo @endcode
- *
- *   %.ns       - print selected string but only the n length
- *                @code printf("%.3s\n", "Foobar"); //=> Foo @endcode
- *
- *   %d, %i     - print decimal integer values
- *                @code printf("%d, %i", -5, 10); //=> -5, 10 @endcode
- *
- *   %u         - print unsigned decimal integer values
- *                @code printf("%u, %u", -1, 10); //=> 4294967295, 10 @endcode
- *
- *   %x, %X     - print hexadecimal values ('x' for lower characters, 'X' for upper
- characters)
- *                @code printf("0x%x, 0x%X", 0x5A, 0xfa); //=> 0x5a, 0xFA @endcode
- *
- *   %0x?       - print decimal (d, i, u) or hex (x, X) values with leading zeros.
- *                The number of characters (at least) is determined by x. The ?
- *                means d, i, u, x, or X value representations.
- *                @code printf("0x02X, 0x03X", 0x5, 0x1F43); //=> 0x05, 0x1F43 % @endcode
- *
- *   %f         - print float number. Note: make sure that input value is the float!
- *                @code printf("Foobar: %f", 1.0); //=> Foobar: 1.000000 @endcode
- *
- *   %l?        - print long values, where ? means d, i, u, x, or X.
- *                printf("32-bit value: %lu\n", 4561); => 32-bit value: 4561
- *
- *   %ll?       - print long long values, where ? means d, i, u, x, or X.
- *                printf("64-bit value: %llu\n", 4561); => 64-bit value: 4561
- *
- *   %p         - print pointer
- *                @code printf("Pointer: %p", main); //=> Pointer: 0x4028B4 @endcode
+ * Not supported (to keep kernel small): %a, %A, %ls, %n and positional
+ * arguments (%n$). Such conversion specification is printed as is and its
+ * argument is skipped. %lc is printed as %c. Floating point values from about
+ * 1e-6 to 1e38 are correctly rounded up to 17 significant digits, other values
+ * up to about 15 digits.
  *
  * @note Function can be used only by file system or driver code.
  *
@@ -2741,9 +2621,7 @@ static inline int sys_vfprintf(kfile_t *file, const char *format, va_list args)
  * @param format        formatting string
  * @param ...           argument sequence
  *
- * @return Upon successful return, these functions return the number of
- * characters printed (excluding the null byte used to end output to strings).
- * If an output error is encountered, a negative value is returned.
+ * @return Number of characters written to the file. On error 0 is returned.
  *
  * @b Example
  * @code
@@ -2758,7 +2636,7 @@ static inline int sys_vfprintf(kfile_t *file, const char *format, va_list args)
         // ...
    @endcode
  *
- * @see sys_vsnprintf(), sys_snprintf(), sys_vfprintf()
+ * @see sys_vscnprintf(), sys_scnprintf(), sys_vfprintf()
  */
 //==============================================================================
 static inline int sys_fprintf(kfile_t *file, const char *format, ...)

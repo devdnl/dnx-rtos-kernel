@@ -844,7 +844,7 @@ static int procfs_readdir_pid(struct procfs *hdl, kdir_t *dir)
 
                 struct dir_info *dirinfo = dir->d_hdl;
 
-                sys_snprintf(dirinfo->name, sizeof(dirinfo->name), "%u", stat.pid);
+                sys_scnprintf(dirinfo->name, sizeof(dirinfo->name), "%u", stat.pid);
 
                 dir->dirent.d_name = dirinfo->name;
                 dir->dirent.mode = S_IRUSR | S_IRGRP | S_IROTH | S_IFREG;
@@ -1046,7 +1046,7 @@ static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size, 
         switch (file->content) {
         case FILE_CONTENT_PID: {
                 // cmdline + '\n' + '\0' must fit in a single LINE_LEN line,
-                // otherwise sys_vsnprintf() truncates the line and '\n' is lost
+                // otherwise sys_vscnprintf() truncates the line and '\n' is lost
                 char cmdline[LINE_LEN - 1];
 
                 _process_stat_t stat = {0};
@@ -1127,8 +1127,7 @@ static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size, 
 
                         while (size > 0 && sys_ioctl(pll, IOCTL_CLK__GET_CLK_INFO, &clkinf) == ESUCC && clkinf.name) {
 
-                                buf_snprintf(buff, &size, &clen, &seek, "%16s: %d Hz\n", clkinf.name,
-                                        cast(int, clkinf.freq_Hz));
+                                buf_snprintf(buff, &size, &clen, &seek, "%-10s: %lu Hz\n", clkinf.name, clkinf.freq_Hz);
                         }
 
                         sys_fclose(pll);
@@ -1183,7 +1182,7 @@ static void buf_snprintf(u8_t *buf, size_t *size, size_t *clen, i32_t *seek, con
 
         va_list arg;
         va_start(arg, fmt);
-        i32_t len = sys_vsnprintf(line, sizeof(line), fmt, arg);
+        i32_t len = sys_vscnprintf(line, sizeof(line), fmt, arg);
         va_end(arg);
 
         if (len <= 0) {

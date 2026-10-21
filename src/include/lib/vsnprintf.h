@@ -56,7 +56,9 @@ extern "C" {
   Exported functions
 ==============================================================================*/
 extern int _vsnprintf(char *buf, size_t size, const char *format, va_list arg);
-extern int _snprintf(char *bfr, size_t size, const char *format, ...);
+extern int _snprintf(char *buf, size_t size, const char *format, ...);
+extern int _vscnprintf(char *buf, size_t size, const char *format, va_list arg);
+extern int _scnprintf(char *buf, size_t size, const char *format, ...);
 
 /*==============================================================================
   Exported inline functions

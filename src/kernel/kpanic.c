@@ -270,7 +270,7 @@ static void report_kernel_panic(_process_t *proc, enum _kernel_panic_desc_cause 
 
         if (_process_get_pid(proc, &kpanic_desc.content.pid) == 0) {
 
-                sys_snprintf(kpanic_desc.content.name, sizeof(kpanic_desc.content.name), "%s",
+                sys_scnprintf(kpanic_desc.content.name, sizeof(kpanic_desc.content.name), "%s",
                         _process_get_name(proc));
 
                 kpanic_desc.content.tid = _process_get_active_thread(proc, isr);
@@ -284,7 +284,7 @@ static void report_kernel_panic(_process_t *proc, enum _kernel_panic_desc_cause 
         } else {
                 task_t *task = _task_get_handle();
 
-                sys_snprintf(kpanic_desc.content.name, sizeof(kpanic_desc.content.name), "<task> %p", task);
+                sys_scnprintf(kpanic_desc.content.name, sizeof(kpanic_desc.content.name), "<task> %p", task);
 
                 kpanic_desc.content.pid = 0;
                 kpanic_desc.content.tid = 0;
