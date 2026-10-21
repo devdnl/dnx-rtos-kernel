@@ -1,5 +1,5 @@
 SEARCH_DIR(.);
-SEARCH_DIR(src/system/cpu/stm32f1/ld);
+SEARCH_DIR(src/cpu/stm32f1/ld);
 
 MEMORY
 {

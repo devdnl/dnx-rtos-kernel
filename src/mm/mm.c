@@ -651,13 +651,18 @@ const char *_mm_get_region_name(const void *ptr)
 /**
  * @brief  Function return region information.
  *
- * @param  ptr          address to examine
+ * @param  idx          region index
+ * @param  info         region information
  *
- * @return Pointer to name reference.
+ * @return One of errno value.
  */
 //==============================================================================
 int _mm_get_region_info(size_t idx, _mm_region_info_t *info)
 {
+        if (!info) {
+                return EINVAL;
+        }
+
         int err = ENOENT;
 
         size_t n = 0;
