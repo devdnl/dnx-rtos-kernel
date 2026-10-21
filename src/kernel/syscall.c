@@ -949,7 +949,8 @@ static int syscall_open(syscallrq_t *rq)
                         kdir_t *dir;
                         err = _vfs_opendir(&path, &dir);
                         if (!err) {
-                                err = _process_descriptor_allocate(GETPROCESS(), &desc, &dir->header, *flags);
+                                err = _process_descriptor_allocate(GETPROCESS(), &desc, &dir->header,
+                                        *flags & O_SHARED);
                                 if (err) {
                                         _vfs_closedir(dir);
                                 } else {
@@ -3123,9 +3124,9 @@ static int syscall_getdrivername(syscallrq_t *rq)
         GETARG(size_t *, modno);
         GETARG(const char **, name_ref);
 
-        if (name_ref) {
+        if (modno and name_ref) {
                 *name_ref = _module_get_name(*modno);
-                if (name_ref) {
+                if (*name_ref) {
                         return 0;
                 } else {
                         return ENOENT;
@@ -3148,6 +3149,10 @@ static int syscall_getdriverid(syscallrq_t *rq)
 {
         GETARG(const char *, modname);
         GETARG(size_t *, driver_id);
+
+        if (not modname or not driver_id) {
+                return EINVAL;
+        }
 
         int id = _module_get_ID(modname);
 
@@ -3194,7 +3199,7 @@ static int syscall_getdriverinstances(syscallrq_t *rq)
         GETARG(size_t *, id);
         GETARG(size_t *, count);
 
-        if (count) {
+        if (id and count) {
                 ssize_t n = _module_get_number_of_instances(*id);
                 if (n >= 0) {
                         *count = n;
@@ -3578,8 +3583,12 @@ static int syscall_getcpucorecount(syscallrq_t *rq)
 {
         GETARG(u8_t *, core_count);
 
-        *core_count = _CPUCTL_CORE_NUM;
-        return 0;
+        if (core_count) {
+                *core_count = _CPUCTL_CORE_NUM;
+                return 0;
+        } else {
+                return EINVAL;
+        }
 }
 
 /*==============================================================================
