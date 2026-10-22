@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   Real-Time Clock Module
 
-        Copyright (C) 2020 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ Brief   Real-Time Clock Module
   Local macros
 ==============================================================================*/
 #undef RTC
-#define RTCP               ((RTC_TypeDef *)RTC_BASE)
+#define RTCP ((RTC_TypeDef *)RTC_BASE)
 
 #define RTC_WRITE_ATTEMPTS 65536
 #define TIMEOUT_LSE        5000
@@ -55,8 +55,8 @@ typedef struct {
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static void    unlock_RTC(void);
-static void    lock_RTC(void);
+static void unlock_RTC(void);
+static void lock_RTC(void);
 static uint8_t BCD_to_byte(uint8_t value);
 static uint8_t byte_to_BCD(uint8_t value);
 
@@ -73,9 +73,9 @@ static const struct rtc_hdl {
 static const struct rtc_hdl *hdl = &HDL;
 
 static const pre_t PRE[] = {
-        {.apre = 127, .spre = 255}, // no clock
-        {.apre = 127, .spre = 255}, // 32768 LSE
-        {.apre = 127, .spre = 249}, // 32000 LSI
+        {.apre = 127, .spre = 255},                                // no clock
+        {.apre = 127, .spre = 255},                                // 32768 LSE
+        {.apre = 127, .spre = 249},                                // 32000 LSI
         {.apre = 127, .spre = __CPU_OSC_FREQ__ / 128 / HSE_RTCDIV} // HSE
 };
 
@@ -135,8 +135,7 @@ API_MOD_INIT(RTC, void **device_handle, u8_t major, u8_t minor, const void *conf
 
                         RTCP->CR = 0;
 
-                        int osc = (RCC->BDCR & (RCC_BDCR_RTCSEL_1 | RCC_BDCR_RTCSEL_0)) >>
-                                RCC_BDCR_RTCSEL_Pos;
+                        int osc = (RCC->BDCR & (RCC_BDCR_RTCSEL_1 | RCC_BDCR_RTCSEL_0)) >> RCC_BDCR_RTCSEL_Pos;
 
                         // NOTE: separate write access needed
                         RTCP->PRER = PRE[osc].spre;
@@ -223,8 +222,8 @@ API_MOD_CLOSE(RTC, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(RTC, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos,
-        size_t *wrcnt, struct vfs_fattr fattr)
+API_MOD_WRITE(RTC, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG2(device_handle, fattr);
 
@@ -275,7 +274,7 @@ API_MOD_WRITE(RTC, void *device_handle, const u8_t *src, size_t count, fpos_t *f
         sys_critical_section_end();
 
         *wrcnt = count;
-        *fpos  = 0;
+        *fpos = 0;
 
         return err;
 }
@@ -294,8 +293,7 @@ API_MOD_WRITE(RTC, void *device_handle, const u8_t *src, size_t count, fpos_t *f
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(RTC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
-        size_t *rdcnt, struct vfs_fattr fattr)
+API_MOD_READ(RTC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG2(device_handle, fattr);
 
@@ -318,12 +316,12 @@ API_MOD_READ(RTC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
                 // convert BCD time to UNIX time stamp
                 struct tm tm;
                 tm.tm_isutc = true;
-                tm.tm_sec   = BCD_to_byte((TR >> 0) & 0x7F);
-                tm.tm_min   = BCD_to_byte((TR >> 8) & 0x7F);
-                tm.tm_hour  = BCD_to_byte((TR >> 16) & 0x3F);
-                tm.tm_mday  = BCD_to_byte((DR >> 0) & 0x3F);
-                tm.tm_mon   = BCD_to_byte((DR >> 8) & 0x1F) - 1;
-                tm.tm_year  = BCD_to_byte((DR >> 16) & 0xFF) + 100;
+                tm.tm_sec = BCD_to_byte((TR >> 0) & 0x7F);
+                tm.tm_min = BCD_to_byte((TR >> 8) & 0x7F);
+                tm.tm_hour = BCD_to_byte((TR >> 16) & 0x3F);
+                tm.tm_mday = BCD_to_byte((DR >> 0) & 0x3F);
+                tm.tm_mon = BCD_to_byte((DR >> 8) & 0x1F) - 1;
+                tm.tm_year = BCD_to_byte((DR >> 16) & 0xFF) + 100;
 
                 timer = sys_mktime(&tm);
         }
@@ -332,7 +330,7 @@ API_MOD_READ(RTC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
         memcpy(dst, &timer, count);
 
         *rdcnt = count;
-        *fpos  = 0;
+        *fpos = 0;
 
         return ESUCC;
 }
@@ -374,9 +372,7 @@ API_MOD_IOCTL(RTC, void *device_handle, int request, void *arg)
 
                         unlock_RTC();
 
-                        CLEAR_BIT(RTCP->CR,
-                                RTC_CR_ALRAE | RTC_CR_ALRAIE | RTC_CR_ALRBE |
-                                        RTC_CR_ALRBIE);
+                        CLEAR_BIT(RTCP->CR, RTC_CR_ALRAE | RTC_CR_ALRAIE | RTC_CR_ALRBE | RTC_CR_ALRBIE);
 
                         RTCP->ISR = RTC_ISR_ALRAF | RTC_ISR_ALRBF;
 
@@ -389,7 +385,7 @@ API_MOD_IOCTL(RTC, void *device_handle, int request, void *arg)
                         }
 
                         RTCP->ALRMASSR = 0;
-                        RTCP->ALRMAR   = ALRMAR;
+                        RTCP->ALRMAR = ALRMAR;
 
                         SET_BIT(RTCP->CR, RTC_CR_ALRAE | RTC_CR_ALRAIE);
 

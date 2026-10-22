@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   Memory Block as file representation
 
-        Copyright (C) 2023 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -39,8 +39,8 @@ Brief   Memory Block as file representation
   Local object types
 ==============================================================================*/
 typedef struct {
-        u8_t              major;
-        u8_t              minor;
+        u8_t major;
+        u8_t minor;
         MEMBLOCK_config_t config;
 } MEMBLOCK_t;
 
@@ -152,8 +152,8 @@ API_MOD_CLOSE(MEMBLOCK, void *device_handle, bool force)
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_WRITE(MEMBLOCK, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos,
-        size_t *wrctr, struct vfs_fattr fattr)
+API_MOD_WRITE(MEMBLOCK, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrctr,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
@@ -169,8 +169,8 @@ API_MOD_WRITE(MEMBLOCK, void *device_handle, const u8_t *src, size_t count, fpos
         }
 
         size_t left = (hdl->config.block_size - *fpos);
-        count       = min(count, left);
-        *wrctr      = count;
+        count = min(count, left);
+        *wrctr = count;
 
         void *addr = cast(void *, (hdl->config.memory_address + cast(u32_t, *fpos)));
 
@@ -193,8 +193,8 @@ API_MOD_WRITE(MEMBLOCK, void *device_handle, const u8_t *src, size_t count, fpos
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(MEMBLOCK, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
-        size_t *rdctr, struct vfs_fattr fattr)
+API_MOD_READ(MEMBLOCK, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdctr,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
@@ -210,8 +210,8 @@ API_MOD_READ(MEMBLOCK, void *device_handle, u8_t *dst, size_t count, fpos_t *fpo
         }
 
         size_t left = (hdl->config.block_size - *fpos);
-        count       = min(count, left);
-        *rdctr      = count;
+        count = min(count, left);
+        *rdctr = count;
 
         void *addr = cast(void *, (hdl->config.memory_address + cast(u32_t, *fpos)));
 
@@ -241,7 +241,7 @@ API_MOD_IOCTL(MEMBLOCK, void *device_handle, int request, void *arg)
         case IOCTL_MEMBLOCK__SET_CONFIGURATION:
                 if (arg) {
                         hdl->config = *cast(MEMBLOCK_config_t *, arg);
-                        err         = ESUCC;
+                        err = ESUCC;
                 } else {
                         err = EINVAL;
                 }
@@ -250,7 +250,7 @@ API_MOD_IOCTL(MEMBLOCK, void *device_handle, int request, void *arg)
         case IOCTL_MEMBLOCK__GET_CONFIGURATION:
                 if (arg) {
                         *cast(MEMBLOCK_config_t *, arg) = hdl->config;
-                        err                             = ESUCC;
+                        err = ESUCC;
                 } else {
                         err = EINVAL;
                 }

@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   File Bridge
 
-        Copyright (C) 2022 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -93,7 +93,7 @@ extern "C" {
  *  @param  [WR] const FBRIDGE_conf_t * configuration structure
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_FBRIDGE__CONFIGURE        _IOW(FBRIDGE, 0x00, const FBRIDGE_conf_t *)
+#define IOCTL_FBRIDGE__CONFIGURE _IOW(FBRIDGE, 0x00, const FBRIDGE_conf_t *)
 
 /*==============================================================================
   Exported object types

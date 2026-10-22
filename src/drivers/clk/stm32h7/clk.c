@@ -5,7 +5,7 @@
 
 @brief   File support system clock (PLL).
 
-@note    Copyright (C) 2020 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -38,43 +38,63 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define TIMEOUT_MS                              250
-#define LSE_TIMEOUT_MS                          5000
+#define TIMEOUT_MS     250
+#define LSE_TIMEOUT_MS 5000
 
 #if defined(PWR_SRDCR_VOS)
-#define PWR_REGULATOR_VOLTAGE_SCALE0            (PWR_SRDCR_VOS_1 | PWR_SRDCR_VOS_0)
-#define PWR_REGULATOR_VOLTAGE_SCALE1            (PWR_SRDCR_VOS_1)
-#define PWR_REGULATOR_VOLTAGE_SCALE2            (PWR_SRDCR_VOS_0)
-#define PWR_REGULATOR_VOLTAGE_SCALE3            (0U)
+#define PWR_REGULATOR_VOLTAGE_SCALE0 (PWR_SRDCR_VOS_1 | PWR_SRDCR_VOS_0)
+#define PWR_REGULATOR_VOLTAGE_SCALE1 (PWR_SRDCR_VOS_1)
+#define PWR_REGULATOR_VOLTAGE_SCALE2 (PWR_SRDCR_VOS_0)
+#define PWR_REGULATOR_VOLTAGE_SCALE3 (0U)
 #else
-#define PWR_REGULATOR_VOLTAGE_SCALE0            (0U)
-#define PWR_REGULATOR_VOLTAGE_SCALE1            (PWR_D3CR_VOS_1 | PWR_D3CR_VOS_0)
-#define PWR_REGULATOR_VOLTAGE_SCALE2            (PWR_D3CR_VOS_1)
-#define PWR_REGULATOR_VOLTAGE_SCALE3            (PWR_D3CR_VOS_0)
+#define PWR_REGULATOR_VOLTAGE_SCALE0 (0U)
+#define PWR_REGULATOR_VOLTAGE_SCALE1 (PWR_D3CR_VOS_1 | PWR_D3CR_VOS_0)
+#define PWR_REGULATOR_VOLTAGE_SCALE2 (PWR_D3CR_VOS_1)
+#define PWR_REGULATOR_VOLTAGE_SCALE3 (PWR_D3CR_VOS_0)
 #endif
 
-#define FLASH_ACR_WRHIGHFREQ_MSK                (FLASH_ACR_WRHIGHFREQ_1 | FLASH_ACR_WRHIGHFREQ_0)
-#define FLASH_ACR_WRHIGHFREQ_00                 ((0*FLASH_ACR_WRHIGHFREQ_1) | (0*FLASH_ACR_WRHIGHFREQ_0))
-#define FLASH_ACR_WRHIGHFREQ_01                 ((0*FLASH_ACR_WRHIGHFREQ_1) | (1*FLASH_ACR_WRHIGHFREQ_0))
-#define FLASH_ACR_WRHIGHFREQ_10                 ((1*FLASH_ACR_WRHIGHFREQ_1) | (0*FLASH_ACR_WRHIGHFREQ_0))
+#define FLASH_ACR_WRHIGHFREQ_MSK (FLASH_ACR_WRHIGHFREQ_1 | FLASH_ACR_WRHIGHFREQ_0)
+#define FLASH_ACR_WRHIGHFREQ_00  ((0 * FLASH_ACR_WRHIGHFREQ_1) | (0 * FLASH_ACR_WRHIGHFREQ_0))
+#define FLASH_ACR_WRHIGHFREQ_01  ((0 * FLASH_ACR_WRHIGHFREQ_1) | (1 * FLASH_ACR_WRHIGHFREQ_0))
+#define FLASH_ACR_WRHIGHFREQ_10  ((1 * FLASH_ACR_WRHIGHFREQ_1) | (0 * FLASH_ACR_WRHIGHFREQ_0))
 
 /** PWREx Supply configuration */
-#define PWR_LDO_SUPPLY                          PWR_CR3_LDOEN                                                               /*!< Core domains are supplied from the LDO                                                                     */
-#if defined (SMPS)
-#define PWR_DIRECT_SMPS_SUPPLY                  PWR_CR3_SMPSEN                                                              /*!< Core domains are supplied from the SMPS only                                                               */
-#define PWR_SMPS_1V8_SUPPLIES_LDO               (PWR_CR3_SMPSLEVEL_0 | PWR_CR3_SMPSEN    | PWR_CR3_LDOEN)                   /*!< The SMPS 1.8V output supplies the LDO which supplies the Core domains                                       */
-#define PWR_SMPS_2V5_SUPPLIES_LDO               (PWR_CR3_SMPSLEVEL_1 | PWR_CR3_SMPSEN    | PWR_CR3_LDOEN)                   /*!< The SMPS 2.5V output supplies the LDO which supplies the Core domains                                       */
-#define PWR_SMPS_1V8_SUPPLIES_EXT_AND_LDO       (PWR_CR3_SMPSLEVEL_0 | PWR_CR3_SMPSEXTHP | PWR_CR3_SMPSEN | PWR_CR3_LDOEN)  /*!< The SMPS 1.8V output supplies an external circuits and the LDO. The Core domains are supplied from the LDO */
-#define PWR_SMPS_2V5_SUPPLIES_EXT_AND_LDO       (PWR_CR3_SMPSLEVEL_1 | PWR_CR3_SMPSEXTHP | PWR_CR3_SMPSEN | PWR_CR3_LDOEN)  /*!< The SMPS 2.5V output supplies an external circuits and the LDO. The Core domains are supplied from the LDO */
-#define PWR_SMPS_1V8_SUPPLIES_EXT               (PWR_CR3_SMPSLEVEL_0 | PWR_CR3_SMPSEXTHP | PWR_CR3_SMPSEN | PWR_CR3_BYPASS) /*!< The SMPS 1.8V output supplies an external source which supplies the Core domains                            */
-#define PWR_SMPS_2V5_SUPPLIES_EXT               (PWR_CR3_SMPSLEVEL_1 | PWR_CR3_SMPSEXTHP | PWR_CR3_SMPSEN | PWR_CR3_BYPASS) /*!< The SMPS 2.5V output supplies an external source which supplies the Core domains                            */
-#endif /* defined (SMPS) */
-#define PWR_EXTERNAL_SOURCE_SUPPLY              PWR_CR3_BYPASS                                                              /*!< The SMPS disabled and the LDO Bypass. The Core domains are supplied from an external source                 */
+#define PWR_LDO_SUPPLY \
+        PWR_CR3_LDOEN /*!< Core domains are supplied from the LDO */
+#if defined(SMPS)
+#define PWR_DIRECT_SMPS_SUPPLY \
+        PWR_CR3_SMPSEN /*!< Core domains are supplied from the SMPS only */
+#define PWR_SMPS_1V8_SUPPLIES_LDO               \
+        (PWR_CR3_SMPSLEVEL_0 | PWR_CR3_SMPSEN | \
+                PWR_CR3_LDOEN) /*!< The SMPS 1.8V output supplies the LDO which supplies the Core domains */
+#define PWR_SMPS_2V5_SUPPLIES_LDO               \
+        (PWR_CR3_SMPSLEVEL_1 | PWR_CR3_SMPSEN | \
+                PWR_CR3_LDOEN) /*!< The SMPS 2.5V output supplies the LDO which supplies the Core domains */
+#define PWR_SMPS_1V8_SUPPLIES_EXT_AND_LDO                                                                            \
+        (PWR_CR3_SMPSLEVEL_0 | PWR_CR3_SMPSEXTHP | PWR_CR3_SMPSEN |                                                  \
+                PWR_CR3_LDOEN) /*!< The SMPS 1.8V output supplies an external circuits and the LDO. The Core domains \
+                                  are supplied from the LDO */
+#define PWR_SMPS_2V5_SUPPLIES_EXT_AND_LDO                                                                            \
+        (PWR_CR3_SMPSLEVEL_1 | PWR_CR3_SMPSEXTHP | PWR_CR3_SMPSEN |                                                  \
+                PWR_CR3_LDOEN) /*!< The SMPS 2.5V output supplies an external circuits and the LDO. The Core domains \
+                                  are supplied from the LDO */
+#define PWR_SMPS_1V8_SUPPLIES_EXT                                                                                     \
+        (PWR_CR3_SMPSLEVEL_0 | PWR_CR3_SMPSEXTHP | PWR_CR3_SMPSEN |                                                   \
+                PWR_CR3_BYPASS) /*!< The SMPS 1.8V output supplies an external source which supplies the Core domains \
+                                 */
+#define PWR_SMPS_2V5_SUPPLIES_EXT                                                                                     \
+        (PWR_CR3_SMPSLEVEL_1 | PWR_CR3_SMPSEXTHP | PWR_CR3_SMPSEN |                                                   \
+                PWR_CR3_BYPASS) /*!< The SMPS 2.5V output supplies an external source which supplies the Core domains \
+                                 */
+#endif                          /* defined (SMPS) */
+#define PWR_EXTERNAL_SOURCE_SUPPLY                                                                               \
+        PWR_CR3_BYPASS /*!< The SMPS disabled and the LDO Bypass. The Core domains are supplied from an external \
+                          source                 */
 
-#if defined (SMPS)
-#define PWR_SUPPLY_CONFIG_MASK                  (PWR_CR3_SMPSLEVEL | PWR_CR3_SMPSEXTHP | PWR_CR3_SMPSEN | PWR_CR3_LDOEN | PWR_CR3_BYPASS)
+#if defined(SMPS)
+#define PWR_SUPPLY_CONFIG_MASK (PWR_CR3_SMPSLEVEL | PWR_CR3_SMPSEXTHP | PWR_CR3_SMPSEN | PWR_CR3_LDOEN | PWR_CR3_BYPASS)
 #else
-#define PWR_SUPPLY_CONFIG_MASK                  (PWR_CR3_SCUEN | PWR_CR3_LDOEN | PWR_CR3_BYPASS)
+#define PWR_SUPPLY_CONFIG_MASK (PWR_CR3_SCUEN | PWR_CR3_LDOEN | PWR_CR3_BYPASS)
 #endif
 
 /*==============================================================================
@@ -89,10 +109,10 @@ typedef struct {
   Local function prototypes
 ==============================================================================*/
 static u32_t get_pll_input_freq(void);
-static void  get_pll_input_parameters(u32_t *pll_input_freq, u32_t *pll_input_range, u32_t *pll_ouput_range);
-static int   configure_core_voltage_and_flash_latency(void);
-static int   configure_power_supply(uint32_t supply_source);
-static int   control_voltage_scaling(uint32_t voltage_scaling);
+static void get_pll_input_parameters(u32_t *pll_input_freq, u32_t *pll_input_range, u32_t *pll_ouput_range);
+static int configure_core_voltage_and_flash_latency(void);
+static int configure_power_supply(uint32_t supply_source);
+static int control_voltage_scaling(uint32_t voltage_scaling);
 
 /*==============================================================================
   Local object definitions
@@ -165,7 +185,7 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
 
                 SET_BIT(PWR->CR1, PWR_CR1_DBP);
 
-                if (not (RCC->BDCR & RCC_BDCR_LSEON)) {
+                if (not(RCC->BDCR & RCC_BDCR_LSEON)) {
 
                         if (__CLK_LSE_ON__ == _CLK_BAYPASS) {
                                 LL_RCC_LSE_EnableBypass();
@@ -330,7 +350,8 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         // Clock sources
         //----------------------------------------------------------------------
         LL_RCC_SetSysClkSource(__CLK_SYSCLK_SRC__);
-        while (LL_RCC_GetSysClkSource() != __CLK_SYSCLK_SRC_STATUS__);
+        while (LL_RCC_GetSysClkSource() != __CLK_SYSCLK_SRC_STATUS__)
+                ;
 
         LL_RCC_SetRTCClockSource(__CLK_SRC_RTC__);
         LL_RCC_SetRTC_HSEPrescaler(__CLK_RTC_HSE_DIV__);
@@ -391,7 +412,7 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         //----------------------------------------------------------------------
         sys_update_system_clocks();
 
-        finish:
+finish:
         return err;
 }
 
@@ -460,13 +481,8 @@ API_MOD_CLOSE(CLK, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(CLK,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(CLK, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, src, count, fpos, wrcnt, fattr);
         return ENOTSUP;
@@ -486,13 +502,7 @@ API_MOD_WRITE(CLK,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(CLK,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(CLK, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, dst, count, fpos, rdcnt, fattr);
         return ENOTSUP;
@@ -580,7 +590,7 @@ API_MOD_IOCTL(CLK, void *device_handle, int request, void *arg)
                                 LL_PLL_ClocksTypeDef pll;
                                 LL_RCC_GetPLL1ClockFreq(&pll);
                                 clkinf->freq_Hz = pll.PLL_P_Frequency;
-                                clkinf->name    = "PLL1P";
+                                clkinf->name = "PLL1P";
                                 break;
                         }
 
@@ -588,7 +598,7 @@ API_MOD_IOCTL(CLK, void *device_handle, int request, void *arg)
                                 LL_PLL_ClocksTypeDef pll;
                                 LL_RCC_GetPLL1ClockFreq(&pll);
                                 clkinf->freq_Hz = pll.PLL_Q_Frequency;
-                                clkinf->name    = "PLL1Q";
+                                clkinf->name = "PLL1Q";
                                 break;
                         }
 
@@ -596,7 +606,7 @@ API_MOD_IOCTL(CLK, void *device_handle, int request, void *arg)
                                 LL_PLL_ClocksTypeDef pll;
                                 LL_RCC_GetPLL1ClockFreq(&pll);
                                 clkinf->freq_Hz = pll.PLL_R_Frequency;
-                                clkinf->name    = "PLL1R";
+                                clkinf->name = "PLL1R";
                                 break;
                         }
 
@@ -604,7 +614,7 @@ API_MOD_IOCTL(CLK, void *device_handle, int request, void *arg)
                                 LL_PLL_ClocksTypeDef pll;
                                 LL_RCC_GetPLL2ClockFreq(&pll);
                                 clkinf->freq_Hz = pll.PLL_P_Frequency;
-                                clkinf->name    = "PLL2P";
+                                clkinf->name = "PLL2P";
                                 break;
                         }
 
@@ -612,7 +622,7 @@ API_MOD_IOCTL(CLK, void *device_handle, int request, void *arg)
                                 LL_PLL_ClocksTypeDef pll;
                                 LL_RCC_GetPLL2ClockFreq(&pll);
                                 clkinf->freq_Hz = pll.PLL_Q_Frequency;
-                                clkinf->name    = "PLL2Q";
+                                clkinf->name = "PLL2Q";
                                 break;
                         }
 
@@ -620,7 +630,7 @@ API_MOD_IOCTL(CLK, void *device_handle, int request, void *arg)
                                 LL_PLL_ClocksTypeDef pll;
                                 LL_RCC_GetPLL2ClockFreq(&pll);
                                 clkinf->freq_Hz = pll.PLL_R_Frequency;
-                                clkinf->name    = "PLL2R";
+                                clkinf->name = "PLL2R";
                                 break;
                         }
 
@@ -628,7 +638,7 @@ API_MOD_IOCTL(CLK, void *device_handle, int request, void *arg)
                                 LL_PLL_ClocksTypeDef pll;
                                 LL_RCC_GetPLL3ClockFreq(&pll);
                                 clkinf->freq_Hz = pll.PLL_P_Frequency;
-                                clkinf->name    = "PLL3P";
+                                clkinf->name = "PLL3P";
                                 break;
                         }
 
@@ -636,7 +646,7 @@ API_MOD_IOCTL(CLK, void *device_handle, int request, void *arg)
                                 LL_PLL_ClocksTypeDef pll;
                                 LL_RCC_GetPLL3ClockFreq(&pll);
                                 clkinf->freq_Hz = pll.PLL_Q_Frequency;
-                                clkinf->name    = "PLL3Q";
+                                clkinf->name = "PLL3Q";
                                 break;
                         }
 
@@ -644,7 +654,7 @@ API_MOD_IOCTL(CLK, void *device_handle, int request, void *arg)
                                 LL_PLL_ClocksTypeDef pll;
                                 LL_RCC_GetPLL3ClockFreq(&pll);
                                 clkinf->freq_Hz = pll.PLL_R_Frequency;
-                                clkinf->name    = "PLL3R";
+                                clkinf->name = "PLL3R";
                                 break;
                         }
 
@@ -951,7 +961,7 @@ static void get_pll_input_parameters(u32_t *pll_input_freq, u32_t *pll_input_ran
 static int wait_for_flag(volatile uint32_t *reg, uint32_t mask, uint32_t timeout_ms, const char *msg)
 {
         clock_t tref = sys_get_uptime_ms();
-        while (not (*reg & mask)) {
+        while (not(*reg & mask)) {
                 if (sys_is_time_expired(tref, timeout_ms)) {
                         dev_dbg(hdl, "%s", msg);
                         return ETIME;
@@ -972,7 +982,7 @@ static int wait_for_flag(volatile uint32_t *reg, uint32_t mask, uint32_t timeout
 //==============================================================================
 static int configure_core_voltage_and_flash_latency(void)
 {
-        int   err  = 0;
+        int err = 0;
 
         u32_t hclk = __CLK_HCLK_FREQ__ / 1000000;
 
@@ -1040,10 +1050,8 @@ static int configure_core_voltage_and_flash_latency(void)
                 FLASH_ACR = FLASH_ACR_LATENCY_4WS | FLASH_ACR_WRHIGHFREQ_10;
         }
 
-        if (  (VOS == PWR_REGULATOR_VOLTAGE_SCALE3)
-           || (VOS == PWR_REGULATOR_VOLTAGE_SCALE2)
-           || (VOS == PWR_REGULATOR_VOLTAGE_SCALE1)
-           || (VOS == PWR_REGULATOR_VOLTAGE_SCALE0) ) {
+        if ((VOS == PWR_REGULATOR_VOLTAGE_SCALE3) || (VOS == PWR_REGULATOR_VOLTAGE_SCALE2) ||
+                (VOS == PWR_REGULATOR_VOLTAGE_SCALE1) || (VOS == PWR_REGULATOR_VOLTAGE_SCALE0)) {
 
                 err = control_voltage_scaling(PWR_REGULATOR_VOLTAGE_SCALE3);
                 if (err) {
@@ -1062,9 +1070,8 @@ static int configure_core_voltage_and_flash_latency(void)
                 }
         }
 
-        if (  (VOS == PWR_REGULATOR_VOLTAGE_SCALE2)
-           || (VOS == PWR_REGULATOR_VOLTAGE_SCALE1)
-           || (VOS == PWR_REGULATOR_VOLTAGE_SCALE0) ) {
+        if ((VOS == PWR_REGULATOR_VOLTAGE_SCALE2) || (VOS == PWR_REGULATOR_VOLTAGE_SCALE1) ||
+                (VOS == PWR_REGULATOR_VOLTAGE_SCALE0)) {
 
                 err = control_voltage_scaling(PWR_REGULATOR_VOLTAGE_SCALE2);
                 if (err) {
@@ -1083,8 +1090,7 @@ static int configure_core_voltage_and_flash_latency(void)
                 }
         }
 
-        if (  (VOS == PWR_REGULATOR_VOLTAGE_SCALE1)
-           || (VOS == PWR_REGULATOR_VOLTAGE_SCALE0) ) {
+        if ((VOS == PWR_REGULATOR_VOLTAGE_SCALE1) || (VOS == PWR_REGULATOR_VOLTAGE_SCALE0)) {
 
                 err = control_voltage_scaling(PWR_REGULATOR_VOLTAGE_SCALE1);
                 if (err) {
@@ -1191,7 +1197,7 @@ static int configure_core_voltage_and_flash_latency(void)
 static int configure_power_supply(uint32_t supply_source)
 {
         /* Check if supply source was configured */
-#if defined (PWR_CR3_SCUEN)
+#if defined(PWR_CR3_SCUEN)
         if ((PWR->CR3 & PWR_CR3_SCUEN) == 0U)
 #else
         if ((PWR->CR3 & (PWR_CR3_SMPSEN | PWR_CR3_LDOEN | PWR_CR3_BYPASS)) != (PWR_CR3_SMPSEN | PWR_CR3_LDOEN))
@@ -1210,23 +1216,20 @@ static int configure_power_supply(uint32_t supply_source)
                 }
         }
 
-        MODIFY_REG (PWR->CR3, PWR_SUPPLY_CONFIG_MASK, supply_source);
+        MODIFY_REG(PWR->CR3, PWR_SUPPLY_CONFIG_MASK, supply_source);
 
-        int err = wait_for_flag(&PWR->CSR1, PWR_CSR1_ACTVOSRDY, TIMEOUT_MS,
-                                "configure supply timeout");
+        int err = wait_for_flag(&PWR->CSR1, PWR_CSR1_ACTVOSRDY, TIMEOUT_MS, "configure supply timeout");
         if (err) {
                 return err;
         }
 
-#if defined (SMPS)
+#if defined(SMPS)
         /* When the SMPS supplies external circuits verify that SDEXTRDY flag is set */
         if ((supply_source == PWR_SMPS_1V8_SUPPLIES_EXT_AND_LDO) ||
-            (supply_source == PWR_SMPS_2V5_SUPPLIES_EXT_AND_LDO) ||
-            (supply_source == PWR_SMPS_1V8_SUPPLIES_EXT)         ||
-            (supply_source == PWR_SMPS_2V5_SUPPLIES_EXT)) {
+                (supply_source == PWR_SMPS_2V5_SUPPLIES_EXT_AND_LDO) || (supply_source == PWR_SMPS_1V8_SUPPLIES_EXT) ||
+                (supply_source == PWR_SMPS_2V5_SUPPLIES_EXT)) {
 
-                err = wait_for_flag(&PWR->CR3, PWR_CR3_SMPSEXTRDY, TIMEOUT_MS,
-                                    "run SMPS timeout");
+                err = wait_for_flag(&PWR->CR3, PWR_CR3_SMPSEXTRDY, TIMEOUT_MS, "run SMPS timeout");
                 if (err) {
                         return err;
                 }
@@ -1268,18 +1271,18 @@ int control_voltage_scaling(uint32_t voltage_scaling)
                 return ESUCC;
         }
 
-#if defined (PWR_SRDCR_VOS)
+#if defined(PWR_SRDCR_VOS)
         /* Set the voltage range */
-        MODIFY_REG (PWR->SRDCR, PWR_SRDCR_VOS, voltage_scaling);
+        MODIFY_REG(PWR->SRDCR, PWR_SRDCR_VOS, voltage_scaling);
 #else
 #if defined(SYSCFG_PWRCR_ODEN) /* STM32H74xxx and STM32H75xxx lines */
         if (voltage_scaling == PWR_REGULATOR_VOLTAGE_SCALE0) {
 
                 if ((PWR->CR3 & PWR_CR3_LDOEN) == PWR_CR3_LDOEN) {
-                        MODIFY_REG (PWR->D3CR, PWR_D3CR_VOS, PWR_REGULATOR_VOLTAGE_SCALE1);
+                        MODIFY_REG(PWR->D3CR, PWR_D3CR_VOS, PWR_REGULATOR_VOLTAGE_SCALE1);
 
                         int err = wait_for_flag(&PWR->CSR1, PWR_CSR1_ACTVOSRDY, TIMEOUT_MS,
-                                                "voltage scale switch timeout");
+                                "voltage scale switch timeout");
                         if (err) {
                                 return err;
                         }
@@ -1298,7 +1301,7 @@ int control_voltage_scaling(uint32_t voltage_scaling)
                                 CLEAR_BIT(SYSCFG->PWRCR, SYSCFG_PWRCR_ODEN);
 
                                 int err = wait_for_flag(&PWR->CSR1, PWR_CSR1_ACTVOSRDY, TIMEOUT_MS,
-                                                        "voltage scale switch timeout");
+                                        "voltage scale switch timeout");
                                 if (err) {
                                         return err;
                                 }
@@ -1306,15 +1309,14 @@ int control_voltage_scaling(uint32_t voltage_scaling)
                 }
 
                 /* Set the voltage range */
-                MODIFY_REG (PWR->D3CR, PWR_D3CR_VOS, voltage_scaling);
+                MODIFY_REG(PWR->D3CR, PWR_D3CR_VOS, voltage_scaling);
         }
-#else  /* STM32H72xxx and STM32H73xxx lines */
+#else                          /* STM32H72xxx and STM32H73xxx lines */
         MODIFY_REG(PWR->D3CR, PWR_D3CR_VOS, voltage_scaling);
-#endif /* defined (SYSCFG_PWRCR_ODEN) */
-#endif /* defined (PWR_SRDCR_VOS) */
+#endif                         /* defined (SYSCFG_PWRCR_ODEN) */
+#endif                         /* defined (PWR_SRDCR_VOS) */
 
-        int err = wait_for_flag(&PWR->CSR1, PWR_CSR1_ACTVOSRDY, TIMEOUT_MS,
-                                "voltage scale switch timeout");
+        int err = wait_for_flag(&PWR->CSR1, PWR_CSR1_ACTVOSRDY, TIMEOUT_MS, "voltage scale switch timeout");
         if (err) {
                 return err;
         }

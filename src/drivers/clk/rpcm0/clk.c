@@ -5,7 +5,7 @@
 
 @brief   File support system clock.
 
-@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -58,8 +58,7 @@
   Local function prototypes
 ==============================================================================*/
 static int xosc_init(void);
-static int pll_init(pll_hw_t *pll, u32_t refdiv, u32_t fbdiv, u32_t postdiv1, u32_t postdiv2,
-        u32_t reset_flag);
+static int pll_init(pll_hw_t *pll, u32_t refdiv, u32_t fbdiv, u32_t postdiv1, u32_t postdiv2, u32_t reset_flag);
 static int set_clk_ref_source(void);
 static int set_clk_usb_source(void);
 static int set_clk_sys_source(void);
@@ -117,16 +116,16 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
          * PLLs
          */
         if (__CLK_SYS_PLL_ENABLE__) {
-                if (pll_init(pll_sys_hw, __CLK_SYS_PLL_REFDIV__, __CLK_SYS_PLL_FBDIV__,
-                            __CLK_SYS_PLL_POSTDIV1__, __CLK_SYS_PLL_POSTDIV2__, RESETS_RESET_PLL_SYS_BITS)) {
+                if (pll_init(pll_sys_hw, __CLK_SYS_PLL_REFDIV__, __CLK_SYS_PLL_FBDIV__, __CLK_SYS_PLL_POSTDIV1__,
+                            __CLK_SYS_PLL_POSTDIV2__, RESETS_RESET_PLL_SYS_BITS)) {
                         dev_dbg2(0, 0, "SYS_PLL start fail!");
                         err = ETIME;
                 }
         }
 
         if (__CLK_USB_PLL_ENABLE__) {
-                if (pll_init(pll_usb_hw, __CLK_USB_PLL_REFDIV__, __CLK_USB_PLL_FBDIV__,
-                            __CLK_USB_PLL_POSTDIV1__, __CLK_USB_PLL_POSTDIV2__, RESETS_RESET_PLL_USB_BITS)) {
+                if (pll_init(pll_usb_hw, __CLK_USB_PLL_REFDIV__, __CLK_USB_PLL_FBDIV__, __CLK_USB_PLL_POSTDIV1__,
+                            __CLK_USB_PLL_POSTDIV2__, RESETS_RESET_PLL_USB_BITS)) {
                         dev_dbg2(0, 0, "USB_PLL start fail!");
                         err = ETIME;
                 }
@@ -290,8 +289,7 @@ API_MOD_WRITE(CLK, void *device_handle, const u8_t *src, size_t count, fpos_t *f
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(CLK, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt,
-        struct vfs_fattr fattr)
+API_MOD_READ(CLK, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG1(device_handle);
         UNUSED_ARG1(dst);
@@ -326,107 +324,107 @@ API_MOD_IOCTL(CLK, void *device_handle, int request, void *arg)
                         switch (clkinf->iterator) {
                         case 0:
                                 clkinf->freq_Hz = clocks__get_clk_sys_frequency();
-                                clkinf->name    = "CPUCLK";
+                                clkinf->name = "CPUCLK";
                                 break;
 
                         case 1:
                                 clkinf->freq_Hz = clocks__get_gpclk_frequency(0);
-                                clkinf->name    = "GPCLK0";
+                                clkinf->name = "GPCLK0";
                                 break;
 
                         case 2:
                                 clkinf->freq_Hz = clocks__get_gpclk_frequency(1);
-                                clkinf->name    = "GPCLK1";
+                                clkinf->name = "GPCLK1";
                                 break;
 
                         case 3:
                                 clkinf->freq_Hz = clocks__get_sys_pll_frequency();
-                                clkinf->name    = "SYS_PLL";
+                                clkinf->name = "SYS_PLL";
                                 break;
 
                         case 4:
                                 clkinf->freq_Hz = clocks__get_usb_pll_frequency();
-                                clkinf->name    = "USB_PLL";
+                                clkinf->name = "USB_PLL";
                                 break;
 
                         case 5:
                                 clkinf->freq_Hz = clocks__get_xosc_frequency();
-                                clkinf->name    = "XOSC";
+                                clkinf->name = "XOSC";
                                 break;
 
                         case 6:
                                 clkinf->freq_Hz = clocks__get_rosc_frequency();
-                                clkinf->name    = "ROSC";
+                                clkinf->name = "ROSC";
                                 break;
 
                         case 7:
                                 clkinf->freq_Hz = clocks__get_clk_adc_frequency();
-                                clkinf->name    = "clk_adc";
+                                clkinf->name = "clk_adc";
                                 break;
 
                         case 8:
                                 clkinf->freq_Hz = clocks__get_clk_usb_frequency();
-                                clkinf->name    = "clk_usb";
+                                clkinf->name = "clk_usb";
                                 break;
 
                         case 9:
                                 clkinf->freq_Hz = clocks__get_clk_rtc_frequency();
-                                clkinf->name    = "clk_rtc";
+                                clkinf->name = "clk_rtc";
                                 break;
 
                         case 10:
                                 clkinf->freq_Hz = clocks__get_clk_peri_frequency();
-                                clkinf->name    = "clk_peri";
+                                clkinf->name = "clk_peri";
                                 break;
 
                         case 11:
                                 clkinf->freq_Hz = clocks__get_clk_sys_frequency();
-                                clkinf->name    = "clk_sys";
+                                clkinf->name = "clk_sys";
                                 break;
 
                         case 12:
                                 clkinf->freq_Hz = clocks__get_clk_ref_frequency();
-                                clkinf->name    = "clk_ref";
+                                clkinf->name = "clk_ref";
                                 break;
 
                         case 13:
                                 clkinf->freq_Hz = clocks__get_clk_ref_aux_frequency();
-                                clkinf->name    = "clk_ref_aux";
+                                clkinf->name = "clk_ref_aux";
                                 break;
 
                         case 14:
                                 clkinf->freq_Hz = clocks__get_clk_gpout_frequency(0);
-                                clkinf->name    = "clk_gpout0";
+                                clkinf->name = "clk_gpout0";
                                 break;
 
                         case 15:
                                 clkinf->freq_Hz = clocks__get_clk_gpout_frequency(1);
-                                clkinf->name    = "clk_gpout1";
+                                clkinf->name = "clk_gpout1";
                                 break;
 
                         case 16:
                                 clkinf->freq_Hz = clocks__get_clk_gpout_frequency(2);
-                                clkinf->name    = "clk_gpout2";
+                                clkinf->name = "clk_gpout2";
                                 break;
 
                         case 17:
                                 clkinf->freq_Hz = clocks__get_clk_gpout_frequency(3);
-                                clkinf->name    = "clk_gpout3";
+                                clkinf->name = "clk_gpout3";
                                 break;
 
                         case 18:
                                 clkinf->freq_Hz = clocks__get_clk_sys_frequency();
-                                clkinf->name    = "CPU0CLK";
+                                clkinf->name = "CPU0CLK";
                                 break;
 
                         case 19:
                                 clkinf->freq_Hz = clocks__get_clk_sys_frequency();
-                                clkinf->name    = "CPU1CLK";
+                                clkinf->name = "CPU1CLK";
                                 break;
 
                         default:
                                 clkinf->freq_Hz = 0;
-                                clkinf->name    = NULL;
+                                clkinf->name = NULL;
                                 break;
                         }
 
@@ -471,7 +469,7 @@ API_MOD_STAT(CLK, void *device_handle, struct vfs_dev_stat *device_stat)
 {
         UNUSED_ARG1(device_handle);
 
-        device_stat->st_size  = 0;
+        device_stat->st_size = 0;
         device_stat->st_major = 0;
         device_stat->st_minor = 0;
 
@@ -487,7 +485,7 @@ API_MOD_STAT(CLK, void *device_handle, struct vfs_dev_stat *device_stat)
 //==============================================================================
 static int xosc_init(void)
 {
-        xosc_hw->ctrl    = XOSC_CTRL_FREQ_RANGE_VALUE_1_15MHZ;
+        xosc_hw->ctrl = XOSC_CTRL_FREQ_RANGE_VALUE_1_15MHZ;
         xosc_hw->startup = XOSC_STARTUP_DELAY;
 
         SET_BIT(xosc_hw->ctrl, XOSC_CTRL_ENABLE_VALUE_ENABLE << XOSC_CTRL_ENABLE_LSB);
@@ -518,8 +516,7 @@ static int xosc_init(void)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-static int pll_init(pll_hw_t *pll, u32_t refdiv, u32_t fbdiv, u32_t postdiv1, u32_t postdiv2,
-        u32_t reset_flag)
+static int pll_init(pll_hw_t *pll, u32_t refdiv, u32_t fbdiv, u32_t postdiv1, u32_t postdiv2, u32_t reset_flag)
 {
         if ((refdiv < 1) or (refdiv > 63)) {
                 return EINVAL;
@@ -538,7 +535,7 @@ static int pll_init(pll_hw_t *pll, u32_t refdiv, u32_t fbdiv, u32_t postdiv1, u3
         while (not(resets_hw->reset_done & reset_flag)) {
         }
 
-        pll->cs        = (refdiv << PLL_CS_REFDIV_LSB) & PLL_CS_REFDIV_BITS;
+        pll->cs = (refdiv << PLL_CS_REFDIV_LSB) & PLL_CS_REFDIV_BITS;
         pll->fbdiv_int = (fbdiv << PLL_FBDIV_INT_LSB) & PLL_FBDIV_INT_BITS;
 
         CLEAR_BIT(pll->pwr, PLL_PWR_PD_BITS | PLL_PWR_VCOPD_BITS);
@@ -572,8 +569,7 @@ static int set_clk_ref_source(void)
 {
         u32_t src = (__CLK_REF_CLK_SRC__ & CLOCKS_CLK_REF_CTRL_SRC_BITS) >> CLOCKS_CLK_REF_CTRL_SRC_LSB;
 
-        u32_t auxsrc = (__CLK_REF_CLK_SRC__ & CLOCKS_CLK_REF_CTRL_AUXSRC_BITS) >>
-                CLOCKS_CLK_REF_CTRL_AUXSRC_LSB;
+        u32_t auxsrc = (__CLK_REF_CLK_SRC__ & CLOCKS_CLK_REF_CTRL_AUXSRC_BITS) >> CLOCKS_CLK_REF_CTRL_AUXSRC_LSB;
 
         u32_t div = (__CLK_REF_CLK_DIV__ << CLOCKS_CLK_REF_DIV_INT_LSB);
 
@@ -591,8 +587,7 @@ static int set_clk_usb_source(void)
 {
         u32_t src = 0;
 
-        u32_t auxsrc = (__CLK_USB_CLK_SRC__ & CLOCKS_CLK_USB_CTRL_AUXSRC_BITS) >>
-                CLOCKS_CLK_USB_CTRL_AUXSRC_LSB;
+        u32_t auxsrc = (__CLK_USB_CLK_SRC__ & CLOCKS_CLK_USB_CTRL_AUXSRC_BITS) >> CLOCKS_CLK_USB_CTRL_AUXSRC_LSB;
 
         u32_t div = (__CLK_USB_CLK_DIV__ << CLOCKS_CLK_USB_DIV_INT_LSB);
 
@@ -610,8 +605,7 @@ static int set_clk_adc_source(void)
 {
         u32_t src = 0;
 
-        u32_t auxsrc = (__CLK_ADC_CLK_SRC__ & CLOCKS_CLK_ADC_CTRL_AUXSRC_BITS) >>
-                CLOCKS_CLK_ADC_CTRL_AUXSRC_LSB;
+        u32_t auxsrc = (__CLK_ADC_CLK_SRC__ & CLOCKS_CLK_ADC_CTRL_AUXSRC_BITS) >> CLOCKS_CLK_ADC_CTRL_AUXSRC_LSB;
 
         u32_t div = (__CLK_ADC_CLK_DIV__ << CLOCKS_CLK_ADC_DIV_INT_LSB);
 
@@ -629,8 +623,7 @@ static int set_clk_rtc_source(void)
 {
         u32_t src = 0;
 
-        u32_t auxsrc = (__CLK_RTC_CLK_SRC__ & CLOCKS_CLK_RTC_CTRL_AUXSRC_BITS) >>
-                CLOCKS_CLK_RTC_CTRL_AUXSRC_LSB;
+        u32_t auxsrc = (__CLK_RTC_CLK_SRC__ & CLOCKS_CLK_RTC_CTRL_AUXSRC_BITS) >> CLOCKS_CLK_RTC_CTRL_AUXSRC_LSB;
 
         u32_t div = (__CLK_RTC_CLK_DIV__ << CLOCKS_CLK_RTC_DIV_INT_LSB);
 
@@ -648,8 +641,7 @@ static int set_clk_sys_source(void)
 {
         u32_t src = (__CLK_SYS_CLK_SRC__ & CLOCKS_CLK_SYS_CTRL_SRC_BITS) >> CLOCKS_CLK_SYS_CTRL_SRC_LSB;
 
-        u32_t auxsrc = (__CLK_SYS_CLK_SRC__ & CLOCKS_CLK_SYS_CTRL_AUXSRC_BITS) >>
-                CLOCKS_CLK_SYS_CTRL_AUXSRC_LSB;
+        u32_t auxsrc = (__CLK_SYS_CLK_SRC__ & CLOCKS_CLK_SYS_CTRL_AUXSRC_BITS) >> CLOCKS_CLK_SYS_CTRL_AUXSRC_LSB;
 
         u32_t div = (__CLK_SYS_CLK_DIV__ << CLOCKS_CLK_SYS_DIV_INT_LSB);
 
@@ -667,8 +659,7 @@ static int set_clk_peri_source(void)
 {
         u32_t src = 0;
 
-        u32_t auxsrc = (__CLK_PERI_CLK_SRC__ & CLOCKS_CLK_PERI_CTRL_AUXSRC_BITS) >>
-                CLOCKS_CLK_PERI_CTRL_AUXSRC_LSB;
+        u32_t auxsrc = (__CLK_PERI_CLK_SRC__ & CLOCKS_CLK_PERI_CTRL_AUXSRC_BITS) >> CLOCKS_CLK_PERI_CTRL_AUXSRC_LSB;
 
         u32_t div = 1;
 
@@ -700,8 +691,7 @@ static int set_clk_gpout_source(clock_num_t clock)
 
         u32_t src = 0;
 
-        u32_t auxsrc = (GPOUT_CLK_SRC[clock] & CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_BITS) >>
-                CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_LSB;
+        u32_t auxsrc = (GPOUT_CLK_SRC[clock] & CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_BITS) >> CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_LSB;
 
         u32_t div = GPOUT_CLK_DIV[clock];
 

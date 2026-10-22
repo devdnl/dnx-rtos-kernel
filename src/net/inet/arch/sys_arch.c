@@ -5,7 +5,7 @@
 
 @brief
 
-@note    Copyright (C) 2013 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -105,7 +105,7 @@ static bool rand_initiated;
 //==============================================================================
 static int lwip_thread_wrapper(void *arg)
 {
-        lwip_thread_param_t param = *cast(lwip_thread_param_t*, arg);
+        lwip_thread_param_t param = *cast(lwip_thread_param_t *, arg);
         lwip_sys_free(arg);
 
         param.func(param.arg);
@@ -145,18 +145,14 @@ sys_thread_t lwip_sys_thread_new(const char *name, lwip_thread_fn thread, void *
 
         UNUSED_ARG1(name);
 
-        _thread_attr_t attr = {
-                .priority    = prio,
-                .stack_depth = stacksize,
-                .detached    = true
-        };
+        _thread_attr_t attr = {.priority = prio, .stack_depth = stacksize, .detached = true};
 
         sys_thread_t thr = 0;
 
         lwip_thread_param_t *param = lwip_sys_malloc(sizeof(*param));
         if (param) {
                 param->func = thread;
-                param->arg  = arg;
+                param->arg = arg;
 
                 if (sys_thread_create(lwip_thread_wrapper, &attr, param, &thr) != ESUCC) {
                         lwip_sys_free(param);
@@ -209,7 +205,7 @@ sys_prot_t lwip_sys_arch_protect()
 //==============================================================================
 void lwip_sys_arch_unprotect(sys_prot_t lev)
 {
-        (void) lev;
+        (void)lev;
         sys_critical_section_end();
 }
 
@@ -501,7 +497,7 @@ err_t lwip_sys_mbox_new(sys_mbox_t *mbox, int size)
         LWIP_ASSERT("sys_arch.c: wrong mbox object!", (mbox != NULL));
 
         if (mbox && size) {
-                if (sys_queue_create(size, sizeof(void*), &(*mbox)) == ESUCC) {
+                if (sys_queue_create(size, sizeof(void *), &(*mbox)) == ESUCC) {
                         return ERR_OK;
                 } else {
                         return ERR_MEM;
@@ -595,9 +591,7 @@ u32_t lwip_sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout)
         if (mbox && *mbox) {
                 clock_t start_time = sys_get_uptime_ms();
 
-                if (sys_queue_receive(*mbox,
-                                      &(*msg),
-                                      timeout ? timeout : _WAIT_FOREVER_MS) == ESUCC) {
+                if (sys_queue_receive(*mbox, &(*msg), timeout ? timeout : _WAIT_FOREVER_MS) == ESUCC) {
 
                         return sys_get_uptime_ms() - start_time;
                 }
@@ -731,14 +725,13 @@ void *lwip_sys_calloc(size_t n, size_t blksz)
 //==============================================================================
 int lwip_sys_rand(void)
 {
-        if  (not rand_initiated) {
+        if (not rand_initiated) {
                 srand(sys_get_uptime_ms());
                 rand_initiated = true;
         }
 
         return rand();
 }
-
 
 u32_t lwip_sys_hook_tcp_isn(void *local_ip, u16_t local_port, void *remote_ip, u16_t remote_port)
 {

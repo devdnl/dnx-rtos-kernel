@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   Pseudo random generator device
 
-        Copyright (C) 2021 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -104,7 +104,7 @@ extern "C" {
     //...
     @endcode
  */
-#define IOCTL_URANDOM__SET_SEED         _IOW(URANDOM, 0x00, const uint*)
+#define IOCTL_URANDOM__SET_SEED _IOW(URANDOM, 0x00, const uint *)
 
 /**
  *  @brief  IOCTL get PRNG seed.
@@ -123,7 +123,7 @@ extern "C" {
     //...
     @endcode
  */
-#define IOCTL_URANDOM__GET_SEED         _IOR(URANDOM, 0x01, uint*)
+#define IOCTL_URANDOM__GET_SEED _IOR(URANDOM, 0x01, uint *)
 
 /*==============================================================================
   Exported object types

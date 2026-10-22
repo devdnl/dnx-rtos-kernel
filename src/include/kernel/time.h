@@ -5,7 +5,7 @@
 
 @brief   Time set/get functions
 
-@note    Copyright (C) 2015 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -52,8 +52,8 @@ extern "C" {
 /*==============================================================================
   Exported functions
 ==============================================================================*/
-extern int _gettime(struct timeval*);
-extern int _settime(const time_t*);
+extern int _gettime(struct timeval *);
+extern int _settime(const time_t *);
 
 /*==============================================================================
   Exported inline functions

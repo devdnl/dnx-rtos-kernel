@@ -5,7 +5,7 @@ Author   Daniel Zorychta
 
 Brief    External Memory Interface
 
-         Copyright (C) 2022 Daniel Zorychta <daniel.zorychta@gmail.com>
+         Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -49,44 +49,44 @@ Brief    External Memory Interface
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define SDRAM_CMD__NORMAL                                      0x0
-#define SDRAM_CMD__CLK_CFG_EN                                  0x1
-#define SDRAM_CMD__PRECHARGE_ALL                               0x2
-#define SDRAM_CMD__AUTOREFRESH                                 0x3
-#define SDRAM_CMD__LOADMODEREG                                 0x4
-#define SDRAM_CMD__SELFREFRESH                                 0x5
-#define SDRAM_CMD__POWERDOWN                                   0x6
+#define SDRAM_CMD__NORMAL        0x0
+#define SDRAM_CMD__CLK_CFG_EN    0x1
+#define SDRAM_CMD__PRECHARGE_ALL 0x2
+#define SDRAM_CMD__AUTOREFRESH   0x3
+#define SDRAM_CMD__LOADMODEREG   0x4
+#define SDRAM_CMD__SELFREFRESH   0x5
+#define SDRAM_CMD__POWERDOWN     0x6
 
-#define SDRAM_MODE_REG_BURST_LENGTH_Pos                        0
-#define SDRAM_MODE_REG_BURST_LENGTH_1                          (0 << SDRAM_MODE_REG_BURST_LENGTH_Pos)
-#define SDRAM_MODE_REG_BURST_LENGTH_2                          (1 << SDRAM_MODE_REG_BURST_LENGTH_Pos)
-#define SDRAM_MODE_REG_BURST_LENGTH_4                          (2 << SDRAM_MODE_REG_BURST_LENGTH_Pos)
-#define SDRAM_MODE_REG_BURST_LENGTH_8                          (3 << SDRAM_MODE_REG_BURST_LENGTH_Pos)
-#define SDRAM_MODE_REG_BURST_LENGTH_FULL_PAGE                  (7 << SDRAM_MODE_REG_BURST_LENGTH_Pos)
+#define SDRAM_MODE_REG_BURST_LENGTH_Pos       0
+#define SDRAM_MODE_REG_BURST_LENGTH_1         (0 << SDRAM_MODE_REG_BURST_LENGTH_Pos)
+#define SDRAM_MODE_REG_BURST_LENGTH_2         (1 << SDRAM_MODE_REG_BURST_LENGTH_Pos)
+#define SDRAM_MODE_REG_BURST_LENGTH_4         (2 << SDRAM_MODE_REG_BURST_LENGTH_Pos)
+#define SDRAM_MODE_REG_BURST_LENGTH_8         (3 << SDRAM_MODE_REG_BURST_LENGTH_Pos)
+#define SDRAM_MODE_REG_BURST_LENGTH_FULL_PAGE (7 << SDRAM_MODE_REG_BURST_LENGTH_Pos)
 
-#define SDRAM_MODE_REG_BURST_TYPE_Pos                          3
-#define SDRAM_MODE_REG_BURST_TYPE_SEQUENTIAL                   (0 << SDRAM_MODE_REG_BURST_TYPE_Pos)
-#define SDRAM_MODE_REG_BURST_TYPE_INTERLEAVED                  (1 << SDRAM_MODE_REG_BURST_TYPE_Pos)
+#define SDRAM_MODE_REG_BURST_TYPE_Pos         3
+#define SDRAM_MODE_REG_BURST_TYPE_SEQUENTIAL  (0 << SDRAM_MODE_REG_BURST_TYPE_Pos)
+#define SDRAM_MODE_REG_BURST_TYPE_INTERLEAVED (1 << SDRAM_MODE_REG_BURST_TYPE_Pos)
 
-#define SDRAM_MODE_REG_CAS_LATENCY_Pos                         4
-#define SDRAM_MODE_REG_CAS_LATENCY_1                           (1 << SDRAM_MODE_REG_CAS_LATENCY_Pos)
-#define SDRAM_MODE_REG_CAS_LATENCY_2                           (2 << SDRAM_MODE_REG_CAS_LATENCY_Pos)
-#define SDRAM_MODE_REG_CAS_LATENCY_3                           (3 << SDRAM_MODE_REG_CAS_LATENCY_Pos)
+#define SDRAM_MODE_REG_CAS_LATENCY_Pos 4
+#define SDRAM_MODE_REG_CAS_LATENCY_1   (1 << SDRAM_MODE_REG_CAS_LATENCY_Pos)
+#define SDRAM_MODE_REG_CAS_LATENCY_2   (2 << SDRAM_MODE_REG_CAS_LATENCY_Pos)
+#define SDRAM_MODE_REG_CAS_LATENCY_3   (3 << SDRAM_MODE_REG_CAS_LATENCY_Pos)
 
-#define SDRAM_MODE_REG_OPERATING_MODE_Pos                      7
-#define SDRAM_MODE_REG_OPERATING_MODE_STANDARD                 (0 << SDRAM_MODE_REG_OPERATING_MODE_Pos)
+#define SDRAM_MODE_REG_OPERATING_MODE_Pos      7
+#define SDRAM_MODE_REG_OPERATING_MODE_STANDARD (0 << SDRAM_MODE_REG_OPERATING_MODE_Pos)
 
 #define SDRAM_MODE_REG_WRITE_BURST_MODE_Pos                    9
 #define SDRAM_MODE_REG_WRITE_BURST_MODE_PROG_LENGTH            (0 << SDRAM_MODE_REG_WRITE_BURST_MODE_Pos)
 #define SDRAM_MODE_REG_WRITE_BURST_MODE_SINGLE_LOCATION_ACCESS (1 << SDRAM_MODE_REG_WRITE_BURST_MODE_Pos)
 
-#define FMC_BCRx_RESET_VALUE                                   0x000030D2
+#define FMC_BCRx_RESET_VALUE 0x000030D2
 
 #if defined(ARCH_stm32f1)
 #error No FMC implementation!
 #elif defined(ARCH_stm32f4)
-#define FMC_Bank1_R          FMC_Bank1
-#define FMC_BANK_5_6         FMC_Bank5_6
+#define FMC_Bank1_R  FMC_Bank1
+#define FMC_BANK_5_6 FMC_Bank5_6
 #define FMC_ENABLE()
 #define SDRAM1_ADDRESS       0xC0000000
 #define SDRAM2_ADDRESS       0xD0000000
@@ -106,8 +106,8 @@ Brief    External Memory Interface
 #define FMC_SDTRx_TRP_Pos    (20U)
 #define FMC_SDTRx_TRCD_Pos   (24U)
 #elif defined(ARCH_stm32f7)
-#define FMC_Bank1_R          FMC_Bank1
-#define FMC_BANK_5_6         FMC_Bank5_6
+#define FMC_Bank1_R  FMC_Bank1
+#define FMC_BANK_5_6 FMC_Bank5_6
 #define FMC_ENABLE()
 #define SDRAM1_ADDRESS       0xC0000000
 #define SDRAM2_ADDRESS       0xD0000000
@@ -280,8 +280,7 @@ API_MOD_WRITE(EMI, void *device_handle, const u8_t *src, size_t count, fpos_t *f
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(EMI, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt,
-        struct vfs_fattr fattr)
+API_MOD_READ(EMI, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, dst, count, fpos, rdcnt, fattr);
         return ENOTSUP;
@@ -399,7 +398,7 @@ static int sdram_test(void *address, size_t size)
                 }
 
                 clock_t tstop = sys_get_uptime_ms();
-                MB_per_s      = cast(float, (size / (tstop - tstart))) / 1000.0f;
+                MB_per_s = cast(float, (size / (tstop - tstart))) / 1000.0f;
 
                 ptr = address;
                 len = size / sizeof(u32_t);
@@ -467,7 +466,7 @@ static u32_t sdram_calculate_refresh_rate(void)
         fmc_freq = LL_RCC_GetFMCClockFreq(LL_RCC_FMC_CLKSOURCE);
 #endif
 
-        i32_t NR  = max((2 << (__EMI_SDRAM_1_NR__ + 10)), (2 << (__EMI_SDRAM_2_NR__ + 10)));
+        i32_t NR = max((2 << (__EMI_SDRAM_1_NR__ + 10)), (2 << (__EMI_SDRAM_2_NR__ + 10)));
         i32_t MHz = fmc_freq / __EMI_SDRAM_SDCLK__ / 1000000;
         i32_t SRR = (((__EMI_SDRAM_REFRESH_RATE_MS__ * 1000) / NR) * MHz) - 20;
 
@@ -509,21 +508,15 @@ static int sdram_init(void)
 
         FMC_BANK_5_6->SDCR[0] = ((__EMI_SDRAM_RPIPE__ & 3) << FMC_SDCRx_RPIPE_Pos) |
                 ((__EMI_SDRAM_RBURST__ & 1) << FMC_SDCRx_RBURST_Pos) |
-                ((__EMI_SDRAM_SDCLK__ & 3) << FMC_SDCRx_SDCLK_Pos) |
-                ((__EMI_SDRAM_CAS__ & 3) << FMC_SDCRx_CAS_Pos) |
-                ((__EMI_SDRAM_1_NB__ & 1) << FMC_SDCRx_NB_Pos) |
-                ((__EMI_SDRAM_1_MWID__ & 3) << FMC_SDCRx_MWID_Pos) |
-                ((__EMI_SDRAM_1_NR__ & 3) << FMC_SDCRx_NR_Pos) |
-                ((__EMI_SDRAM_1_NC__ & 3) << FMC_SDCRx_NC_Pos);
+                ((__EMI_SDRAM_SDCLK__ & 3) << FMC_SDCRx_SDCLK_Pos) | ((__EMI_SDRAM_CAS__ & 3) << FMC_SDCRx_CAS_Pos) |
+                ((__EMI_SDRAM_1_NB__ & 1) << FMC_SDCRx_NB_Pos) | ((__EMI_SDRAM_1_MWID__ & 3) << FMC_SDCRx_MWID_Pos) |
+                ((__EMI_SDRAM_1_NR__ & 3) << FMC_SDCRx_NR_Pos) | ((__EMI_SDRAM_1_NC__ & 3) << FMC_SDCRx_NC_Pos);
 
         FMC_BANK_5_6->SDCR[1] = ((__EMI_SDRAM_RPIPE__ & 3) << FMC_SDCRx_RPIPE_Pos) |
                 ((__EMI_SDRAM_RBURST__ & 1) << FMC_SDCRx_RBURST_Pos) |
-                ((__EMI_SDRAM_SDCLK__ & 3) << FMC_SDCRx_SDCLK_Pos) |
-                ((__EMI_SDRAM_CAS__ & 3) << FMC_SDCRx_CAS_Pos) |
-                ((__EMI_SDRAM_2_NB__ & 1) << FMC_SDCRx_NB_Pos) |
-                ((__EMI_SDRAM_2_MWID__ & 3) << FMC_SDCRx_MWID_Pos) |
-                ((__EMI_SDRAM_2_NR__ & 3) << FMC_SDCRx_NR_Pos) |
-                ((__EMI_SDRAM_2_NC__ & 3) << FMC_SDCRx_NC_Pos);
+                ((__EMI_SDRAM_SDCLK__ & 3) << FMC_SDCRx_SDCLK_Pos) | ((__EMI_SDRAM_CAS__ & 3) << FMC_SDCRx_CAS_Pos) |
+                ((__EMI_SDRAM_2_NB__ & 1) << FMC_SDCRx_NB_Pos) | ((__EMI_SDRAM_2_MWID__ & 3) << FMC_SDCRx_MWID_Pos) |
+                ((__EMI_SDRAM_2_NR__ & 3) << FMC_SDCRx_NR_Pos) | ((__EMI_SDRAM_2_NC__ & 3) << FMC_SDCRx_NC_Pos);
 
         /*
          * 2. Program the memory device timing into the FMC_SDTRx register.
@@ -585,8 +578,7 @@ static int sdram_init(void)
         sdram_wait_while_busy();
 
         FMC_BANK_5_6->SDCMR = (SDRAM_CMD__AUTOREFRESH) | (__EMI_SDRAM_1_ENABLE__ * FMC_SDCMR_CTB1) |
-                (__EMI_SDRAM_2_ENABLE__ * FMC_SDCMR_CTB2) |
-                (((__EMI_SDRAM_NRFS__ - 1) & 0xF) << FMC_SDCMR_NRFS_Pos);
+                (__EMI_SDRAM_2_ENABLE__ * FMC_SDCMR_CTB2) | (((__EMI_SDRAM_NRFS__ - 1) & 0xF) << FMC_SDCMR_NRFS_Pos);
 
         /*
          * 7. Configure the MRD field according to your SDRAM device, set the
@@ -604,14 +596,12 @@ static int sdram_init(void)
          */
         sdram_wait_while_busy();
 
-        u32_t MRD = SDRAM_MODE_REG_WRITE_BURST_MODE_SINGLE_LOCATION_ACCESS |
-                SDRAM_MODE_REG_OPERATING_MODE_STANDARD |
+        u32_t MRD = SDRAM_MODE_REG_WRITE_BURST_MODE_SINGLE_LOCATION_ACCESS | SDRAM_MODE_REG_OPERATING_MODE_STANDARD |
                 (__EMI_SDRAM_CAS__ << SDRAM_MODE_REG_CAS_LATENCY_Pos) | SDRAM_MODE_REG_BURST_TYPE_SEQUENTIAL |
                 SDRAM_MODE_REG_BURST_LENGTH_1;
 
         FMC_BANK_5_6->SDCMR = (SDRAM_CMD__LOADMODEREG) | (__EMI_SDRAM_1_ENABLE__ * FMC_SDCMR_CTB1) |
-                (__EMI_SDRAM_2_ENABLE__ * FMC_SDCMR_CTB2) | (1 << FMC_SDCMR_NRFS_Pos) |
-                (MRD << FMC_SDCMR_MRD_Pos);
+                (__EMI_SDRAM_2_ENABLE__ * FMC_SDCMR_CTB2) | (1 << FMC_SDCMR_NRFS_Pos) | (MRD << FMC_SDCMR_MRD_Pos);
 
         /*
          * 8. Program the refresh rate in the FMC_SDRTR register. The refresh
@@ -678,8 +668,8 @@ static int sdram_init(void)
  * @return NULL or next option.
  */
 //==============================================================================
-static const char *find_opt_region(const char *opts, const char *token, char *name, size_t name_len,
-        u32_t *addr, u32_t *size)
+static const char *find_opt_region(const char *opts, const char *token, char *name, size_t name_len, u32_t *addr,
+        u32_t *size)
 {
         size_t len = 0;
 
@@ -713,19 +703,19 @@ static const char *find_opt_region(const char *opts, const char *token, char *na
 //==============================================================================
 static int register_heap_regions(u32_t mem_addr, size_t mem_size, const char *opts)
 {
-        int   err = ESUCC;
-        char  name[64];
+        int err = ESUCC;
+        char name[64];
         u32_t reg_addr = 0;
         u32_t reg_size = 0;
 
-        const char *REGION_TYPE[]  = {"HEAP", "NOHEAP"};
+        const char *REGION_TYPE[] = {"HEAP", "NOHEAP"};
         const u32_t REGION_FLAGS[] = {_MM_FLAG__DMA, _MM_FLAG__DMA | _MM_FLAG__NOHEAP};
 
         for (size_t i = 0; not err and (i < ARRAY_SIZE(REGION_TYPE)); i++) {
 
-                const char *o            = opts;
-                const char *region_type  = REGION_TYPE[i];
-                u32_t       region_flags = REGION_FLAGS[i];
+                const char *o = opts;
+                const char *region_type = REGION_TYPE[i];
+                u32_t region_flags = REGION_FLAGS[i];
 
                 while (o) {
                         o = find_opt_region(o, region_type, name, sizeof(name), &reg_addr, &reg_size);

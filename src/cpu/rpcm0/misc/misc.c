@@ -5,7 +5,7 @@
 
 @brief   Miscellaneous CPU functions.
 
-@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -118,9 +118,9 @@ u32_t clocks__get_usb_pll_frequency(void)
                 return 0;
         }
 
-        u32_t fref     = clocks__get_xosc_frequency();
-        u32_t refdiv   = (pll_usb_hw->cs & PLL_CS_REFDIV_BITS) >> PLL_CS_REFDIV_LSB;
-        u32_t fbdiv    = (pll_usb_hw->fbdiv_int & PLL_FBDIV_INT_BITS) >> PLL_FBDIV_INT_LSB;
+        u32_t fref = clocks__get_xosc_frequency();
+        u32_t refdiv = (pll_usb_hw->cs & PLL_CS_REFDIV_BITS) >> PLL_CS_REFDIV_LSB;
+        u32_t fbdiv = (pll_usb_hw->fbdiv_int & PLL_FBDIV_INT_BITS) >> PLL_FBDIV_INT_LSB;
         u32_t postdiv1 = (pll_usb_hw->prim & PLL_PRIM_POSTDIV1_BITS) >> PLL_PRIM_POSTDIV1_LSB;
         u32_t postdiv2 = (pll_usb_hw->prim & PLL_PRIM_POSTDIV2_BITS) >> PLL_PRIM_POSTDIV2_LSB;
 
@@ -145,9 +145,9 @@ u32_t clocks__get_sys_pll_frequency(void)
                 return 0;
         }
 
-        u32_t fref     = clocks__get_xosc_frequency();
-        u32_t refdiv   = (pll_sys_hw->cs & PLL_CS_REFDIV_BITS) >> PLL_CS_REFDIV_LSB;
-        u32_t fbdiv    = (pll_sys_hw->fbdiv_int & PLL_FBDIV_INT_BITS) >> PLL_FBDIV_INT_LSB;
+        u32_t fref = clocks__get_xosc_frequency();
+        u32_t refdiv = (pll_sys_hw->cs & PLL_CS_REFDIV_BITS) >> PLL_CS_REFDIV_LSB;
+        u32_t fbdiv = (pll_sys_hw->fbdiv_int & PLL_FBDIV_INT_BITS) >> PLL_FBDIV_INT_LSB;
         u32_t postdiv1 = (pll_sys_hw->prim & PLL_PRIM_POSTDIV1_BITS) >> PLL_PRIM_POSTDIV1_LSB;
         u32_t postdiv2 = (pll_sys_hw->prim & PLL_PRIM_POSTDIV2_BITS) >> PLL_PRIM_POSTDIV2_LSB;
 
@@ -202,7 +202,7 @@ u32_t clocks__get_clk_gpout_frequency(u8_t clock)
 
         u32_t auxsrc = (clocks_hw->clk[clk_gpout0 + clock].ctrl & CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_BITS) >>
                 CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_LSB;
-        u32_t div  = clocks_hw->clk[clk_gpout0 + clock].div;
+        u32_t div = clocks_hw->clk[clk_gpout0 + clock].div;
         u32_t freq = 0;
 
         switch (auxsrc) {
@@ -349,7 +349,7 @@ u32_t clocks__get_clk_rtc_frequency(void)
 
         u32_t auxsrc = (clocks_hw->clk[clk_rtc].ctrl & CLOCKS_CLK_RTC_CTRL_AUXSRC_BITS) >>
                 CLOCKS_CLK_RTC_CTRL_AUXSRC_LSB;
-        u32_t div  = (clocks_hw->clk[clk_rtc].div & CLOCKS_CLK_RTC_DIV_BITS);
+        u32_t div = (clocks_hw->clk[clk_rtc].div & CLOCKS_CLK_RTC_DIV_BITS);
         u32_t freq = 0;
 
         switch (auxsrc) {
@@ -433,7 +433,7 @@ u32_t clocks__get_clk_peri_frequency(void)
 //==============================================================================
 u32_t clocks__get_clk_sys_frequency(void)
 {
-        u32_t div  = (clocks_hw->clk[clk_sys].div & CLOCKS_CLK_SYS_DIV_BITS);
+        u32_t div = (clocks_hw->clk[clk_sys].div & CLOCKS_CLK_SYS_DIV_BITS);
         u32_t freq = 0;
 
         if (clocks_hw->clk[clk_sys].ctrl & CLOCKS_CLK_SYS_CTRL_SRC_BITS) {
@@ -510,8 +510,7 @@ u32_t clocks__get_clk_ref_aux_frequency(void)
 //==============================================================================
 u32_t clocks__get_clk_ref_frequency(void)
 {
-        u32_t auxsrc = (clocks_hw->clk[clk_ref].ctrl & CLOCKS_CLK_REF_CTRL_SRC_BITS) >>
-                CLOCKS_CLK_REF_CTRL_SRC_LSB;
+        u32_t auxsrc = (clocks_hw->clk[clk_ref].ctrl & CLOCKS_CLK_REF_CTRL_SRC_BITS) >> CLOCKS_CLK_REF_CTRL_SRC_LSB;
         u32_t div = (clocks_hw->clk[clk_ref].div & CLOCKS_CLK_REF_DIV_INT_BITS) >> CLOCKS_CLK_REF_DIV_INT_LSB;
         u32_t freq = 0;
 
@@ -618,12 +617,10 @@ int clocks__configure_internal(clock_num_t clock, uint32_t src, uint32_t auxsrc,
         }
 
         // Set aux mux first, and then glitchless mux if this clock has one
-        hw_write_masked(&clock_hw->ctrl, (auxsrc << CLOCKS_CLK_SYS_CTRL_AUXSRC_LSB),
-                CLOCKS_CLK_SYS_CTRL_AUXSRC_BITS);
+        hw_write_masked(&clock_hw->ctrl, (auxsrc << CLOCKS_CLK_SYS_CTRL_AUXSRC_LSB), CLOCKS_CLK_SYS_CTRL_AUXSRC_BITS);
 
         if (has_glitchless_mux) {
-                hw_write_masked(&clock_hw->ctrl, src << CLOCKS_CLK_REF_CTRL_SRC_LSB,
-                        CLOCKS_CLK_REF_CTRL_SRC_BITS);
+                hw_write_masked(&clock_hw->ctrl, src << CLOCKS_CLK_REF_CTRL_SRC_LSB, CLOCKS_CLK_REF_CTRL_SRC_BITS);
 
                 while (!(clock_hw->selected & (1u << src))) {
                 }

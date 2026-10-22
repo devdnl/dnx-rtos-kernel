@@ -5,7 +5,7 @@ Author   Daniel Zorychta
 
 Brief    Internet protocol port.
 
-         Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+         Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -55,9 +55,9 @@ extern "C" {
 ==============================================================================*/
 typedef struct {
         struct netconn *netconn;
-        struct netbuf  *netbuf_recv;
-        struct netbuf  *netbuf_send;
-        uint16_t        seek;
+        struct netbuf *netbuf_recv;
+        struct netbuf *netbuf_send;
+        uint16_t seek;
 } INET_socket_t;
 
 /*==============================================================================
@@ -67,29 +67,31 @@ typedef struct {
 /*==============================================================================
   Exported functions
 ==============================================================================*/
-extern int   INET_ifinit(void**, const char*);
-extern int   INET_ifdeinit(void*);
-extern int   INET_ifup(void*, const NETM_INET_config_t*, size_t);
-extern int   INET_ifdown(void*);
-extern int   INET_ifstatus(void*, NETM_INET_status_t*, size_t);
-extern int   INET_socket_create(void*, NETM_socket_type_t, u8_t, INET_socket_t*);
-extern int   INET_socket_destroy(void*, INET_socket_t*);
-extern int   INET_socket_connect(void*, INET_socket_t*, const NETM_INET_sockaddr_t*, size_t);
-extern int   INET_socket_disconnect(void*, INET_socket_t*);
-extern int   INET_socket_shutdown(void*, INET_socket_t*, NETM_shut_t);
-extern int   INET_socket_bind(void*, INET_socket_t*, const NETM_INET_sockaddr_t*, size_t);
-extern int   INET_socket_listen(void*, INET_socket_t*);
-extern int   INET_socket_accept(void*, INET_socket_t*, INET_socket_t*);
-extern int   INET_socket_recv(void*, INET_socket_t*, void*, size_t, NETM_flags_t, size_t*);
-extern int   INET_socket_recvfrom(void*, INET_socket_t*, void*, size_t, NETM_flags_t, NETM_INET_sockaddr_t*, size_t, size_t*);
-extern int   INET_socket_send(void*, INET_socket_t*, const void*, size_t, NETM_flags_t, size_t*);
-extern int   INET_socket_sendto(void*, INET_socket_t*, const void*, size_t, NETM_flags_t, const NETM_INET_sockaddr_t*, size_t, size_t*);
-extern int   INET_gethostbyname(void*, const char*, NETM_INET_sockaddr_t*, size_t);
-extern int   INET_socket_set_recv_timeout(void*, INET_socket_t*, uint32_t);
-extern int   INET_socket_set_send_timeout(void*, INET_socket_t*, uint32_t);
-extern int   INET_socket_get_recv_timeout(void*, INET_socket_t*, uint32_t*);
-extern int   INET_socket_get_send_timeout(void*, INET_socket_t*, uint32_t*);
-extern int   INET_socket_getaddress(void*, INET_socket_t*, NETM_INET_sockaddr_t*, size_t);
+extern int INET_ifinit(void **, const char *);
+extern int INET_ifdeinit(void *);
+extern int INET_ifup(void *, const NETM_INET_config_t *, size_t);
+extern int INET_ifdown(void *);
+extern int INET_ifstatus(void *, NETM_INET_status_t *, size_t);
+extern int INET_socket_create(void *, NETM_socket_type_t, u8_t, INET_socket_t *);
+extern int INET_socket_destroy(void *, INET_socket_t *);
+extern int INET_socket_connect(void *, INET_socket_t *, const NETM_INET_sockaddr_t *, size_t);
+extern int INET_socket_disconnect(void *, INET_socket_t *);
+extern int INET_socket_shutdown(void *, INET_socket_t *, NETM_shut_t);
+extern int INET_socket_bind(void *, INET_socket_t *, const NETM_INET_sockaddr_t *, size_t);
+extern int INET_socket_listen(void *, INET_socket_t *);
+extern int INET_socket_accept(void *, INET_socket_t *, INET_socket_t *);
+extern int INET_socket_recv(void *, INET_socket_t *, void *, size_t, NETM_flags_t, size_t *);
+extern int INET_socket_recvfrom(void *, INET_socket_t *, void *, size_t, NETM_flags_t, NETM_INET_sockaddr_t *, size_t,
+        size_t *);
+extern int INET_socket_send(void *, INET_socket_t *, const void *, size_t, NETM_flags_t, size_t *);
+extern int INET_socket_sendto(void *, INET_socket_t *, const void *, size_t, NETM_flags_t, const NETM_INET_sockaddr_t *,
+        size_t, size_t *);
+extern int INET_gethostbyname(void *, const char *, NETM_INET_sockaddr_t *, size_t);
+extern int INET_socket_set_recv_timeout(void *, INET_socket_t *, uint32_t);
+extern int INET_socket_set_send_timeout(void *, INET_socket_t *, uint32_t);
+extern int INET_socket_get_recv_timeout(void *, INET_socket_t *, uint32_t *);
+extern int INET_socket_get_send_timeout(void *, INET_socket_t *, uint32_t *);
+extern int INET_socket_getaddress(void *, INET_socket_t *, NETM_INET_sockaddr_t *, size_t);
 extern u16_t INET_hton_u16(u16_t);
 extern u32_t INET_hton_u32(u32_t);
 extern u64_t INET_hton_u64(u64_t);

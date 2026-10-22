@@ -5,7 +5,7 @@
 
 @brief   This file support UART peripheral.
 
-@note    Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -76,151 +76,151 @@ extern "C" {
 //* UARTs */
 #if defined(ARCH_stm32f1)
 enum {
-        #if defined(RCC_APB2ENR_USART1EN)
+#if defined(RCC_APB2ENR_USART1EN)
         _UART1,
-        #endif
-        #if defined(RCC_APB1ENR_USART2EN)
+#endif
+#if defined(RCC_APB1ENR_USART2EN)
         _UART2,
-        #endif
-        #if defined(RCC_APB1ENR_USART3EN)
+#endif
+#if defined(RCC_APB1ENR_USART3EN)
         _UART3,
-        #endif
-        #if defined(RCC_APB1ENR_UART4EN)
+#endif
+#if defined(RCC_APB1ENR_UART4EN)
         _UART4,
-        #endif
-        #if defined(RCC_APB1ENR_UART5EN)
+#endif
+#if defined(RCC_APB1ENR_UART5EN)
         _UART5,
-        #endif
+#endif
         _UART_COUNT
 };
 #elif defined(ARCH_stm32f3)
 enum {
-        #if defined(RCC_APB2ENR_USART1EN)
+#if defined(RCC_APB2ENR_USART1EN)
         _UART1,
-        #endif
-        #if defined(RCC_APB1ENR_USART2EN)
+#endif
+#if defined(RCC_APB1ENR_USART2EN)
         _UART2,
-        #endif
-        #if defined(RCC_APB1ENR_USART3EN)
+#endif
+#if defined(RCC_APB1ENR_USART3EN)
         _UART3,
-        #endif
-        #if defined(RCC_APB1ENR_UART4EN)
+#endif
+#if defined(RCC_APB1ENR_UART4EN)
         _UART4,
-        #endif
-        #if defined(RCC_APB1ENR_UART5EN)
+#endif
+#if defined(RCC_APB1ENR_UART5EN)
         _UART5,
-        #endif
-        #if defined(RCC_APB2ENR_USART6EN)
+#endif
+#if defined(RCC_APB2ENR_USART6EN)
         _UART6,
-        #endif
-        #if defined(RCC_APB1ENR_UART7EN)
+#endif
+#if defined(RCC_APB1ENR_UART7EN)
         _UART7,
-        #endif
-        #if defined(RCC_APB1ENR_UART8EN)
+#endif
+#if defined(RCC_APB1ENR_UART8EN)
         _UART8,
-        #endif
-        #if defined(RCC_APB2ENR_UART9EN)
+#endif
+#if defined(RCC_APB2ENR_UART9EN)
         _UART9,
-        #endif
-        #if defined(RCC_APB2ENR_UART10EN)
+#endif
+#if defined(RCC_APB2ENR_UART10EN)
         _UART10,
-        #endif
+#endif
         _UART_COUNT
 };
 #elif defined(ARCH_stm32f4)
 enum {
-        #if defined(RCC_APB2ENR_USART1EN)
+#if defined(RCC_APB2ENR_USART1EN)
         _UART1,
-        #endif
-        #if defined(RCC_APB1ENR_USART2EN)
+#endif
+#if defined(RCC_APB1ENR_USART2EN)
         _UART2,
-        #endif
-        #if defined(RCC_APB1ENR_USART3EN)
+#endif
+#if defined(RCC_APB1ENR_USART3EN)
         _UART3,
-        #endif
-        #if defined(RCC_APB1ENR_UART4EN)
+#endif
+#if defined(RCC_APB1ENR_UART4EN)
         _UART4,
-        #endif
-        #if defined(RCC_APB1ENR_UART5EN)
+#endif
+#if defined(RCC_APB1ENR_UART5EN)
         _UART5,
-        #endif
-        #if defined(RCC_APB2ENR_USART6EN)
+#endif
+#if defined(RCC_APB2ENR_USART6EN)
         _UART6,
-        #endif
-        #if defined(RCC_APB1ENR_UART7EN)
+#endif
+#if defined(RCC_APB1ENR_UART7EN)
         _UART7,
-        #endif
-        #if defined(RCC_APB1ENR_UART8EN)
+#endif
+#if defined(RCC_APB1ENR_UART8EN)
         _UART8,
-        #endif
-        #if defined(RCC_APB2ENR_UART9EN)
+#endif
+#if defined(RCC_APB2ENR_UART9EN)
         _UART9,
-        #endif
-        #if defined(RCC_APB2ENR_UART10EN)
+#endif
+#if defined(RCC_APB2ENR_UART10EN)
         _UART10,
-        #endif
+#endif
         _UART_COUNT
 };
 #elif defined(ARCH_stm32f7)
 enum {
-        #if defined(RCC_APB2ENR_USART1EN)
+#if defined(RCC_APB2ENR_USART1EN)
         _UART1,
-        #endif
-        #if defined(RCC_APB1ENR_USART2EN)
+#endif
+#if defined(RCC_APB1ENR_USART2EN)
         _UART2,
-        #endif
-        #if defined(RCC_APB1ENR_USART3EN)
+#endif
+#if defined(RCC_APB1ENR_USART3EN)
         _UART3,
-        #endif
-        #if defined(RCC_APB1ENR_UART4EN)
+#endif
+#if defined(RCC_APB1ENR_UART4EN)
         _UART4,
-        #endif
-        #if defined(RCC_APB1ENR_UART5EN)
+#endif
+#if defined(RCC_APB1ENR_UART5EN)
         _UART5,
-        #endif
-        #if defined(RCC_APB2ENR_USART6EN)
+#endif
+#if defined(RCC_APB2ENR_USART6EN)
         _UART6,
-        #endif
-        #if defined(RCC_APB1ENR_UART7EN)
+#endif
+#if defined(RCC_APB1ENR_UART7EN)
         _UART7,
-        #endif
-        #if defined(RCC_APB1ENR_UART8EN)
+#endif
+#if defined(RCC_APB1ENR_UART8EN)
         _UART8,
-        #endif
+#endif
         _UART_COUNT
 };
 #elif defined(ARCH_stm32h7)
 enum {
-        #if defined(RCC_APB2ENR_USART1EN)
+#if defined(RCC_APB2ENR_USART1EN)
         _UART1,
-        #endif
-        #if defined(RCC_APB1LENR_USART2EN)
+#endif
+#if defined(RCC_APB1LENR_USART2EN)
         _UART2,
-        #endif
-        #if defined(RCC_APB1LENR_USART3EN)
+#endif
+#if defined(RCC_APB1LENR_USART3EN)
         _UART3,
-        #endif
-        #if defined(RCC_APB1LENR_UART4EN)
+#endif
+#if defined(RCC_APB1LENR_UART4EN)
         _UART4,
-        #endif
-        #if defined(RCC_APB1LENR_UART5EN)
+#endif
+#if defined(RCC_APB1LENR_UART5EN)
         _UART5,
-        #endif
-        #if defined(RCC_APB2ENR_USART6EN)
+#endif
+#if defined(RCC_APB2ENR_USART6EN)
         _UART6,
-        #endif
-        #if defined(RCC_APB1LENR_UART7EN)
+#endif
+#if defined(RCC_APB1LENR_UART7EN)
         _UART7,
-        #endif
-        #if defined(RCC_APB1LENR_UART8EN)
+#endif
+#if defined(RCC_APB1LENR_UART8EN)
         _UART8,
-        #endif
-        #if defined(RCC_APB1LENR_UART9EN)
+#endif
+#if defined(RCC_APB1LENR_UART9EN)
         _UART8,
-        #endif
-        #if defined(RCC_APB2ENR_USART10EN)
+#endif
+#if defined(RCC_APB2ENR_USART10EN)
         _UART8,
-        #endif
+#endif
         _UART_COUNT
 };
 #elif defined(ARCH_rpcm0)
@@ -231,19 +231,18 @@ enum {
 };
 #endif
 
-
 /* USART handling structure */
 struct UART_mem {
         kqueue_t *tx_queue;
         kqueue_t *rx_queue;
-        void     *uarthdl;
-        u8_t      major;
-        u8_t      minor;
+        void *uarthdl;
+        u8_t major;
+        u8_t minor;
 
         struct UART_rich_config {
-                GPIO_pin_in_port_t  RS485_DE_pin;
+                GPIO_pin_in_port_t RS485_DE_pin;
                 enum UART_LIN_break LIN_break_bits;
-                struct UART_config  basic;
+                struct UART_config basic;
         } config;
 };
 
@@ -255,10 +254,10 @@ extern struct UART_mem *_UART_mem[];
 /*==============================================================================
   Exported functions
 ==============================================================================*/
-extern int  _UART_LLD__turn_on(struct UART_mem *hdl);
-extern int  _UART_LLD__turn_off(struct UART_mem *hdl);
+extern int _UART_LLD__turn_on(struct UART_mem *hdl);
+extern int _UART_LLD__turn_off(struct UART_mem *hdl);
 extern void _UART_LLD__resume_transmit(struct UART_mem *hdl);
-extern int  _UART_LLD__configure(struct UART_mem *hdl, const struct UART_rich_config *config);
+extern int _UART_LLD__configure(struct UART_mem *hdl, const struct UART_rich_config *config);
 extern void _UART_set_DE_pin(struct UART_mem *hdl, bool enable);
 
 /*==============================================================================

@@ -5,7 +5,7 @@
 
 @brief   This driver support I2C peripherals.
 
-@note    Copyright (C) 2022  Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026  Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -36,14 +36,14 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define I2C_TRANSFER_TIMEOUT            2000
-#define MAX_TRANSFER_SIZE               255
-#define NSEC_PER_SEC                    1000000000ULL
-#define PRESC_MAX                       16
-#define SCLDEL_MAX                      16
-#define SDADEL_MAX                      16
-#define SCLH_MAX                        256
-#define SCLL_MAX                        256
+#define I2C_TRANSFER_TIMEOUT 2000
+#define MAX_TRANSFER_SIZE    255
+#define NSEC_PER_SEC         1000000000ULL
+#define PRESC_MAX            16
+#define SCLDEL_MAX           16
+#define SDADEL_MAX           16
+#define SCLH_MAX             256
+#define SCLL_MAX             256
 
 /*
  * Divide positive or negative dividend by positive or negative divisor
@@ -51,106 +51,103 @@
  * divisors if the dividend variable type is unsigned and for negative
  * dividends if the divisor variable type is unsigned.
  */
-#define DIV_ROUND_CLOSEST(x, divisor)(                  \
-{                                                       \
-        __typeof__(x) __x = x;                          \
-        __typeof__(divisor) __d = divisor;              \
-        (((__typeof__(x))-1) > 0 ||                     \
-         ((__typeof__(divisor))-1) > 0 ||               \
-         (((__x) > 0) == ((__d) > 0))) ?                \
-                (((__x) + ((__d) / 2)) / (__d)) :       \
-                (((__x) - ((__d) / 2)) / (__d));        \
-}                                                       \
-)                                                       \
+#define DIV_ROUND_CLOSEST(x, divisor)                                                                      \
+        ({                                                                                                 \
+                __typeof__(x) __x = x;                                                                     \
+                __typeof__(divisor) __d = divisor;                                                         \
+                (((__typeof__(x))-1) > 0 || ((__typeof__(divisor))-1) > 0 || (((__x) > 0) == ((__d) > 0))) \
+                        ? (((__x) + ((__d) / 2)) / (__d))                                                  \
+                        : (((__x) - ((__d) / 2)) / (__d));                                                 \
+        })
 
 #if defined(ARCH_stm32f3)
-#define RCC_APBENR_I2C1         RCC->APB1ENR
-#define RCC_APBRSTR_I2C1        RCC->APB1RSTR
-#define RCC_APBENR_I2C2         RCC->APB1ENR
-#define RCC_APBRSTR_I2C2        RCC->APB1RSTR
-#define RCC_APBENR_I2C3         RCC->APB1ENR
-#define RCC_APBRSTR_I2C3        RCC->APB1RSTR
-#define RCC_APBENR_I2C4         RCC->APB1ENR
-#define RCC_APBRSTR_I2C4        RCC->APB1RSTR
-#define RCC_APBENR_I2C5         RCC->APB1ENR
-#define RCC_APBRSTR_I2C5        RCC->APB1RSTR
-#define RCC_APBENR_I2C1EN       RCC_APB1ENR_I2C1EN
-#define RCC_APBRSTR_I2C1RST     RCC_APB1RSTR_I2C1RST
-#define RCC_APBENR_I2C2EN       RCC_APB1ENR_I2C2EN
-#define RCC_APBRSTR_I2C2RST     RCC_APB1RSTR_I2C2RST
-#define RCC_APBENR_I2C3EN       RCC_APB1ENR_I2C3EN
-#define RCC_APBRSTR_I2C3RST     RCC_APB1RSTR_I2C3RST
-#define RCC_APBENR_I2C4EN       RCC_APB1ENR_I2C4EN
-#define RCC_APBRSTR_I2C4RST     RCC_APB1RSTR_I2C4RST
-#define RCC_APBENR_I2C5EN       RCC_APB1ENR_I2C5EN
-#define RCC_APBRSTR_I2C5RST     RCC_APB1RSTR_I2C5RST
+#define RCC_APBENR_I2C1     RCC->APB1ENR
+#define RCC_APBRSTR_I2C1    RCC->APB1RSTR
+#define RCC_APBENR_I2C2     RCC->APB1ENR
+#define RCC_APBRSTR_I2C2    RCC->APB1RSTR
+#define RCC_APBENR_I2C3     RCC->APB1ENR
+#define RCC_APBRSTR_I2C3    RCC->APB1RSTR
+#define RCC_APBENR_I2C4     RCC->APB1ENR
+#define RCC_APBRSTR_I2C4    RCC->APB1RSTR
+#define RCC_APBENR_I2C5     RCC->APB1ENR
+#define RCC_APBRSTR_I2C5    RCC->APB1RSTR
+#define RCC_APBENR_I2C1EN   RCC_APB1ENR_I2C1EN
+#define RCC_APBRSTR_I2C1RST RCC_APB1RSTR_I2C1RST
+#define RCC_APBENR_I2C2EN   RCC_APB1ENR_I2C2EN
+#define RCC_APBRSTR_I2C2RST RCC_APB1RSTR_I2C2RST
+#define RCC_APBENR_I2C3EN   RCC_APB1ENR_I2C3EN
+#define RCC_APBRSTR_I2C3RST RCC_APB1RSTR_I2C3RST
+#define RCC_APBENR_I2C4EN   RCC_APB1ENR_I2C4EN
+#define RCC_APBRSTR_I2C4RST RCC_APB1RSTR_I2C4RST
+#define RCC_APBENR_I2C5EN   RCC_APB1ENR_I2C5EN
+#define RCC_APBRSTR_I2C5RST RCC_APB1RSTR_I2C5RST
 #elif defined(ARCH_stm32f4)
-#define RCC_APBENR_I2C1         RCC->APB1ENR
-#define RCC_APBRSTR_I2C1        RCC->APB1RSTR
-#define RCC_APBENR_I2C2         RCC->APB1ENR
-#define RCC_APBRSTR_I2C2        RCC->APB1RSTR
-#define RCC_APBENR_I2C3         RCC->APB1ENR
-#define RCC_APBRSTR_I2C3        RCC->APB1RSTR
-#define RCC_APBENR_I2C4         RCC->APB1ENR
-#define RCC_APBRSTR_I2C4        RCC->APB1RSTR
-#define RCC_APBENR_I2C5         RCC->APB1ENR
-#define RCC_APBRSTR_I2C5        RCC->APB1RSTR
-#define RCC_APBENR_I2C1EN       RCC_APB1ENR_I2C1EN
-#define RCC_APBRSTR_I2C1RST     RCC_APB1RSTR_I2C1RST
-#define RCC_APBENR_I2C2EN       RCC_APB1ENR_I2C2EN
-#define RCC_APBRSTR_I2C2RST     RCC_APB1RSTR_I2C2RST
-#define RCC_APBENR_I2C3EN       RCC_APB1ENR_I2C3EN
-#define RCC_APBRSTR_I2C3RST     RCC_APB1RSTR_I2C3RST
-#define RCC_APBENR_I2C4EN       RCC_APB1ENR_I2C4EN
-#define RCC_APBRSTR_I2C4RST     RCC_APB1RSTR_I2C4RST
-#define RCC_APBENR_I2C5EN       RCC_APB1ENR_I2C5EN
-#define RCC_APBRSTR_I2C5RST     RCC_APB1RSTR_I2C5RST
+#define RCC_APBENR_I2C1     RCC->APB1ENR
+#define RCC_APBRSTR_I2C1    RCC->APB1RSTR
+#define RCC_APBENR_I2C2     RCC->APB1ENR
+#define RCC_APBRSTR_I2C2    RCC->APB1RSTR
+#define RCC_APBENR_I2C3     RCC->APB1ENR
+#define RCC_APBRSTR_I2C3    RCC->APB1RSTR
+#define RCC_APBENR_I2C4     RCC->APB1ENR
+#define RCC_APBRSTR_I2C4    RCC->APB1RSTR
+#define RCC_APBENR_I2C5     RCC->APB1ENR
+#define RCC_APBRSTR_I2C5    RCC->APB1RSTR
+#define RCC_APBENR_I2C1EN   RCC_APB1ENR_I2C1EN
+#define RCC_APBRSTR_I2C1RST RCC_APB1RSTR_I2C1RST
+#define RCC_APBENR_I2C2EN   RCC_APB1ENR_I2C2EN
+#define RCC_APBRSTR_I2C2RST RCC_APB1RSTR_I2C2RST
+#define RCC_APBENR_I2C3EN   RCC_APB1ENR_I2C3EN
+#define RCC_APBRSTR_I2C3RST RCC_APB1RSTR_I2C3RST
+#define RCC_APBENR_I2C4EN   RCC_APB1ENR_I2C4EN
+#define RCC_APBRSTR_I2C4RST RCC_APB1RSTR_I2C4RST
+#define RCC_APBENR_I2C5EN   RCC_APB1ENR_I2C5EN
+#define RCC_APBRSTR_I2C5RST RCC_APB1RSTR_I2C5RST
 #elif defined(ARCH_stm32f7)
-#define RCC_APBENR_I2C1         RCC->APB1ENR
-#define RCC_APBRSTR_I2C1        RCC->APB1RSTR
-#define RCC_APBENR_I2C2         RCC->APB1ENR
-#define RCC_APBRSTR_I2C2        RCC->APB1RSTR
-#define RCC_APBENR_I2C3         RCC->APB1ENR
-#define RCC_APBRSTR_I2C3        RCC->APB1RSTR
-#define RCC_APBENR_I2C4         RCC->APB1ENR
-#define RCC_APBRSTR_I2C4        RCC->APB1RSTR
-#define RCC_APBENR_I2C5         RCC->APB1ENR
-#define RCC_APBRSTR_I2C5        RCC->APB1RSTR
-#define RCC_APBENR_I2C1EN       RCC_APB1ENR_I2C1EN
-#define RCC_APBRSTR_I2C1RST     RCC_APB1RSTR_I2C1RST
-#define RCC_APBENR_I2C2EN       RCC_APB1ENR_I2C2EN
-#define RCC_APBRSTR_I2C2RST     RCC_APB1RSTR_I2C2RST
-#define RCC_APBENR_I2C3EN       RCC_APB1ENR_I2C3EN
-#define RCC_APBRSTR_I2C3RST     RCC_APB1RSTR_I2C3RST
-#define RCC_APBENR_I2C4EN       RCC_APB1ENR_I2C4EN
-#define RCC_APBRSTR_I2C4RST     RCC_APB1RSTR_I2C4RST
-#define RCC_APBENR_I2C5EN       RCC_APB1ENR_I2C5EN
-#define RCC_APBRSTR_I2C5RST     RCC_APB1RSTR_I2C5RST
+#define RCC_APBENR_I2C1     RCC->APB1ENR
+#define RCC_APBRSTR_I2C1    RCC->APB1RSTR
+#define RCC_APBENR_I2C2     RCC->APB1ENR
+#define RCC_APBRSTR_I2C2    RCC->APB1RSTR
+#define RCC_APBENR_I2C3     RCC->APB1ENR
+#define RCC_APBRSTR_I2C3    RCC->APB1RSTR
+#define RCC_APBENR_I2C4     RCC->APB1ENR
+#define RCC_APBRSTR_I2C4    RCC->APB1RSTR
+#define RCC_APBENR_I2C5     RCC->APB1ENR
+#define RCC_APBRSTR_I2C5    RCC->APB1RSTR
+#define RCC_APBENR_I2C1EN   RCC_APB1ENR_I2C1EN
+#define RCC_APBRSTR_I2C1RST RCC_APB1RSTR_I2C1RST
+#define RCC_APBENR_I2C2EN   RCC_APB1ENR_I2C2EN
+#define RCC_APBRSTR_I2C2RST RCC_APB1RSTR_I2C2RST
+#define RCC_APBENR_I2C3EN   RCC_APB1ENR_I2C3EN
+#define RCC_APBRSTR_I2C3RST RCC_APB1RSTR_I2C3RST
+#define RCC_APBENR_I2C4EN   RCC_APB1ENR_I2C4EN
+#define RCC_APBRSTR_I2C4RST RCC_APB1RSTR_I2C4RST
+#define RCC_APBENR_I2C5EN   RCC_APB1ENR_I2C5EN
+#define RCC_APBRSTR_I2C5RST RCC_APB1RSTR_I2C5RST
 #elif defined(ARCH_stm32h7)
-#define RCC_APBENR_I2C1         RCC->APB1LENR
-#define RCC_APBRSTR_I2C1        RCC->APB1LRSTR
-#define RCC_APBENR_I2C2         RCC->APB1LENR
-#define RCC_APBRSTR_I2C2        RCC->APB1LRSTR
-#define RCC_APBENR_I2C3         RCC->APB1LENR
-#define RCC_APBRSTR_I2C3        RCC->APB1LRSTR
-#define RCC_APBENR_I2C4         RCC->APB4ENR
-#define RCC_APBRSTR_I2C4        RCC->APB4RSTR
-#define RCC_APBENR_I2C5         RCC->APB1LENR
-#define RCC_APBRSTR_I2C5        RCC->APB1LRSTR
-#define RCC_APBENR_I2C1EN       RCC_APB1LENR_I2C1EN
-#define RCC_APBRSTR_I2C1RST     RCC_APB1LRSTR_I2C1RST
-#define RCC_APBENR_I2C2EN       RCC_APB1LENR_I2C2EN
-#define RCC_APBRSTR_I2C2RST     RCC_APB1LRSTR_I2C2RST
-#define RCC_APBENR_I2C3EN       RCC_APB1LENR_I2C3EN
-#define RCC_APBRSTR_I2C3RST     RCC_APB1LRSTR_I2C3RST
-#define RCC_APBENR_I2C4EN       RCC_APB4ENR_I2C4EN
-#define RCC_APBRSTR_I2C4RST     RCC_APB4RSTR_I2C4RST
-#define RCC_APBENR_I2C5EN       RCC_APB1LENR_I2C5EN
-#define RCC_APBRSTR_I2C5RST     RCC_APB1LRSTR_I2C5RST
-#define LL_RCC_I2C1_CLKSOURCE   LL_RCC_I2C123_CLKSOURCE
-#define LL_RCC_I2C2_CLKSOURCE   LL_RCC_I2C123_CLKSOURCE
-#define LL_RCC_I2C3_CLKSOURCE   LL_RCC_I2C123_CLKSOURCE
-#define LL_RCC_I2C5_CLKSOURCE   LL_RCC_I2C1235_CLKSOURCE
+#define RCC_APBENR_I2C1       RCC->APB1LENR
+#define RCC_APBRSTR_I2C1      RCC->APB1LRSTR
+#define RCC_APBENR_I2C2       RCC->APB1LENR
+#define RCC_APBRSTR_I2C2      RCC->APB1LRSTR
+#define RCC_APBENR_I2C3       RCC->APB1LENR
+#define RCC_APBRSTR_I2C3      RCC->APB1LRSTR
+#define RCC_APBENR_I2C4       RCC->APB4ENR
+#define RCC_APBRSTR_I2C4      RCC->APB4RSTR
+#define RCC_APBENR_I2C5       RCC->APB1LENR
+#define RCC_APBRSTR_I2C5      RCC->APB1LRSTR
+#define RCC_APBENR_I2C1EN     RCC_APB1LENR_I2C1EN
+#define RCC_APBRSTR_I2C1RST   RCC_APB1LRSTR_I2C1RST
+#define RCC_APBENR_I2C2EN     RCC_APB1LENR_I2C2EN
+#define RCC_APBRSTR_I2C2RST   RCC_APB1LRSTR_I2C2RST
+#define RCC_APBENR_I2C3EN     RCC_APB1LENR_I2C3EN
+#define RCC_APBRSTR_I2C3RST   RCC_APB1LRSTR_I2C3RST
+#define RCC_APBENR_I2C4EN     RCC_APB4ENR_I2C4EN
+#define RCC_APBRSTR_I2C4RST   RCC_APB4RSTR_I2C4RST
+#define RCC_APBENR_I2C5EN     RCC_APB1LENR_I2C5EN
+#define RCC_APBRSTR_I2C5RST   RCC_APB1LRSTR_I2C5RST
+#define LL_RCC_I2C1_CLKSOURCE LL_RCC_I2C123_CLKSOURCE
+#define LL_RCC_I2C2_CLKSOURCE LL_RCC_I2C123_CLKSOURCE
+#define LL_RCC_I2C3_CLKSOURCE LL_RCC_I2C123_CLKSOURCE
+#define LL_RCC_I2C5_CLKSOURCE LL_RCC_I2C1235_CLKSOURCE
 #endif
 
 /*==============================================================================
@@ -158,21 +155,21 @@
 ==============================================================================*/
 /// type defines configuration of single I2C peripheral
 typedef struct {
-        const I2C_TypeDef       *const I2C;           //!< pointer to the I2C peripheral
-        const u32_t             scl_freq;             //!< peripheral SCL frequency [Hz]
-        const u32_t             filter;               //!< filters mask
-        const u16_t             scl_rise_time_ns;     //!< SCL rise time
-        const u16_t             scl_fall_time_ns;     //!< SCL fall time
-        const u16_t             data_hold_time_ns;    //!< Data hold time, (tHD:DAT), delay SCL low to data change
-        const u16_t             data_setup_time_ns;   //!< Data setup time, (tSU:DAT), delay data setup to SCL high
-        __IO u32_t              *APBRSTR;             //!< APB reset register address
-        __IO u32_t              *APBENR;              //!< APB enable register
-        const u32_t             APBENR_I2CEN;         //!< mask used to enable I2C clock in the APB1ENR register
-        const u32_t             APBRSTR_I2CRST;       //!< mask used to reset I2C in the APB1RSTR register
-        const IRQn_Type         IRQ_EV_n;             //!< number of event IRQ vector
-        const IRQn_Type         IRQ_ER_n;             //!< number of error IRQ vector
-        const u32_t             IRQ_priority;         //!< IRQ priority
-        const u32_t             clk_src;              //!< I2C Clock source
+        const I2C_TypeDef *const I2C;   //!< pointer to the I2C peripheral
+        const u32_t scl_freq;           //!< peripheral SCL frequency [Hz]
+        const u32_t filter;             //!< filters mask
+        const u16_t scl_rise_time_ns;   //!< SCL rise time
+        const u16_t scl_fall_time_ns;   //!< SCL fall time
+        const u16_t data_hold_time_ns;  //!< Data hold time, (tHD:DAT), delay SCL low to data change
+        const u16_t data_setup_time_ns; //!< Data setup time, (tSU:DAT), delay data setup to SCL high
+        __IO u32_t *APBRSTR;            //!< APB reset register address
+        __IO u32_t *APBENR;             //!< APB enable register
+        const u32_t APBENR_I2CEN;       //!< mask used to enable I2C clock in the APB1ENR register
+        const u32_t APBRSTR_I2CRST;     //!< mask used to reset I2C in the APB1RSTR register
+        const IRQn_Type IRQ_EV_n;       //!< number of event IRQ vector
+        const IRQn_Type IRQ_ER_n;       //!< number of error IRQ vector
+        const u32_t IRQ_priority;       //!< IRQ priority
+        const u32_t clk_src;            //!< I2C Clock source
 } I2C_info_t;
 
 /**
@@ -200,101 +197,101 @@ MODULE_NAME(I2C);
 
 // peripherals configuration
 static const I2C_info_t I2C_HW[_I2C_NUMBER_OF_PERIPHERALS] = {
-        #if defined(RCC_APB1ENR_I2C1EN) || defined(RCC_APB1LENR_I2C1EN)
+#if defined(RCC_APB1ENR_I2C1EN) || defined(RCC_APB1LENR_I2C1EN)
         {
-                .I2C                = (I2C_TypeDef*)I2C1,
-                .scl_freq           = __I2C1_SCL_FREQ__,
-                .filter             = __I2C1_ANALOG_FILTER_DISABLE__ | ((__I2C1_DIGITAL_FILTER__ << I2C_CR1_DNF_Pos) & I2C_CR1_DNF),
-                .scl_rise_time_ns   = __I2C1_SCL_RISE_TIME_ns__,
-                .scl_fall_time_ns   = __I2C1_SCL_FALL_TIME_ns__,
-                .data_hold_time_ns  = __I2C1_DATA_HOLD_TIME_ns__,
+                .I2C = (I2C_TypeDef *)I2C1,
+                .scl_freq = __I2C1_SCL_FREQ__,
+                .filter = __I2C1_ANALOG_FILTER_DISABLE__ | ((__I2C1_DIGITAL_FILTER__ << I2C_CR1_DNF_Pos) & I2C_CR1_DNF),
+                .scl_rise_time_ns = __I2C1_SCL_RISE_TIME_ns__,
+                .scl_fall_time_ns = __I2C1_SCL_FALL_TIME_ns__,
+                .data_hold_time_ns = __I2C1_DATA_HOLD_TIME_ns__,
                 .data_setup_time_ns = __I2C1_DATA_SETUP_TIME_ns__,
-                .APBENR             = &RCC_APBENR_I2C1,
-                .APBRSTR            = &RCC_APBRSTR_I2C1,
-                .APBENR_I2CEN       = RCC_APBENR_I2C1EN,
-                .APBRSTR_I2CRST     = RCC_APBRSTR_I2C1RST,
-                .IRQ_EV_n           = I2C1_EV_IRQn,
-                .IRQ_ER_n           = I2C1_ER_IRQn,
-                .IRQ_priority       = __I2C1_IRQ_PRIORITY__,
-                .clk_src            = LL_RCC_I2C1_CLKSOURCE
+                .APBENR = &RCC_APBENR_I2C1,
+                .APBRSTR = &RCC_APBRSTR_I2C1,
+                .APBENR_I2CEN = RCC_APBENR_I2C1EN,
+                .APBRSTR_I2CRST = RCC_APBRSTR_I2C1RST,
+                .IRQ_EV_n = I2C1_EV_IRQn,
+                .IRQ_ER_n = I2C1_ER_IRQn,
+                .IRQ_priority = __I2C1_IRQ_PRIORITY__,
+                .clk_src = LL_RCC_I2C1_CLKSOURCE,
         },
-        #endif
-        #if defined(RCC_APB1ENR_I2C2EN) || defined(RCC_APB1LENR_I2C2EN)
+#endif
+#if defined(RCC_APB1ENR_I2C2EN) || defined(RCC_APB1LENR_I2C2EN)
         {
-                .I2C                = (I2C_TypeDef*)I2C2,
-                .scl_freq           = __I2C2_SCL_FREQ__,
-                .filter             = __I2C2_ANALOG_FILTER_DISABLE__ | ((__I2C2_DIGITAL_FILTER__ << I2C_CR1_DNF_Pos) & I2C_CR1_DNF),
-                .scl_rise_time_ns   = __I2C2_SCL_RISE_TIME_ns__,
-                .scl_fall_time_ns   = __I2C2_SCL_FALL_TIME_ns__,
-                .data_hold_time_ns  = __I2C2_DATA_HOLD_TIME_ns__,
+                .I2C = (I2C_TypeDef *)I2C2,
+                .scl_freq = __I2C2_SCL_FREQ__,
+                .filter = __I2C2_ANALOG_FILTER_DISABLE__ | ((__I2C2_DIGITAL_FILTER__ << I2C_CR1_DNF_Pos) & I2C_CR1_DNF),
+                .scl_rise_time_ns = __I2C2_SCL_RISE_TIME_ns__,
+                .scl_fall_time_ns = __I2C2_SCL_FALL_TIME_ns__,
+                .data_hold_time_ns = __I2C2_DATA_HOLD_TIME_ns__,
                 .data_setup_time_ns = __I2C2_DATA_SETUP_TIME_ns__,
-                .APBENR             = &RCC_APBENR_I2C2,
-                .APBRSTR            = &RCC_APBRSTR_I2C2,
-                .APBENR_I2CEN       = RCC_APBENR_I2C2EN,
-                .APBRSTR_I2CRST     = RCC_APBRSTR_I2C2RST,
-                .IRQ_EV_n           = I2C2_EV_IRQn,
-                .IRQ_ER_n           = I2C2_ER_IRQn,
-                .IRQ_priority       = __I2C2_IRQ_PRIORITY__,
-                .clk_src            = LL_RCC_I2C2_CLKSOURCE
+                .APBENR = &RCC_APBENR_I2C2,
+                .APBRSTR = &RCC_APBRSTR_I2C2,
+                .APBENR_I2CEN = RCC_APBENR_I2C2EN,
+                .APBRSTR_I2CRST = RCC_APBRSTR_I2C2RST,
+                .IRQ_EV_n = I2C2_EV_IRQn,
+                .IRQ_ER_n = I2C2_ER_IRQn,
+                .IRQ_priority = __I2C2_IRQ_PRIORITY__,
+                .clk_src = LL_RCC_I2C2_CLKSOURCE,
         },
-        #endif
-        #if defined(RCC_APB1ENR_I2C3EN) || defined(RCC_APB1LENR_I2C3EN)
+#endif
+#if defined(RCC_APB1ENR_I2C3EN) || defined(RCC_APB1LENR_I2C3EN)
         {
-                .I2C                = (I2C_TypeDef*)I2C3,
-                .scl_freq           = __I2C3_SCL_FREQ__,
-                .filter             = __I2C3_ANALOG_FILTER_DISABLE__ | ((__I2C3_DIGITAL_FILTER__ << I2C_CR1_DNF_Pos) & I2C_CR1_DNF),
-                .scl_rise_time_ns   = __I2C3_SCL_RISE_TIME_ns__,
-                .scl_fall_time_ns   = __I2C3_SCL_FALL_TIME_ns__,
-                .data_hold_time_ns  = __I2C3_DATA_HOLD_TIME_ns__,
+                .I2C = (I2C_TypeDef *)I2C3,
+                .scl_freq = __I2C3_SCL_FREQ__,
+                .filter = __I2C3_ANALOG_FILTER_DISABLE__ | ((__I2C3_DIGITAL_FILTER__ << I2C_CR1_DNF_Pos) & I2C_CR1_DNF),
+                .scl_rise_time_ns = __I2C3_SCL_RISE_TIME_ns__,
+                .scl_fall_time_ns = __I2C3_SCL_FALL_TIME_ns__,
+                .data_hold_time_ns = __I2C3_DATA_HOLD_TIME_ns__,
                 .data_setup_time_ns = __I2C3_DATA_SETUP_TIME_ns__,
-                .APBENR             = &RCC_APBENR_I2C3,
-                .APBRSTR            = &RCC_APBRSTR_I2C3,
-                .APBENR_I2CEN       = RCC_APBENR_I2C3EN,
-                .APBRSTR_I2CRST     = RCC_APBRSTR_I2C3RST,
-                .IRQ_EV_n           = I2C3_EV_IRQn,
-                .IRQ_ER_n           = I2C3_ER_IRQn,
-                .IRQ_priority       = __I2C3_IRQ_PRIORITY__,
-                .clk_src            = LL_RCC_I2C3_CLKSOURCE
+                .APBENR = &RCC_APBENR_I2C3,
+                .APBRSTR = &RCC_APBRSTR_I2C3,
+                .APBENR_I2CEN = RCC_APBENR_I2C3EN,
+                .APBRSTR_I2CRST = RCC_APBRSTR_I2C3RST,
+                .IRQ_EV_n = I2C3_EV_IRQn,
+                .IRQ_ER_n = I2C3_ER_IRQn,
+                .IRQ_priority = __I2C3_IRQ_PRIORITY__,
+                .clk_src = LL_RCC_I2C3_CLKSOURCE,
         },
-        #endif
-        #if defined(RCC_APB1ENR_I2C4EN) || defined(RCC_APB4ENR_I2C4EN)
+#endif
+#if defined(RCC_APB1ENR_I2C4EN) || defined(RCC_APB4ENR_I2C4EN)
         {
-                .I2C                = (I2C_TypeDef*)I2C4,
-                .scl_freq           = __I2C4_SCL_FREQ__,
-                .filter             = __I2C4_ANALOG_FILTER_DISABLE__ | ((__I2C4_DIGITAL_FILTER__ << I2C_CR1_DNF_Pos) & I2C_CR1_DNF),
-                .scl_rise_time_ns   = __I2C4_SCL_RISE_TIME_ns__,
-                .scl_fall_time_ns   = __I2C4_SCL_FALL_TIME_ns__,
-                .data_hold_time_ns  = __I2C4_DATA_HOLD_TIME_ns__,
+                .I2C = (I2C_TypeDef *)I2C4,
+                .scl_freq = __I2C4_SCL_FREQ__,
+                .filter = __I2C4_ANALOG_FILTER_DISABLE__ | ((__I2C4_DIGITAL_FILTER__ << I2C_CR1_DNF_Pos) & I2C_CR1_DNF),
+                .scl_rise_time_ns = __I2C4_SCL_RISE_TIME_ns__,
+                .scl_fall_time_ns = __I2C4_SCL_FALL_TIME_ns__,
+                .data_hold_time_ns = __I2C4_DATA_HOLD_TIME_ns__,
                 .data_setup_time_ns = __I2C4_DATA_SETUP_TIME_ns__,
-                .APBENR             = &RCC_APBENR_I2C4,
-                .APBRSTR            = &RCC_APBRSTR_I2C4,
-                .APBENR_I2CEN       = RCC_APBENR_I2C4EN,
-                .APBRSTR_I2CRST     = RCC_APBRSTR_I2C4RST,
-                .IRQ_EV_n           = I2C4_EV_IRQn,
-                .IRQ_ER_n           = I2C4_ER_IRQn,
-                .IRQ_priority       = __I2C4_IRQ_PRIORITY__,
-                .clk_src            = LL_RCC_I2C4_CLKSOURCE
+                .APBENR = &RCC_APBENR_I2C4,
+                .APBRSTR = &RCC_APBRSTR_I2C4,
+                .APBENR_I2CEN = RCC_APBENR_I2C4EN,
+                .APBRSTR_I2CRST = RCC_APBRSTR_I2C4RST,
+                .IRQ_EV_n = I2C4_EV_IRQn,
+                .IRQ_ER_n = I2C4_ER_IRQn,
+                .IRQ_priority = __I2C4_IRQ_PRIORITY__,
+                .clk_src = LL_RCC_I2C4_CLKSOURCE,
         },
-        #endif
-        #if defined(RCC_APB1ENR_I2C5EN) || defined(RCC_APB1LENR_I2C5EN)
+#endif
+#if defined(RCC_APB1ENR_I2C5EN) || defined(RCC_APB1LENR_I2C5EN)
         {
-                .I2C                = (I2C_TypeDef*)I2C5,
-                .scl_freq           = __I2C5_SCL_FREQ__,
-                .filter             = __I2C5_ANALOG_FILTER_DISABLE__ | ((__I2C5_DIGITAL_FILTER__ << I2C_CR1_DNF_Pos) & I2C_CR1_DNF),
-                .scl_rise_time_ns   = __I2C5_SCL_RISE_TIME_ns__,
-                .scl_fall_time_ns   = __I2C5_SCL_FALL_TIME_ns__,
-                .data_hold_time_ns  = __I2C5_DATA_HOLD_TIME_ns__,
+                .I2C = (I2C_TypeDef *)I2C5,
+                .scl_freq = __I2C5_SCL_FREQ__,
+                .filter = __I2C5_ANALOG_FILTER_DISABLE__ | ((__I2C5_DIGITAL_FILTER__ << I2C_CR1_DNF_Pos) & I2C_CR1_DNF),
+                .scl_rise_time_ns = __I2C5_SCL_RISE_TIME_ns__,
+                .scl_fall_time_ns = __I2C5_SCL_FALL_TIME_ns__,
+                .data_hold_time_ns = __I2C5_DATA_HOLD_TIME_ns__,
                 .data_setup_time_ns = __I2C5_DATA_SETUP_TIME_ns__,
-                .APBENR             = &RCC_APBENR_I2C5,
-                .APBRSTR            = &RCC_APBRSTR_I2C5,
-                .APBENR_I2CEN       = RCC_APBENR_I2C5EN,
-                .APBRSTR_I2CRST     = RCC_APBRSTR_I2C5RST,
-                .IRQ_EV_n           = I2C5_EV_IRQn,
-                .IRQ_ER_n           = I2C5_ER_IRQn,
-                .IRQ_priority       = __I2C5_IRQ_PRIORITY__,
-                .clk_src            = LL_RCC_I2C5_CLKSOURCE
+                .APBENR = &RCC_APBENR_I2C5,
+                .APBRSTR = &RCC_APBRSTR_I2C5,
+                .APBENR_I2CEN = RCC_APBENR_I2C5EN,
+                .APBRSTR_I2CRST = RCC_APBRSTR_I2C5RST,
+                .IRQ_EV_n = I2C5_EV_IRQn,
+                .IRQ_ER_n = I2C5_ER_IRQn,
+                .IRQ_priority = __I2C5_IRQ_PRIORITY__,
+                .clk_src = LL_RCC_I2C5_CLKSOURCE,
         },
-        #endif
+#endif
 };
 
 /*==============================================================================
@@ -341,12 +338,11 @@ static void reset(I2C_dev_t *hdl, bool reinit)
         I2C_recovery_t *recovery = &_I2C[hdl->major]->recovery;
 
         if (recovery->enable && (hdl->config.mode == I2C_MODE__MASTER)) {
-                i8_t SDA_state = _GPIO_DDI_get_pin(recovery->SDA.port_idx,
-                                                   recovery->SDA.pin_idx);
+                i8_t SDA_state = _GPIO_DDI_get_pin(recovery->SDA.port_idx, recovery->SDA.pin_idx);
 
                 GPIO_pin_in_port_conf_t SCL_pin_conf;
                 SCL_pin_conf.pin.port_idx = recovery->SCL.port_idx;
-                SCL_pin_conf.pin.pin_idx  = recovery->SCL.pin_idx;
+                SCL_pin_conf.pin.pin_idx = recovery->SCL.pin_idx;
                 int err = _GPIO_DDI_get_pin_conf(&SCL_pin_conf);
                 if (err) {
                         dev_dbg(hdl, "invalid SCL pin - recovery skipped");
@@ -359,19 +355,16 @@ static void reset(I2C_dev_t *hdl, bool reinit)
                         _GPIO_DDI_set_pin_conf(&pin_conf);
 
                         for (int i = 0; i < 10; i++) {
-                                _GPIO_DDI_clear_pin(recovery->SCL.port_idx,
-                                                    recovery->SCL.pin_idx);
+                                _GPIO_DDI_clear_pin(recovery->SCL.port_idx, recovery->SCL.pin_idx);
                                 sys_sleep_ms(1);
 
-                                _GPIO_DDI_set_pin(recovery->SCL.port_idx,
-                                                  recovery->SCL.pin_idx);
+                                _GPIO_DDI_set_pin(recovery->SCL.port_idx, recovery->SCL.pin_idx);
                                 sys_sleep_ms(1);
                         }
 
                         _GPIO_DDI_set_pin_conf(&SCL_pin_conf);
 
-                        SDA_state = _GPIO_DDI_get_pin(recovery->SDA.port_idx,
-                                                      recovery->SDA.pin_idx);
+                        SDA_state = _GPIO_DDI_get_pin(recovery->SDA.port_idx, recovery->SDA.pin_idx);
 
                         dev_dbg(hdl, "recovery %s", (SDA_state == 1) ? "success" : "fail");
                 }
@@ -393,9 +386,9 @@ static void compute_timing(u8_t major, i2c_timing_t *timing)
         /*
          * Default configuration
          */
-        timing->PRESC  = PRESC_MAX;
-        timing->SCLL   = SCLL_MAX;
-        timing->SCLH   = SCLH_MAX;
+        timing->PRESC = PRESC_MAX;
+        timing->SCLL = SCLL_MAX;
+        timing->SCLH = SCLH_MAX;
         timing->SCLDEL = 0;
         timing->SDADEL = 0;
 
@@ -417,7 +410,7 @@ static void compute_timing(u8_t major, i2c_timing_t *timing)
 
                         timing->SCLDEL = min(15, tsdadel);
                         timing->SDADEL = min(15, tscldel);
-                        timing->PRESC  = presc - 1;
+                        timing->PRESC = presc - 1;
 
                         if ((div / 2) - sync1_ticks - 1 >= 0) {
                                 timing->SCLL = (div / 2) - 1 - sync1_ticks;
@@ -431,8 +424,7 @@ static void compute_timing(u8_t major, i2c_timing_t *timing)
                                 timing->SCLH = 0;
                         }
 
-                        printk("%s%u: target SCL frequency: %u Hz", GET_MODULE_NAME(), major,
-                               fi2cclk / presc / div);
+                        printk("%s%u: target SCL frequency: %u Hz", GET_MODULE_NAME(), major, fi2cclk / presc / div);
 
                         found = true;
                 }
@@ -453,7 +445,7 @@ static void compute_timing(u8_t major, i2c_timing_t *timing)
 int _I2C_LLD__init(u8_t major)
 {
         const I2C_info_t *cfg = &I2C_HW[major];
-        I2C_TypeDef            *i2c = const_cast(I2C_HW[major].I2C);
+        I2C_TypeDef *i2c = const_cast(I2C_HW[major].I2C);
 
         CLEAR_BIT(*cfg->APBENR, cfg->APBENR_I2CEN);
         SET_BIT(*cfg->APBENR, cfg->APBENR_I2CEN);
@@ -477,11 +469,11 @@ int _I2C_LLD__init(u8_t major)
         i2c_timing_t timing;
         compute_timing(major, &timing);
 
-        i2c->TIMINGR = ((timing.PRESC << I2C_TIMINGR_PRESC_Pos) & I2C_TIMINGR_PRESC)
-                     | ((timing.SCLDEL << I2C_TIMINGR_SCLDEL_Pos) & I2C_TIMINGR_SCLDEL)
-                     | ((timing.SDADEL << I2C_TIMINGR_SDADEL_Pos) & I2C_TIMINGR_SDADEL)
-                     | ((timing.SCLH << I2C_TIMINGR_SCLH_Pos) & I2C_TIMINGR_SCLH)
-                     | ((timing.SCLL << I2C_TIMINGR_SCLL_Pos) & I2C_TIMINGR_SCLL);
+        i2c->TIMINGR = ((timing.PRESC << I2C_TIMINGR_PRESC_Pos) & I2C_TIMINGR_PRESC) |
+                ((timing.SCLDEL << I2C_TIMINGR_SCLDEL_Pos) & I2C_TIMINGR_SCLDEL) |
+                ((timing.SDADEL << I2C_TIMINGR_SDADEL_Pos) & I2C_TIMINGR_SDADEL) |
+                ((timing.SCLH << I2C_TIMINGR_SCLH_Pos) & I2C_TIMINGR_SCLH) |
+                ((timing.SCLL << I2C_TIMINGR_SCLL_Pos) & I2C_TIMINGR_SCLL);
 
         i2c->CR2 = 0;
         i2c->CR1 = I2C_CR1_PE;
@@ -500,7 +492,7 @@ int _I2C_LLD__init(u8_t major)
 void _I2C_LLD__release(u8_t major)
 {
         const I2C_info_t *cfg = &I2C_HW[major];
-        I2C_TypeDef     *i2c = const_cast(I2C_HW[major].I2C);
+        I2C_TypeDef *i2c = const_cast(I2C_HW[major].I2C);
 
         NVIC_DisableIRQ(cfg->IRQ_EV_n);
         NVIC_DisableIRQ(cfg->IRQ_ER_n);
@@ -636,8 +628,8 @@ int _I2C_LLD__master_receive(I2C_dev_t *hdl, u8_t *dst, size_t count, size_t *rd
                  * The first transfer is subaddress.
                  * Switch peripheral to transmit mode.
                  */
-                SET_BIT(i2c->CR1, I2C_CR1_ERRIE  | I2C_CR1_TCIE | I2C_CR1_STOPIE
-                                | I2C_CR1_NACKIE | I2C_CR1_TXIE | I2C_CR1_RXIE);
+                SET_BIT(i2c->CR1,
+                        I2C_CR1_ERRIE | I2C_CR1_TCIE | I2C_CR1_STOPIE | I2C_CR1_NACKIE | I2C_CR1_TXIE | I2C_CR1_RXIE);
 
                 CLEAR_BIT(i2c->CR2, I2C_CR2_RD_WRN);
 
@@ -650,8 +642,7 @@ int _I2C_LLD__master_receive(I2C_dev_t *hdl, u8_t *dst, size_t count, size_t *rd
                  * Subaddress is disabled, I2C will receive data directly.
                  * Switch peripheral to receive mode.
                  */
-                SET_BIT(i2c->CR1, I2C_CR1_ERRIE  | I2C_CR1_TCIE | I2C_CR1_STOPIE
-                                | I2C_CR1_NACKIE | I2C_CR1_RXIE);
+                SET_BIT(i2c->CR1, I2C_CR1_ERRIE | I2C_CR1_TCIE | I2C_CR1_STOPIE | I2C_CR1_NACKIE | I2C_CR1_RXIE);
 
                 SET_BIT(i2c->CR2, I2C_CR2_RD_WRN);
 
@@ -813,8 +804,7 @@ int _I2C_LLD__slave_mode_setup(I2C_dev_t *hdl)
 
         if (hdl->config.mode == I2C_MODE__SLAVE) {
 
-                i2c->OAR1 = (hdl->config.address & I2C_OAR1_OA1)
-                          | (hdl->config.addr_10bit ? I2C_OAR1_OA1MODE : 0);
+                i2c->OAR1 = (hdl->config.address & I2C_OAR1_OA1) | (hdl->config.addr_10bit ? I2C_OAR1_OA1MODE : 0);
 
                 i2c->OAR2 = 0;
 
@@ -978,7 +968,7 @@ static void IRQ_EV_handler(u8_t major)
         bool woken = false;
 
         I2C_TypeDef *i2c = const_cast(I2C_HW[major].I2C);
-        u16_t  ISR = i2c->ISR;
+        u16_t ISR = i2c->ISR;
 
         /*
          * Handle slave NACK response.
@@ -1083,8 +1073,8 @@ static void IRQ_EV_handler(u8_t major)
         if ((ISR & I2C_ISR_STOPF) && (i2c->CR1 & I2C_CR1_STOPIE)) {
                 WRITE_REG(i2c->ICR, I2C_ICR_STOPCF);
 
-                CLEAR_BIT(i2c->CR1, I2C_CR1_ERRIE  | I2C_CR1_TCIE | I2C_CR1_STOPIE
-                                  | I2C_CR1_NACKIE | I2C_CR1_TXIE | I2C_CR1_RXIE);
+                CLEAR_BIT(i2c->CR1,
+                        I2C_CR1_ERRIE | I2C_CR1_TCIE | I2C_CR1_STOPIE | I2C_CR1_NACKIE | I2C_CR1_TXIE | I2C_CR1_RXIE);
 
                 u32_t event = I2C_ISR_STOPF;
                 sys_queue_send_from_ISR(_I2C[major]->event, &event, &woken);
@@ -1117,15 +1107,14 @@ static void IRQ_ER_handler(u8_t major)
         I2C_TypeDef *i2c = const_cast(I2C_HW[major].I2C);
         u16_t ISR = i2c->ISR;
 
-        if (ISR & ( I2C_ISR_BERR    | I2C_ISR_OVR   | I2C_ISR_ARLO
-                  | I2C_ISR_TIMEOUT | I2C_ISR_ALERT | I2C_ISR_PECERR)) {
+        if (ISR & (I2C_ISR_BERR | I2C_ISR_OVR | I2C_ISR_ARLO | I2C_ISR_TIMEOUT | I2C_ISR_ALERT | I2C_ISR_PECERR)) {
 
                 u32_t event = ISR;
                 sys_queue_send_from_ISR(_I2C[major]->event, &event, &woken);
         }
 
-        WRITE_REG(i2c->ICR, I2C_ICR_BERRCF   | I2C_ICR_OVRCF    | I2C_ICR_ARLOCF
-                          | I2C_ICR_TIMOUTCF | I2C_ICR_ALERTCF  | I2C_ICR_PECCF);
+        WRITE_REG(i2c->ICR,
+                I2C_ICR_BERRCF | I2C_ICR_OVRCF | I2C_ICR_ARLOCF | I2C_ICR_TIMOUTCF | I2C_ICR_ALERTCF | I2C_ICR_PECCF);
 
         sys_thread_yield_from_ISR(woken);
 }

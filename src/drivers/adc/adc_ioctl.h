@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   ADC Driver
 
-        Copyright (C) 2023 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -93,13 +93,13 @@ extern "C" {
  *  @param  [WR,RD] adc_measurement_t   channel with RAW data
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_ADC__READ_CHANNEL _IOR(ADC, 0x00, adc_measurement_t*)
+#define IOCTL_ADC__READ_CHANNEL _IOR(ADC, 0x00, adc_measurement_t *)
 
 /*==============================================================================
   Exported object types
 ==============================================================================*/
 typedef struct {
-        uint8_t  channel;
+        uint8_t channel;
         uint32_t raw_data;
 } adc_measurement_t;
 

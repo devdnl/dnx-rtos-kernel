@@ -5,7 +5,7 @@ Author   Daniel Zorychta
 
 Brief    String functions.
 
-         Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+         Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -80,10 +80,10 @@ Brief    String functions.
 //==============================================================================
 size_t _strlcat(char *dst, const char *src, size_t size)
 {
-        char       *d = dst;
+        char *d = dst;
         const char *s = src;
-        size_t      n = size;
-        size_t      dlen;
+        size_t n = size;
+        size_t dlen;
 
         /* Find the end of dst and adjust bytes left but don't go past end */
         while (n-- != 0 && *d != '\0') {
@@ -91,7 +91,7 @@ size_t _strlcat(char *dst, const char *src, size_t size)
         }
 
         dlen = d - dst;
-        n    = size - dlen;
+        n = size - dlen;
 
         if (n == 0) {
                 return (dlen + strlen(s));
@@ -100,7 +100,7 @@ size_t _strlcat(char *dst, const char *src, size_t size)
         while (*s != '\0') {
                 if (n != 1) {
                         *d++ = *s;
-                         n--;
+                        n--;
                 }
                 s++;
         }

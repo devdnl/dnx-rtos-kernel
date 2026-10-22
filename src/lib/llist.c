@@ -6,8 +6,8 @@
 
 @brief   C implementation of linked list
 
-@note    Copyright (C) 2014 Kamil Zorychta <kamil.zorychta@gmail.com>
-         Copyright (C) 2014 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Kamil Zorychta <kamil.zorychta@gmail.com>
+         Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@
   Local macros
 ==============================================================================*/
 #ifndef const_cast
-#define const_cast(v) ((void*)(v))
+#define const_cast(v) ((void *)(v))
 #endif
 
 #ifndef cast
@@ -50,47 +50,46 @@
   Local object types
 ==============================================================================*/
 typedef void *(*malloc_t)(size_t size, void *allocctx);
-typedef void  (*free_t)(void *mem, void *freectx);
+typedef void (*free_t)(void *mem, void *freectx);
 
 // list's begin
 typedef struct item {
         struct item *prev;
         struct item *next;
-        void        *data;
+        void *data;
 } item_t;
 
 // list main object
 struct _sys_llist {
-        malloc_t             malloc;
-        free_t               free;
-        void                *allocctx;
-        void                *freectx;
-        llist_cmp_functor_t  cmp_functor;
-        llist_obj_dtor_t     obj_dtor;
-        item_t              *head;
-        item_t              *tail;
-        llist_t             *self;
-        size_t               count;
+        malloc_t malloc;
+        free_t free;
+        void *allocctx;
+        void *freectx;
+        llist_cmp_functor_t cmp_functor;
+        llist_obj_dtor_t obj_dtor;
+        item_t *head;
+        item_t *tail;
+        llist_t *self;
+        size_t count;
 };
 
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static bool    is_iterator_valid(llist_iterator_t *this);
-static bool    is_llist_valid   (llist_t *this);
-static int     prepend          (llist_t *this, const void *data);
-static int     append           (llist_t *this, const void *data);
-static int     insert_item      (llist_t *this, int index, const void *data);
-static item_t *get_item         (llist_t *this, int position);
-static int     remove_item      (llist_t *this, item_t *item, bool unlink);
-static void    quicksort        (llist_t *this, item_t *l, item_t *r);
-static void   *usrmalloc        (size_t size, void *allocctx);
-static void    usrfree          (void *mem, void *freectx);
-static void   *krnmalloc        (size_t size, void *allocctx);
-static void    krnfree          (void *mem, void *freectx);
-static void   *modmalloc        (size_t size, void *allocctx);
-static void    modfree          (void *mem, void *freectx);
-
+static bool is_iterator_valid(llist_iterator_t *this);
+static bool is_llist_valid(llist_t *this);
+static int prepend(llist_t *this, const void *data);
+static int append(llist_t *this, const void *data);
+static int insert_item(llist_t *this, int index, const void *data);
+static item_t *get_item(llist_t *this, int position);
+static int remove_item(llist_t *this, item_t *item, bool unlink);
+static void quicksort(llist_t *this, item_t *l, item_t *r);
+static void *usrmalloc(size_t size, void *allocctx);
+static void usrfree(void *mem, void *freectx);
+static void *krnmalloc(size_t size, void *allocctx);
+static void krnfree(void *mem, void *freectx);
+static void *modmalloc(size_t size, void *allocctx);
+static void modfree(void *mem, void *freectx);
 
 /*==============================================================================
   Local objects
@@ -114,27 +113,24 @@ static const uint32_t magic_number = 0x6D89B264;
  * @return One of errno value.
  */
 //==============================================================================
-int _llist_create_usr(llist_malloc_t      malloc,
-                      llist_free_t        free,
-                      llist_cmp_functor_t cmp_functor,
-                      llist_obj_dtor_t    obj_dtor,
-                      llist_t             **list)
+int _llist_create_usr(llist_malloc_t malloc, llist_free_t free, llist_cmp_functor_t cmp_functor,
+        llist_obj_dtor_t obj_dtor, llist_t **list)
 {
         int err = EINVAL;
 
         if (malloc && free && list) {
                 *list = malloc(sizeof(llist_t));
                 if (*list) {
-                        (*list)->malloc      = usrmalloc;
-                        (*list)->free        = usrfree;
-                        (*list)->allocctx    = malloc;
-                        (*list)->freectx     = free;
+                        (*list)->malloc = usrmalloc;
+                        (*list)->free = usrfree;
+                        (*list)->allocctx = malloc;
+                        (*list)->freectx = free;
                         (*list)->cmp_functor = cmp_functor;
-                        (*list)->obj_dtor    = obj_dtor;
-                        (*list)->head        = NULL;
-                        (*list)->tail        = NULL;
-                        (*list)->count       = 0;
-                        (*list)->self        = *list;
+                        (*list)->obj_dtor = obj_dtor;
+                        (*list)->head = NULL;
+                        (*list)->tail = NULL;
+                        (*list)->count = 0;
+                        (*list)->self = *list;
 
                         err = ESUCC;
                 } else {
@@ -157,26 +153,23 @@ int _llist_create_usr(llist_malloc_t      malloc,
  * @return One of errno value.
  */
 //==============================================================================
-int _llist_create_krn(enum _mm_mem        mem,
-                      llist_cmp_functor_t cmp_functor,
-                      llist_obj_dtor_t    obj_dtor,
-                      llist_t             **list)
+int _llist_create_krn(enum _mm_mem mem, llist_cmp_functor_t cmp_functor, llist_obj_dtor_t obj_dtor, llist_t **list)
 {
         int err = EINVAL;
 
         if (list && mem != _MM_MOD && mem < _MM_COUNT) {
-                err = _kzalloc(mem, sizeof(llist_t), NULL, 0, 0, cast(void*, list));
+                err = _kzalloc(mem, sizeof(llist_t), NULL, 0, 0, cast(void *, list));
                 if (!err) {
-                        (*list)->malloc      = krnmalloc;
-                        (*list)->free        = krnfree;
-                        (*list)->allocctx    = cast(void*, mem);
-                        (*list)->freectx     = cast(void*, mem);
+                        (*list)->malloc = krnmalloc;
+                        (*list)->free = krnfree;
+                        (*list)->allocctx = cast(void *, mem);
+                        (*list)->freectx = cast(void *, mem);
                         (*list)->cmp_functor = cmp_functor;
-                        (*list)->obj_dtor    = obj_dtor;
-                        (*list)->head        = NULL;
-                        (*list)->tail        = NULL;
-                        (*list)->count       = 0;
-                        (*list)->self        = *list;
+                        (*list)->obj_dtor = obj_dtor;
+                        (*list)->head = NULL;
+                        (*list)->tail = NULL;
+                        (*list)->count = 0;
+                        (*list)->self = *list;
 
                         err = ESUCC;
                 }
@@ -197,26 +190,23 @@ int _llist_create_krn(enum _mm_mem        mem,
  * @return One of errno value.
  */
 //==============================================================================
-int _llist_create_mod(size_t              modid,
-                      llist_cmp_functor_t cmp_functor,
-                      llist_obj_dtor_t    obj_dtor,
-                      llist_t             **list)
+int _llist_create_mod(size_t modid, llist_cmp_functor_t cmp_functor, llist_obj_dtor_t obj_dtor, llist_t **list)
 {
         int err = EINVAL;
 
         if (list) {
-                err = _kzalloc(_MM_MOD, sizeof(llist_t), NULL, 0, 0, cast(void*, list), modid);
+                err = _kzalloc(_MM_MOD, sizeof(llist_t), NULL, 0, 0, cast(void *, list), modid);
                 if (!err) {
-                        (*list)->malloc      = modmalloc;
-                        (*list)->free        = modfree;
-                        (*list)->allocctx    = cast(void*, modid);
-                        (*list)->freectx     = cast(void*, modid);
+                        (*list)->malloc = modmalloc;
+                        (*list)->free = modfree;
+                        (*list)->allocctx = cast(void *, modid);
+                        (*list)->freectx = cast(void *, modid);
                         (*list)->cmp_functor = cmp_functor;
-                        (*list)->obj_dtor    = obj_dtor;
-                        (*list)->head        = NULL;
-                        (*list)->tail        = NULL;
-                        (*list)->count       = 0;
-                        (*list)->self        = *list;
+                        (*list)->obj_dtor = obj_dtor;
+                        (*list)->head = NULL;
+                        (*list)->tail = NULL;
+                        (*list)->count = 0;
+                        (*list)->self = *list;
 
                         err = ESUCC;
                 }
@@ -562,8 +552,9 @@ void *sys_llist_take_back(llist_t *this)
 int sys_llist_clear(llist_t *this)
 {
         if (is_llist_valid(this)) {
-                if (this->count == 0)
+                if (this->count == 0) {
                         return 1;
+                }
 
                 item_t *item = this->head;
                 while (item) {
@@ -574,8 +565,8 @@ int sys_llist_clear(llist_t *this)
                 }
 
                 this->count = 0;
-                this->head  = NULL;
-                this->tail  = NULL;
+                this->head = NULL;
+                this->tail = NULL;
 
                 return 1;
         }
@@ -634,22 +625,22 @@ void sys_llist_unique(llist_t *this)
 //==============================================================================
 void sys_llist_reverse(llist_t *this)
 {
-    if (is_llist_valid(this)) {
-            item_t *item_h = this->head;
-            item_t *item_t = this->tail;
-            int     n      = this->count / 2;
+        if (is_llist_valid(this)) {
+                item_t *item_h = this->head;
+                item_t *item_t = this->tail;
+                int n = this->count / 2;
 
-            while (n && item_h && item_t) {
-                    void *data   = item_t->data;
-                    item_t->data = item_h->data;
-                    item_h->data = data;
+                while (n && item_h && item_t) {
+                        void *data = item_t->data;
+                        item_t->data = item_h->data;
+                        item_h->data = data;
 
-                    item_h = item_h->next;
-                    item_t = item_t->prev;
+                        item_h = item_h->next;
+                        item_t = item_t->prev;
 
-                    n--;
-            }
-    }
+                        n--;
+                }
+        }
 }
 
 //==============================================================================
@@ -796,7 +787,7 @@ int sys_llist_swap(llist_t *this, int j, int k)
                         item_t *item_b = get_item(this, k);
 
                         if (item_a && item_b) {
-                                void *data   = item_b->data;
+                                void *data = item_b->data;
                                 item_b->data = item_a->data;
                                 item_a->data = data;
 
@@ -821,7 +812,7 @@ llist_iterator_t sys_llist_iterator(llist_t *this)
         memset(&iterator, 0, sizeof(llist_iterator_t));
 
         if (is_llist_valid(this)) {
-                iterator.list  = this;
+                iterator.list = this;
                 iterator.magic = magic_number;
         }
 
@@ -842,8 +833,8 @@ void *sys_llist_begin(llist_iterator_t *iterator)
                         iterator->current = iterator->list->head;
 
                         if (iterator->current) {
-                                iterator->next = cast(item_t*, iterator->current)->next;
-                                return cast(item_t*, iterator->current)->data;
+                                iterator->next = cast(item_t *, iterator->current)->next;
+                                return cast(item_t *, iterator->current)->data;
                         }
                 }
         }
@@ -865,8 +856,8 @@ void *sys_llist_end(llist_iterator_t *iterator)
                         iterator->current = iterator->list->tail;
 
                         if (iterator->current) {
-                                iterator->next = cast(item_t*, iterator->current)->prev;
-                                return cast(item_t*, iterator->current)->data;
+                                iterator->next = cast(item_t *, iterator->current)->prev;
+                                return cast(item_t *, iterator->current)->data;
                         }
                 }
         }
@@ -889,13 +880,13 @@ void *sys_llist_range(llist_iterator_t *iterator, int begin, int end)
 
         if (is_iterator_valid(iterator) && begin >= 0 && end >= 0) {
                 if (is_llist_valid(iterator->list)) {
-                        int direction     = begin > end ? -1 : 1;
-                        iterator->next    = get_item(iterator->list, begin + direction);
+                        int direction = begin > end ? -1 : 1;
+                        iterator->next = get_item(iterator->list, begin + direction);
                         iterator->current = get_item(iterator->list, begin);
-                        iterator->to      = get_item(iterator->list, end);
+                        iterator->to = get_item(iterator->list, end);
 
                         if (iterator->current) {
-                                obj = cast(item_t*, iterator->current)->data;
+                                obj = cast(item_t *, iterator->current)->data;
 
                                 if (iterator->current == iterator->to) {
                                         iterator->current = NULL;
@@ -923,8 +914,8 @@ void *sys_llist_iterator_next(llist_iterator_t *iterator)
                         iterator->current = iterator->next;
 
                         if (iterator->current) {
-                                iterator->next = cast(item_t*, iterator->current)->next;
-                                obj = cast(item_t*, iterator->current)->data;
+                                iterator->next = cast(item_t *, iterator->current)->next;
+                                obj = cast(item_t *, iterator->current)->data;
 
                                 if (iterator->current == iterator->to) {
                                         iterator->current = NULL;
@@ -952,8 +943,8 @@ void *sys_llist_iterator_prev(llist_iterator_t *iterator)
                         iterator->current = iterator->next;
 
                         if (iterator->current) {
-                                iterator->next = cast(item_t*, iterator->next)->prev;
-                                obj = cast(item_t*, iterator->current)->data;
+                                iterator->next = cast(item_t *, iterator->next)->prev;
+                                obj = cast(item_t *, iterator->current)->data;
 
                                 if (iterator->current == iterator->to) {
                                         iterator->current = NULL;
@@ -995,12 +986,13 @@ int sys_llist_erase_by_iterator(llist_iterator_t *iterator)
 //==============================================================================
 int sys_llist_functor_cmp_pointers(const void *a, const void *b)
 {
-        if (a > b)
+        if (a > b) {
                 return 1;
-        else if (a == b)
+        } else if (a == b) {
                 return 0;
-        else
+        } else {
                 return -1;
+        }
 }
 
 //==============================================================================
@@ -1017,12 +1009,13 @@ int sys_llist_functor_cmp_strings(const void *a, const void *b)
 {
         int d = strcmp(cast(char *, a), cast(char *, b));
 
-        if (d > 0)
+        if (d > 0) {
                 return 1;
-        else if (d == 0)
+        } else if (d == 0) {
                 return 0;
-        else
+        } else {
                 return -1;
+        }
 }
 
 //==============================================================================
@@ -1059,21 +1052,24 @@ static bool is_iterator_valid(llist_iterator_t *this)
 //==============================================================================
 static item_t *get_item(llist_t *this, int position)
 {
-        enum direction {DIR_FORWARD, DIR_BACKWARD};
+        enum direction {
+                DIR_FORWARD,
+                DIR_BACKWARD
+        };
 
         if (position < 0 || cast(size_t, position) >= this->count) {
                 return NULL;
 
         } else {
                 enum direction dir;
-                item_t        *item;
+                item_t *item;
 
                 if (cast(size_t, position) <= this->count / 2) {
-                        dir      = DIR_FORWARD;
-                        item     = this->head;
+                        dir = DIR_FORWARD;
+                        item = this->head;
                 } else {
-                        dir      = DIR_BACKWARD;
-                        item     = this->tail;
+                        dir = DIR_BACKWARD;
+                        item = this->tail;
                         position = this->count - position - 1;
                 }
 
@@ -1163,10 +1159,10 @@ static int insert_item(llist_t *this, int index, const void *data)
 
                         item_t *item = get_item(this, index);
                         if (item) {
-                                new_item->prev   = item->prev;
-                                new_item->next   = item;
+                                new_item->prev = item->prev;
+                                new_item->next = item;
                                 item->prev->next = new_item;
-                                item->prev       = new_item;
+                                item->prev = new_item;
 
                                 this->count++;
 
@@ -1175,7 +1171,6 @@ static int insert_item(llist_t *this, int index, const void *data)
 
                         this->free(new_item, this->freectx);
                 }
-
         }
 
         return 0;
@@ -1196,15 +1191,15 @@ static int prepend(llist_t *this, const void *data)
                 new_item->data = const_cast(data);
 
                 if (this->head == NULL) {
-                        new_item->next   = NULL;
-                        new_item->prev   = NULL;
-                        this->head       = new_item;
-                        this->tail       = new_item;
+                        new_item->next = NULL;
+                        new_item->prev = NULL;
+                        this->head = new_item;
+                        this->tail = new_item;
                 } else {
                         this->head->prev = new_item;
-                        new_item->prev   = NULL;
-                        new_item->next   = this->head;
-                        this->head       = new_item;
+                        new_item->prev = NULL;
+                        new_item->next = this->head;
+                        this->head = new_item;
                 }
 
                 this->count++;
@@ -1230,15 +1225,15 @@ static int append(llist_t *this, const void *data)
                 new_item->data = const_cast(data);
 
                 if (this->head == NULL) {
-                        new_item->next   = NULL;
-                        new_item->prev   = NULL;
-                        this->head       = new_item;
-                        this->tail       = new_item;
+                        new_item->next = NULL;
+                        new_item->prev = NULL;
+                        this->head = new_item;
+                        this->tail = new_item;
                 } else {
                         this->tail->next = new_item;
-                        new_item->prev   = this->tail;
-                        new_item->next   = NULL;
-                        this->tail       = new_item;
+                        new_item->prev = this->tail;
+                        new_item->next = NULL;
+                        this->tail = new_item;
                 }
 
                 this->count++;

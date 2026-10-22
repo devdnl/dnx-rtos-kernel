@@ -5,7 +5,7 @@
 
 @brief   This file support ioctl request codes.
 
-@note    Copyright (C) 2014 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -167,7 +167,6 @@ mount("fatfs", "/dev/sda", "/mnt", "");
 @{
 */
 
-
 #ifndef _SDSPI_IOCTL_H_
 #define _SDSPI_IOCTL_H_
 
@@ -189,14 +188,14 @@ extern "C" {
  *  @return On success 0 is returned.
  *          On error -1 is returned and @ref errno is set.
  */
-#define IOCTL_SDSPI__CONFIGURE          _IOW(SDSPI, 0x00, SDSPI_config_t*)
+#define IOCTL_SDSPI__CONFIGURE _IOW(SDSPI, 0x00, SDSPI_config_t *)
 
 /**
  *  @brief  Initialize SD card (OS storage request).
  *  @return On success (card initialized) 0 is returned.
  *          On error (card not initialized) -1 is returned and @ref errno is set.
  */
-#define IOCTL_SDSPI__INITIALIZE_CARD    IOCTL_STORAGE__INITIALIZE
+#define IOCTL_SDSPI__INITIALIZE_CARD IOCTL_STORAGE__INITIALIZE
 
 /*==============================================================================
   Exported object types
@@ -205,8 +204,8 @@ extern "C" {
  * SDSPI module configuration structure.
  */
 typedef struct {
-        const char *filepath;           /*!< File path to SPI interface. */
-        u32_t       timeout;            /*!< Timeout in milliseconds. */
+        const char *filepath; /*!< File path to SPI interface. */
+        u32_t timeout;        /*!< Timeout in milliseconds. */
 } SDSPI_config_t;
 
 /*==============================================================================

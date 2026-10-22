@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   Memory Block as file representation
 
-        Copyright (C) 2023 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -120,22 +120,22 @@ extern "C" {
  *  @param  [WR] @ref MEMBLOCK_config_t * MEMBLOCK peripheral configuration
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_MEMBLOCK__SET_CONFIGURATION    _IOW(MEMBLOCK, 0x00, const MEMBLOCK_config_t*)
+#define IOCTL_MEMBLOCK__SET_CONFIGURATION _IOW(MEMBLOCK, 0x00, const MEMBLOCK_config_t *)
 
 /**
  *  @brief  Gets MEMBLOCK configuration
  *  @param  [RD] @ref MEMBLOCK_config_t * MEMBLOCK peripheral configuration
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_MEMBLOCK__GET_CONFIGURATION    _IOR(MEMBLOCK, 0x01, MEMBLOCK_config_t*)
+#define IOCTL_MEMBLOCK__GET_CONFIGURATION _IOR(MEMBLOCK, 0x01, MEMBLOCK_config_t *)
 
 /*==============================================================================
   Exported object types
 ==============================================================================*/
 typedef struct {
-        uint32_t memory_address;        /*< Memory address. */
-        uint32_t block_size;            /*< Block size in bytes. */
-        uint32_t access;                /*< Access: O_RDWR, O_RDONLY, O_WRONLY. */
+        uint32_t memory_address; /*< Memory address. */
+        uint32_t block_size;     /*< Block size in bytes. */
+        uint32_t access;         /*< Access: O_RDWR, O_RDONLY, O_WRONLY. */
 } MEMBLOCK_config_t;
 
 /*==============================================================================

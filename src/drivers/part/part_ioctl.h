@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   Partition driver
 
-        Copyright (C) 2021 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -186,10 +186,10 @@ extern "C" {
   Exported object types
 ==============================================================================*/
 typedef struct {
-        const char *path;          /*!< Device path. */
-        u32_t       block_size;    /*!< Block size in bytes. */
-        u32_t       offset_blocks; /*!< Offset in number of blocks. */
-        u32_t       total_blocks;  /*!< Total size in number of blocks. */
+        const char *path;    /*!< Device path. */
+        u32_t block_size;    /*!< Block size in bytes. */
+        u32_t offset_blocks; /*!< Offset in number of blocks. */
+        u32_t total_blocks;  /*!< Total size in number of blocks. */
 } PART_config_t;
 
 /*==============================================================================

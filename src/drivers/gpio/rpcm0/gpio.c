@@ -5,7 +5,7 @@
 
 @brief   GPIO driver.
 
-@note    Copyright (C) 2024  Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026  Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -47,40 +47,38 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define GPIO_CONF(bank, pin_num)                                                                  \
-        .pin            = {.port_idx = IOCTL_GPIO_##bank##_IDX, .pin_idx = pin_num},              \
-        .speed          = (__GPIO_##bank##_PIN_##pin_num##_STRENGTH__ & _GPIO_BIT_SLEW_RATE_FAST) \
-                         ? GPIO_pin_speed__fast                                                   \
-                         : GPIO_pin_speed__slow,                                                  \
-        .mode           = (__GPIO_##bank##_PIN_##pin_num##_MODE__ >> 0) & 0xFF,                   \
-        .pull           = (__GPIO_##bank##_PIN_##pin_num##_MODE__ >> 8) & 0xFF,                   \
-        .mux            = __GPIO_##bank##_PIN_##pin_num##_AF__,                                   \
-        .drive_strength = __GPIO_##bank##_PIN_##pin_num##_STRENGTH__ & _GPOI_BIT_STRENGTH_MASK,   \
-        .schmitt_input  = __GPIO_##bank##_PIN_##pin_num##_SCHMITT__ & 1,                          \
-        .state          = __GPIO_##bank##_PIN_##pin_num##_STATE__ & 1,
+#define GPIO_CONF(bank, pin_num)                                                                                   \
+        .pin = {.port_idx = IOCTL_GPIO_##bank##_IDX, .pin_idx = pin_num},                                          \
+        .speed = (__GPIO_##bank##_PIN_##pin_num##_STRENGTH__ & _GPIO_BIT_SLEW_RATE_FAST) ? GPIO_pin_speed__fast    \
+                                                                                         : GPIO_pin_speed__slow,   \
+        .mode = (__GPIO_##bank##_PIN_##pin_num##_MODE__ >> 0) & 0xFF,                                              \
+        .pull = (__GPIO_##bank##_PIN_##pin_num##_MODE__ >> 8) & 0xFF, .mux = __GPIO_##bank##_PIN_##pin_num##_AF__, \
+        .drive_strength = __GPIO_##bank##_PIN_##pin_num##_STRENGTH__ & _GPOI_BIT_STRENGTH_MASK,                    \
+        .schmitt_input = __GPIO_##bank##_PIN_##pin_num##_SCHMITT__ & 1,                                            \
+        .state = __GPIO_##bank##_PIN_##pin_num##_STATE__ & 1,
 
 /*==============================================================================
   Local types, enums definitions
 ==============================================================================*/
 typedef struct {
-        io_rw_32                      *gpio_oe;
-        io_rw_32                      *gpio_oe_set;
-        io_rw_32                      *gpio_oe_clr;
-        io_rw_32                      *gpio_out;
-        io_rw_32                      *gpio_out_set;
-        io_rw_32                      *gpio_out_clr;
-        io_rw_32                      *gpio_out_togl;
-        const io_rw_32                *gpio_in;
+        io_rw_32 *gpio_oe;
+        io_rw_32 *gpio_oe_set;
+        io_rw_32 *gpio_oe_clr;
+        io_rw_32 *gpio_out;
+        io_rw_32 *gpio_out_set;
+        io_rw_32 *gpio_out_clr;
+        io_rw_32 *gpio_out_togl;
+        const io_rw_32 *gpio_in;
         const GPIO_pin_in_port_conf_t *conf;
-        u32_t                          resets_mask;
-        u32_t                          resets_done_mask;
-        u8_t                           pins_count;
+        u32_t resets_mask;
+        u32_t resets_done_mask;
+        u8_t pins_count;
 } GPIO_HW_t;
 
 typedef struct {
         u32_t OD;
-        u8_t  major;
-        u8_t  minor;
+        u8_t major;
+        u8_t minor;
 } GPIO_hdl_t;
 
 /*==============================================================================
@@ -142,32 +140,32 @@ static const GPIO_pin_in_port_conf_t QSPI_CONF[] = {
 
 static const GPIO_HW_t GPIO_HW[] = {
         {
-                .gpio_oe          = &sio_hw->gpio_oe,
-                .gpio_oe_set      = &sio_hw->gpio_oe_set,
-                .gpio_oe_clr      = &sio_hw->gpio_oe_clr,
-                .gpio_out         = &sio_hw->gpio_out,
-                .gpio_out_set     = &sio_hw->gpio_set,
-                .gpio_out_clr     = &sio_hw->gpio_clr,
-                .gpio_out_togl    = &sio_hw->gpio_togl,
-                .gpio_in          = &sio_hw->gpio_in,
-                .resets_mask      = RESETS_RESET_IO_BANK0_BITS | RESETS_RESET_PADS_BANK0_BITS,
+                .gpio_oe = &sio_hw->gpio_oe,
+                .gpio_oe_set = &sio_hw->gpio_oe_set,
+                .gpio_oe_clr = &sio_hw->gpio_oe_clr,
+                .gpio_out = &sio_hw->gpio_out,
+                .gpio_out_set = &sio_hw->gpio_set,
+                .gpio_out_clr = &sio_hw->gpio_clr,
+                .gpio_out_togl = &sio_hw->gpio_togl,
+                .gpio_in = &sio_hw->gpio_in,
+                .resets_mask = RESETS_RESET_IO_BANK0_BITS | RESETS_RESET_PADS_BANK0_BITS,
                 .resets_done_mask = RESETS_RESET_DONE_IO_BANK0_BITS | RESETS_RESET_DONE_PADS_BANK0_BITS,
-                .conf             = BANK0_CONF,
-                .pins_count       = ARRAY_SIZE(BANK0_CONF),
+                .conf = BANK0_CONF,
+                .pins_count = ARRAY_SIZE(BANK0_CONF),
         },
         {
-                .gpio_oe          = &sio_hw->gpio_hi_oe,
-                .gpio_oe_set      = &sio_hw->gpio_hi_oe_set,
-                .gpio_oe_clr      = &sio_hw->gpio_hi_oe_clr,
-                .gpio_out         = &sio_hw->gpio_hi_out,
-                .gpio_out_set     = &sio_hw->gpio_hi_set,
-                .gpio_out_clr     = &sio_hw->gpio_hi_clr,
-                .gpio_out_togl    = &sio_hw->gpio_hi_togl,
-                .gpio_in          = &sio_hw->gpio_hi_in,
-                .resets_mask      = RESETS_RESET_IO_QSPI_BITS | RESETS_RESET_PADS_QSPI_BITS,
+                .gpio_oe = &sio_hw->gpio_hi_oe,
+                .gpio_oe_set = &sio_hw->gpio_hi_oe_set,
+                .gpio_oe_clr = &sio_hw->gpio_hi_oe_clr,
+                .gpio_out = &sio_hw->gpio_hi_out,
+                .gpio_out_set = &sio_hw->gpio_hi_set,
+                .gpio_out_clr = &sio_hw->gpio_hi_clr,
+                .gpio_out_togl = &sio_hw->gpio_hi_togl,
+                .gpio_in = &sio_hw->gpio_hi_in,
+                .resets_mask = RESETS_RESET_IO_QSPI_BITS | RESETS_RESET_PADS_QSPI_BITS,
                 .resets_done_mask = RESETS_RESET_DONE_IO_QSPI_BITS | RESETS_RESET_DONE_PADS_QSPI_BITS,
-                .conf             = QSPI_CONF,
-                .pins_count       = ARRAY_SIZE(QSPI_CONF),
+                .conf = QSPI_CONF,
+                .pins_count = ARRAY_SIZE(QSPI_CONF),
         },
 };
 
@@ -205,8 +203,8 @@ API_MOD_INIT(GPIO, void **device_handle, u8_t major, u8_t minor, const void *con
         }
 
         GPIO_hdl_t *hdl = *device_handle;
-        hdl->major      = major;
-        hdl->minor      = minor;
+        hdl->major = major;
+        hdl->minor = minor;
 
         SET_BIT(resets_hw->reset, GPIO_HW[hdl->major].resets_mask);
         CLEAR_BIT(resets_hw->reset, GPIO_HW[hdl->major].resets_mask);
@@ -300,8 +298,8 @@ API_MOD_WRITE(GPIO, void *device_handle, const u8_t *src, size_t count, fpos_t *
 
         GPIO_hdl_t *hdl = device_handle;
 
-        size_t       words = count / sizeof(u32_t);
-        const u32_t *out   = cast(typeof(out), src);
+        size_t words = count / sizeof(u32_t);
+        const u32_t *out = cast(typeof(out), src);
 
         while (words) {
                 for (size_t i = 0; i < GPIO_HW[hdl->major].pins_count; i++) {
@@ -336,15 +334,14 @@ API_MOD_WRITE(GPIO, void *device_handle, const u8_t *src, size_t count, fpos_t *
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(GPIO, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt,
-        struct vfs_fattr fattr)
+API_MOD_READ(GPIO, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fpos, fattr);
 
         GPIO_hdl_t *hdl = device_handle;
 
-        size_t          words   = count / sizeof(u32_t);
-        u32_t          *in      = cast(typeof(in), dst);
+        size_t words = count / sizeof(u32_t);
+        u32_t *in = cast(typeof(in), dst);
         const io_rw_32 *gpio_in = (hdl->major == 0) ? &sio_hw->gpio_in : &sio_hw->gpio_hi_in;
 
         while (words) {
@@ -379,19 +376,19 @@ API_MOD_IOCTL(GPIO, void *device_handle, int request, void *arg)
                 switch (request) {
                 case IOCTL_GPIO__SET_PIN: {
                         u8_t pin = *cast(u8_t *, arg);
-                        err      = pin_set(hdl, hdl->major, pin);
+                        err = pin_set(hdl, hdl->major, pin);
                         break;
                 }
 
                 case IOCTL_GPIO__CLEAR_PIN: {
                         u8_t pin = *cast(u8_t *, arg);
-                        err      = pin_clear(hdl, hdl->major, pin);
+                        err = pin_clear(hdl, hdl->major, pin);
                         break;
                 }
 
                 case IOCTL_GPIO__TOGGLE_PIN: {
                         u8_t pin = *cast(u8_t *, arg);
-                        err      = pin_toggle(hdl, hdl->major, pin);
+                        err = pin_toggle(hdl, hdl->major, pin);
                         break;
                 }
 
@@ -497,7 +494,7 @@ API_MOD_STAT(GPIO, void *device_handle, struct vfs_dev_stat *device_stat)
 {
         GPIO_hdl_t *hdl = device_handle;
 
-        device_stat->st_size  = sizeof(GPIO_HW[hdl->major].gpio_out);
+        device_stat->st_size = sizeof(GPIO_HW[hdl->major].gpio_out);
         device_stat->st_major = hdl->major;
         device_stat->st_minor = hdl->minor;
 
@@ -711,11 +708,11 @@ static int pin_set_conf(GPIO_hdl_t *hdl, const GPIO_pin_in_port_conf_t *conf)
         io_rw_32 *gpio_ctrl;
 
         if (hdl->major == 0) {
-                pad_io    = &pads_bank0_hw->io[conf->pin.pin_idx];
+                pad_io = &pads_bank0_hw->io[conf->pin.pin_idx];
                 gpio_ctrl = &io_bank0_hw->io[conf->pin.pin_idx].ctrl;
 
         } else {
-                pad_io    = &pads_qspi_hw->io[conf->pin.pin_idx];
+                pad_io = &pads_qspi_hw->io[conf->pin.pin_idx];
                 gpio_ctrl = &io_qspi_hw->io[conf->pin.pin_idx].ctrl;
         }
 
@@ -724,10 +721,10 @@ static int pin_set_conf(GPIO_hdl_t *hdl, const GPIO_pin_in_port_conf_t *conf)
                 SET_BIT(*pad_io, PADS_BANK0_GPIO0_IE_BITS);
 
                 if (conf->state) {
-                        *GPIO_HW[hdl->major].gpio_oe_clr  = pin_mask;
+                        *GPIO_HW[hdl->major].gpio_oe_clr = pin_mask;
                         *GPIO_HW[hdl->major].gpio_out_set = pin_mask;
                 } else {
-                        *GPIO_HW[hdl->major].gpio_oe_set  = pin_mask;
+                        *GPIO_HW[hdl->major].gpio_oe_set = pin_mask;
                         *GPIO_HW[hdl->major].gpio_out_clr = pin_mask;
                 }
 
@@ -758,8 +755,7 @@ static int pin_set_conf(GPIO_hdl_t *hdl, const GPIO_pin_in_port_conf_t *conf)
         SET_BIT(*pad_io, (conf->drive_strength << PADS_BANK0_GPIO0_DRIVE_LSB) & PADS_BANK0_GPIO0_DRIVE_BITS);
 
         CLEAR_BIT(*pad_io, PADS_BANK0_GPIO0_SCHMITT_BITS);
-        SET_BIT(*pad_io,
-                (conf->schmitt_input << PADS_BANK0_GPIO0_SCHMITT_LSB) & PADS_BANK0_GPIO0_SCHMITT_BITS);
+        SET_BIT(*pad_io, (conf->schmitt_input << PADS_BANK0_GPIO0_SCHMITT_LSB) & PADS_BANK0_GPIO0_SCHMITT_BITS);
 
         if (conf->pull == GPIO_pin_pull_mode__bus_keeper) {
                 SET_BIT(*pad_io, PADS_BANK0_GPIO0_PUE_BITS);
@@ -785,8 +781,7 @@ static int pin_set_conf(GPIO_hdl_t *hdl, const GPIO_pin_in_port_conf_t *conf)
         }
 
         CLEAR_BIT(*gpio_ctrl, IO_BANK0_GPIO0_CTRL_FUNCSEL_BITS);
-        SET_BIT(*gpio_ctrl,
-                (conf->mux << IO_BANK0_GPIO0_CTRL_FUNCSEL_LSB) & IO_BANK0_GPIO0_CTRL_FUNCSEL_BITS);
+        SET_BIT(*gpio_ctrl, (conf->mux << IO_BANK0_GPIO0_CTRL_FUNCSEL_LSB) & IO_BANK0_GPIO0_CTRL_FUNCSEL_BITS);
 
         sys_critical_section_end();
 
@@ -828,11 +823,11 @@ static int pin_get_conf(GPIO_hdl_t *hdl, GPIO_pin_in_port_conf_t *conf)
         io_rw_32 *gpio_ctrl;
 
         if (hdl->major == 0) {
-                pad_io    = &pads_bank0_hw->io[conf->pin.pin_idx];
+                pad_io = &pads_bank0_hw->io[conf->pin.pin_idx];
                 gpio_ctrl = &io_bank0_hw->io[conf->pin.pin_idx].ctrl;
 
         } else {
-                pad_io    = &pads_qspi_hw->io[conf->pin.pin_idx];
+                pad_io = &pads_qspi_hw->io[conf->pin.pin_idx];
                 gpio_ctrl = &io_qspi_hw->io[conf->pin.pin_idx].ctrl;
         }
 
@@ -866,8 +861,8 @@ static int pin_get_conf(GPIO_hdl_t *hdl, GPIO_pin_in_port_conf_t *conf)
         }
 
         conf->drive_strength = ((*pad_io & PADS_BANK0_GPIO0_DRIVE_BITS) >> PADS_BANK0_GPIO0_DRIVE_LSB);
-        conf->schmitt_input  = ((*pad_io & PADS_BANK0_GPIO0_SCHMITT_BITS) >> PADS_BANK0_GPIO0_SCHMITT_LSB);
-        conf->state          = *GPIO_HW[hdl->major].gpio_out & pin_mask;
+        conf->schmitt_input = ((*pad_io & PADS_BANK0_GPIO0_SCHMITT_BITS) >> PADS_BANK0_GPIO0_SCHMITT_LSB);
+        conf->state = *GPIO_HW[hdl->major].gpio_out & pin_mask;
 
         if (*pad_io & PADS_BANK0_GPIO10_SLEWFAST_BITS) {
                 conf->speed = GPIO_pin_speed__fast;

@@ -5,7 +5,7 @@
 
 @brief   WDG driver ioctl request codes.
 
-@note    Copyright (C) 2014 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -120,7 +120,7 @@ extern "C" {
  *
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_WDG__RESET                _IO(WDG, 0x00)
+#define IOCTL_WDG__RESET _IO(WDG, 0x00)
 
 /*==============================================================================
   Exported object types

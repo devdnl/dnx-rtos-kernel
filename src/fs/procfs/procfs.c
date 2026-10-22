@@ -5,7 +5,7 @@
 
 @brief   This file support process file system (procfs)
 
-@note    Copyright (C) 2012-2015 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@
 
 #define FILE_BUFFER 384
 #define PID_STR_LEN 12
-#define LINE_LEN 128
+#define LINE_LEN    128
 
 /*==============================================================================
   Local types, enums definitions

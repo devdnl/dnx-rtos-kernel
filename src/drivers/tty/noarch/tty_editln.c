@@ -5,7 +5,7 @@
 
 @brief   TTY edit line (input line).
 
-@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -263,7 +263,7 @@ void ttyedit_set_value(ttyedit_t *this, const char *str, bool show)
         ttyedit_clear_collected_character(this);
 
         const char *utf8 = str;
-        const char *utf8_end = str;     /* end of accepted characters */
+        const char *utf8_end = str; /* end of accepted characters */
         size_t remaining = strlen(str);
 
         while ((remaining > 0) && (this->length_ucs4 < ARRAY_SIZE(this->buffer_ucs4) - 1)) {

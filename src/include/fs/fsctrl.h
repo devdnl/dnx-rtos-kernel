@@ -5,7 +5,7 @@
 
 @brief   Drivers support.
 
-@note    Copyright (C) 2013 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -46,8 +46,8 @@ extern "C" {
   Exported object types
 ==============================================================================*/
 struct _FS_entry {
-      const char              *FS_name;
-      const struct vfs_FS_itf  FS_if;
+        const char *FS_name;
+        const struct vfs_FS_itf FS_if;
 };
 
 /*==============================================================================
@@ -57,8 +57,8 @@ struct _FS_entry {
 /*==============================================================================
   Exported functions
 ==============================================================================*/
-extern int _mount (const char*, const struct vfs_path*, const struct vfs_path*, const char*);
-extern int _umount(const struct vfs_path*);
+extern int _mount(const char *, const struct vfs_path *, const struct vfs_path *, const char *);
+extern int _umount(const struct vfs_path *);
 
 #ifdef __cplusplus
 }

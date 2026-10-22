@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   SPI EEPROM
 
-        Copyright (C) 2019 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -42,32 +42,32 @@ Brief   SPI EEPROM
   Local object types
 ==============================================================================*/
 typedef struct {
-        kfile_t     *spi_dev;
-        kmtx_t      *mtx;
-        u32_t        memory_size;
-        u16_t        page_size;
+        kfile_t *spi_dev;
+        kmtx_t *mtx;
+        u32_t memory_size;
+        u16_t page_size;
         SPIEE_addr_t addr_size;
-        u32_t        timeout_ms;
-        u8_t         major;
-        u8_t         minor;
+        u32_t timeout_ms;
+        u8_t major;
+        u8_t minor;
 } SPIEE_t;
 
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static int  configure(SPIEE_t *hdl, const SPIEE_config_t *cfg);
+static int configure(SPIEE_t *hdl, const SPIEE_config_t *cfg);
 static void get_address(SPIEE_t *hdl, u32_t pos, u8_t addr[4]);
-static int  wait_for_write_finish(SPIEE_t *hdl);
+static int wait_for_write_finish(SPIEE_t *hdl);
 
 /*==============================================================================
   Local object
 ==============================================================================*/
 MODULE_NAME(SPIEE);
 
-static const u8_t EECMD_READ  = 0x03;
+static const u8_t EECMD_READ = 0x03;
 static const u8_t EECMD_WRITE = 0x02;
-static const u8_t EECMD_WREN  = 0x06;
-static const u8_t EECMD_RDSR  = 0x05;
+static const u8_t EECMD_WREN = 0x06;
+static const u8_t EECMD_RDSR = 0x05;
 
 /*==============================================================================
   Exported object
@@ -134,7 +134,7 @@ API_MOD_RELEASE(SPIEE, void *device_handle)
         int err = sys_mutex_lock(hdl->mtx, 0);
         if (!err) {
                 kmtx_t *mtx = hdl->mtx;
-                hdl->mtx    = 0;
+                hdl->mtx = 0;
                 sys_mutex_unlock(mtx);
                 sys_mutex_destroy(mtx);
 
@@ -196,8 +196,8 @@ API_MOD_CLOSE(SPIEE, void *device_handle, bool force)
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_WRITE(SPIEE, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos,
-        size_t *wrcnt, struct vfs_fattr fattr)
+API_MOD_WRITE(SPIEE, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
@@ -212,45 +212,42 @@ API_MOD_WRITE(SPIEE, void *device_handle, const u8_t *src, size_t count, fpos_t 
                         SPI_transceive_t tcmd;
                         SPI_transceive_t taddr;
                         SPI_transceive_t tdata;
-                        u8_t             addr_buf[4];
+                        u8_t addr_buf[4];
 
                         twren.tx_buffer = &EECMD_WREN;
                         twren.rx_buffer = NULL;
-                        twren.count     = 1;
+                        twren.count = 1;
                         twren.separated = true;
-                        twren.next      = &tcmd;
+                        twren.next = &tcmd;
 
                         tcmd.tx_buffer = &EECMD_WRITE;
                         tcmd.rx_buffer = NULL;
-                        tcmd.count     = 1;
+                        tcmd.count = 1;
                         tcmd.separated = false;
-                        tcmd.next      = &taddr;
+                        tcmd.next = &taddr;
 
                         taddr.tx_buffer = addr_buf;
                         taddr.rx_buffer = NULL;
-                        taddr.count     = hdl->addr_size;
+                        taddr.count = hdl->addr_size;
                         taddr.separated = false;
-                        taddr.next      = &tdata;
+                        taddr.next = &tdata;
 
                         u32_t addr = *fpos;
-                        count      = min(count, hdl->memory_size - *fpos);
+                        count = min(count, hdl->memory_size - *fpos);
 
                         while (!err && count) {
                                 get_address(hdl, addr, addr_buf);
 
-                                size_t pbleft = (((addr / hdl->page_size) + 1) *
-                                                        hdl->page_size) -
-                                        addr;
+                                size_t pbleft = (((addr / hdl->page_size) + 1) * hdl->page_size) - addr;
                                 size_t wrsz = min(count, pbleft);
 
                                 tdata.tx_buffer = src;
                                 tdata.rx_buffer = NULL;
-                                tdata.count     = wrsz;
+                                tdata.count = wrsz;
                                 tdata.separated = false;
-                                tdata.next      = NULL;
+                                tdata.next = NULL;
 
-                                err = sys_ioctl(hdl->spi_dev, IOCTL_SPI__TRANSCEIVE,
-                                        &twren);
+                                err = sys_ioctl(hdl->spi_dev, IOCTL_SPI__TRANSCEIVE, &twren);
                                 if (!err) {
                                         err = wait_for_write_finish(hdl);
                                         if (!err) {
@@ -264,7 +261,7 @@ API_MOD_WRITE(SPIEE, void *device_handle, const u8_t *src, size_t count, fpos_t 
                 } else {
                         dev_dbg(hdl, "write out of range %02Xh", (u32_t)*fpos);
                         *wrcnt = 0;
-                        err    = ESPIPE;
+                        err = ESPIPE;
                 }
 
                 sys_mutex_unlock(hdl->mtx);
@@ -287,8 +284,7 @@ API_MOD_WRITE(SPIEE, void *device_handle, const u8_t *src, size_t count, fpos_t 
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(SPIEE, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
-        size_t *rdcnt, struct vfs_fattr fattr)
+API_MOD_READ(SPIEE, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
@@ -308,21 +304,21 @@ API_MOD_READ(SPIEE, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
 
                         tcmd.tx_buffer = &EECMD_READ;
                         tcmd.rx_buffer = NULL;
-                        tcmd.count     = 1;
+                        tcmd.count = 1;
                         tcmd.separated = false;
-                        tcmd.next      = &taddr;
+                        tcmd.next = &taddr;
 
                         taddr.tx_buffer = addr_buf;
                         taddr.rx_buffer = NULL;
-                        taddr.count     = hdl->addr_size;
+                        taddr.count = hdl->addr_size;
                         taddr.separated = false;
-                        taddr.next      = &tdata;
+                        taddr.next = &tdata;
 
                         tdata.tx_buffer = NULL;
                         tdata.rx_buffer = dst;
-                        tdata.count     = min(count, hdl->memory_size - *fpos);
+                        tdata.count = min(count, hdl->memory_size - *fpos);
                         tdata.separated = false;
-                        tdata.next      = NULL;
+                        tdata.next = NULL;
 
                         err = sys_ioctl(hdl->spi_dev, IOCTL_SPI__TRANSCEIVE, &tcmd);
                         if (!err) {
@@ -332,7 +328,7 @@ API_MOD_READ(SPIEE, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
                 } else {
                         dev_dbg(hdl, "read out of range %02Xh", (u32_t)*fpos);
                         *rdcnt = 0;
-                        err    = ESPIPE;
+                        err = ESPIPE;
                 }
 
                 sys_mutex_unlock(hdl->mtx);
@@ -355,26 +351,24 @@ API_MOD_READ(SPIEE, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
 API_MOD_IOCTL(SPIEE, void *device_handle, int request, void *arg)
 {
         SPIEE_t *hdl = device_handle;
-        int      err = EINVAL;
+        int err = EINVAL;
 
         if (arg) {
-                char           pathbuf[64];
+                char pathbuf[64];
                 SPIEE_config_t cfg;
 
                 switch (request) {
                 case IOCTL_SPIEE__CONFIGURE_STR: {
 
-                        size_t pathlen   = sys_stropt_get_string_copy(arg, "spi_path",
-                                  pathbuf, sizeof(pathbuf));
-                        cfg.spi_path     = pathbuf;
-                        cfg.memory_size  = sys_stropt_get_int(arg, "memory_size", 0);
-                        cfg.page_size    = sys_stropt_get_int(arg, "page_size", 0);
+                        size_t pathlen = sys_stropt_get_string_copy(arg, "spi_path", pathbuf, sizeof(pathbuf));
+                        cfg.spi_path = pathbuf;
+                        cfg.memory_size = sys_stropt_get_int(arg, "memory_size", 0);
+                        cfg.page_size = sys_stropt_get_int(arg, "page_size", 0);
                         cfg.address_size = sys_stropt_get_int(arg, "address_size", 0);
-                        cfg.timeout_ms   = sys_stropt_get_int(arg, "timeout_ms", 1000);
+                        cfg.timeout_ms = sys_stropt_get_int(arg, "timeout_ms", 1000);
 
-                        if ((pathlen == 0) or (cfg.page_size == 0) or
-                                (cfg.memory_size == 0) or (cfg.address_size == 0) or
-                                (cfg.timeout_ms == 0)) {
+                        if ((pathlen == 0) or (cfg.page_size == 0) or (cfg.memory_size == 0) or
+                                (cfg.address_size == 0) or (cfg.timeout_ms == 0)) {
                                 err = EINVAL;
                         } else {
                                 err = configure(hdl, &cfg);
@@ -445,8 +439,7 @@ static int configure(SPIEE_t *hdl, const SPIEE_config_t *cfg)
 {
         int err = sys_mutex_lock(hdl->mtx, MUTEX_TIMEOUT);
         if (!err) {
-                if ((cfg->address_size < SPIEE_ADDR__1_BYTE) ||
-                        (cfg->address_size > SPIEE_ADDR__4_BYTES)) {
+                if ((cfg->address_size < SPIEE_ADDR__1_BYTE) || (cfg->address_size > SPIEE_ADDR__4_BYTES)) {
 
                         dev_dbg(hdl, "incorrect address size!");
                         err = EINVAL;
@@ -460,9 +453,9 @@ static int configure(SPIEE_t *hdl, const SPIEE_config_t *cfg)
                         err = sys_fopen(cfg->spi_path, O_RDWR, 0, &hdl->spi_dev);
                         if (!err) {
                                 hdl->memory_size = cfg->memory_size;
-                                hdl->page_size   = cfg->page_size;
-                                hdl->addr_size   = cfg->address_size;
-                                hdl->timeout_ms  = cfg->timeout_ms;
+                                hdl->page_size = cfg->page_size;
+                                hdl->addr_size = cfg->address_size;
+                                hdl->timeout_ms = cfg->timeout_ms;
                         }
                 }
 
@@ -527,9 +520,9 @@ static int wait_for_write_finish(SPIEE_t *hdl)
         SPI_transceive_t t;
         t.tx_buffer = txbuf;
         t.rx_buffer = rxbuf;
-        t.count     = sizeof(rxbuf);
+        t.count = sizeof(rxbuf);
         t.separated = false;
-        t.next      = NULL;
+        t.next = NULL;
 
         clock_t tref = sys_get_uptime_ms();
 

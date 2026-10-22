@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   SDMMC HAL definitions.
 
-        Copyright (C) 2023 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -59,25 +59,24 @@ extern "C" {
   Exported object types
 ==============================================================================*/
 /**
-  * @brief  DMA handle Structure definition
-  */
-typedef struct __DMA_HandleTypeDef
-{
-  u32_t                      dmad;                                                             /*!< DMA descriptor */
+ * @brief  DMA handle Structure definition
+ */
+typedef struct __DMA_HandleTypeDef {
+        u32_t dmad; /*!< DMA descriptor */
 
-  _DMA_DDI_config_t          Config;                                                           /*!< DMA configuration */
+        _DMA_DDI_config_t Config; /*!< DMA configuration */
 
-  u32_t                      Status;                                                           /*!< Status flags */
+        u32_t Status; /*!< Status flags */
 
-  void                       *Parent;                                                          /*!< Parent object state                    */
+        void *Parent; /*!< Parent object state                    */
 
-  void                       (* XferCpltCallback)( struct __DMA_HandleTypeDef * hdma);         /*!< DMA transfer complete callback         */
+        void (*XferCpltCallback)(struct __DMA_HandleTypeDef *hdma); /*!< DMA transfer complete callback         */
 
-  void                       (* XferErrorCallback)( struct __DMA_HandleTypeDef * hdma);        /*!< DMA transfer error callback            */
+        void (*XferErrorCallback)(struct __DMA_HandleTypeDef *hdma); /*!< DMA transfer error callback            */
 
-  __IO uint32_t              ErrorCode;                                                        /*!< DMA Error code                          */
+        __IO uint32_t ErrorCode; /*!< DMA Error code                          */
 
-}DMA_HandleTypeDef;
+} DMA_HandleTypeDef;
 
 /*==============================================================================
   Exported objects

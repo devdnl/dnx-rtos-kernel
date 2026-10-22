@@ -5,7 +5,7 @@
 
 @brief   This file support UART ioctl request codes.
 
-@note    Copyright (C) 2014 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -102,43 +102,43 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
-#define UART_FEATURE__SINGLE_WIRE               (1 << 0)
-#define UART_FEATURE__HARDWARE_FLOW_CTRL        (1 << 1)
+#define UART_FEATURE__SINGLE_WIRE        (1 << 0)
+#define UART_FEATURE__HARDWARE_FLOW_CTRL (1 << 1)
 
 /**
  *  @brief  Set UART configuration.
  *  @param  [WR] struct @ref UART_config_t * UART peripheral configuration
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_UART__SET_CONFIGURATION           _IOW(UART, 0x00, struct UART_config*)
+#define IOCTL_UART__SET_CONFIGURATION _IOW(UART, 0x00, struct UART_config *)
 
 /**
  *  @brief  Gets UART configuration.
  *  @param  [RD] struct @ref UART_config_t * UART peripheral configuration
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_UART__GET_CONFIGURATION           _IOR(UART, 0x01, struct UART_config*)
+#define IOCTL_UART__GET_CONFIGURATION _IOR(UART, 0x01, struct UART_config *)
 
 /**
  *  @brief  Gets character from UART in non-blocking mode.
  *  @param  [RD] char * read character
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_UART__GET_CHAR_UNBLOCKING         _IOR(UART, 0x02, char*)
+#define IOCTL_UART__GET_CHAR_UNBLOCKING _IOR(UART, 0x02, char *)
 
 /**
  *  @brief  Set RS485 DE pin
  *  @param  [WR] GPIO_pin_in_port_t * pin definition
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_UART__SET_RS485_DE_PIN            _IOW(UART, 0x03, const GPIO_pin_in_port_t*)
+#define IOCTL_UART__SET_RS485_DE_PIN _IOW(UART, 0x03, const GPIO_pin_in_port_t *)
 
 /**
  *  @brief  Set number of LIN break bits
  *  @param  [WR] UART_LIN_break * number of break bits
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_UART__SET_LIN_BREAK_BITS          _IOW(UART, 0x04, const enum UART_LIN_break*)
+#define IOCTL_UART__SET_LIN_BREAK_BITS _IOW(UART, 0x04, const enum UART_LIN_break *)
 
 /*==============================================================================
   Exported object types
@@ -147,47 +147,47 @@ extern "C" {
  * Type represent parity configuration.
  */
 enum UART_parity {
-        UART_PARITY__OFF,                       //!< Parity disabled.
-        UART_PARITY__ODD,                       //!< Odd parity enabled.
-        UART_PARITY__EVEN                       //!< Even parity enabled.
+        UART_PARITY__OFF, //!< Parity disabled.
+        UART_PARITY__ODD, //!< Odd parity enabled.
+        UART_PARITY__EVEN //!< Even parity enabled.
 };
 
 /**
  * Type represent stop bit configuration.
  */
 enum UART_stop_bit {
-        UART_STOP_BIT__1,                       //!< One stop bit.
-        UART_STOP_BIT__2                        //!< Two stop bit.
+        UART_STOP_BIT__1, //!< One stop bit.
+        UART_STOP_BIT__2  //!< Two stop bit.
 };
 
 /**
  * Type represent LIN break mode configuration.
  */
 enum UART_LIN_break {
-        UART_LIN_BREAK__10_BITS,                //!< Break condition 10 bits long.
-        UART_LIN_BREAK__11_BITS                 //!< Break condition 11 bits long.
+        UART_LIN_BREAK__10_BITS, //!< Break condition 10 bits long.
+        UART_LIN_BREAK__11_BITS  //!< Break condition 11 bits long.
 };
 
 /**
  * Type represent UART mode.
  */
 enum UART_mode {
-        UART_MODE__NORMAL,                      //!< Normal UART mode
-        UART_MODE__LIN,                         //!< LIN mode
-        UART_MODE__RS485,                       //!< RS485 mode
+        UART_MODE__NORMAL, //!< Normal UART mode
+        UART_MODE__LIN,    //!< LIN mode
+        UART_MODE__RS485,  //!< RS485 mode
 };
 
 /**
  * Type represent UART configuration.
  */
 typedef struct UART_config {
-        enum UART_mode      mode;               /*!< UART mode.*/
-        enum UART_parity    parity;             /*!< Parity configuration.*/
-        enum UART_stop_bit  stop_bits;          /*!< Stop bits configuration.*/
-        bool                tx_enable;          /*!< Tx channel enable.*/
-        bool                rx_enable;          /*!< Rx channel enable.*/
-        u32_t               baud;               /*!< Baudrate.*/
-        u32_t               features;           /*!< Extra features.*/
+        enum UART_mode mode;          /*!< UART mode.*/
+        enum UART_parity parity;      /*!< Parity configuration.*/
+        enum UART_stop_bit stop_bits; /*!< Stop bits configuration.*/
+        bool tx_enable;               /*!< Tx channel enable.*/
+        bool rx_enable;               /*!< Rx channel enable.*/
+        u32_t baud;                   /*!< Baudrate.*/
+        u32_t features;               /*!< Extra features.*/
 } UART_config_t;
 
 /*==============================================================================

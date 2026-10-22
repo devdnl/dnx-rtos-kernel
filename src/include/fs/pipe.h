@@ -5,7 +5,7 @@
 
 @brief   File support creating of pipies in file systems.
 
-@note    Copyright (C) 2014 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -55,14 +55,14 @@ typedef struct pipe pipe_t;
 /*==============================================================================
   Exported functions
 ==============================================================================*/
-extern int  _pipe_create    (pipe_t**);
-extern int  _pipe_destroy   (pipe_t*);
-extern int  _pipe_get_length(pipe_t*, size_t*);
-extern int  _pipe_read      (pipe_t*, u8_t*, size_t, size_t*, bool);
-extern int  _pipe_write     (pipe_t*, const u8_t*, size_t, size_t*, bool);
-extern int  _pipe_close     (pipe_t*);
-extern int  _pipe_clear     (pipe_t*);
-extern int  _pipe_permanent (pipe_t*);
+extern int _pipe_create(pipe_t **);
+extern int _pipe_destroy(pipe_t *);
+extern int _pipe_get_length(pipe_t *, size_t *);
+extern int _pipe_read(pipe_t *, u8_t *, size_t, size_t *, bool);
+extern int _pipe_write(pipe_t *, const u8_t *, size_t, size_t *, bool);
+extern int _pipe_close(pipe_t *);
+extern int _pipe_clear(pipe_t *);
+extern int _pipe_permanent(pipe_t *);
 
 /*==============================================================================
   Exported inline functions

@@ -5,7 +5,7 @@ Author   Daniel Zorychta
 
 Brief    CANNET Network management.
 
-         Copyright (C) 2021 Daniel Zorychta <daniel.zorychta@gmail.com>
+         Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -74,7 +74,7 @@ Data transfer (datagram, up to MTU)
 ==============================================================================*/
 #define zalloc(_size, _pptr) _kzalloc(_MM_NET, _size, NULL, 0, 0, _pptr)
 #define kalloc(_size, _pptr) _kmalloc(_MM_NET, _size, NULL, 0, 0, _pptr)
-#define zfree(_pptr) _kfree(_MM_NET, _pptr)
+#define zfree(_pptr)         _kfree(_MM_NET, _pptr)
 
 #if __NETWORK_CANNET_DEBUG_ON__ > 0
 #define DEBUG(...) printk("CANNET: "__VA_ARGS__)
@@ -82,9 +82,9 @@ Data transfer (datagram, up to MTU)
 #define DEBUG(...)
 #endif
 
-#define CONNECT_FRAME_FLAG__RESPONSE    (1<<0)
-#define CONNECT_FRAME_FLAG__CONNECTED   (1<<1)
-#define STAT_FRAME_FLAG__RESPONSE       (1<<0)
+#define CONNECT_FRAME_FLAG__RESPONSE  (1 << 0)
+#define CONNECT_FRAME_FLAG__CONNECTED (1 << 1)
+#define STAT_FRAME_FLAG__RESPONSE     (1 << 0)
 
 /*==============================================================================
   Local object types
@@ -103,10 +103,10 @@ typedef enum {
         frame_type__single,
 
         // control frames
-        frame_type__connect,            // connect to host
-        frame_type__disconnect,         // inform about disconnection
-        frame_type__stat,               // transfer statistics (available space, etc)
-        frame_type__ack                 // transfer acknowledge
+        frame_type__connect,    // connect to host
+        frame_type__disconnect, // inform about disconnection
+        frame_type__stat,       // transfer statistics (available space, etc)
+        frame_type__ack         // transfer acknowledge
 } frame_type_t;
 
 /*
@@ -121,27 +121,27 @@ typedef struct PACKED {
         header_t header;
         uint16_t transfer_size;
         uint16_t transfer_crc16;
-        uint8_t  data[3];
+        uint8_t data[3];
 } first_frame_t;
 
 typedef struct PACKED {
         header_t header;
-        uint8_t  data[7];
+        uint8_t data[7];
 } next_frame_t;
 
 typedef struct PACKED {
         header_t header;
-        uint8_t  data[7];       // up to 7 bytes, can be less
+        uint8_t data[7]; // up to 7 bytes, can be less
 } last_frame_t;
 
 typedef struct PACKED {
         header_t header;
-        uint8_t  data[7];       // up to 7 bytes, can be less
+        uint8_t data[7]; // up to 7 bytes, can be less
 } single_frame_t;
 
 typedef struct PACKED {
         header_t header;
-        uint8_t  flags;
+        uint8_t flags;
 } connect_frame_t;
 
 typedef struct PACKED {
@@ -150,13 +150,13 @@ typedef struct PACKED {
 
 typedef struct PACKED {
         header_t header;
-        uint8_t  flags;
+        uint8_t flags;
         uint16_t available;
 } stat_frame_t;
 
 typedef struct PACKED {
         header_t header;
-        uint8_t  flags;
+        uint8_t flags;
 } ack_frame_t;
 
 typedef struct PACKED {
@@ -175,7 +175,7 @@ typedef struct {
 } answer_t;
 
 typedef struct {
-        bool  thread_run;
+        bool thread_run;
         kfile_t *if_file;
         kmtx_t *mutex;
         tid_t if_thread;
@@ -194,7 +194,7 @@ typedef struct {
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static int  input_thread(void *sem);
+static int input_thread(void *sem);
 static void clear_transfer_counters(cannet_t *cannet);
 
 /*==============================================================================
@@ -229,7 +229,8 @@ static int received_first_frame(cannet_t *cannet, CANNET_socket_t *socket, const
 static int received_next_frame(cannet_t *cannet, CANNET_socket_t *socket, const next_frame_t *frame);
 static int received_last_frame(cannet_t *cannet, CANNET_socket_t *socket, const last_frame_t *frame, u8_t len);
 static int received_single_frame(cannet_t *cannet, CANNET_socket_t *socket, const single_frame_t *frame, u8_t len);
-static int received_connect_frame(cannet_t *cannet, CANNET_socket_t *socket, u16_t src_addr, const connect_frame_t *frame);
+static int received_connect_frame(cannet_t *cannet, CANNET_socket_t *socket, u16_t src_addr,
+        const connect_frame_t *frame);
 static int received_disconnect_frame(cannet_t *cannet, CANNET_socket_t *socket, const disconnect_frame_t *frame);
 static int received_stat_frame(cannet_t *cannet, CANNET_socket_t *socket, const stat_frame_t *frame);
 static int received_ack_frame(cannet_t *cannet, CANNET_socket_t *socket, const ack_frame_t *frame);
@@ -237,40 +238,25 @@ static int received_ack_frame(cannet_t *cannet, CANNET_socket_t *socket, const a
 /*==============================================================================
   Local objects
 ==============================================================================*/
-static const uint16_t crc16_ccitt_table[256] = {
-        0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50A5, 0x60C6, 0x70E7,
-        0x8108, 0x9129, 0xA14A, 0xB16B, 0xC18C, 0xD1AD, 0xE1CE, 0xF1EF,
-        0x1231, 0x0210, 0x3273, 0x2252, 0x52B5, 0x4294, 0x72F7, 0x62D6,
-        0x9339, 0x8318, 0xB37B, 0xA35A, 0xD3BD, 0xC39C, 0xF3FF, 0xE3DE,
-        0x2462, 0x3443, 0x0420, 0x1401, 0x64E6, 0x74C7, 0x44A4, 0x5485,
-        0xA56A, 0xB54B, 0x8528, 0x9509, 0xE5EE, 0xF5CF, 0xC5AC, 0xD58D,
-        0x3653, 0x2672, 0x1611, 0x0630, 0x76D7, 0x66F6, 0x5695, 0x46B4,
-        0xB75B, 0xA77A, 0x9719, 0x8738, 0xF7DF, 0xE7FE, 0xD79D, 0xC7BC,
-        0x48C4, 0x58E5, 0x6886, 0x78A7, 0x0840, 0x1861, 0x2802, 0x3823,
-        0xC9CC, 0xD9ED, 0xE98E, 0xF9AF, 0x8948, 0x9969, 0xA90A, 0xB92B,
-        0x5AF5, 0x4AD4, 0x7AB7, 0x6A96, 0x1A71, 0x0A50, 0x3A33, 0x2A12,
-        0xDBFD, 0xCBDC, 0xFBBF, 0xEB9E, 0x9B79, 0x8B58, 0xBB3B, 0xAB1A,
-        0x6CA6, 0x7C87, 0x4CE4, 0x5CC5, 0x2C22, 0x3C03, 0x0C60, 0x1C41,
-        0xEDAE, 0xFD8F, 0xCDEC, 0xDDCD, 0xAD2A, 0xBD0B, 0x8D68, 0x9D49,
-        0x7E97, 0x6EB6, 0x5ED5, 0x4EF4, 0x3E13, 0x2E32, 0x1E51, 0x0E70,
-        0xFF9F, 0xEFBE, 0xDFDD, 0xCFFC, 0xBF1B, 0xAF3A, 0x9F59, 0x8F78,
-        0x9188, 0x81A9, 0xB1CA, 0xA1EB, 0xD10C, 0xC12D, 0xF14E, 0xE16F,
-        0x1080, 0x00A1, 0x30C2, 0x20E3, 0x5004, 0x4025, 0x7046, 0x6067,
-        0x83B9, 0x9398, 0xA3FB, 0xB3DA, 0xC33D, 0xD31C, 0xE37F, 0xF35E,
-        0x02B1, 0x1290, 0x22F3, 0x32D2, 0x4235, 0x5214, 0x6277, 0x7256,
-        0xB5EA, 0xA5CB, 0x95A8, 0x8589, 0xF56E, 0xE54F, 0xD52C, 0xC50D,
-        0x34E2, 0x24C3, 0x14A0, 0x0481, 0x7466, 0x6447, 0x5424, 0x4405,
-        0xA7DB, 0xB7FA, 0x8799, 0x97B8, 0xE75F, 0xF77E, 0xC71D, 0xD73C,
-        0x26D3, 0x36F2, 0x0691, 0x16B0, 0x6657, 0x7676, 0x4615, 0x5634,
-        0xD94C, 0xC96D, 0xF90E, 0xE92F, 0x99C8, 0x89E9, 0xB98A, 0xA9AB,
-        0x5844, 0x4865, 0x7806, 0x6827, 0x18C0, 0x08E1, 0x3882, 0x28A3,
-        0xCB7D, 0xDB5C, 0xEB3F, 0xFB1E, 0x8BF9, 0x9BD8, 0xABBB, 0xBB9A,
-        0x4A75, 0x5A54, 0x6A37, 0x7A16, 0x0AF1, 0x1AD0, 0x2AB3, 0x3A92,
-        0xFD2E, 0xED0F, 0xDD6C, 0xCD4D, 0xBDAA, 0xAD8B, 0x9DE8, 0x8DC9,
-        0x7C26, 0x6C07, 0x5C64, 0x4C45, 0x3CA2, 0x2C83, 0x1CE0, 0x0CC1,
-        0xEF1F, 0xFF3E, 0xCF5D, 0xDF7C, 0xAF9B, 0xBFBA, 0x8FD9, 0x9FF8,
-        0x6E17, 0x7E36, 0x4E55, 0x5E74, 0x2E93, 0x3EB2, 0x0ED1, 0x1EF0
-};
+static const uint16_t crc16_ccitt_table[256] = {0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50A5, 0x60C6, 0x70E7, 0x8108,
+        0x9129, 0xA14A, 0xB16B, 0xC18C, 0xD1AD, 0xE1CE, 0xF1EF, 0x1231, 0x0210, 0x3273, 0x2252, 0x52B5, 0x4294, 0x72F7,
+        0x62D6, 0x9339, 0x8318, 0xB37B, 0xA35A, 0xD3BD, 0xC39C, 0xF3FF, 0xE3DE, 0x2462, 0x3443, 0x0420, 0x1401, 0x64E6,
+        0x74C7, 0x44A4, 0x5485, 0xA56A, 0xB54B, 0x8528, 0x9509, 0xE5EE, 0xF5CF, 0xC5AC, 0xD58D, 0x3653, 0x2672, 0x1611,
+        0x0630, 0x76D7, 0x66F6, 0x5695, 0x46B4, 0xB75B, 0xA77A, 0x9719, 0x8738, 0xF7DF, 0xE7FE, 0xD79D, 0xC7BC, 0x48C4,
+        0x58E5, 0x6886, 0x78A7, 0x0840, 0x1861, 0x2802, 0x3823, 0xC9CC, 0xD9ED, 0xE98E, 0xF9AF, 0x8948, 0x9969, 0xA90A,
+        0xB92B, 0x5AF5, 0x4AD4, 0x7AB7, 0x6A96, 0x1A71, 0x0A50, 0x3A33, 0x2A12, 0xDBFD, 0xCBDC, 0xFBBF, 0xEB9E, 0x9B79,
+        0x8B58, 0xBB3B, 0xAB1A, 0x6CA6, 0x7C87, 0x4CE4, 0x5CC5, 0x2C22, 0x3C03, 0x0C60, 0x1C41, 0xEDAE, 0xFD8F, 0xCDEC,
+        0xDDCD, 0xAD2A, 0xBD0B, 0x8D68, 0x9D49, 0x7E97, 0x6EB6, 0x5ED5, 0x4EF4, 0x3E13, 0x2E32, 0x1E51, 0x0E70, 0xFF9F,
+        0xEFBE, 0xDFDD, 0xCFFC, 0xBF1B, 0xAF3A, 0x9F59, 0x8F78, 0x9188, 0x81A9, 0xB1CA, 0xA1EB, 0xD10C, 0xC12D, 0xF14E,
+        0xE16F, 0x1080, 0x00A1, 0x30C2, 0x20E3, 0x5004, 0x4025, 0x7046, 0x6067, 0x83B9, 0x9398, 0xA3FB, 0xB3DA, 0xC33D,
+        0xD31C, 0xE37F, 0xF35E, 0x02B1, 0x1290, 0x22F3, 0x32D2, 0x4235, 0x5214, 0x6277, 0x7256, 0xB5EA, 0xA5CB, 0x95A8,
+        0x8589, 0xF56E, 0xE54F, 0xD52C, 0xC50D, 0x34E2, 0x24C3, 0x14A0, 0x0481, 0x7466, 0x6447, 0x5424, 0x4405, 0xA7DB,
+        0xB7FA, 0x8799, 0x97B8, 0xE75F, 0xF77E, 0xC71D, 0xD73C, 0x26D3, 0x36F2, 0x0691, 0x16B0, 0x6657, 0x7676, 0x4615,
+        0x5634, 0xD94C, 0xC96D, 0xF90E, 0xE92F, 0x99C8, 0x89E9, 0xB98A, 0xA9AB, 0x5844, 0x4865, 0x7806, 0x6827, 0x18C0,
+        0x08E1, 0x3882, 0x28A3, 0xCB7D, 0xDB5C, 0xEB3F, 0xFB1E, 0x8BF9, 0x9BD8, 0xABBB, 0xBB9A, 0x4A75, 0x5A54, 0x6A37,
+        0x7A16, 0x0AF1, 0x1AD0, 0x2AB3, 0x3A92, 0xFD2E, 0xED0F, 0xDD6C, 0xCD4D, 0xBDAA, 0xAD8B, 0x9DE8, 0x8DC9, 0x7C26,
+        0x6C07, 0x5C64, 0x4C45, 0x3CA2, 0x2C83, 0x1CE0, 0x0CC1, 0xEF1F, 0xFF3E, 0xCF5D, 0xDF7C, 0xAF9B, 0xBFBA, 0x8FD9,
+        0x9FF8, 0x6E17, 0x7E36, 0x4E55, 0x5E74, 0x2E93, 0x3EB2, 0x0ED1, 0x1EF0};
 
 static const uint16_t crc16_ccitt_start = 0xFFFF;
 
@@ -302,8 +288,8 @@ static const u32_t STAT_TIMEOUT_ms = 500;
 //==============================================================================
 static void clear_transfer_counters(cannet_t *cannet)
 {
-        cannet->stats.rx_bytes   = 0;
-        cannet->stats.tx_bytes   = 0;
+        cannet->stats.rx_bytes = 0;
+        cannet->stats.tx_bytes = 0;
         cannet->stats.rx_packets = 0;
         cannet->stats.tx_packets = 0;
 }
@@ -331,8 +317,8 @@ static int input_thread(void *arg)
                 if (!err) {
                         if (cannet->state == NETM_CANNET_STATE__UP) {
 
-                                if (can_frame.extended_ID and (can_frame.data_length >= 1)
-                                   and not can_frame.remote_transmission) {
+                                if (can_frame.extended_ID and (can_frame.data_length >= 1) and
+                                        not can_frame.remote_transmission) {
 
                                         handle_incoming_frame(cannet, &can_frame);
                                 }
@@ -359,14 +345,12 @@ int CANNET_ifinit(void **ctx, const char *if_path)
 
                 cannet->thread_run = true;
 
-                static const _thread_attr_t attr = {
-                        .priority    = _PRIORITY_NORMAL,
+                static const _thread_attr_t attr = {.priority = _PRIORITY_NORMAL,
                         .stack_depth = _STACK_DEPTH_LOW,
-                        .detached    = true
-                };
+                        .detached = true};
 
-                int merr  = sys_mutex_create(KMTX_TYPE_RECURSIVE, &cannet->mutex);
-                int ferr  = sys_fopen(if_path, O_RDWR, 0, &cannet->if_file);
+                int merr = sys_mutex_create(KMTX_TYPE_RECURSIVE, &cannet->mutex);
+                int ferr = sys_fopen(if_path, O_RDWR, 0, &cannet->if_file);
                 int tierr = sys_thread_create(input_thread, &attr, cannet, &cannet->if_thread);
 
                 if (merr or tierr or ferr) {
@@ -510,13 +494,13 @@ int CANNET_ifstatus(void *ctx, NETM_CANNET_status_t *status, size_t status_size)
         cannet_t *cannet = ctx;
 
         if (cannet) {
-                status->MTU        = __NETWORK_CANNET_MAX_SOCKET_BUFFER_LENGTH__;
-                status->addr       = cannet->addr;
+                status->MTU = __NETWORK_CANNET_MAX_SOCKET_BUFFER_LENGTH__;
+                status->addr = cannet->addr;
                 status->rx_packets = cannet->stats.rx_packets;
-                status->rx_bytes   = cannet->stats.rx_bytes;
+                status->rx_bytes = cannet->stats.rx_bytes;
                 status->tx_packets = cannet->stats.tx_packets;
-                status->tx_bytes   = cannet->stats.tx_bytes;
-                status->state      = cannet->state;
+                status->tx_bytes = cannet->stats.tx_bytes;
+                status->state = cannet->state;
 
                 return ESUCC;
         } else {
@@ -537,19 +521,19 @@ int CANNET_socket_create(void *ctx, NETM_socket_type_t type, u8_t prot, CANNET_s
 {
         UNUSED_ARG2(ctx, prot);
 
-        int qerr  = sys_queue_create(1, sizeof(answer_t), &socket->ansq);
+        int qerr = sys_queue_create(1, sizeof(answer_t), &socket->ansq);
         int rberr = cannetbuf__create(&socket->rx_buf, __NETWORK_CANNET_MAX_SOCKET_BUFFER_LENGTH__);
         int aberr = cannetbuf__create(&socket->assembly_buf, __NETWORK_CANNET_MAX_SOCKET_BUFFER_LENGTH__);
-        int err   = ENOMEM;
+        int err = ENOMEM;
 
         if (!qerr and !rberr and !aberr) {
-                socket->type         = type;
-                socket->addr_remote  = UINT16_MAX;
-                socket->port         = UINT8_MAX;
+                socket->type = type;
+                socket->addr_remote = UINT16_MAX;
+                socket->port = UINT8_MAX;
                 socket->recv_timeout = _WAIT_FOREVER_MS;
                 socket->send_timeout = _WAIT_FOREVER_MS;
-                socket->shutdown     = 0;
-                socket->connected    = (type == NETM_SOCKET_TYPE__DATAGRAM);
+                socket->shutdown = 0;
+                socket->connected = (type == NETM_SOCKET_TYPE__DATAGRAM);
                 err = 0;
         } else {
                 sys_queue_destroy(socket->ansq);
@@ -604,10 +588,10 @@ int CANNET_socket_connect(void *ctx, CANNET_socket_t *socket, const NETM_CANNET_
         int err = register_socket(cannet, socket);
         if (!err) {
 
-                for (int try = 1; try <= 3; try++) {
+                for (int try = 1; try <= 3; try ++) {
 
-                        DEBUG("[%u] socket_connect: try %i, socket [%u:%u]", try,
-                              cannet->addr, socket->addr_remote, socket->port);
+                        DEBUG("[%u] socket_connect: try %i, socket [%u:%u]", try, cannet->addr, socket->addr_remote,
+                                socket->port);
 
                         cannetbuf__clear(socket->rx_buf);
 
@@ -618,19 +602,19 @@ int CANNET_socket_connect(void *ctx, CANNET_socket_t *socket, const NETM_CANNET_
                                 if (!err) {
                                         if (get_frame_type(&answer.generic.header) == frame_type__connect) {
 
-                                                if (    (answer.connect.flags & CONNECT_FRAME_FLAG__RESPONSE)
-                                                    and (answer.connect.flags & CONNECT_FRAME_FLAG__CONNECTED) ) {
+                                                if ((answer.connect.flags & CONNECT_FRAME_FLAG__RESPONSE) and
+                                                        (answer.connect.flags & CONNECT_FRAME_FLAG__CONNECTED)) {
 
                                                         socket->connected = true;
 
                                                         DEBUG("[%u] socket_connect: connected, socket [%u:%u]",
-                                                              cannet->addr, socket->addr_remote, socket->port);
+                                                                cannet->addr, socket->addr_remote, socket->port);
 
                                                         err = 0;
 
                                                 } else {
                                                         DEBUG("[%u] socket_connect: refused, socket [%u:%u]",
-                                                              cannet->addr, socket->addr_remote, socket->port);
+                                                                cannet->addr, socket->addr_remote, socket->port);
                                                         err = ECONNREFUSED;
                                                 }
 
@@ -638,13 +622,13 @@ int CANNET_socket_connect(void *ctx, CANNET_socket_t *socket, const NETM_CANNET_
 
                                         } else {
                                                 DEBUG("[%u] socket_connect: invalid reply frame, socket [%u:%u]",
-                                                      cannet->addr, socket->addr_remote, socket->port);
+                                                        cannet->addr, socket->addr_remote, socket->port);
 
                                                 err = ECONNABORTED;
                                         }
                                 } else {
-                                        DEBUG("[%u] socket_connect: timeout, socket [%u:%u]",
-                                              cannet->addr, socket->addr_remote, socket->port);
+                                        DEBUG("[%u] socket_connect: timeout, socket [%u:%u]", cannet->addr,
+                                                socket->addr_remote, socket->port);
                                 }
                         }
                 }
@@ -675,8 +659,7 @@ int CANNET_socket_disconnect(void *ctx, CANNET_socket_t *socket)
                 if (!err) {
                         socket->connected = false;
 
-                        DEBUG("[%u] socket [%u:%u] disconnected",
-                              cannet->addr, socket->addr_remote, socket->port);
+                        DEBUG("[%u] socket [%u:%u] disconnected", cannet->addr, socket->addr_remote, socket->port);
                 }
 
                 unregister_socket(cannet, socket);
@@ -773,9 +756,8 @@ int CANNET_socket_accept(void *ctx, CANNET_socket_t *socket, CANNET_socket_t *ne
                 answer_t answer;
                 err = wait_for_peer_answer(cannet, socket, &answer, CONNECTION_TIMEOUT_ms);
 
-                if (not err
-                    and (get_frame_type(&answer.generic.header) == frame_type__connect)
-                    and (answer.connect.flags == 0) ) {
+                if (not err and (get_frame_type(&answer.generic.header) == frame_type__connect) and
+                        (answer.connect.flags == 0)) {
 
                         err = CANNET_socket_create(cannet, socket->type, 0, new_socket);
                         if (!err) {
@@ -785,8 +767,7 @@ int CANNET_socket_accept(void *ctx, CANNET_socket_t *socket, CANNET_socket_t *ne
 
                                 err = register_socket(cannet, new_socket);
                                 if (!err) {
-                                        u8_t flags = CONNECT_FRAME_FLAG__RESPONSE
-                                                   | CONNECT_FRAME_FLAG__CONNECTED;
+                                        u8_t flags = CONNECT_FRAME_FLAG__RESPONSE | CONNECT_FRAME_FLAG__CONNECTED;
 
                                         err = send_connect_frame(cannet, new_socket, flags);
                                         if (!err) {
@@ -818,12 +799,7 @@ int CANNET_socket_accept(void *ctx, CANNET_socket_t *socket, CANNET_socket_t *ne
  * @return One of @ref errno value.
  */
 //==============================================================================
-int CANNET_socket_recv(void            *ctx,
-                       CANNET_socket_t *socket,
-                       void            *buf,
-                       size_t           len,
-                       NETM_flags_t     flags,
-                       size_t          *recved)
+int CANNET_socket_recv(void *ctx, CANNET_socket_t *socket, void *buf, size_t len, NETM_flags_t flags, size_t *recved)
 {
         NETM_CANNET_sockaddr_t sockaddr;
         return CANNET_socket_recvfrom(ctx, socket, buf, len, flags, &sockaddr, sizeof(sockaddr), recved);
@@ -842,14 +818,8 @@ int CANNET_socket_recv(void            *ctx,
  * @return One of @ref errno value.
  */
 //==============================================================================
-int CANNET_socket_recvfrom(void                  *ctx,
-                           CANNET_socket_t       *socket,
-                           void                  *buf,
-                           size_t                 len,
-                           NETM_flags_t           flags,
-                           NETM_CANNET_sockaddr_t *addr,
-                           size_t                 addr_size,
-                           size_t                *recved)
+int CANNET_socket_recvfrom(void *ctx, CANNET_socket_t *socket, void *buf, size_t len, NETM_flags_t flags,
+        NETM_CANNET_sockaddr_t *addr, size_t addr_size, size_t *recved)
 {
         if (addr_size != sizeof(*addr)) {
                 return EINVAL;
@@ -915,12 +885,8 @@ int CANNET_socket_recvfrom(void                  *ctx,
  * @return One of @ref errno value.
  */
 //==============================================================================
-int CANNET_socket_send(void            *ctx,
-                       CANNET_socket_t *socket,
-                       const void      *buf,
-                       size_t           len,
-                       NETM_flags_t     flags,
-                       size_t          *sent)
+int CANNET_socket_send(void *ctx, CANNET_socket_t *socket, const void *buf, size_t len, NETM_flags_t flags,
+        size_t *sent)
 {
         UNUSED_ARG1(flags);
 
@@ -947,7 +913,7 @@ int CANNET_socket_send(void            *ctx,
         while (len > 0) {
                 size_t chunk_len = 0;
 
-                for (int try = 0; try < 3; try++) {
+                for (int try = 0; try < 3; try ++) {
                         err = send_stat_frame(cannet, socket, 0);
                         if (!err) {
                                 answer_t answer;
@@ -972,7 +938,7 @@ int CANNET_socket_send(void            *ctx,
                         break;
                 }
 
-                for (int try = 0; try < 3; try++) {
+                for (int try = 0; try < 3; try ++) {
                         err = send_payload(cannet, socket, buf, chunk_len);
                         if (!err) {
                                 answer_t answer;
@@ -981,8 +947,8 @@ int CANNET_socket_send(void            *ctx,
                                         if (get_frame_type(&answer.generic.header) == frame_type__ack) {
 
                                                 if (answer.ack.flags == 0) {
-                                                        buf   += chunk_len;
-                                                        len   -= chunk_len;
+                                                        buf += chunk_len;
+                                                        len -= chunk_len;
                                                         *sent += chunk_len;
                                                         err = 0;
                                                         break;
@@ -1016,14 +982,8 @@ int CANNET_socket_send(void            *ctx,
  * @return One of @ref errno value.
  */
 //==============================================================================
-int CANNET_socket_sendto(void                        *ctx,
-                         CANNET_socket_t             *socket,
-                         const void                  *buf,
-                         size_t                       len,
-                         NETM_flags_t                 flags,
-                         const NETM_CANNET_sockaddr_t *to_addr,
-                         size_t                       to_addr_size,
-                         size_t                      *sent)
+int CANNET_socket_sendto(void *ctx, CANNET_socket_t *socket, const void *buf, size_t len, NETM_flags_t flags,
+        const NETM_CANNET_sockaddr_t *to_addr, size_t to_addr_size, size_t *sent)
 {
         UNUSED_ARG1(flags);
 
@@ -1172,8 +1132,7 @@ u16_t CANNET_hton_u16(u16_t value)
 #if _CPUCTL_BYTE_ORDER == _BYTE_ORDER_LITTLE_ENDIAN
         return value;
 #elif _CPUCTL_BYTE_ORDER == _BYTE_ORDER_BIG_ENDIAN
-        return ((value & 0x00FF) << 8)
-             | ((value & 0xFF00) >> 8);
+        return ((value & 0x00FF) << 8) | ((value & 0xFF00) >> 8);
 #else
 #error "Not supported endianness!"
 #endif
@@ -1191,10 +1150,8 @@ u32_t CANNET_hton_u32(u32_t value)
 #if _CPUCTL_BYTE_ORDER == _BYTE_ORDER_LITTLE_ENDIAN
         return value;
 #elif _CPUCTL_BYTE_ORDER == _BYTE_ORDER_BIG_ENDIAN
-        return ((value & 0x000000FFUL) << 24)
-             | ((value & 0x0000FF00UL) << 8)
-             | ((value & 0x00FF0000UL) >> 8)
-             | ((value & 0xFF000000UL) >> 24);
+        return ((value & 0x000000FFUL) << 24) | ((value & 0x0000FF00UL) << 8) | ((value & 0x00FF0000UL) >> 8) |
+                ((value & 0xFF000000UL) >> 24);
 #else
 #error "Not supported endianness!"
 #endif
@@ -1212,14 +1169,10 @@ u64_t CANNET_hton_u64(u64_t value)
 #if _CPUCTL_BYTE_ORDER == _BYTE_ORDER_LITTLE_ENDIAN
         return value;
 #elif _CPUCTL_BYTE_ORDER == _BYTE_ORDER_BIG_ENDIAN
-        return ((value & 0x00000000000000FFULL) << 56)
-             | ((value & 0x000000000000FF00ULL) << 40)
-             | ((value & 0x0000000000FF0000ULL) << 24)
-             | ((value & 0x00000000FF000000ULL) << 8)
-             | ((value & 0x000000FF00000000ULL) >> 8)
-             | ((value & 0x0000FF0000000000ULL) >> 24)
-             | ((value & 0x00FF000000000000ULL) >> 40)
-             | ((value & 0xFF00000000000000ULL) >> 56);
+        return ((value & 0x00000000000000FFULL) << 56) | ((value & 0x000000000000FF00ULL) << 40) |
+                ((value & 0x0000000000FF0000ULL) << 24) | ((value & 0x00000000FF000000ULL) << 8) |
+                ((value & 0x000000FF00000000ULL) >> 8) | ((value & 0x0000FF0000000000ULL) >> 24) |
+                ((value & 0x00FF000000000000ULL) >> 40) | ((value & 0xFF00000000000000ULL) >> 56);
 #else
 #error "Not supported endianness!"
 #endif
@@ -1248,11 +1201,10 @@ static int register_socket(cannet_t *cannet, CANNET_socket_t *socket)
                 // check if socket exist
                 for (size_t i = 0; i < ARRAY_SIZE(cannet->sockets); i++) {
                         CANNET_socket_t *s = cannet->sockets[i];
-                        if (s and (s->addr_remote == socket->addr_remote)
-                              and (s->port == socket->port)) {
+                        if (s and (s->addr_remote == socket->addr_remote) and (s->port == socket->port)) {
 
-                                DEBUG("[%u] unable to register socket [%u:%u] twice",
-                                      cannet->addr, socket->addr_remote, socket->port);
+                                DEBUG("[%u] unable to register socket [%u:%u] twice", cannet->addr, socket->addr_remote,
+                                        socket->port);
 
                                 err = EADDRINUSE;
 
@@ -1266,8 +1218,8 @@ static int register_socket(cannet_t *cannet, CANNET_socket_t *socket)
                                 if (cannet->sockets[i] == NULL) {
                                         cannet->sockets[i] = socket;
 
-                                        DEBUG("[%u] registered socket [%u:%u]",
-                                              cannet->addr, socket->addr_remote, socket->port);
+                                        DEBUG("[%u] registered socket [%u:%u]", cannet->addr, socket->addr_remote,
+                                                socket->port);
 
                                         break;
                                 }
@@ -1300,8 +1252,8 @@ static int unregister_socket(cannet_t *cannet, CANNET_socket_t *socket)
                         if (cannet->sockets[i] == socket) {
                                 cannet->sockets[i] = NULL;
 
-                                DEBUG("[%u] unregistered socket [%u:%u]",
-                                      cannet->addr, socket->addr_remote, socket->port);
+                                DEBUG("[%u] unregistered socket [%u:%u]", cannet->addr, socket->addr_remote,
+                                        socket->port);
 
                                 break;
                         }
@@ -1357,23 +1309,22 @@ static bool is_socket_registered(cannet_t *cannet, CANNET_socket_t *socket)
  * @return One of errno value.
  */
 //==============================================================================
-static int send_payload(cannet_t *cannet, CANNET_socket_t *socket,
-                        const void *payload, uint16_t payload_len)
+static int send_payload(cannet_t *cannet, CANNET_socket_t *socket, const void *payload, uint16_t payload_len)
 {
         int err = EINVAL;
 
-        DEBUG("[%u] sending payload %u bytes by socket [%u:%u]", cannet->addr,
-              payload_len, socket->addr_remote, socket->port);
+        DEBUG("[%u] sending payload %u bytes by socket [%u:%u]", cannet->addr, payload_len, socket->addr_remote,
+                socket->port);
 
         payload_len = payload ? payload_len : 0;
 
-        if (payload_len <= sizeof(((single_frame_t*)NULL)->data)) {
+        if (payload_len <= sizeof(((single_frame_t *)NULL)->data)) {
                 err = send_single_frame(cannet, socket, &payload, &payload_len);
 
         } else {
                 err = send_first_frame(cannet, socket, &payload, &payload_len);
 
-                while (!err and (payload_len > sizeof((last_frame_t*)NULL)->data)) {
+                while (!err and (payload_len > sizeof((last_frame_t *)NULL)->data)) {
                         err = send_next_frame(cannet, socket, &payload, &payload_len);
                 }
 
@@ -1382,8 +1333,7 @@ static int send_payload(cannet_t *cannet, CANNET_socket_t *socket,
                 }
         }
 
-        DEBUG("[%u] sent payload socket [%u:%u] finished: %i",
-              cannet->addr, socket->addr_remote, socket->port, err);
+        DEBUG("[%u] sent payload socket [%u:%u] finished: %i", cannet->addr, socket->addr_remote, socket->port, err);
 
         return err;
 }
@@ -1502,7 +1452,7 @@ static inline void set_header(header_t *header, frame_type_t type, uint8_t port,
 static uint16_t calculate_crc16(const void *buf, uint16_t len, uint16_t crc_in)
 {
         const uint8_t *b = buf;
-        uint16_t   crc16 = crc_in;
+        uint16_t crc16 = crc_in;
 
         while (len-- != 0) {
                 crc16 = crc16_ccitt_table[((crc16 >> 8) ^ *b++) & 0xff] ^ (crc16 << 8);
@@ -1602,8 +1552,7 @@ static int send_can_frame(cannet_t *cannet, CAN_msg_t *can_frame)
  * @return One of errno value.
  */
 //==============================================================================
-static int send_first_frame(cannet_t *cannet, CANNET_socket_t *socket,
-                            const void **payload, u16_t *payload_len)
+static int send_first_frame(cannet_t *cannet, CANNET_socket_t *socket, const void **payload, u16_t *payload_len)
 {
         CAN_msg_t can_frame;
         can_frame.extended_ID = true;
@@ -1615,8 +1564,8 @@ static int send_first_frame(cannet_t *cannet, CANNET_socket_t *socket,
 
         socket->seq_tx = 0;
 
-        DEBUG("[%u]->[%u] first-frame: port:%u seq:%u len:%u", cannet->addr,
-              socket->addr_remote, socket->port, socket->seq_tx, *payload_len);
+        DEBUG("[%u]->[%u] first-frame: port:%u seq:%u len:%u", cannet->addr, socket->addr_remote, socket->port,
+                socket->seq_tx, *payload_len);
 
         set_header(&frame->header, frame_type__first, socket->port, socket->seq_tx++);
 
@@ -1643,8 +1592,7 @@ static int send_first_frame(cannet_t *cannet, CANNET_socket_t *socket,
  * @return One of errno value.
  */
 //==============================================================================
-static int send_next_frame(cannet_t *cannet, CANNET_socket_t *socket,
-                           const void **payload, u16_t *payload_len)
+static int send_next_frame(cannet_t *cannet, CANNET_socket_t *socket, const void **payload, u16_t *payload_len)
 {
         CAN_msg_t can_frame;
         can_frame.extended_ID = true;
@@ -1654,8 +1602,8 @@ static int send_next_frame(cannet_t *cannet, CANNET_socket_t *socket,
 
         next_frame_t *frame = cast(next_frame_t *, can_frame.data);
 
-        DEBUG("[%u]->[%u] next-frame: port:%u seq:%u len:%u", cannet->addr,
-              socket->addr_remote, socket->port, socket->seq_tx, *payload_len);
+        DEBUG("[%u]->[%u] next-frame: port:%u seq:%u len:%u", cannet->addr, socket->addr_remote, socket->port,
+                socket->seq_tx, *payload_len);
 
         set_header(&frame->header, frame_type__next, socket->port, socket->seq_tx++);
 
@@ -1679,8 +1627,7 @@ static int send_next_frame(cannet_t *cannet, CANNET_socket_t *socket,
  * @return One of errno value.
  */
 //==============================================================================
-static int send_last_frame(cannet_t *cannet, CANNET_socket_t *socket,
-                           const void **payload, u16_t *payload_len)
+static int send_last_frame(cannet_t *cannet, CANNET_socket_t *socket, const void **payload, u16_t *payload_len)
 {
         CAN_msg_t can_frame;
         can_frame.extended_ID = true;
@@ -1690,8 +1637,8 @@ static int send_last_frame(cannet_t *cannet, CANNET_socket_t *socket,
 
         last_frame_t *frame = cast(last_frame_t *, can_frame.data);
 
-        DEBUG("[%u]->[%u] last-frame: port:%u seq:%u len:%u", cannet->addr,
-              socket->addr_remote, socket->port, socket->seq_tx, *payload_len);
+        DEBUG("[%u]->[%u] last-frame: port:%u seq:%u len:%u", cannet->addr, socket->addr_remote, socket->port,
+                socket->seq_tx, *payload_len);
 
         set_header(&frame->header, frame_type__last, socket->port, socket->seq_tx++);
 
@@ -1701,7 +1648,6 @@ static int send_last_frame(cannet_t *cannet, CANNET_socket_t *socket,
         *payload_len -= len;
 
         return send_can_frame(cannet, &can_frame);
-
 }
 
 //==============================================================================
@@ -1716,8 +1662,7 @@ static int send_last_frame(cannet_t *cannet, CANNET_socket_t *socket,
  * @return One of errno value.
  */
 //==============================================================================
-static int send_single_frame(cannet_t *cannet, CANNET_socket_t *socket,
-                             const void **payload, u16_t *payload_len)
+static int send_single_frame(cannet_t *cannet, CANNET_socket_t *socket, const void **payload, u16_t *payload_len)
 {
         CAN_msg_t can_frame;
         can_frame.extended_ID = true;
@@ -1729,8 +1674,8 @@ static int send_single_frame(cannet_t *cannet, CANNET_socket_t *socket,
 
         socket->seq_tx = 0;
 
-        DEBUG("[%u]->[%u] single-frame: port:%u seq:%u len:%u", cannet->addr,
-              socket->addr_remote, socket->port, socket->seq_tx, *payload_len);
+        DEBUG("[%u]->[%u] single-frame: port:%u seq:%u len:%u", cannet->addr, socket->addr_remote, socket->port,
+                socket->seq_tx, *payload_len);
 
         set_header(&frame->header, frame_type__single, socket->port, socket->seq_tx);
 
@@ -1755,8 +1700,7 @@ static int send_single_frame(cannet_t *cannet, CANNET_socket_t *socket,
 //==============================================================================
 static int send_connect_frame(cannet_t *cannet, CANNET_socket_t *socket, u8_t flags)
 {
-        DEBUG("[%u]->[%u] connect-frame: port:%u flags:%02Xh", cannet->addr,
-              socket->addr_remote, socket->port, flags);
+        DEBUG("[%u]->[%u] connect-frame: port:%u flags:%02Xh", cannet->addr, socket->addr_remote, socket->port, flags);
 
         CAN_msg_t can_frame;
         can_frame.extended_ID = true;
@@ -1787,8 +1731,7 @@ static int send_connect_frame(cannet_t *cannet, CANNET_socket_t *socket, u8_t fl
 //==============================================================================
 static int send_disconnect_frame(cannet_t *cannet, CANNET_socket_t *socket)
 {
-        DEBUG("[%u]->[%u] disconnect-frame: port:%u", cannet->addr,
-              socket->addr_remote, socket->port);
+        DEBUG("[%u]->[%u] disconnect-frame: port:%u", cannet->addr, socket->addr_remote, socket->port);
 
         CAN_msg_t can_frame;
         can_frame.extended_ID = true;
@@ -1820,8 +1763,8 @@ static int send_stat_frame(cannet_t *cannet, CANNET_socket_t *socket, u8_t flags
         size_t available = 0;
         cannetbuf__get_available(socket->rx_buf, &available);
 
-        DEBUG("[%u]->[%u] stat-frame: port:%u flags:%02Xh avail:%u", cannet->addr,
-              socket->addr_remote, socket->port, flags, available);
+        DEBUG("[%u]->[%u] stat-frame: port:%u flags:%02Xh avail:%u", cannet->addr, socket->addr_remote, socket->port,
+                flags, available);
 
         CAN_msg_t can_frame;
         can_frame.extended_ID = true;
@@ -1854,8 +1797,7 @@ static int send_stat_frame(cannet_t *cannet, CANNET_socket_t *socket, u8_t flags
 //==============================================================================
 static int send_ack_frame(cannet_t *cannet, CANNET_socket_t *socket, u8_t flags)
 {
-        DEBUG("[%u]->[%u] ack-frame: port:%u flags:%02Xh", cannet->addr,
-              socket->addr_remote, socket->port, flags);
+        DEBUG("[%u]->[%u] ack-frame: port:%u flags:%02Xh", cannet->addr, socket->addr_remote, socket->port, flags);
 
         CAN_msg_t can_frame;
         can_frame.extended_ID = true;
@@ -1890,8 +1832,8 @@ static int wait_for_peer_answer(cannet_t *cannet, CANNET_socket_t *socket, answe
 
         int err = sys_queue_receive(socket->ansq, answer, timeout);
 
-        DEBUG("[%u] answer receive for socket [%u:%u] %s (%d)",
-              cannet->addr, socket->addr_remote, socket->port, err ? "fail" : "success", err);
+        DEBUG("[%u] answer receive for socket [%u:%u] %s (%d)", cannet->addr, socket->addr_remote, socket->port,
+                err ? "fail" : "success", err);
 
         return err;
 }
@@ -1913,18 +1855,18 @@ static void handle_incoming_frame(cannet_t *cannet, CAN_msg_t *can_frame)
         cannet->stats.rx_packets++;
         cannet->stats.rx_bytes += can_frame->data_length;
 
-        u16_t dst_addr  = get_destination_address(can_frame->ID);
-        u16_t src_addr  = get_source_address(can_frame->ID);
-        bool  broadcast = (dst_addr == NETM_CANNET_ADDR_BROADCAST);
+        u16_t dst_addr = get_destination_address(can_frame->ID);
+        u16_t src_addr = get_source_address(can_frame->ID);
+        bool broadcast = (dst_addr == NETM_CANNET_ADDR_BROADCAST);
 
         if ((dst_addr == cannet->addr) or broadcast) {
 
-                generic_frame_t *generic = cast(generic_frame_t*, can_frame->data);
+                generic_frame_t *generic = cast(generic_frame_t *, can_frame->data);
 
                 frame_type_t type = get_frame_type(&generic->header);
-                u8_t  port        = get_frame_port(&generic->header);
+                u8_t port = get_frame_port(&generic->header);
 
-                #if __NETWORK_CANNET_DEBUG_ON__
+#if __NETWORK_CANNET_DEBUG_ON__
                 static const char *frame[] = {
                         "first-frame",
                         "next-frame",
@@ -1935,12 +1877,10 @@ static void handle_incoming_frame(cannet_t *cannet, CAN_msg_t *can_frame)
                         "stat-frame",
                         "ack-frame",
                 };
-                #endif
+#endif
 
-                DEBUG("[%u]<-[%u] port:%u seq:%u type:%s",
-                      cannet->addr, src_addr, get_frame_port(&generic->header),
-                      get_frame_sequence(&generic->header), frame[type]);
-
+                DEBUG("[%u]<-[%u] port:%u seq:%u type:%s", cannet->addr, src_addr, get_frame_port(&generic->header),
+                        get_frame_sequence(&generic->header), frame[type]);
 
                 CANNET_socket_t *socket = NULL;
 
@@ -1962,47 +1902,58 @@ static void handle_incoming_frame(cannet_t *cannet, CAN_msg_t *can_frame)
                         }
                 }
 
-
                 if (socket) {
                         if (broadcast and (socket->type == NETM_SOCKET_TYPE__STREAM)) {
-                                DEBUG("[%u] broadcast is not allowed in stream mode, socket [%u:%u]",
-                                      cannet->addr, src_addr, port);
+                                DEBUG("[%u] broadcast is not allowed in stream mode, socket [%u:%u]", cannet->addr,
+                                        src_addr, port);
 
                         } else {
                                 socket->datagram_source = src_addr;
 
                                 if (socket->connected) {
-                                        if ((can_frame->data_length == sizeof(first_frame_t)) && (type == frame_type__first)) {
-                                                received_first_frame(cannet, socket, (first_frame_t*)generic);
+                                        if ((can_frame->data_length == sizeof(first_frame_t)) &&
+                                                (type == frame_type__first)) {
+                                                received_first_frame(cannet, socket, (first_frame_t *)generic);
 
-                                        } else if ((can_frame->data_length == sizeof(next_frame_t)) && (type == frame_type__next)) {
-                                                received_next_frame(cannet, socket, (next_frame_t*)generic);
+                                        } else if ((can_frame->data_length == sizeof(next_frame_t)) &&
+                                                (type == frame_type__next)) {
+                                                received_next_frame(cannet, socket, (next_frame_t *)generic);
 
                                         } else if ((can_frame->data_length >= 2) && (type == frame_type__last)) {
-                                                received_last_frame(cannet, socket, (last_frame_t*)generic, can_frame->data_length - 1);
+                                                received_last_frame(cannet, socket, (last_frame_t *)generic,
+                                                        can_frame->data_length - 1);
 
                                         } else if ((can_frame->data_length >= 1) && (type == frame_type__single)) {
-                                                received_single_frame(cannet, socket, (single_frame_t*)generic, can_frame->data_length - 1);
+                                                received_single_frame(cannet, socket, (single_frame_t *)generic,
+                                                        can_frame->data_length - 1);
 
-                                        } else if ((can_frame->data_length == sizeof(disconnect_frame_t)) && (type == frame_type__disconnect) ) {
-                                                received_disconnect_frame(cannet, socket, (disconnect_frame_t*)generic);
+                                        } else if ((can_frame->data_length == sizeof(disconnect_frame_t)) &&
+                                                (type == frame_type__disconnect)) {
+                                                received_disconnect_frame(cannet, socket,
+                                                        (disconnect_frame_t *)generic);
 
-                                        } else if ((can_frame->data_length == sizeof(ack_frame_t)) && (type == frame_type__ack) ) {
-                                                received_ack_frame(cannet, socket, (ack_frame_t*)generic);
+                                        } else if ((can_frame->data_length == sizeof(ack_frame_t)) &&
+                                                (type == frame_type__ack)) {
+                                                received_ack_frame(cannet, socket, (ack_frame_t *)generic);
 
-                                        } else if ((can_frame->data_length == sizeof(stat_frame_t)) && (type == frame_type__stat) ) {
-                                                received_stat_frame(cannet, socket, (stat_frame_t*)generic);
+                                        } else if ((can_frame->data_length == sizeof(stat_frame_t)) &&
+                                                (type == frame_type__stat)) {
+                                                received_stat_frame(cannet, socket, (stat_frame_t *)generic);
 
-                                        } else if ((can_frame->data_length == sizeof(connect_frame_t)) && (type == frame_type__connect) ) {
+                                        } else if ((can_frame->data_length == sizeof(connect_frame_t)) &&
+                                                (type == frame_type__connect)) {
                                                 DEBUG("[%u] reconnect request", cannet->addr);
-                                                received_connect_frame(cannet, socket, src_addr, (connect_frame_t*)generic);
+                                                received_connect_frame(cannet, socket, src_addr,
+                                                        (connect_frame_t *)generic);
 
                                         } else {
                                                 DEBUG("[%u] received incorrect frame", cannet->addr);
                                         }
                                 } else {
-                                        if ((can_frame->data_length == sizeof(connect_frame_t)) && (type == frame_type__connect) ) {
-                                                received_connect_frame(cannet, socket, src_addr, (connect_frame_t*)generic);
+                                        if ((can_frame->data_length == sizeof(connect_frame_t)) &&
+                                                (type == frame_type__connect)) {
+                                                received_connect_frame(cannet, socket, src_addr,
+                                                        (connect_frame_t *)generic);
                                         }
                                 }
                         }
@@ -2030,8 +1981,8 @@ static int received_first_frame(cannet_t *cannet, CANNET_socket_t *socket, const
         UNUSED_ARG1(cannet);
 
         if (get_frame_sequence(&frame->header) != 0) {
-                DEBUG("[%u] incorrect frame sequence %u expected %u",
-                      cannet->addr, get_frame_sequence(&frame->header), 0);
+                DEBUG("[%u] incorrect frame sequence %u expected %u", cannet->addr, get_frame_sequence(&frame->header),
+                        0);
                 return EILSEQ;
         }
 
@@ -2067,8 +2018,8 @@ static int received_next_frame(cannet_t *cannet, CANNET_socket_t *socket, const 
         UNUSED_ARG1(cannet);
 
         if (get_frame_sequence(&frame->header) != socket->seq_rx) {
-                DEBUG("[%u] incorrect frame sequence %u expected %u",
-                      cannet->addr, get_frame_sequence(&frame->header), socket->seq_rx);
+                DEBUG("[%u] incorrect frame sequence %u expected %u", cannet->addr, get_frame_sequence(&frame->header),
+                        socket->seq_rx);
                 return EILSEQ;
         }
 
@@ -2101,8 +2052,8 @@ static int received_next_frame(cannet_t *cannet, CANNET_socket_t *socket, const 
 static int received_last_frame(cannet_t *cannet, CANNET_socket_t *socket, const last_frame_t *frame, u8_t len)
 {
         if (get_frame_sequence(&frame->header) != socket->seq_rx) {
-                DEBUG("[%u] incorrect frame sequence %u expected %u",
-                      cannet->addr, get_frame_sequence(&frame->header), socket->seq_rx);
+                DEBUG("[%u] incorrect frame sequence %u expected %u", cannet->addr, get_frame_sequence(&frame->header),
+                        socket->seq_rx);
                 return EILSEQ;
         }
 
@@ -2151,8 +2102,8 @@ static int received_last_frame(cannet_t *cannet, CANNET_socket_t *socket, const 
 static int received_single_frame(cannet_t *cannet, CANNET_socket_t *socket, const single_frame_t *frame, u8_t len)
 {
         if (get_frame_sequence(&frame->header) != 0) {
-                DEBUG("[%u] incorrect frame sequence %u expected %u",
-                      cannet->addr, get_frame_sequence(&frame->header), 0);
+                DEBUG("[%u] incorrect frame sequence %u expected %u", cannet->addr, get_frame_sequence(&frame->header),
+                        0);
                 return EILSEQ;
         }
 
@@ -2184,11 +2135,12 @@ static int received_single_frame(cannet_t *cannet, CANNET_socket_t *socket, cons
  * @return One of errno value.
  */
 //==============================================================================
-static int received_connect_frame(cannet_t *cannet, CANNET_socket_t *socket, u16_t src_addr, const connect_frame_t *frame)
+static int received_connect_frame(cannet_t *cannet, CANNET_socket_t *socket, u16_t src_addr,
+        const connect_frame_t *frame)
 {
         if (get_frame_sequence(&frame->header) != 0) {
-                DEBUG("[%u] incorrect frame sequence %u expected %u",
-                      cannet->addr, get_frame_sequence(&frame->header), 0);
+                DEBUG("[%u] incorrect frame sequence %u expected %u", cannet->addr, get_frame_sequence(&frame->header),
+                        0);
                 return EILSEQ;
         }
 
@@ -2239,8 +2191,8 @@ static int received_disconnect_frame(cannet_t *cannet, CANNET_socket_t *socket, 
         UNUSED_ARG1(cannet);
 
         if (get_frame_sequence(&frame->header) != 0) {
-                DEBUG("[%u] incorrect frame sequence %u expected %u",
-                      cannet->addr, get_frame_sequence(&frame->header), 0);
+                DEBUG("[%u] incorrect frame sequence %u expected %u", cannet->addr, get_frame_sequence(&frame->header),
+                        0);
                 return EILSEQ;
         }
 
@@ -2270,8 +2222,8 @@ static int received_disconnect_frame(cannet_t *cannet, CANNET_socket_t *socket, 
 static int received_stat_frame(cannet_t *cannet, CANNET_socket_t *socket, const stat_frame_t *frame)
 {
         if (get_frame_sequence(&frame->header) != 0) {
-                DEBUG("[%u] incorrect frame sequence %u expected %u",
-                      cannet->addr, get_frame_sequence(&frame->header), 0);
+                DEBUG("[%u] incorrect frame sequence %u expected %u", cannet->addr, get_frame_sequence(&frame->header),
+                        0);
                 return EILSEQ;
         }
 
@@ -2308,8 +2260,8 @@ static int received_ack_frame(cannet_t *cannet, CANNET_socket_t *socket, const a
         UNUSED_ARG1(cannet);
 
         if (get_frame_sequence(&frame->header) != 0) {
-                DEBUG("[%u] incorrect frame sequence %u expected %u",
-                      cannet->addr, get_frame_sequence(&frame->header), 0);
+                DEBUG("[%u] incorrect frame sequence %u expected %u", cannet->addr, get_frame_sequence(&frame->header),
+                        0);
                 return EILSEQ;
         }
 

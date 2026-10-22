@@ -5,7 +5,7 @@ Author   Daniel Zorychta
 
 Brief    Unix Domain Socket Network management.
 
-         Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
+         Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -39,11 +39,9 @@ Brief    Unix Domain Socket Network management.
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define zalloc(_size, _pptr) \
-        _kzalloc(_MM_NET, _size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, _pptr)
+#define zalloc(_size, _pptr) _kzalloc(_MM_NET, _size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, _pptr)
 
-#define kalloc(_size, _pptr) \
-        _kmalloc(_MM_NET, _size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, _pptr)
+#define kalloc(_size, _pptr) _kmalloc(_MM_NET, _size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, _pptr)
 
 #define zfree(_pptr) _kfree(_MM_NET, _pptr)
 
@@ -62,13 +60,13 @@ Brief    Unix Domain Socket Network management.
 ==============================================================================*/
 typedef struct {
         size_t len;
-        char  *from;
-        u8_t  *data;
+        char *from;
+        u8_t *data;
 } datagram_t;
 
 typedef struct {
         struct {
-                kmtx_t  *mutex;
+                kmtx_t *mutex;
                 llist_t *list;
         } socket;
 
@@ -93,14 +91,13 @@ static int socket_register(uds_t *uds, UDS_socket_t *socket);
 static int socket_unregister(uds_t *uds, UDS_socket_t *socket);
 static int buffer_create(uds_t *uds, UDS_socket_t *socket);
 static int buffer_reset(uds_t *uds, UDS_socket_t *socket);
-static int buffer_datagram_receive(uds_t *uds, UDS_socket_t *socket, void *buf,
-        size_t len, NETM_UDS_sockaddr_t *addr, size_t *recved);
-static int buffer_datagram_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buffer,
-        const void *data, size_t len, size_t *sent);
-static int buffer_stream_receive(uds_t *uds, UDS_socket_t *socket, void *buf, size_t len,
+static int buffer_datagram_receive(uds_t *uds, UDS_socket_t *socket, void *buf, size_t len, NETM_UDS_sockaddr_t *addr,
         size_t *recved);
-static int buffer_stream_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buffer,
-        const void *buf, size_t len, size_t *sent);
+static int buffer_datagram_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buffer, const void *data, size_t len,
+        size_t *sent);
+static int buffer_stream_receive(uds_t *uds, UDS_socket_t *socket, void *buf, size_t len, size_t *recved);
+static int buffer_stream_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buffer, const void *buf, size_t len,
+        size_t *sent);
 
 /*==============================================================================
   Local objects
@@ -143,8 +140,7 @@ int UDS_ifinit(void **ctx, const char *if_path)
                 return err;
         }
 
-        err = _llist_create_krn(_MM_NET, sys_llist_functor_cmp_pointers, NULL,
-                &uds->socket.list);
+        err = _llist_create_krn(_MM_NET, sys_llist_functor_cmp_pointers, NULL, &uds->socket.list);
         if (err) {
                 UDS_ifdeinit(*ctx);
                 return err;
@@ -228,10 +224,10 @@ int UDS_ifstatus(void *ctx, NETM_UDS_status_t *status, size_t status_size)
 
         if (uds) {
                 status->rx_packets = uds->stats.rx_packets;
-                status->rx_bytes   = uds->stats.rx_bytes;
+                status->rx_bytes = uds->stats.rx_bytes;
                 status->tx_packets = uds->stats.tx_packets;
-                status->tx_bytes   = uds->stats.tx_bytes;
-                status->state      = uds->state;
+                status->tx_bytes = uds->stats.tx_bytes;
+                status->state = uds->state;
 
                 return ESUCC;
         } else {
@@ -254,15 +250,15 @@ int UDS_socket_create(void *ctx, NETM_socket_type_t type, u8_t prot, UDS_socket_
 
         uds_t *uds = ctx;
 
-        socket->path         = NULL;
-        socket->type         = type;
+        socket->path = NULL;
+        socket->type = type;
         socket->recv_timeout = _WAIT_FOREVER_MS;
         socket->send_timeout = _WAIT_FOREVER_MS;
-        socket->buf          = NULL;
-        socket->shutdown     = 0;
-        socket->conn_req     = NULL;
-        socket->conn_sock    = NULL;
-        socket->connected    = false;
+        socket->buf = NULL;
+        socket->shutdown = 0;
+        socket->conn_req = NULL;
+        socket->conn_sock = NULL;
+        socket->connected = false;
 
         return socket_register(uds, socket);
 }
@@ -308,8 +304,7 @@ int UDS_socket_destroy(void *ctx, UDS_socket_t *socket)
  * @return One of @ref errno value.
  */
 //==============================================================================
-int UDS_socket_connect(void *ctx, UDS_socket_t *socket, const NETM_UDS_sockaddr_t *addr,
-        size_t addr_size)
+int UDS_socket_connect(void *ctx, UDS_socket_t *socket, const NETM_UDS_sockaddr_t *addr, size_t addr_size)
 {
         uds_t *uds = ctx;
 
@@ -332,8 +327,7 @@ int UDS_socket_connect(void *ctx, UDS_socket_t *socket, const NETM_UDS_sockaddr_
 
                 sys_llist_foreach (UDS_socket_t *, s, uds->socket.list) {
                         if (s->path and s->conn_req and isstreq(s->path, addr->path)) {
-                                err = sys_queue_send(s->conn_req, &socket,
-                                        socket->recv_timeout);
+                                err = sys_queue_send(s->conn_req, &socket, socket->recv_timeout);
                                 break;
                         }
                 }
@@ -380,7 +374,7 @@ int UDS_socket_disconnect(void *ctx, UDS_socket_t *socket)
         }
 
         socket->conn_sock->connected = false;
-        socket->connected            = false;
+        socket->connected = false;
 
         return 0;
 }
@@ -411,8 +405,7 @@ int UDS_socket_shutdown(void *ctx, UDS_socket_t *socket, NETM_shut_t how)
  * @return One of @ref errno value.
  */
 //==============================================================================
-int UDS_socket_bind(void *ctx, UDS_socket_t *socket, const NETM_UDS_sockaddr_t *addr,
-        size_t addr_size)
+int UDS_socket_bind(void *ctx, UDS_socket_t *socket, const NETM_UDS_sockaddr_t *addr, size_t addr_size)
 {
         uds_t *uds = ctx;
 
@@ -543,8 +536,7 @@ int UDS_socket_accept(void *ctx, UDS_socket_t *socket, UDS_socket_t *new_socket)
  * @return One of @ref errno value.
  */
 //==============================================================================
-int UDS_socket_recv(void *ctx, UDS_socket_t *socket, void *buf, size_t len,
-        NETM_flags_t flags, size_t *recved)
+int UDS_socket_recv(void *ctx, UDS_socket_t *socket, void *buf, size_t len, NETM_flags_t flags, size_t *recved)
 {
         uds_t *uds = ctx;
 
@@ -592,8 +584,8 @@ int UDS_socket_recv(void *ctx, UDS_socket_t *socket, void *buf, size_t len,
  * @return One of @ref errno value.
  */
 //==============================================================================
-int UDS_socket_recvfrom(void *ctx, UDS_socket_t *socket, void *buf, size_t len,
-        NETM_flags_t flags, NETM_UDS_sockaddr_t *addr, size_t addr_size, size_t *recved)
+int UDS_socket_recvfrom(void *ctx, UDS_socket_t *socket, void *buf, size_t len, NETM_flags_t flags,
+        NETM_UDS_sockaddr_t *addr, size_t addr_size, size_t *recved)
 {
         uds_t *uds = ctx;
 
@@ -636,8 +628,7 @@ int UDS_socket_recvfrom(void *ctx, UDS_socket_t *socket, void *buf, size_t len,
  * @return One of @ref errno value.
  */
 //==============================================================================
-int UDS_socket_send(void *ctx, UDS_socket_t *socket, const void *buf, size_t len,
-        NETM_flags_t flags, size_t *sent)
+int UDS_socket_send(void *ctx, UDS_socket_t *socket, const void *buf, size_t len, NETM_flags_t flags, size_t *sent)
 {
         UNUSED_ARG1(flags);
 
@@ -658,12 +649,10 @@ int UDS_socket_send(void *ctx, UDS_socket_t *socket, const void *buf, size_t len
         int err = EINVAL;
 
         if (socket->type == NETM_SOCKET_TYPE__STREAM) {
-                err = buffer_stream_send(uds, socket, socket->conn_sock->buf, buf, len,
-                        sent);
+                err = buffer_stream_send(uds, socket, socket->conn_sock->buf, buf, len, sent);
 
         } else if (socket->type == NETM_SOCKET_TYPE__DATAGRAM) {
-                err = buffer_datagram_send(uds, socket, socket->conn_sock->buf, buf, len,
-                        sent);
+                err = buffer_datagram_send(uds, socket, socket->conn_sock->buf, buf, len, sent);
         }
 
         uds->stats.tx_bytes += *sent;
@@ -685,9 +674,8 @@ int UDS_socket_send(void *ctx, UDS_socket_t *socket, const void *buf, size_t len
  * @return One of @ref errno value.
  */
 //==============================================================================
-int UDS_socket_sendto(void *ctx, UDS_socket_t *socket, const void *buf, size_t len,
-        NETM_flags_t flags, const NETM_UDS_sockaddr_t *to_addr, size_t to_addr_size,
-        size_t *sent)
+int UDS_socket_sendto(void *ctx, UDS_socket_t *socket, const void *buf, size_t len, NETM_flags_t flags,
+        const NETM_UDS_sockaddr_t *to_addr, size_t to_addr_size, size_t *sent)
 {
         UNUSED_ARG1(flags);
 
@@ -718,7 +706,7 @@ int UDS_socket_sendto(void *ctx, UDS_socket_t *socket, const void *buf, size_t l
                 sys_llist_foreach (UDS_socket_t *, s, uds->socket.list) {
                         if (s->path and isstreq(s->path, to_addr->path)) {
                                 to_socket = s;
-                                err       = 0;
+                                err = 0;
                                 break;
                         }
                 }
@@ -751,8 +739,7 @@ int UDS_socket_sendto(void *ctx, UDS_socket_t *socket, const void *buf, size_t l
  * @return One of @ref errno value.
  */
 //==============================================================================
-int UDS_gethostbyname(void *ctx, const char *name, NETM_UDS_sockaddr_t *addr,
-        size_t addr_size)
+int UDS_gethostbyname(void *ctx, const char *name, NETM_UDS_sockaddr_t *addr, size_t addr_size)
 {
         UNUSED_ARG4(ctx, name, addr, addr_size);
 
@@ -836,8 +823,7 @@ int UDS_socket_get_send_timeout(void *ctx, UDS_socket_t *socket, uint32_t *timeo
  * @return One of @ref errno value.
  */
 //==============================================================================
-int UDS_socket_getaddress(void *ctx, UDS_socket_t *socket, NETM_UDS_sockaddr_t *addr,
-        size_t addr_size)
+int UDS_socket_getaddress(void *ctx, UDS_socket_t *socket, NETM_UDS_sockaddr_t *addr, size_t addr_size)
 {
         UNUSED_ARG1(ctx);
 
@@ -966,8 +952,8 @@ static int buffer_create(uds_t *uds, UDS_socket_t *socket)
         int err = 0;
 
         if (not socket->buf) {
-                bool   stream    = (socket->type == NETM_SOCKET_TYPE__STREAM);
-                size_t items     = stream ? STREAM_BUF_SIZE : MAX_DATAGRAM_BUFFERS;
+                bool stream = (socket->type == NETM_SOCKET_TYPE__STREAM);
+                size_t items = stream ? STREAM_BUF_SIZE : MAX_DATAGRAM_BUFFERS;
                 size_t item_size = stream ? 1 : sizeof(datagram_t);
 
                 err = sys_queue_create(items, item_size, &socket->buf);
@@ -1026,8 +1012,8 @@ static int buffer_reset(uds_t *uds, UDS_socket_t *socket)
  * @return On success 0 is returned.
  */
 //==============================================================================
-static int buffer_datagram_receive(uds_t *uds, UDS_socket_t *socket, void *buf,
-        size_t len, NETM_UDS_sockaddr_t *addr, size_t *recved)
+static int buffer_datagram_receive(uds_t *uds, UDS_socket_t *socket, void *buf, size_t len, NETM_UDS_sockaddr_t *addr,
+        size_t *recved)
 {
         UNUSED_ARG1(uds);
 
@@ -1048,8 +1034,7 @@ static int buffer_datagram_receive(uds_t *uds, UDS_socket_t *socket, void *buf,
         } else {
                 if (datagram.from) {
                         if (addr) {
-                                sys_strlcpy(addr->path, datagram.from,
-                                        sizeof(addr->path));
+                                sys_strlcpy(addr->path, datagram.from, sizeof(addr->path));
                         }
 
                         zfree(cast(void **, &datagram.from));
@@ -1081,8 +1066,8 @@ static int buffer_datagram_receive(uds_t *uds, UDS_socket_t *socket, void *buf,
  * @return On success 0 is returned.
  */
 //==============================================================================
-static int buffer_datagram_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buffer,
-        const void *data, size_t len, size_t *sent)
+static int buffer_datagram_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buffer, const void *data, size_t len,
+        size_t *sent)
 {
         UNUSED_ARG1(uds);
 
@@ -1094,7 +1079,7 @@ static int buffer_datagram_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buff
 
         datagram_t datagram;
 
-        datagram.len  = min(len, MAX_DATAGRAM_SIZE);
+        datagram.len = min(len, MAX_DATAGRAM_SIZE);
         datagram.data = NULL;
         datagram.from = NULL;
 
@@ -1105,7 +1090,7 @@ static int buffer_datagram_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buff
 
         if (not err and socket->path) {
                 size_t from_len = strsize(socket->path);
-                err             = kalloc(from_len, cast(void **, &datagram.from));
+                err = kalloc(from_len, cast(void **, &datagram.from));
                 if (not err) {
                         sys_strlcpy(datagram.from, socket->path, from_len);
                 }
@@ -1143,8 +1128,7 @@ static int buffer_datagram_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buff
  * @return On success 0 is returned.
  */
 //==============================================================================
-static int buffer_stream_receive(uds_t *uds, UDS_socket_t *socket, void *buf, size_t len,
-        size_t *recved)
+static int buffer_stream_receive(uds_t *uds, UDS_socket_t *socket, void *buf, size_t len, size_t *recved)
 {
         UNUSED_ARG1(uds);
 
@@ -1154,8 +1138,8 @@ static int buffer_stream_receive(uds_t *uds, UDS_socket_t *socket, void *buf, si
                 return EINVAL;
         }
 
-        size_t n   = 0;
-        int    err = EINVAL;
+        size_t n = 0;
+        int err = EINVAL;
 
         while (len > 0) {
                 err = sys_queue_receive(socket->buf, buf, socket->recv_timeout);
@@ -1199,8 +1183,8 @@ static int buffer_stream_receive(uds_t *uds, UDS_socket_t *socket, void *buf, si
  * @return On success 0 is returned.
  */
 //==============================================================================
-static int buffer_stream_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buffer,
-        const void *buf, size_t len, size_t *sent)
+static int buffer_stream_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buffer, const void *buf, size_t len,
+        size_t *sent)
 {
         UNUSED_ARG1(uds);
 
@@ -1210,8 +1194,8 @@ static int buffer_stream_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buffer
                 return EINVAL;
         }
 
-        int    err = EINVAL;
-        size_t n   = 0;
+        int err = EINVAL;
+        size_t n = 0;
 
         while (len > 0) {
                 err = sys_queue_send(buffer, buf, socket->send_timeout);

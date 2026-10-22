@@ -5,7 +5,7 @@
 
 @brief   SPI driver configuration
 
-@note    Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -43,20 +43,20 @@ extern "C" {
 /*
  *  SPI default configuration (for all devices)
  */
-#define _SPI_DEFAULT_CFG_FLUSH_BYTE             __SPI_DEFAULT_FLUSH_BYTE__
-#define _SPI_DEFAULT_CFG_CLK_DIVIDER            __SPI_DEFAULT_CLK_DIV__
-#define _SPI_DEFAULT_CFG_MODE                   __SPI_DEFAULT_MODE__
-#define _SPI_DEFAULT_CFG_MSB_FIRST              __SPI_DEFAULT_MSB_FIRST__
+#define _SPI_DEFAULT_CFG_FLUSH_BYTE  __SPI_DEFAULT_FLUSH_BYTE__
+#define _SPI_DEFAULT_CFG_CLK_DIVIDER __SPI_DEFAULT_CLK_DIV__
+#define _SPI_DEFAULT_CFG_MODE        __SPI_DEFAULT_MODE__
+#define _SPI_DEFAULT_CFG_MSB_FIRST   __SPI_DEFAULT_MSB_FIRST__
 
 /*
  * DMA enable (1) or disable (0)
  */
-#define _SPI1_USE_DMA                           __SPI_SPI1_USE_DMA__
-#define _SPI2_USE_DMA                           __SPI_SPI2_USE_DMA__
-#define _SPI3_USE_DMA                           __SPI_SPI3_USE_DMA__
-#define _SPI4_USE_DMA                           __SPI_SPI4_USE_DMA__
-#define _SPI5_USE_DMA                           __SPI_SPI5_USE_DMA__
-#define _SPI6_USE_DMA                           __SPI_SPI6_USE_DMA__
+#define _SPI1_USE_DMA __SPI_SPI1_USE_DMA__
+#define _SPI2_USE_DMA __SPI_SPI2_USE_DMA__
+#define _SPI3_USE_DMA __SPI_SPI3_USE_DMA__
+#define _SPI4_USE_DMA __SPI_SPI4_USE_DMA__
+#define _SPI5_USE_DMA __SPI_SPI5_USE_DMA__
+#define _SPI6_USE_DMA __SPI_SPI6_USE_DMA__
 
 /*==============================================================================
   Exported object types

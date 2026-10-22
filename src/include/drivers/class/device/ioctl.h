@@ -52,7 +52,7 @@ extern "C" {
  *  @return On success (device initialized) 0 is returned.
  *          On error (device not initialized) -1 is returned and errno is set.
  */
-#define IOCTL_DEVICE__CONFIGURE_STR     _IOW(DEVICE, 0x80, const char*)
+#define IOCTL_DEVICE__CONFIGURE_STR _IOW(DEVICE, 0x80, const char *)
 
 /*==============================================================================
   Exported object types

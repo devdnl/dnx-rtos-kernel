@@ -5,7 +5,7 @@ Author   Daniel Zorychta
 
 Brief    Network management.
 
-         Copyright (C) 2016 Daniel Zorychta <daniel.zorychta@gmail.com>
+         Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -51,8 +51,8 @@ Brief    Network management.
 
 #define MAXIMUM_SAFE_UDP_PAYLOAD 1024
 
-#define zalloc(_size, _pptr)     _kzalloc(_MM_NET, _size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, _pptr)
-#define zfree(_pptr)             _kfree(_MM_NET, _pptr)
+#define zalloc(_size, _pptr) _kzalloc(_MM_NET, _size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, _pptr)
+#define zfree(_pptr)         _kfree(_MM_NET, _pptr)
 
 /*==============================================================================
   Local object types
@@ -268,8 +268,7 @@ static int network_interface_thread(void *arg)
 //==============================================================================
 static void create_addr(NETM_INET_IPv4_t *addr, const ip_addr_t *lwip_addr)
 {
-        *addr = NETM_INET_IPv4(ip4_addr1(lwip_addr), ip4_addr2(lwip_addr), ip4_addr3(lwip_addr),
-                ip4_addr4(lwip_addr));
+        *addr = NETM_INET_IPv4(ip4_addr1(lwip_addr), ip4_addr2(lwip_addr), ip4_addr3(lwip_addr), ip4_addr4(lwip_addr));
 }
 
 //==============================================================================
@@ -304,8 +303,7 @@ static int apply_static_IP_configuration(inet_t *inet, const ip_addr_t *ip_addre
 
                 clear_rx_tx_counters(inet);
                 netif_set_down(&inet->netif);
-                netif_set_addr(&inet->netif, const_cast(ip_address), const_cast(net_mask),
-                        const_cast(gateway));
+                netif_set_addr(&inet->netif, const_cast(ip_address), const_cast(net_mask), const_cast(gateway));
                 netif_set_up(&inet->netif);
                 netif_set_link_up(&inet->netif);
 
@@ -542,8 +540,7 @@ static err_t netif_configure(struct netif *netif)
 int INET_ifinit(void **ctx, const char *if_path)
 {
         if (not tcp_initialized) {
-                printk("TCP/IP stack: lwIP v%u.%u.%u", LWIP_VERSION_MAJOR, LWIP_VERSION_MINOR,
-                        LWIP_VERSION_REVISION);
+                printk("TCP/IP stack: lwIP v%u.%u.%u", LWIP_VERSION_MAJOR, LWIP_VERSION_MINOR, LWIP_VERSION_REVISION);
                 tcpip_init(NULL, NULL);
                 tcp_initialized = true;
         }
@@ -577,8 +574,8 @@ int INET_ifinit(void **ctx, const char *if_path)
 
         printk("INET (%s): thread ID: %u", if_path, inet->if_thread);
 
-        netif_add(&inet->netif, const_cast(&ip_addr_any), const_cast(&ip_addr_any), const_cast(&ip_addr_any),
-                inet, netif_configure, tcpip_input);
+        netif_add(&inet->netif, const_cast(&ip_addr_any), const_cast(&ip_addr_any), const_cast(&ip_addr_any), inet,
+                netif_configure, tcpip_input);
 
         if (netif_default == NULL) {
                 netif_set_default(&inet->netif);
@@ -849,8 +846,7 @@ int INET_socket_destroy(void *ctx, INET_socket_t *inet_sock)
  * @return One of @ref errno value.
  */
 //==============================================================================
-int INET_socket_connect(void *ctx, INET_socket_t *inet_sock, const NETM_INET_sockaddr_t *addr,
-        size_t addr_size)
+int INET_socket_connect(void *ctx, INET_socket_t *inet_sock, const NETM_INET_sockaddr_t *addr, size_t addr_size)
 {
         UNUSED_ARG1(ctx);
 
@@ -958,8 +954,7 @@ int INET_socket_accept(void *ctx, INET_socket_t *inet_sock, INET_socket_t *new_i
  * @return One of @ref errno value.
  */
 //==============================================================================
-int INET_socket_recv(void *ctx, INET_socket_t *inet_sock, void *buf, size_t len, NETM_flags_t flags,
-        size_t *recved)
+int INET_socket_recv(void *ctx, INET_socket_t *inet_sock, void *buf, size_t len, NETM_flags_t flags, size_t *recved)
 {
         UNUSED_ARG1(ctx);
 
@@ -980,8 +975,7 @@ int INET_socket_recv(void *ctx, INET_socket_t *inet_sock, void *buf, size_t len,
                 inet_sock->seek += sz;
                 *recved = sz;
 
-                if ((flags & NETM_FLAGS__FREEBUF) ||
-                        (inet_sock->seek >= netbuf_len(inet_sock->netbuf_recv))) {
+                if ((flags & NETM_FLAGS__FREEBUF) || (inet_sock->seek >= netbuf_len(inet_sock->netbuf_recv))) {
 
                         netbuf_delete(inet_sock->netbuf_recv);
                         inet_sock->netbuf_recv = NULL;
@@ -1048,8 +1042,7 @@ int INET_socket_recvfrom(void *ctx, INET_socket_t *inet_sock, void *buf, size_t 
  * @return One of @ref errno value.
  */
 //==============================================================================
-int INET_socket_send(void *ctx, INET_socket_t *inet_sock, const void *buf, size_t len, NETM_flags_t flags,
-        size_t *sent)
+int INET_socket_send(void *ctx, INET_socket_t *inet_sock, const void *buf, size_t len, NETM_flags_t flags, size_t *sent)
 {
         UNUSED_ARG1(ctx);
 
@@ -1073,8 +1066,7 @@ int INET_socket_send(void *ctx, INET_socket_t *inet_sock, const void *buf, size_
 
                 while (len > 0) {
                         size_t sent_bytes = 0;
-                        err = err_to_errno(
-                                netconn_write_partly(inet_sock->netconn, buf, len, lwip_flags, &sent_bytes));
+                        err = err_to_errno(netconn_write_partly(inet_sock->netconn, buf, len, lwip_flags, &sent_bytes));
                         if (not err) {
                                 len -= sent_bytes;
                                 buf += sent_bytes;
@@ -1107,8 +1099,7 @@ int INET_socket_send(void *ctx, INET_socket_t *inet_sock, const void *buf, size_
                                 }
 
                                 if (!err) {
-                                        err = err_to_errno(
-                                                netconn_send(inet_sock->netconn, inet_sock->netbuf_send));
+                                        err = err_to_errno(netconn_send(inet_sock->netconn, inet_sock->netbuf_send));
                                 }
 
                                 if (!err) {
@@ -1140,8 +1131,7 @@ int INET_socket_send(void *ctx, INET_socket_t *inet_sock, const void *buf, size_
                                 }
 
                                 if (!err) {
-                                        err = err_to_errno(
-                                                netconn_send(inet_sock->netconn, inet_sock->netbuf_send));
+                                        err = err_to_errno(netconn_send(inet_sock->netconn, inet_sock->netbuf_send));
                                 }
 
                                 if (!err) {
@@ -1231,8 +1221,8 @@ int INET_socket_sendto(void *ctx, INET_socket_t *inet_sock, const void *buf, siz
                                         ip_addr_t lwip_addr;
                                         create_lwIP_addr(&lwip_addr, &to_sockaddr->addr);
 
-                                        err = err_to_errno(netconn_sendto(inet_sock->netconn,
-                                                inet_sock->netbuf_send, &lwip_addr, to_sockaddr->port));
+                                        err = err_to_errno(netconn_sendto(inet_sock->netconn, inet_sock->netbuf_send,
+                                                &lwip_addr, to_sockaddr->port));
                                 }
 
                                 if (!err) {
@@ -1367,8 +1357,7 @@ int INET_socket_get_send_timeout(void *ctx, INET_socket_t *inet_sock, uint32_t *
  * @return One of @ref errno value.
  */
 //==============================================================================
-int INET_socket_getaddress(void *ctx, INET_socket_t *inet_sock, NETM_INET_sockaddr_t *sockaddr,
-        size_t sockaddr_size)
+int INET_socket_getaddress(void *ctx, INET_socket_t *inet_sock, NETM_INET_sockaddr_t *sockaddr, size_t sockaddr_size)
 {
         UNUSED_ARG1(ctx);
 
@@ -1414,8 +1403,8 @@ u16_t INET_hton_u16(u16_t value)
 u32_t INET_hton_u32(u32_t value)
 {
 #if _CPUCTL_BYTE_ORDER == _BYTE_ORDER_LITTLE_ENDIAN
-        return ((value & 0x000000FFUL) << 24) | ((value & 0x0000FF00UL) << 8) |
-                ((value & 0x00FF0000UL) >> 8) | ((value & 0xFF000000UL) >> 24);
+        return ((value & 0x000000FFUL) << 24) | ((value & 0x0000FF00UL) << 8) | ((value & 0x00FF0000UL) >> 8) |
+                ((value & 0xFF000000UL) >> 24);
 #elif _CPUCTL_BYTE_ORDER == _BYTE_ORDER_BIG_ENDIAN
         return value;
 #else

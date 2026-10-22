@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   SPI driver.
 
-        Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -56,11 +56,11 @@ static void slave_deselect(struct SPI_slave *hdl);
 /* default SPI config */
 static const SPI_config_t SPI_DEFAULT_CFG = {
         .clk_divider = _SPI_DEFAULT_CFG_CLK_DIVIDER,
-        .mode        = _SPI_DEFAULT_CFG_MODE,
-        .msb_first   = _SPI_DEFAULT_CFG_MSB_FIRST,
+        .mode = _SPI_DEFAULT_CFG_MODE,
+        .msb_first = _SPI_DEFAULT_CFG_MSB_FIRST,
         .CS_port_idx = 255, // CS deactivated
-        .CS_pin_idx  = 255, // CS deactivated
-        .CS_reverse  = false,
+        .CS_pin_idx = 255,  // CS deactivated
+        .CS_reverse = false,
 };
 
 /* pointers to memory of specified device */
@@ -108,8 +108,7 @@ API_MOD_INIT(SPI, void **device_handle, u8_t major, u8_t minor, const void *conf
                         goto finish;
                 }
 
-                err = sys_mutex_create(KMTX_TYPE_RECURSIVE,
-                        &_SPI[major]->periph_protect_mtx);
+                err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &_SPI[major]->periph_protect_mtx);
                 if (err) {
                         goto finish;
                 }
@@ -124,9 +123,9 @@ API_MOD_INIT(SPI, void **device_handle, u8_t major, u8_t minor, const void *conf
         err = sys_zalloc(sizeof(struct SPI_slave), device_handle);
         if (!err) {
                 struct SPI_slave *hdl = *device_handle;
-                hdl->config           = SPI_DEFAULT_CFG;
-                hdl->major            = major;
-                hdl->minor            = minor;
+                hdl->config = SPI_DEFAULT_CFG;
+                hdl->major = major;
+                hdl->minor = minor;
 
                 if (config) {
                         hdl->config = *cast(SPI_config_t *, config);
@@ -224,16 +223,16 @@ API_MOD_CLOSE(SPI, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(SPI, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos,
-        size_t *wrcnt, struct vfs_fattr fattr)
+API_MOD_WRITE(SPI, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fpos, fattr);
 
         struct SPI_slave *hdl = device_handle;
 
         // check if device is switched to RAW mode
-        clock_t tref     = sys_get_uptime_ms();
-        bool    RAW_mode = false;
+        clock_t tref = sys_get_uptime_ms();
+        bool RAW_mode = false;
 
         while (sys_device_is_locked(&_SPI[hdl->major]->RAW_mode)) {
 
@@ -287,16 +286,15 @@ API_MOD_WRITE(SPI, void *device_handle, const u8_t *src, size_t count, fpos_t *f
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(SPI, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
-        size_t *rdcnt, struct vfs_fattr fattr)
+API_MOD_READ(SPI, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fpos, fattr);
 
         struct SPI_slave *hdl = device_handle;
 
         // check if device is switched to RAW mode
-        clock_t tref     = sys_get_uptime_ms();
-        bool    RAW_mode = false;
+        clock_t tref = sys_get_uptime_ms();
+        bool RAW_mode = false;
 
         while (sys_device_is_locked(&_SPI[hdl->major]->RAW_mode)) {
 
@@ -354,7 +352,7 @@ API_MOD_READ(SPI, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
 API_MOD_IOCTL(SPI, void *device_handle, int request, void *arg)
 {
         struct SPI_slave *hdl = device_handle;
-        int               err = EIO;
+        int err = EIO;
 
         switch (request) {
         case IOCTL_SPI__SET_CONFIGURATION:
@@ -370,7 +368,7 @@ API_MOD_IOCTL(SPI, void *device_handle, int request, void *arg)
         case IOCTL_SPI__GET_CONFIGURATION:
                 if (arg) {
                         *cast(SPI_config_t *, arg) = hdl->config;
-                        err                        = ESUCC;
+                        err = ESUCC;
                 } else {
                         err = EINVAL;
                 }
@@ -420,8 +418,8 @@ API_MOD_IOCTL(SPI, void *device_handle, int request, void *arg)
                 }
 
                 // check if device is switched to RAW mode
-                clock_t tref     = sys_get_uptime_ms();
-                bool    RAW_mode = false;
+                clock_t tref = sys_get_uptime_ms();
+                bool RAW_mode = false;
 
                 while (sys_device_is_locked(&_SPI[hdl->major]->RAW_mode)) {
 
@@ -446,15 +444,13 @@ API_MOD_IOCTL(SPI, void *device_handle, int request, void *arg)
                                 slave_select(hdl);
                         }
 
-                        for (SPI_transceive_t *t = tr; !err && t && t->count;
-                                t                = t->next) {
+                        for (SPI_transceive_t *t = tr; !err && t && t->count; t = t->next) {
 
                                 if (not RAW_mode) {
                                         slave_select(hdl);
                                 }
 
-                                err = _SPI_LLD__transceive(hdl, t->tx_buffer,
-                                        t->rx_buffer, t->count);
+                                err = _SPI_LLD__transceive(hdl, t->tx_buffer, t->rx_buffer, t->count);
 
                                 if (not RAW_mode && t->separated) {
                                         slave_deselect(hdl);
@@ -567,9 +563,8 @@ static void release_resources(u8_t major)
 //==============================================================================
 static void slave_select(struct SPI_slave *hdl)
 {
-        (hdl->config.CS_reverse == true)
-                ? _GPIO_DDI_set_pin(hdl->config.CS_port_idx, hdl->config.CS_pin_idx)
-                : _GPIO_DDI_clear_pin(hdl->config.CS_port_idx, hdl->config.CS_pin_idx);
+        (hdl->config.CS_reverse == true) ? _GPIO_DDI_set_pin(hdl->config.CS_port_idx, hdl->config.CS_pin_idx)
+                                         : _GPIO_DDI_clear_pin(hdl->config.CS_port_idx, hdl->config.CS_pin_idx);
 }
 
 //==============================================================================
@@ -581,9 +576,8 @@ static void slave_select(struct SPI_slave *hdl)
 //==============================================================================
 static void slave_deselect(struct SPI_slave *hdl)
 {
-        (hdl->config.CS_reverse == true)
-                ? _GPIO_DDI_clear_pin(hdl->config.CS_port_idx, hdl->config.CS_pin_idx)
-                : _GPIO_DDI_set_pin(hdl->config.CS_port_idx, hdl->config.CS_pin_idx);
+        (hdl->config.CS_reverse == true) ? _GPIO_DDI_clear_pin(hdl->config.CS_port_idx, hdl->config.CS_pin_idx)
+                                         : _GPIO_DDI_set_pin(hdl->config.CS_port_idx, hdl->config.CS_pin_idx);
 }
 
 /*==============================================================================

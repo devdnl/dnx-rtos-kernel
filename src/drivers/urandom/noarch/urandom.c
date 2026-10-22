@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   Pseudo random generator device
 
-        Copyright (C) 2021 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -150,13 +150,8 @@ API_MOD_CLOSE(URANDOM, void *device_handle, bool force)
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_WRITE(URANDOM,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(URANDOM, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, src, count, fpos, wrcnt, fattr);
 
@@ -177,13 +172,7 @@ API_MOD_WRITE(URANDOM,
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(URANDOM,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(URANDOM, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fpos, fattr);
 
@@ -218,14 +207,14 @@ API_MOD_IOCTL(URANDOM, void *device_handle, int request, void *arg)
         switch (request) {
         case IOCTL_URANDOM__SET_SEED:
                 if (arg) {
-                        hdl->seed = *cast(uint*, arg);
+                        hdl->seed = *cast(uint *, arg);
                         err = ESUCC;
                 }
                 break;
 
         case IOCTL_URANDOM__GET_SEED:
                 if (arg) {
-                        *cast(uint*, arg) = hdl->seed;
+                        *cast(uint *, arg) = hdl->seed;
                         err = ESUCC;
                 }
                 break;

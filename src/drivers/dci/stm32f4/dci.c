@@ -5,7 +5,7 @@ Author   Daniel Zorychta
 
 Brief    Digital Camera Interface Driver
 
-         Copyright (C) 2017 Daniel Zorychta <daniel.zorychta>
+         Copyright (C) 2026 Daniel Zorychta <daniel.zorychta>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -36,22 +36,22 @@ Brief    Digital Camera Interface Driver
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define DMA_CHANNEL             1
-#define DMA_STREAM_PRI          1
-#define DMA_STREAM_AUX          7
-#define DMA_MAX_TRANSFER        65535
-#define DMA_TIMEOUT             1000
+#define DMA_CHANNEL      1
+#define DMA_STREAM_PRI   1
+#define DMA_STREAM_AUX   7
+#define DMA_MAX_TRANSFER 65535
+#define DMA_TIMEOUT      1000
 
 /*==============================================================================
   Local object types
 ==============================================================================*/
 typedef struct {
-        ksem_t     *event;       // event
-        dev_lock_t lock;        // device lock
-        u16_t      lines;       // number of lines to capture
-        u16_t      tleft;       // number of DMA transfers to do
-        u16_t      TSIZEW;      // DMA transfer size (in Words)
-        u16_t      TCOUNT;      // DMA transfers count
+        ksem_t *event;   // event
+        dev_lock_t lock; // device lock
+        u16_t lines;     // number of lines to capture
+        u16_t tleft;     // number of DMA transfers to do
+        u16_t TSIZEW;    // DMA transfer size (in Words)
+        u16_t TCOUNT;    // DMA transfers count
 } DCI_t;
 
 /*==============================================================================
@@ -103,33 +103,18 @@ API_MOD_INIT(DCI, void **device_handle, u8_t major, u8_t minor, const void *conf
 
                                 SET_BIT(RCC->AHB2ENR, RCC_AHB2ENR_DCMIEN);
 
-                                DCMI->CR = _DCI_EDM
-                                         | _DCI_FCRC
-                                         | _DCI_VSPOL
-                                         | _DCI_HSPOL
-                                         | _DCI_PCKPOL
-                                         | _DCI_ESS
-                                         | _DCI_JPEG
-                                         | _DCI_CROP
-                                         | DCMI_CR_CM;
+                                DCMI->CR = _DCI_EDM | _DCI_FCRC | _DCI_VSPOL | _DCI_HSPOL | _DCI_PCKPOL | _DCI_ESS |
+                                        _DCI_JPEG | _DCI_CROP | DCMI_CR_CM;
 
                                 DCMI->ICR = 0xFF;
 
-                                DCMI->ESCR = (_DCI_FEC <<  0)
-                                           | (_DCI_LEC <<  8)
-                                           | (_DCI_LSC << 16)
-                                           | (_DCI_FSC << 24);
+                                DCMI->ESCR = (_DCI_FEC << 0) | (_DCI_LEC << 8) | (_DCI_LSC << 16) | (_DCI_FSC << 24);
 
-                                DCMI->ESUR = (_DCI_FSU <<  0)
-                                           | (_DCI_LSU <<  8)
-                                           | (_DCI_LEU << 16)
-                                           | (_DCI_FEU << 24);
+                                DCMI->ESUR = (_DCI_FSU << 0) | (_DCI_LSU << 8) | (_DCI_LEU << 16) | (_DCI_FEU << 24);
 
-                                DCMI->CWSTRTR = (_DCI_CROP_START_X <<  0)
-                                              | (_DCI_CROP_START_Y << 16);
+                                DCMI->CWSTRTR = (_DCI_CROP_START_X << 0) | (_DCI_CROP_START_Y << 16);
 
-                                DCMI->CWSIZER = (_DCI_CROP_HEIGHT <<  0)
-                                              | (_DCI_CROP_WIDTH  << 16);
+                                DCMI->CWSIZER = (_DCI_CROP_HEIGHT << 0) | (_DCI_CROP_WIDTH << 16);
 
                                 if (_DCI_JPEG) {
                                         NVIC_EnableIRQ(DCMI_IRQn);
@@ -145,18 +130,17 @@ API_MOD_INIT(DCI, void **device_handle, u8_t major, u8_t minor, const void *conf
                                         DCI->TSIZEW = 256;
                                         DCI->TCOUNT = DMA_MAX_TRANSFER;
                                 } else {
-                                        size_t tc   = (sizeof(u32_t) * (DMA_MAX_TRANSFER + 1)
-                                                    / (_DCI_CAM_RES_X * _DCI_BYTES_PER_PIXEL));
+                                        size_t tc = (sizeof(u32_t) * (DMA_MAX_TRANSFER + 1) /
+                                                (_DCI_CAM_RES_X * _DCI_BYTES_PER_PIXEL));
 
-                                        DCI->TSIZEW = (_DCI_CAM_RES_X * _DCI_BYTES_PER_PIXEL)
-                                                    / sizeof(u32_t);
+                                        DCI->TSIZEW = (_DCI_CAM_RES_X * _DCI_BYTES_PER_PIXEL) / sizeof(u32_t);
 
                                         DCI->TCOUNT = _DCI_CAM_RES_Y;
 
                                         for (int i = tc - 1; i > 0; i--) {
                                                 if (_DCI_CAM_RES_Y % i == 0) {
-                                                        DCI->TSIZEW = ((_DCI_CAM_RES_X * _DCI_BYTES_PER_PIXEL) * i)
-                                                                    / sizeof(u32_t);
+                                                        DCI->TSIZEW = ((_DCI_CAM_RES_X * _DCI_BYTES_PER_PIXEL) * i) /
+                                                                sizeof(u32_t);
 
                                                         DCI->TCOUNT = _DCI_CAM_RES_Y / i;
                                                         break;
@@ -250,13 +234,8 @@ API_MOD_CLOSE(DCI, void *device_handle, bool force)
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_WRITE(DCI,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(DCI, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, src, count, fpos, wrcnt, fattr);
 
@@ -277,21 +256,14 @@ API_MOD_WRITE(DCI,
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(DCI,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(DCI, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
         DCI_t *hdl = device_handle;
 
-        size_t frame_size = _DCI_CROP
-                          ? (_DCI_CROP_WIDTH * _DCI_CROP_HEIGHT * (_DCI_JPEG ? 1 : _DCI_BYTES_PER_PIXEL))
-                          : (_DCI_CAM_RES_X  * _DCI_CAM_RES_Y   * (_DCI_JPEG ? 1 : _DCI_BYTES_PER_PIXEL));
+        size_t frame_size = _DCI_CROP ? (_DCI_CROP_WIDTH * _DCI_CROP_HEIGHT * (_DCI_JPEG ? 1 : _DCI_BYTES_PER_PIXEL))
+                                      : (_DCI_CAM_RES_X * _DCI_CAM_RES_Y * (_DCI_JPEG ? 1 : _DCI_BYTES_PER_PIXEL));
 
         if (count != frame_size) {
                 printk("DCI: invalid frame size: %u vs %u", count, frame_size);
@@ -317,31 +289,31 @@ API_MOD_READ(DCI,
         }
 
         _DMA_DDI_config_t config = {0};
-        config.user_ctx                     = DCI;
-        config.cb_finish                    = DMA_callback;
-        config.cb_half                      = NULL;
-        config.cb_next                      = NULL;
-        config.data_number                  = hdl->TSIZEW;
-        config.peripheral_address           = cast(u32_t, &DCMI->DR);
-        config.memory_address[0]            = cast(u32_t, dst);
-        config.memory_address[1]            = cast(u32_t, dst) + (hdl->TSIZEW * sizeof(u32_t));
-        config.IRQ_priority                 = _DCI_IRQ_PRIORITY;
-        config.channel                      = DMA_CHANNEL;
-        config.release                      = false;
-        config.mode                         = _DMA_DDI_MODE_FIFO;
-        config.fifo_threshold               = _DMA_DDI_FIFO_THRESHOLD_1_2;
-        config.memory_burst                 = _DMA_DDI_MEMORY_BURST_SINGLE_TRANSFER;
-        config.peripheral_burst             = _DMA_DDI_PERIPHERAL_BURST_SINGLE_TRANSFER;
-        config.double_buffer_mode           = _DMA_DDI_DOUBLE_BUFFER_MODE_ENABLED;
-        config.priority_level               = _DMA_DDI_PRIORITY_LEVEL_HIGH;
-        config.peripheral_increment_offset  = _DMA_DDI_PERIPHERAL_INCREMENT_OFFSET_ACCORDING_TO_PERIPHERAL_SIZE;
-        config.memory_data_size             = _DMA_DDI_MEMORY_DATA_SIZE_BYTE;
-        config.peripheral_data_size         = _DMA_DDI_PERIPHERAL_DATA_SIZE_WORD;
-        config.memory_address_increment     = _DMA_DDI_MEMORY_ADDRESS_POINTER_INCREMENTED;
+        config.user_ctx = DCI;
+        config.cb_finish = DMA_callback;
+        config.cb_half = NULL;
+        config.cb_next = NULL;
+        config.data_number = hdl->TSIZEW;
+        config.peripheral_address = cast(u32_t, &DCMI->DR);
+        config.memory_address[0] = cast(u32_t, dst);
+        config.memory_address[1] = cast(u32_t, dst) + (hdl->TSIZEW * sizeof(u32_t));
+        config.IRQ_priority = _DCI_IRQ_PRIORITY;
+        config.channel = DMA_CHANNEL;
+        config.release = false;
+        config.mode = _DMA_DDI_MODE_FIFO;
+        config.fifo_threshold = _DMA_DDI_FIFO_THRESHOLD_1_2;
+        config.memory_burst = _DMA_DDI_MEMORY_BURST_SINGLE_TRANSFER;
+        config.peripheral_burst = _DMA_DDI_PERIPHERAL_BURST_SINGLE_TRANSFER;
+        config.double_buffer_mode = _DMA_DDI_DOUBLE_BUFFER_MODE_ENABLED;
+        config.priority_level = _DMA_DDI_PRIORITY_LEVEL_HIGH;
+        config.peripheral_increment_offset = _DMA_DDI_PERIPHERAL_INCREMENT_OFFSET_ACCORDING_TO_PERIPHERAL_SIZE;
+        config.memory_data_size = _DMA_DDI_MEMORY_DATA_SIZE_BYTE;
+        config.peripheral_data_size = _DMA_DDI_PERIPHERAL_DATA_SIZE_WORD;
+        config.memory_address_increment = _DMA_DDI_MEMORY_ADDRESS_POINTER_INCREMENTED;
         config.peripheral_address_increment = _DMA_DDI_PERIPHERAL_ADDRESS_POINTER_IS_FIXED;
-        config.circular_mode                = _DMA_DDI_CIRCULAR_MODE_ENABLED;
-        config.transfer_direction           = _DMA_DDI_TRANSFER_DIRECTION_PERIPHERAL_TO_MEMORY;
-        config.flow_controller              = _DMA_DDI_FLOW_CONTROLLER_DMA;
+        config.circular_mode = _DMA_DDI_CIRCULAR_MODE_ENABLED;
+        config.transfer_direction = _DMA_DDI_TRANSFER_DIRECTION_PERIPHERAL_TO_MEMORY;
+        config.flow_controller = _DMA_DDI_FLOW_CONTROLLER_DMA;
 
         hdl->tleft = hdl->TCOUNT - 1;
 
@@ -358,19 +330,19 @@ API_MOD_READ(DCI,
                 SET_BIT(DCMI->CR, DCMI_CR_ENABLE);
 
                 if (_DCI_JPEG) {
-                        u32_t *frame = cast(u32_t*, dst);
+                        u32_t *frame = cast(u32_t *, dst);
 
                         size_t imgsz = (hdl->TCOUNT - hdl->tleft + 1) * sizeof(u32_t) * DCI->TSIZEW;
-                               imgsz = min(imgsz, count);
+                        imgsz = min(imgsz, count);
 
                         for (int i = imgsz / sizeof(u32_t) - 1; i > 0; i--) {
                                 if (frame[i] == 0) {
                                         imgsz -= 4;
                                 } else {
-                                        if (  ((frame[i] & 0xFFFF0000) == 0xD9FF0000)
-                                           || ((frame[i] & 0x00FFFF00) == 0x00D9FF00)
-                                           || ((frame[i] & 0x0000FFFF) == 0x0000D9FF)
-                                           || ((frame[i] & 0x000000FF) == 0x000000D9) ) {
+                                        if (((frame[i] & 0xFFFF0000) == 0xD9FF0000) ||
+                                                ((frame[i] & 0x00FFFF00) == 0x00D9FF00) ||
+                                                ((frame[i] & 0x0000FFFF) == 0x0000D9FF) ||
+                                                ((frame[i] & 0x000000FF) == 0x000000D9)) {
 
                                                 err = ESUCC;
                                         } else {
@@ -411,10 +383,10 @@ API_MOD_IOCTL(DCI, void *device_handle, int request, void *arg)
 
         switch (request) {
         case IOCTL_DCI__GET_PARAMS:
-                cast(DCI_params_t*, arg)->x_resolution    = _DCI_CAM_RES_X;
-                cast(DCI_params_t*, arg)->y_resolution    = _DCI_CAM_RES_Y;
-                cast(DCI_params_t*, arg)->bytes_per_pixel = _DCI_JPEG ? 1 :_DCI_BYTES_PER_PIXEL;
-                cast(DCI_params_t*, arg)->JPEG_mode       = _DCI_JPEG;
+                cast(DCI_params_t *, arg)->x_resolution = _DCI_CAM_RES_X;
+                cast(DCI_params_t *, arg)->y_resolution = _DCI_CAM_RES_Y;
+                cast(DCI_params_t *, arg)->bytes_per_pixel = _DCI_JPEG ? 1 : _DCI_BYTES_PER_PIXEL;
+                cast(DCI_params_t *, arg)->JPEG_mode = _DCI_JPEG;
                 err = ESUCC;
                 break;
 
@@ -456,14 +428,10 @@ API_MOD_STAT(DCI, void *device_handle, struct vfs_dev_stat *device_stat)
         UNUSED_ARG1(device_handle);
 
         if (_DCI_CROP) {
-                device_stat->st_size = _DCI_CROP_WIDTH
-                                     * _DCI_CROP_HEIGHT
-                                     * (_DCI_JPEG ? 1 :_DCI_BYTES_PER_PIXEL);
+                device_stat->st_size = _DCI_CROP_WIDTH * _DCI_CROP_HEIGHT * (_DCI_JPEG ? 1 : _DCI_BYTES_PER_PIXEL);
 
         } else {
-                device_stat->st_size = _DCI_CAM_RES_X
-                                     * _DCI_CAM_RES_Y
-                                     * (_DCI_JPEG ? 1 :_DCI_BYTES_PER_PIXEL);
+                device_stat->st_size = _DCI_CAM_RES_X * _DCI_CAM_RES_Y * (_DCI_JPEG ? 1 : _DCI_BYTES_PER_PIXEL);
         }
 
         return ESUCC;

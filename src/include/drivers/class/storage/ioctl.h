@@ -52,7 +52,7 @@ extern "C" {
  *  @return On success (device initialized) 0 is returned.
  *          On error (device not initialized) -1 is returned and errno is set.
  */
-#define IOCTL_STORAGE__INITIALIZE       _IO(STORAGE, 0x80)
+#define IOCTL_STORAGE__INITIALIZE _IO(STORAGE, 0x80)
 
 /**
  *  @brief  Read storage's MBR sector and detect partitions
@@ -60,7 +60,7 @@ extern "C" {
  *  @return On success (MBR detected) 0 is returned.
  *          On error (MBR not exist or IO error) -1 is returned and errno is set.
  */
-#define IOCTL_STORAGE__READ_MBR         _IO(STORAGE, 0x81)
+#define IOCTL_STORAGE__READ_MBR _IO(STORAGE, 0x81)
 
 /*==============================================================================
   Exported object types

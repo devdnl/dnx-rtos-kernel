@@ -5,7 +5,7 @@
 
 @brief   This file support CPU control
 
-@note    Copyright (C) 2012 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -36,21 +36,21 @@ extern "C" {
 /*==============================================================================
   Include files
 ==============================================================================*/
-#define _BYTE_ORDER_LITTLE_ENDIAN       0
-#define _BYTE_ORDER_BIG_ENDIAN          1
+#define _BYTE_ORDER_LITTLE_ENDIAN 0
+#define _BYTE_ORDER_BIG_ENDIAN    1
 
 #if defined(ARCH_stm32f1)
-#       include "stm32f1/cpuctl.h"
+#include "stm32f1/cpuctl.h"
 #elif defined(ARCH_stm32f3)
-#       include "stm32f3/cpuctl.h"
+#include "stm32f3/cpuctl.h"
 #elif defined(ARCH_stm32f4)
-#       include "stm32f4/cpuctl.h"
+#include "stm32f4/cpuctl.h"
 #elif defined(ARCH_stm32f7)
-#       include "stm32f7/cpuctl.h"
+#include "stm32f7/cpuctl.h"
 #elif defined(ARCH_stm32h7)
-#       include "stm32h7/cpuctl.h"
+#include "stm32h7/cpuctl.h"
 #elif defined(ARCH_rpcm0)
-#       include "rpcm0/cpuctl.h"
+#include "rpcm0/cpuctl.h"
 #else
 #error CPU architecture not defined!
 #endif

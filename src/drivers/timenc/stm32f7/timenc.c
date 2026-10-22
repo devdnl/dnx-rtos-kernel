@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   Timer driven AB encoder
 
-        Copyright (C) 2021 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -38,18 +38,18 @@ Brief   Timer driven AB encoder
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define TIMER           TIM7
+#define TIMER TIM7
 
 /*==============================================================================
   Local object types
 ==============================================================================*/
 typedef struct {
-        TIM_TypeDef   *TIM;
+        TIM_TypeDef *TIM;
         __IO uint32_t *APBENR;
         __IO uint32_t *APBRSTR;
-        uint32_t       APBENR_TIMEN;
-        uint32_t       APBRSTR_TIMRST;
-        uint32_t       IRQn;
+        uint32_t APBENR_TIMEN;
+        uint32_t APBRSTR_TIMRST;
+        uint32_t IRQn;
 } TIM_addr_t;
 
 struct base;
@@ -65,7 +65,7 @@ typedef struct {
 } TIMENC_t;
 
 typedef struct base {
-        u8_t      encoders;
+        u8_t encoders;
         TIMENC_t *encoder[__TIMENC_MAX_ENCODERS__];
 } BASE_t;
 
@@ -107,7 +107,7 @@ API_MOD_INIT(TIMENC, void **device_handle, u8_t major, u8_t minor, const void *c
         if ((major == 0) && (minor < __TIMENC_MAX_ENCODERS__)) {
 
                 if (BASE == NULL) {
-                        err = sys_zalloc2(sizeof(*BASE), NULL, 0, 0, cast(void**, &BASE));
+                        err = sys_zalloc2(sizeof(*BASE), NULL, 0, 0, cast(void **, &BASE));
                         if (!err) {
                                 SET_BIT(RCC->APB1ENR, RCC_APB1ENR_TIM7EN);
                                 SET_BIT(RCC->APB1RSTR, RCC_APB1RSTR_TIM7RST);
@@ -136,12 +136,12 @@ API_MOD_INIT(TIMENC, void **device_handle, u8_t major, u8_t minor, const void *c
 
                 if (!err) {
                         TIMENC_t *hdl;
-                        err = sys_zalloc2(sizeof(*hdl), NULL, 0, 0, cast(void**, &hdl));
+                        err = sys_zalloc2(sizeof(*hdl), NULL, 0, 0, cast(void **, &hdl));
                         if (!err) {
                                 *device_handle = hdl;
                                 hdl->major = major;
                                 hdl->minor = minor;
-                                hdl->base  = BASE;
+                                hdl->base = BASE;
 
                                 if (config) {
                                         const TIMENC_config_t *conf = config;
@@ -161,7 +161,7 @@ API_MOD_INIT(TIMENC, void **device_handle, u8_t major, u8_t minor, const void *c
                                         NVIC_DisableIRQ(TIM7_IRQn);
                                         NVIC_SetPriority(TIM7_IRQn, _CPU_IRQ_SAFE_PRIORITY_);
 
-                                        sys_free(cast(void**, &BASE));
+                                        sys_free(cast(void **, &BASE));
                                 }
                         }
                 }
@@ -193,7 +193,7 @@ API_MOD_RELEASE(TIMENC, void *device_handle)
                         NVIC_ClearPendingIRQ(TIM7_IRQn);
                         NVIC_DisableIRQ(TIM7_IRQn);
 
-                        sys_free(cast(void**, &BASE));
+                        sys_free(cast(void **, &BASE));
                 }
         }
 
@@ -248,13 +248,8 @@ API_MOD_CLOSE(TIMENC, void *device_handle, bool force)
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_WRITE(TIMENC,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrctr,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(TIMENC, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrctr,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fpos, fattr);
 
@@ -263,7 +258,7 @@ API_MOD_WRITE(TIMENC,
         int err = EINVAL;
 
         if (count >= sizeof(hdl->counter)) {
-                hdl->counter = *cast(i32_t*, src);
+                hdl->counter = *cast(i32_t *, src);
                 *wrctr = sizeof(hdl->counter);
                 err = ESUCC;
         }
@@ -285,13 +280,7 @@ API_MOD_WRITE(TIMENC,
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(TIMENC,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdctr,
-             struct vfs_fattr fattr)
+API_MOD_READ(TIMENC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdctr, struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fpos, fattr);
 
@@ -300,7 +289,7 @@ API_MOD_READ(TIMENC,
         int err = EINVAL;
 
         if (count >= sizeof(hdl->counter)) {
-                *cast(i32_t*, dst) = hdl->counter;
+                *cast(i32_t *, dst) = hdl->counter;
                 *rdctr = sizeof(hdl->counter);
                 err = ESUCC;
         }
@@ -327,8 +316,8 @@ API_MOD_IOCTL(TIMENC, void *device_handle, int request, void *arg)
 
         switch (request) {
         case IOCTL_TIMENC__CONFIGURE:
-                hdl->pin_A = cast(const TIMENC_config_t*, arg)->pin_A;
-                hdl->pin_B = cast(const TIMENC_config_t*, arg)->pin_B;
+                hdl->pin_A = cast(const TIMENC_config_t *, arg)->pin_A;
+                hdl->pin_B = cast(const TIMENC_config_t *, arg)->pin_B;
                 break;
         }
 
@@ -395,9 +384,12 @@ static u32_t get_timer_frequency(void)
 //==============================================================================
 void TIM7_IRQHandler(void)
 {
-        inline i8_t idx(u8_t last, u8_t new) {return ( (((last) & 3) << 2) | (((new) & 3) << 0) );}
+        inline i8_t idx(u8_t last, u8_t new)
+        {
+                return ((((last) & 3) << 2) | (((new) & 3) << 0));
+        }
 
-        static const i8_t TRUTH_TAB[16] = {0,-1,1,0, 1,0,0,-1, -1,0,0,1, 0,1,-1,0};
+        static const i8_t TRUTH_TAB[16] = {0, -1, 1, 0, 1, 0, 0, -1, -1, 0, 0, 1, 0, 1, -1, 0};
 
         for (size_t i = 0; i < BASE->encoders; i++) {
                 TIMENC_t *hdl = BASE->encoder[i];

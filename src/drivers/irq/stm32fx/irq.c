@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   This driver support external interrupts (EXTI).
 
-        Copyright (C) 2018 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -33,23 +33,23 @@ Brief   This driver support external interrupts (EXTI).
 #include "../irq_ioctl.h"
 
 #if defined(ARCH_stm32f1)
-#define RCC_APB2ENR_IRQEN       RCC_APB2ENR_AFIOEN
-#define IRQCFG                  AFIO
+#define RCC_APB2ENR_IRQEN RCC_APB2ENR_AFIOEN
+#define IRQCFG            AFIO
 #elif defined(ARCH_stm32f3)
-#define RCC_APB2ENR_IRQEN       RCC_APB2ENR_SYSCFGEN
-#define IRQCFG                  SYSCFG
+#define RCC_APB2ENR_IRQEN RCC_APB2ENR_SYSCFGEN
+#define IRQCFG            SYSCFG
 #elif defined(ARCH_stm32f4)
-#define RCC_APB2ENR_IRQEN       RCC_APB2ENR_SYSCFGEN
-#define IRQCFG                  SYSCFG
+#define RCC_APB2ENR_IRQEN RCC_APB2ENR_SYSCFGEN
+#define IRQCFG            SYSCFG
 #elif defined(ARCH_stm32f7)
-#define RCC_APB2ENR_IRQEN       RCC_APB2ENR_SYSCFGEN
-#define IRQCFG                  SYSCFG
+#define RCC_APB2ENR_IRQEN RCC_APB2ENR_SYSCFGEN
+#define IRQCFG            SYSCFG
 #endif
 
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define NUMBER_OF_IRQs          16
+#define NUMBER_OF_IRQs 16
 
 /*==============================================================================
   Local types, enums definitions
@@ -66,33 +66,20 @@ typedef struct {
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static IRQn_Type IRQ_minor_to_NVIC_IRQn (u8_t minor);
-static int       IRQ_configure          (u8_t minor, enum _IRQ_MODE mode, u8_t priority);
-static bool      IRQ_handler            (u8_t minor);
+static IRQn_Type IRQ_minor_to_NVIC_IRQn(u8_t minor);
+static int IRQ_configure(u8_t minor, enum _IRQ_MODE mode, u8_t priority);
+static bool IRQ_handler(u8_t minor);
 
 /*==============================================================================
   Local object definitions
 ==============================================================================*/
 MODULE_NAME(IRQ);
 
-static const default_cfg_t DEFAULT_CONFIG[NUMBER_OF_IRQs] = {
-        {.mode = _IRQ_LINE_0_MODE },
-        {.mode = _IRQ_LINE_1_MODE },
-        {.mode = _IRQ_LINE_2_MODE },
-        {.mode = _IRQ_LINE_3_MODE },
-        {.mode = _IRQ_LINE_4_MODE },
-        {.mode = _IRQ_LINE_5_MODE },
-        {.mode = _IRQ_LINE_6_MODE },
-        {.mode = _IRQ_LINE_7_MODE },
-        {.mode = _IRQ_LINE_8_MODE },
-        {.mode = _IRQ_LINE_9_MODE },
-        {.mode = _IRQ_LINE_10_MODE},
-        {.mode = _IRQ_LINE_11_MODE},
-        {.mode = _IRQ_LINE_12_MODE},
-        {.mode = _IRQ_LINE_13_MODE},
-        {.mode = _IRQ_LINE_14_MODE},
-        {.mode = _IRQ_LINE_15_MODE}
-};
+static const default_cfg_t DEFAULT_CONFIG[NUMBER_OF_IRQs] = {{.mode = _IRQ_LINE_0_MODE}, {.mode = _IRQ_LINE_1_MODE},
+        {.mode = _IRQ_LINE_2_MODE}, {.mode = _IRQ_LINE_3_MODE}, {.mode = _IRQ_LINE_4_MODE}, {.mode = _IRQ_LINE_5_MODE},
+        {.mode = _IRQ_LINE_6_MODE}, {.mode = _IRQ_LINE_7_MODE}, {.mode = _IRQ_LINE_8_MODE}, {.mode = _IRQ_LINE_9_MODE},
+        {.mode = _IRQ_LINE_10_MODE}, {.mode = _IRQ_LINE_11_MODE}, {.mode = _IRQ_LINE_12_MODE},
+        {.mode = _IRQ_LINE_13_MODE}, {.mode = _IRQ_LINE_14_MODE}, {.mode = _IRQ_LINE_15_MODE}};
 
 static IRQ_t *IRQ;
 
@@ -122,22 +109,22 @@ API_MOD_INIT(IRQ, void **device_handle, u8_t major, u8_t minor, const void *conf
 
         if (major == 0 && minor < NUMBER_OF_IRQs) {
                 if (IRQ == NULL) {
-                        err = sys_zalloc(sizeof(IRQ_t), cast(void*, &IRQ));
+                        err = sys_zalloc(sizeof(IRQ_t), cast(void *, &IRQ));
 
                         if (!err) {
                                 SET_BIT(RCC->APB2ENR, RCC_APB2ENR_IRQEN);
 
-                                IRQCFG->EXTICR[0] |= _IRQ_EXTI0_PORT  | _IRQ_EXTI1_PORT
-                                                   | _IRQ_EXTI2_PORT  | _IRQ_EXTI3_PORT;
+                                IRQCFG->EXTICR[0] |= _IRQ_EXTI0_PORT | _IRQ_EXTI1_PORT | _IRQ_EXTI2_PORT |
+                                        _IRQ_EXTI3_PORT;
 
-                                IRQCFG->EXTICR[1] |= _IRQ_EXTI4_PORT  | _IRQ_EXTI5_PORT
-                                                   | _IRQ_EXTI6_PORT  | _IRQ_EXTI7_PORT;
+                                IRQCFG->EXTICR[1] |= _IRQ_EXTI4_PORT | _IRQ_EXTI5_PORT | _IRQ_EXTI6_PORT |
+                                        _IRQ_EXTI7_PORT;
 
-                                IRQCFG->EXTICR[2] |= _IRQ_EXTI8_PORT  | _IRQ_EXTI9_PORT
-                                                   | _IRQ_EXTI10_PORT | _IRQ_EXTI11_PORT;
+                                IRQCFG->EXTICR[2] |= _IRQ_EXTI8_PORT | _IRQ_EXTI9_PORT | _IRQ_EXTI10_PORT |
+                                        _IRQ_EXTI11_PORT;
 
-                                IRQCFG->EXTICR[3] |= _IRQ_EXTI12_PORT | _IRQ_EXTI13_PORT
-                                                   | _IRQ_EXTI14_PORT | _IRQ_EXTI15_PORT;
+                                IRQCFG->EXTICR[3] |= _IRQ_EXTI12_PORT | _IRQ_EXTI13_PORT | _IRQ_EXTI14_PORT |
+                                        _IRQ_EXTI15_PORT;
                         }
                 }
 
@@ -145,7 +132,7 @@ API_MOD_INIT(IRQ, void **device_handle, u8_t major, u8_t minor, const void *conf
                         err = sys_semaphore_create(1, 0, &IRQ->sem[minor]);
                         if (!err) {
                                 // device's minor number is used as identifier
-                                *device_handle = cast(void*, cast(u32_t, minor));
+                                *device_handle = cast(void *, cast(u32_t, minor));
 
                                 enum _IRQ_MODE mode = DEFAULT_CONFIG[minor].mode;
 
@@ -185,7 +172,7 @@ API_MOD_RELEASE(IRQ, void *device_handle)
                 }
 
                 if (free_module_mem) {
-                        sys_free(cast(void*, &IRQ));
+                        sys_free(cast(void *, &IRQ));
                 }
         }
 
@@ -240,13 +227,8 @@ API_MOD_CLOSE(IRQ, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(IRQ,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(IRQ, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, src, count, fpos, wrcnt, fattr);
 
@@ -267,13 +249,7 @@ API_MOD_WRITE(IRQ,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(IRQ,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(IRQ, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, dst, count, fpos, rdcnt, fattr);
 
@@ -294,7 +270,7 @@ API_MOD_READ(IRQ,
 API_MOD_IOCTL(IRQ, void *device_handle, int request, void *arg)
 {
         u8_t minor = cast(u32_t, device_handle);
-        int  err   = EINVAL;
+        int err = EINVAL;
 
         if (arg) {
                 switch (request) {
@@ -382,10 +358,14 @@ API_MOD_STAT(IRQ, void *device_handle, struct vfs_dev_stat *device_stat)
 static IRQn_Type IRQ_minor_to_NVIC_IRQn(u8_t minor)
 {
         switch (minor) {
-        case 0  ... 4 : return EXTI0_IRQn + minor;
-        case 5  ... 9 : return EXTI9_5_IRQn;
-        case 10 ... 15: return EXTI15_10_IRQn;
-        default:        return 0;
+        case 0 ... 4:
+                return EXTI0_IRQn + minor;
+        case 5 ... 9:
+                return EXTI9_5_IRQn;
+        case 10 ... 15:
+                return EXTI15_10_IRQn;
+        default:
+                return 0;
         }
 }
 
@@ -403,7 +383,7 @@ static IRQn_Type IRQ_minor_to_NVIC_IRQn(u8_t minor)
 static int IRQ_configure(u8_t minor, enum _IRQ_MODE mode, u8_t priority)
 {
         IRQn_Type IRQn = IRQ_minor_to_NVIC_IRQn(minor);
-        int       err  = ENODEV;
+        int err = ENODEV;
 
         if (IRQn != 0) {
                 if (mode == _IRQ_MODE_DISABLED) {
@@ -412,11 +392,8 @@ static int IRQ_configure(u8_t minor, enum _IRQ_MODE mode, u8_t priority)
 
                         switch (IRQn) {
                         case EXTI9_5_IRQn: {
-                                static const u32_t IRQ9_5_MASK = EXTI_IMR_MR5
-                                                               | EXTI_IMR_MR6
-                                                               | EXTI_IMR_MR7
-                                                               | EXTI_IMR_MR8
-                                                               | EXTI_IMR_MR9;
+                                static const u32_t IRQ9_5_MASK = EXTI_IMR_MR5 | EXTI_IMR_MR6 | EXTI_IMR_MR7 |
+                                        EXTI_IMR_MR8 | EXTI_IMR_MR9;
 
                                 if ((EXTI->IMR & IRQ9_5_MASK) == 0) {
                                         NVIC_DisableIRQ(IRQn);
@@ -425,12 +402,8 @@ static int IRQ_configure(u8_t minor, enum _IRQ_MODE mode, u8_t priority)
                         }
 
                         case EXTI15_10_IRQn: {
-                                static const u32_t IRQ15_10_MASK = EXTI_IMR_MR10
-                                                                 | EXTI_IMR_MR11
-                                                                 | EXTI_IMR_MR12
-                                                                 | EXTI_IMR_MR13
-                                                                 | EXTI_IMR_MR14
-                                                                 | EXTI_IMR_MR15;
+                                static const u32_t IRQ15_10_MASK = EXTI_IMR_MR10 | EXTI_IMR_MR11 | EXTI_IMR_MR12 |
+                                        EXTI_IMR_MR13 | EXTI_IMR_MR14 | EXTI_IMR_MR15;
 
                                 if ((EXTI->IMR & IRQ15_10_MASK) == 0) {
                                         NVIC_DisableIRQ(IRQn);

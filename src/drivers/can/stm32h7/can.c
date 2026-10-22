@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   CAN driver
 
-        Copyright (C) 2022 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -67,47 +67,47 @@ enum CAN_COUNT {
 };
 
 typedef struct {
-        u8_t                major;
-        u8_t                minor;
-        u32_t               send_timeout;
-        u32_t               recv_timeout;
-        u32_t               txpend_ctr;
-        u32_t               rxpend_ctr;
-        kmtx_t             *config_mtx;
-        kmtx_t             *txbuf_mtx[TX_BUFFERS];
-        kqueue_t           *txrdy_q[TX_BUFFERS];
-        kqueue_t           *rxqueue_q;
-        u64_t               tx_frames;
-        u64_t               tx_bytes;
-        u64_t               rx_frames;
-        u64_t               rx_bytes;
-        u32_t               rx_overrun;
-        u32_t               nominal_baud;
-        u32_t               data_baud;
-        CAN_mode_t          mode;
+        u8_t major;
+        u8_t minor;
+        u32_t send_timeout;
+        u32_t recv_timeout;
+        u32_t txpend_ctr;
+        u32_t rxpend_ctr;
+        kmtx_t *config_mtx;
+        kmtx_t *txbuf_mtx[TX_BUFFERS];
+        kqueue_t *txrdy_q[TX_BUFFERS];
+        kqueue_t *rxqueue_q;
+        u64_t tx_frames;
+        u64_t tx_bytes;
+        u64_t rx_frames;
+        u64_t rx_bytes;
+        u32_t rx_overrun;
+        u32_t nominal_baud;
+        u32_t data_baud;
+        CAN_mode_t mode;
         FDCAN_HandleTypeDef hfdcan;
-        bool                irq_yield;
+        bool irq_yield;
 } CAN_t;
 
 /* CAN registers */
 typedef struct {
         FDCAN_GlobalTypeDef *CAN;
-        IRQn_Type            IT0_IRQn;
-        IRQn_Type            IT1_IRQn;
+        IRQn_Type IT0_IRQn;
+        IRQn_Type IT1_IRQn;
 } CAN_CFG_t;
 
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
 static void relese_resources(CAN_t *hdl);
-static int  configure(CAN_t *hdl, const CAN_config_t *cfg);
-static int  set_init_mode(CAN_t *hdl);
-static int  set_normal_mode(CAN_t *hdl);
-static int  set_sleep_mode(CAN_t *hdl);
-static int  set_filter(CAN_t *hdl, const CAN_filter_t *filter);
-static int  disable_filter(CAN_t *hdl, u32_t filter_no);
-static int  send_msg(CAN_t *hdl, const CAN_msg_t *msg, u32_t timeout_ms);
-static int  recv_msg(CAN_t *hdl, CAN_msg_t *msg, u32_t timeout_ms);
+static int configure(CAN_t *hdl, const CAN_config_t *cfg);
+static int set_init_mode(CAN_t *hdl);
+static int set_normal_mode(CAN_t *hdl);
+static int set_sleep_mode(CAN_t *hdl);
+static int set_filter(CAN_t *hdl, const CAN_filter_t *filter);
+static int disable_filter(CAN_t *hdl, u32_t filter_no);
+static int send_msg(CAN_t *hdl, const CAN_msg_t *msg, u32_t timeout_ms);
+static int recv_msg(CAN_t *hdl, CAN_msg_t *msg, u32_t timeout_ms);
 
 /*==============================================================================
   Local object
@@ -119,21 +119,21 @@ static CAN_t *CAN_HDL[_CAN_COUNT];
 static const CAN_CFG_t CAN_CFG[] = {
 #if defined(FDCAN1)
         {
-                .CAN      = FDCAN1,
+                .CAN = FDCAN1,
                 .IT0_IRQn = FDCAN1_IT0_IRQn,
                 .IT1_IRQn = FDCAN1_IT1_IRQn,
         },
 #endif
 #if defined(FDCAN2)
         {
-                .CAN      = FDCAN2,
+                .CAN = FDCAN2,
                 .IT0_IRQn = FDCAN2_IT0_IRQn,
                 .IT1_IRQn = FDCAN2_IT1_IRQn,
         },
 #endif
 #if defined(FDCAN3)
         {
-                .CAN      = FDCAN3,
+                .CAN = FDCAN3,
                 .IT0_IRQn = FDCAN3_IT0_IRQn,
                 .IT1_IRQn = FDCAN3_IT1_IRQn,
         },
@@ -169,13 +169,13 @@ API_MOD_INIT(CAN, void **device_handle, u8_t major, u8_t minor, const void *conf
                 err = sys_zalloc(sizeof(CAN_t), device_handle);
                 if (!err) {
 
-                        CAN_t *hdl     = *device_handle;
+                        CAN_t *hdl = *device_handle;
                         CAN_HDL[major] = hdl;
 
-                        hdl->major        = major;
+                        hdl->major = major;
                         hdl->recv_timeout = _WAIT_FOREVER_MS;
                         hdl->send_timeout = _WAIT_FOREVER_MS;
-                        hdl->mode         = CAN_MODE__INIT;
+                        hdl->mode = CAN_MODE__INIT;
 
                         err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &hdl->config_mtx);
                         if (err) {
@@ -227,7 +227,7 @@ API_MOD_RELEASE(CAN, void *device_handle)
         CAN_t *hdl = device_handle;
 
         if (CAN_HDL[hdl->major]) {
-                hdl->hfdcan.Instance    = CAN_CFG[hdl->major].CAN;
+                hdl->hfdcan.Instance = CAN_CFG[hdl->major].CAN;
                 hdl->hfdcan.UserContext = hdl;
                 HAL_FDCAN_DeInit(&hdl->hfdcan);
         }
@@ -368,8 +368,7 @@ API_MOD_WRITE(CAN, void *device_handle, const u8_t *src, size_t count, fpos_t *f
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(CAN, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt,
-        struct vfs_fattr fattr)
+API_MOD_READ(CAN, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fpos);
 
@@ -447,7 +446,7 @@ API_MOD_IOCTL(CAN, void *device_handle, int request, void *arg)
         case IOCTL_CAN__GET_NUMBER_OF_FILTERS:
                 if (arg) {
                         *cast(u32_t *, arg) = FILTERS_COUNT;
-                        err                 = ESUCC;
+                        err = ESUCC;
                 }
                 break;
 
@@ -517,25 +516,25 @@ API_MOD_IOCTL(CAN, void *device_handle, int request, void *arg)
                         }
 
                         // CAN mode
-                        status->mode       = hdl->mode;
+                        status->mode = hdl->mode;
                         status->frame_mode = CAN_FRAME_MODE__FD_WITH_BIT_RATE_SWITCH;
 
                         // error countes
                         FDCAN_ErrorCountersTypeDef error_counters;
                         HAL_FDCAN_GetErrorCounters(&hdl->hfdcan, &error_counters);
-                        status->rx_error_ctr   = error_counters.RxErrorCnt;
-                        status->tx_error_ctr   = error_counters.TxErrorCnt;
+                        status->rx_error_ctr = error_counters.RxErrorCnt;
+                        status->tx_error_ctr = error_counters.TxErrorCnt;
                         status->rx_overrun_ctr = hdl->rx_overrun;
 
                         // transfer stats
                         status->tx_frames = hdl->tx_frames;
-                        status->tx_bytes  = hdl->tx_bytes;
+                        status->tx_bytes = hdl->tx_bytes;
                         status->rx_frames = hdl->rx_frames;
-                        status->rx_bytes  = hdl->rx_bytes;
+                        status->rx_bytes = hdl->rx_bytes;
 
                         // baud
                         status->nominal_baud_bps = hdl->nominal_baud;
-                        status->data_baud_bps    = hdl->data_baud;
+                        status->data_baud_bps = hdl->data_baud;
 
                         err = ESUCC;
                 }
@@ -679,7 +678,7 @@ static int configure(CAN_t *hdl, const CAN_config_t *cfg)
         int err = sys_mutex_lock(hdl->config_mtx, MTX_TIMEOUT);
         if (!err) {
 
-                hdl->hfdcan.Instance    = CAN_CFG[hdl->major].CAN;
+                hdl->hfdcan.Instance = CAN_CFG[hdl->major].CAN;
                 hdl->hfdcan.UserContext = hdl;
 
                 HAL_FDCAN_DeInit(&hdl->hfdcan);
@@ -692,34 +691,34 @@ static int configure(CAN_t *hdl, const CAN_config_t *cfg)
                         hdl->hfdcan.Init.Mode = FDCAN_MODE_NORMAL;
                 }
 
-                hdl->hfdcan.Init.FrameFormat        = FDCAN_FRAME_FD_BRS;
+                hdl->hfdcan.Init.FrameFormat = FDCAN_FRAME_FD_BRS;
                 hdl->hfdcan.Init.AutoRetransmission = cfg->auto_retransmission;
-                hdl->hfdcan.Init.TransmitPause      = DISABLE;
-                hdl->hfdcan.Init.ProtocolException  = ENABLE;
+                hdl->hfdcan.Init.TransmitPause = DISABLE;
+                hdl->hfdcan.Init.ProtocolException = ENABLE;
 
-                u32_t SJW         = cfg->nominal_bit_rate.SJW;
-                u32_t TS1         = cfg->nominal_bit_rate.TS1;
-                u32_t TS2         = cfg->nominal_bit_rate.TS2;
-                u32_t BRP         = cfg->nominal_bit_rate.prescaler;
+                u32_t SJW = cfg->nominal_bit_rate.SJW;
+                u32_t TS1 = cfg->nominal_bit_rate.TS1;
+                u32_t TS2 = cfg->nominal_bit_rate.TS2;
+                u32_t BRP = cfg->nominal_bit_rate.prescaler;
                 hdl->nominal_baud = check_bit_rate_settings(hdl, &SJW, &TS1, &TS2, &BRP);
                 dev_dbg(hdl, "nominal baud rate: %lu bps", hdl->nominal_baud);
 
-                hdl->hfdcan.Init.NominalPrescaler     = cfg->nominal_bit_rate.prescaler;
+                hdl->hfdcan.Init.NominalPrescaler = cfg->nominal_bit_rate.prescaler;
                 hdl->hfdcan.Init.NominalSyncJumpWidth = cfg->nominal_bit_rate.SJW;
-                hdl->hfdcan.Init.NominalTimeSeg1      = cfg->nominal_bit_rate.TS1;
-                hdl->hfdcan.Init.NominalTimeSeg2      = cfg->nominal_bit_rate.TS2;
+                hdl->hfdcan.Init.NominalTimeSeg1 = cfg->nominal_bit_rate.TS1;
+                hdl->hfdcan.Init.NominalTimeSeg2 = cfg->nominal_bit_rate.TS2;
 
-                SJW            = cfg->data_bit_rate.SJW;
-                TS1            = cfg->data_bit_rate.TS1;
-                TS2            = cfg->data_bit_rate.TS2;
-                BRP            = cfg->data_bit_rate.prescaler;
+                SJW = cfg->data_bit_rate.SJW;
+                TS1 = cfg->data_bit_rate.TS1;
+                TS2 = cfg->data_bit_rate.TS2;
+                BRP = cfg->data_bit_rate.prescaler;
                 hdl->data_baud = check_bit_rate_settings(hdl, &SJW, &TS1, &TS2, &BRP);
                 dev_dbg(hdl, "data baud rate: %lu bps", hdl->data_baud);
 
-                hdl->hfdcan.Init.DataPrescaler     = cfg->data_bit_rate.prescaler;
+                hdl->hfdcan.Init.DataPrescaler = cfg->data_bit_rate.prescaler;
                 hdl->hfdcan.Init.DataSyncJumpWidth = cfg->data_bit_rate.SJW;
-                hdl->hfdcan.Init.DataTimeSeg1      = cfg->data_bit_rate.TS1;
-                hdl->hfdcan.Init.DataTimeSeg2      = cfg->data_bit_rate.TS2;
+                hdl->hfdcan.Init.DataTimeSeg1 = cfg->data_bit_rate.TS1;
+                hdl->hfdcan.Init.DataTimeSeg2 = cfg->data_bit_rate.TS2;
 
                 /*
                  * Calculate FDCAN RAM objects sizes
@@ -732,35 +731,35 @@ static int configure(CAN_t *hdl, const CAN_config_t *cfg)
                 size_t RAM_rx_fifo_space = SHARED_MESSAGE_RAM_SIZE - RAM_filter_space - RAM_tx_buffers_space;
 
                 hdl->hfdcan.Init.MessageRAMOffset = hdl->major * SHARED_MESSAGE_RAM_SIZE;
-                hdl->hfdcan.Init.StdFiltersNbr    = FILTERS_COUNT;
-                hdl->hfdcan.Init.ExtFiltersNbr    = FILTERS_COUNT;
+                hdl->hfdcan.Init.StdFiltersNbr = FILTERS_COUNT;
+                hdl->hfdcan.Init.ExtFiltersNbr = FILTERS_COUNT;
 
                 hdl->hfdcan.Init.RxFifo0ElmtsNbr = min(64, (RAM_rx_fifo_space / FDCAN_RX_FIFO_SIZE));
                 hdl->hfdcan.Init.RxFifo0ElmtSize = FDCAN_DATA_BYTES_64;
                 hdl->hfdcan.Init.RxFifo1ElmtsNbr = 0;
-                hdl->hfdcan.Init.RxBuffersNbr    = 0;
+                hdl->hfdcan.Init.RxBuffersNbr = 0;
 
-                hdl->hfdcan.Init.TxBuffersNbr        = TX_BUFFERS;
-                hdl->hfdcan.Init.TxEventsNbr         = 0;
-                hdl->hfdcan.Init.TxElmtSize          = FDCAN_DATA_BYTES_64;
+                hdl->hfdcan.Init.TxBuffersNbr = TX_BUFFERS;
+                hdl->hfdcan.Init.TxEventsNbr = 0;
+                hdl->hfdcan.Init.TxElmtSize = FDCAN_DATA_BYTES_64;
                 hdl->hfdcan.Init.TxFifoQueueElmtsNbr = 0;
-                hdl->hfdcan.Init.TxFifoQueueMode     = FDCAN_TX_FIFO_OPERATION;
+                hdl->hfdcan.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
 
                 err = HAL_FDCAN_Init(&hdl->hfdcan);
                 if (!err) {
                         for (size_t i = 0; i < FILTERS_COUNT; i++) {
                                 FDCAN_FilterTypeDef filter_config;
-                                filter_config.IdType           = FDCAN_STANDARD_ID;
-                                filter_config.FilterIndex      = i;
-                                filter_config.FilterType       = FDCAN_FILTER_MASK;
-                                filter_config.FilterConfig     = FDCAN_FILTER_TO_RXFIFO0;
-                                filter_config.FilterID1        = 0;
-                                filter_config.FilterID2        = 0x7FF;
-                                filter_config.RxBufferIndex    = FDCAN_RX_BUFFER0;
+                                filter_config.IdType = FDCAN_STANDARD_ID;
+                                filter_config.FilterIndex = i;
+                                filter_config.FilterType = FDCAN_FILTER_MASK;
+                                filter_config.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
+                                filter_config.FilterID1 = 0;
+                                filter_config.FilterID2 = 0x7FF;
+                                filter_config.RxBufferIndex = FDCAN_RX_BUFFER0;
                                 filter_config.IsCalibrationMsg = false;
                                 HAL_FDCAN_ConfigFilter(&hdl->hfdcan, &filter_config);
 
-                                filter_config.IdType    = FDCAN_EXTENDED_ID;
+                                filter_config.IdType = FDCAN_EXTENDED_ID;
                                 filter_config.FilterID1 = 0;
                                 filter_config.FilterID2 = 0x1FFFFFFF;
                                 HAL_FDCAN_ConfigFilter(&hdl->hfdcan, &filter_config);
@@ -797,8 +796,8 @@ static int set_init_mode(CAN_t *hdl)
                 err = HAL_FDCAN_Stop(&hdl->hfdcan);
 
                 if (!err) {
-                        hdl->tx_bytes  = 0;
-                        hdl->rx_bytes  = 0;
+                        hdl->tx_bytes = 0;
+                        hdl->rx_bytes = 0;
                         hdl->tx_frames = 0;
                         hdl->rx_frames = 0;
 
@@ -895,15 +894,15 @@ static int set_filter(CAN_t *hdl, const CAN_filter_t *filter)
         if (!err) {
 
                 FDCAN_FilterTypeDef filter_config;
-                filter_config.IdType           = filter->extended_ID ? FDCAN_EXTENDED_ID : FDCAN_STANDARD_ID;
-                filter_config.FilterIndex      = filter->number;
-                filter_config.FilterType       = FDCAN_FILTER_MASK;
-                filter_config.FilterConfig     = FDCAN_FILTER_TO_RXFIFO0;
-                filter_config.FilterID1        = filter->ID;
-                filter_config.FilterID2        = filter->mask;
-                filter_config.RxBufferIndex    = FDCAN_RX_BUFFER0;
+                filter_config.IdType = filter->extended_ID ? FDCAN_EXTENDED_ID : FDCAN_STANDARD_ID;
+                filter_config.FilterIndex = filter->number;
+                filter_config.FilterType = FDCAN_FILTER_MASK;
+                filter_config.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
+                filter_config.FilterID1 = filter->ID;
+                filter_config.FilterID2 = filter->mask;
+                filter_config.RxBufferIndex = FDCAN_RX_BUFFER0;
                 filter_config.IsCalibrationMsg = false;
-                err                            = HAL_FDCAN_ConfigFilter(&hdl->hfdcan, &filter_config);
+                err = HAL_FDCAN_ConfigFilter(&hdl->hfdcan, &filter_config);
 
                 sys_mutex_unlock(hdl->config_mtx);
         }
@@ -932,19 +931,19 @@ static int disable_filter(CAN_t *hdl, u32_t filter_no)
         if (!err) {
 
                 FDCAN_FilterTypeDef filter_config;
-                filter_config.IdType           = FDCAN_STANDARD_ID;
-                filter_config.FilterIndex      = filter_no;
-                filter_config.FilterType       = FDCAN_FILTER_MASK;
-                filter_config.FilterConfig     = FDCAN_FILTER_TO_RXFIFO0;
-                filter_config.FilterID1        = 0;
-                filter_config.FilterID2        = 0;
-                filter_config.RxBufferIndex    = FDCAN_RX_BUFFER0;
+                filter_config.IdType = FDCAN_STANDARD_ID;
+                filter_config.FilterIndex = filter_no;
+                filter_config.FilterType = FDCAN_FILTER_MASK;
+                filter_config.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
+                filter_config.FilterID1 = 0;
+                filter_config.FilterID2 = 0;
+                filter_config.RxBufferIndex = FDCAN_RX_BUFFER0;
                 filter_config.IsCalibrationMsg = false;
 
                 err = HAL_FDCAN_ConfigFilter(&hdl->hfdcan, &filter_config);
                 if (!err) {
                         filter_config.IdType = FDCAN_EXTENDED_ID;
-                        err                  = HAL_FDCAN_ConfigFilter(&hdl->hfdcan, &filter_config);
+                        err = HAL_FDCAN_ConfigFilter(&hdl->hfdcan, &filter_config);
                 }
 
                 sys_mutex_unlock(hdl->config_mtx);
@@ -1007,8 +1006,8 @@ static int send_msg(CAN_t *hdl, const CAN_msg_t *msg, u32_t timeout_ms)
         hdl->txpend_ctr++;
         sys_context_switch_unlock();
 
-        int   err     = ETIME;
-        bool  loop    = true;
+        int err = ETIME;
+        bool loop = true;
         u32_t timeout = max(1, timeout_ms);
 
         clock_t tref = sys_get_uptime_ms();
@@ -1025,16 +1024,15 @@ static int send_msg(CAN_t *hdl, const CAN_msg_t *msg, u32_t timeout_ms)
                         }
 
                         FDCAN_TxHeaderTypeDef tx_header;
-                        tx_header.Identifier          = msg->ID;
-                        tx_header.MessageMarker       = i;
-                        tx_header.TxEventFifoControl  = FDCAN_NO_TX_EVENTS;
-                        tx_header.DataLength          = DLC;
+                        tx_header.Identifier = msg->ID;
+                        tx_header.MessageMarker = i;
+                        tx_header.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
+                        tx_header.DataLength = DLC;
                         tx_header.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
 
                         tx_header.IdType = msg->extended_ID ? FDCAN_EXTENDED_ID : FDCAN_STANDARD_ID;
 
-                        tx_header.TxFrameType = msg->remote_transmission ? FDCAN_REMOTE_FRAME
-                                                                         : FDCAN_DATA_FRAME;
+                        tx_header.TxFrameType = msg->remote_transmission ? FDCAN_REMOTE_FRAME : FDCAN_DATA_FRAME;
 
                         tx_header.BitRateSwitch = msg->frame_mode == CAN_FRAME_MODE__FD_WITH_BIT_RATE_SWITCH
                                 ? FDCAN_BRS_ON
@@ -1045,8 +1043,7 @@ static int send_msg(CAN_t *hdl, const CAN_msg_t *msg, u32_t timeout_ms)
 
                         u32_t buffer_index = FDCAN_TX_BUFFER0 << i;
 
-                        err = HAL_FDCAN_AddMessageToTxBuffer(&hdl->hfdcan, &tx_header, msg->data,
-                                buffer_index);
+                        err = HAL_FDCAN_AddMessageToTxBuffer(&hdl->hfdcan, &tx_header, msg->data, buffer_index);
 
                         if (not err) {
                                 sys_queue_reset(hdl->txrdy_q[i]);
@@ -1057,7 +1054,7 @@ static int send_msg(CAN_t *hdl, const CAN_msg_t *msg, u32_t timeout_ms)
                                 HAL_FDCAN_EnableTxBufferRequest(&hdl->hfdcan, buffer_index);
 
                                 int erri = EIO;
-                                err      = sys_queue_receive(hdl->txrdy_q[i], &erri, timeout);
+                                err = sys_queue_receive(hdl->txrdy_q[i], &erri, timeout);
                                 if (!err) {
                                         err = erri;
 
@@ -1225,7 +1222,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 
                 HAL_FDCAN_ActivateNotification(hfdcan, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0);
 
-                CAN_msg_t             msg;
+                CAN_msg_t msg;
                 FDCAN_RxHeaderTypeDef rx_header;
 
                 while (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_header, msg.data) == 0) {
@@ -1240,8 +1237,8 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
                                 msg.frame_mode = CAN_FRAME_MODE__FD_WITHOUT_BIT_RATE_SWITCH;
                         }
 
-                        msg.ID                  = rx_header.Identifier;
-                        msg.extended_ID         = rx_header.IdType == FDCAN_EXTENDED_ID;
+                        msg.ID = rx_header.Identifier;
+                        msg.extended_ID = rx_header.IdType == FDCAN_EXTENDED_ID;
                         msg.remote_transmission = rx_header.RxFrameType == FDCAN_REMOTE_FRAME;
 
                         switch (rx_header.DataLength) {
@@ -1405,7 +1402,7 @@ void HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t Bu
         for (size_t i = 0; i < 32; i++) {
 
                 if (BufferIndexes & (1 << i)) {
-                        int  err       = ESUCC;
+                        int err = ESUCC;
                         bool irq_yield = false;
                         sys_queue_send_from_ISR(hdl->txrdy_q[i], &err, &irq_yield);
                         hdl->irq_yield |= irq_yield;
@@ -1431,7 +1428,7 @@ void HAL_FDCAN_TxBufferAbortCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t Buffe
         for (size_t i = 0; i < 32; i++) {
 
                 if (BufferIndexes & (1 << i)) {
-                        int  err       = ECANCELED;
+                        int err = ECANCELED;
                         bool irq_yield = false;
                         sys_queue_send_from_ISR(hdl->txrdy_q[i], &err, &irq_yield);
                         hdl->irq_yield |= irq_yield;

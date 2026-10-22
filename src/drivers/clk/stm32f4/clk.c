@@ -5,7 +5,7 @@
 
 @brief   File support system clokc (PLL).
 
-@note    Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -38,18 +38,18 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define TIMEOUT_MS                      250
-#define LSE_TIMEOUT_MS                  5000
+#define TIMEOUT_MS     250
+#define LSE_TIMEOUT_MS 5000
 
 #if !defined(PWR_CR_VOS_1) && !defined(PWR_CR_VOS_0)
-#define PWR_REGULATOR_VOLTAGE_SCALE0    PWR_REGULATOR_VOLTAGE_SCALE1
-#define PWR_REGULATOR_VOLTAGE_SCALE1    (1*PWR_CR_VOS)
-#define PWR_REGULATOR_VOLTAGE_SCALE2    (0*PWR_CR_VOS)
+#define PWR_REGULATOR_VOLTAGE_SCALE0 PWR_REGULATOR_VOLTAGE_SCALE1
+#define PWR_REGULATOR_VOLTAGE_SCALE1 (1 * PWR_CR_VOS)
+#define PWR_REGULATOR_VOLTAGE_SCALE2 (0 * PWR_CR_VOS)
 #else
-#define PWR_REGULATOR_VOLTAGE_SCALE0    (0)
-#define PWR_REGULATOR_VOLTAGE_SCALE1    ((1*PWR_CR_VOS_1) | (1*PWR_CR_VOS_0))
-#define PWR_REGULATOR_VOLTAGE_SCALE2    ((1*PWR_CR_VOS_1) | (0*PWR_CR_VOS_0))
-#define PWR_REGULATOR_VOLTAGE_SCALE3    ((0*PWR_CR_VOS_1) | (1*PWR_CR_VOS_0))
+#define PWR_REGULATOR_VOLTAGE_SCALE0 (0)
+#define PWR_REGULATOR_VOLTAGE_SCALE1 ((1 * PWR_CR_VOS_1) | (1 * PWR_CR_VOS_0))
+#define PWR_REGULATOR_VOLTAGE_SCALE2 ((1 * PWR_CR_VOS_1) | (0 * PWR_CR_VOS_0))
+#define PWR_REGULATOR_VOLTAGE_SCALE3 ((0 * PWR_CR_VOS_1) | (1 * PWR_CR_VOS_0))
 #endif
 
 /*==============================================================================
@@ -59,9 +59,9 @@
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static int  configure_core_voltage_and_flash_latency(void);
+static int configure_core_voltage_and_flash_latency(void);
 static void enable_prefetch_buffer(void);
-static int  wait_for_flag(u32_t flag, u32_t timeout);
+static int wait_for_flag(u32_t flag, u32_t timeout);
 static bool is_APB1_divided(void);
 static bool is_APB2_divided(void);
 
@@ -158,10 +158,10 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         //----------------------------------------------------------------------
         // RTC clock selection
         //----------------------------------------------------------------------
-        if ( (  (_CLK_CFG__RTCCLK_SRC == RCC_RTCCLKSource_LSE && _CLK_CFG__LSE_ON)
-             || (_CLK_CFG__RTCCLK_SRC == RCC_RTCCLKSource_LSI && _CLK_CFG__LSI_ON)
-             || (IS_RCC_RTCCLK_SOURCE(_CLK_CFG__RTCCLK_SRC)   && _CLK_CFG__HSE_ON) )
-           && (RCC->BDCR & (RCC_BDCR_RTCSEL_1 | RCC_BDCR_RTCSEL_0)) == 0) {
+        if (((_CLK_CFG__RTCCLK_SRC == RCC_RTCCLKSource_LSE && _CLK_CFG__LSE_ON) ||
+                    (_CLK_CFG__RTCCLK_SRC == RCC_RTCCLKSource_LSI && _CLK_CFG__LSI_ON) ||
+                    (IS_RCC_RTCCLK_SOURCE(_CLK_CFG__RTCCLK_SRC) && _CLK_CFG__HSE_ON)) &&
+                (RCC->BDCR & (RCC_BDCR_RTCSEL_1 | RCC_BDCR_RTCSEL_0)) == 0) {
 
                 SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);
                 SET_BIT(PWR->CR, PWR_CR_DBP);
@@ -255,21 +255,15 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         //----------------------------------------------------------------------
         // Main PLL configuration
         //----------------------------------------------------------------------
-#if defined(STM32F410xx) || defined(STM32F412xG) || defined(STM32F413_423xx) || defined(STM32F446xx) || defined(STM32F469_479xx)
-        RCC_PLLConfig(_CLK_CFG__PLL_SRC,
-                      _CLK_CFG__PLL_SRC_DIV_M,
-                      _CLK_CFG__PLL_N,
-                      _CLK_CFG__PLL_P,
-                      _CLK_CFG__PLL_Q,
-                      _CLK_CFG__PLL_R);
+#if defined(STM32F410xx) || defined(STM32F412xG) || defined(STM32F413_423xx) || defined(STM32F446xx) || \
+        defined(STM32F469_479xx)
+        RCC_PLLConfig(_CLK_CFG__PLL_SRC, _CLK_CFG__PLL_SRC_DIV_M, _CLK_CFG__PLL_N, _CLK_CFG__PLL_P, _CLK_CFG__PLL_Q,
+                _CLK_CFG__PLL_R);
 #endif
 
-#if defined(STM32F40_41xxx) || defined(STM32F427_437xx) || defined(STM32F429_439xx) || defined(STM32F401xx) || defined(STM32F411xE)
-        RCC_PLLConfig(_CLK_CFG__PLL_SRC,
-                      _CLK_CFG__PLL_SRC_DIV_M,
-                      _CLK_CFG__PLL_N,
-                      _CLK_CFG__PLL_P,
-                      _CLK_CFG__PLL_Q);
+#if defined(STM32F40_41xxx) || defined(STM32F427_437xx) || defined(STM32F429_439xx) || defined(STM32F401xx) || \
+        defined(STM32F411xE)
+        RCC_PLLConfig(_CLK_CFG__PLL_SRC, _CLK_CFG__PLL_SRC_DIV_M, _CLK_CFG__PLL_N, _CLK_CFG__PLL_P, _CLK_CFG__PLL_Q);
 #endif
 
         RCC_PLLCmd(_CLK_CFG__PLL_ON);
@@ -296,12 +290,14 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         RCC_PLLI2SConfig(_CLK_CFG__PLLI2S_N, _CLK_CFG__PLLI2S_Q, _CLK_CFG__PLLI2S_R);
 #endif
 
-#if defined(STM32F412xG ) || defined(STM32F413_423xx) || defined(STM32F446xx)
-        RCC_PLLI2SConfig(_CLK_CFG__PLLI2S_M, _CLK_CFG__PLLI2S_N, _CLK_CFG__PLLI2S_P,
-                         _CLK_CFG__PLLI2S_Q, _CLK_CFG__PLLI2S_R);
+#if defined(STM32F412xG) || defined(STM32F413_423xx) || defined(STM32F446xx)
+        RCC_PLLI2SConfig(_CLK_CFG__PLLI2S_M, _CLK_CFG__PLLI2S_N, _CLK_CFG__PLLI2S_P, _CLK_CFG__PLLI2S_Q,
+                _CLK_CFG__PLLI2S_R);
 #endif
 
-#if defined(STM32F40_41xxx) || defined(STM32F401xx) || defined(STM32F411xE) || defined(STM32F427_437xx) || defined(STM32F429_439xx) || defined(STM32F469_479xx) || defined(STM32F412xG ) || defined(STM32F413_423xx) || defined(STM32F446xx)
+#if defined(STM32F40_41xxx) || defined(STM32F401xx) || defined(STM32F411xE) || defined(STM32F427_437xx) ||          \
+        defined(STM32F429_439xx) || defined(STM32F469_479xx) || defined(STM32F412xG) || defined(STM32F413_423xx) || \
+        defined(STM32F446xx)
         RCC_PLLI2SCmd(_CLK_CFG__PLLI2S_ON);
         if (_CLK_CFG__PLLI2S_ON) {
                 err = wait_for_flag(RCC_FLAG_PLLI2SRDY, TIMEOUT_MS);
@@ -358,7 +354,8 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         RCC_I2SCLKConfig(_CLK_CFG__I2S_CLK_SRC);
 #endif
 
-#if defined(STM32F40_41xxx) || defined(STM32F427_437xx) || defined(STM32F429_439xx) || defined(STM32F401xx) || defined(STM32F411xE) || defined(STM32F469_479xx)
+#if defined(STM32F40_41xxx) || defined(STM32F427_437xx) || defined(STM32F429_439xx) || defined(STM32F401xx) || \
+        defined(STM32F411xE) || defined(STM32F469_479xx)
         RCC_I2SCLKConfig(_CLK_CFG__I2S_CLK_SRC);
 #endif
 
@@ -432,13 +429,8 @@ API_MOD_CLOSE(CLK, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(CLK,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(CLK, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, src, count, fpos, wrcnt, fattr);
         return ENOTSUP;
@@ -458,13 +450,7 @@ API_MOD_WRITE(CLK,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(CLK,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(CLK, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, dst, count, fpos, rdcnt, fattr);
         return ENOTSUP;
@@ -620,12 +606,12 @@ static int configure_core_voltage_and_flash_latency(void)
                 u32_t VOS_tmp = (VOS == PWR_REGULATOR_VOLTAGE_SCALE0) ? PWR_REGULATOR_VOLTAGE_SCALE1 : VOS;
                 MODIFY_REG(PWR->CR, PWR_CR_VOS_Msk, VOS_tmp);
 
-                // Enable core boost voltage
-                #if defined(PWR_CR_ODEN)
+// Enable core boost voltage
+#if defined(PWR_CR_ODEN)
                 if (!err && (VOS == PWR_REGULATOR_VOLTAGE_SCALE0)) {
                         SET_BIT(PWR->CR, PWR_CR_ODEN);
                         clock_t tref = sys_get_uptime_ms();
-                        while (not (PWR->CSR & PWR_CSR_ODRDY)) {
+                        while (not(PWR->CSR & PWR_CSR_ODRDY)) {
                                 if (sys_is_time_expired(tref, TIMEOUT_MS)) {
                                         printk("CLK: VOS0 timeout");
                                         err = ETIME;
@@ -635,7 +621,7 @@ static int configure_core_voltage_and_flash_latency(void)
                                 sys_sleep_ms(1);
                         }
                 }
-                #endif
+#endif
         }
 
         if (!err) {

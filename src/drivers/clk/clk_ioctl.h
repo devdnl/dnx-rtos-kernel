@@ -5,7 +5,7 @@
 
 @brief   CLK ioctl request codes.
 
-@note    Copyright (C) 2014 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -97,7 +97,6 @@ if (clk) {
 @{
 */
 
-
 #ifndef _CLK_IOCTL_H_
 #define _CLK_IOCTL_H_
 
@@ -118,7 +117,7 @@ extern "C" {
  *  @param  [WR,RD] @ref CLK_info_t * clock information.
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_CLK__GET_CLK_INFO   _IOWR(CLK, 0x00, CLK_info_t*)
+#define IOCTL_CLK__GET_CLK_INFO _IOWR(CLK, 0x00, CLK_info_t *)
 
 /*==============================================================================
   Exported object types
@@ -127,9 +126,9 @@ extern "C" {
  * Type represent clock info object (iterator).
  */
 typedef struct {
-        u8_t        iterator;           /*!< [IN]  Clock iterator (starts from 0, auto incremented)*/
-        u32_t       freq_Hz;            /*!< [OUT] Clock frequency in Hz*/
-        const char *name;               /*!< [OUT] Clock name (NULL if clock does not exist -- end of iteration)*/
+        u8_t iterator;    /*!< [IN]  Clock iterator (starts from 0, auto incremented)*/
+        u32_t freq_Hz;    /*!< [OUT] Clock frequency in Hz*/
+        const char *name; /*!< [OUT] Clock name (NULL if clock does not exist -- end of iteration)*/
 } CLK_info_t;
 
 /*==============================================================================

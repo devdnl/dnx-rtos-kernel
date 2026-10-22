@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   ROM File System (FPKG container)
 
-        Copyright (C) 2023 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -67,8 +67,8 @@ Brief   ROM File System (FPKG container)
 #define is_encrypted(hdl) ((hdl)->flags & FLAG_ENCRYPTED)
 #define is_sorted(hdl)    ((hdl)->flags & FLAG_SORTED)
 
-#define NAME_BUF_LEN    512
-#define MAX_PATH_LEN    (NAME_BUF_LEN - 2)
+#define NAME_BUF_LEN 512
+#define MAX_PATH_LEN (NAME_BUF_LEN - 2)
 
 /*==============================================================================
   Local object types
@@ -131,10 +131,10 @@ struct fpkg_file {
 };
 
 struct fpkg_dir {
-        char *root;             /* directory path with trailing '/' */
-        char *item_name;        /* last returned item */
+        char *root;      /* directory path with trailing '/' */
+        char *item_name; /* last returned item */
         uint32_t root_len;
-        uint32_t start;         /* first entry that can belong to directory */
+        uint32_t start; /* first entry that can belong to directory */
         uint32_t seek;
 };
 
@@ -167,8 +167,7 @@ static bool is_container_header_valid(const container_header_t *hdr);
 
 static bool is_file_entry_valid(romfs_t *hdl, const file_entry_t *file_entry);
 
-static bool is_file_descriptor_valid(romfs_t *hdl, const file_entry_t *file_entry,
-        const file_descriptor_t *file_desc);
+static bool is_file_descriptor_valid(romfs_t *hdl, const file_entry_t *file_entry, const file_descriptor_t *file_desc);
 
 static int read_container_header(romfs_t *hdl, container_header_t *hdr);
 
@@ -181,8 +180,7 @@ static int read_file_descriptor_name(romfs_t *hdl, file_entry_t *entry, file_des
 
 static int read_item(romfs_t *hdl, uint32_t n, file_entry_t *entry, file_descriptor_t *desc, bool *truncated);
 
-static int region_crc32(romfs_t *hdl, uint32_t offset, uint32_t len, uint32_t seed, bool decrypt,
-        uint32_t *crc_out);
+static int region_crc32(romfs_t *hdl, uint32_t offset, uint32_t len, uint32_t seed, bool decrypt, uint32_t *crc_out);
 
 static uint32_t calc_CRC32(const void *buf, uint32_t buflen, uint32_t init);
 
@@ -323,9 +321,8 @@ API_FS_OPEN(romfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
                 struct fpkg_file *file;
                 err = sys_malloc(sizeof(*file), cast(void **, &file));
                 if (not err) {
-                        file->content_offset = item.entry.file_descriptor_address
-                                             + sizeof(file_descriptor_t)
-                                             + item.desc.file_name_len;
+                        file->content_offset = item.entry.file_descriptor_address + sizeof(file_descriptor_t) +
+                                item.desc.file_name_len;
 
                         file->content_prng_seed = item.desc.content_prng_seed;
                         file->current_seed = item.desc.content_prng_seed;
@@ -969,8 +966,8 @@ static int read_image_info(romfs_t *hdl)
                 return EILSEQ;
         }
 
-        uint64_t tables_size = sizeof(container_header_t)
-                             + (cast(uint64_t, header.number_of_files) * sizeof(file_entry_t));
+        uint64_t tables_size = sizeof(container_header_t) +
+                (cast(uint64_t, header.number_of_files) * sizeof(file_entry_t));
 
         if (tables_size > hdl->file_size) {
                 return EILSEQ;
@@ -1197,8 +1194,7 @@ static int lookup_linear(romfs_t *hdl, const char *key, size_t key_len, romfs_it
                 }
 
                 bool trunc;
-                err = read_file_descriptor_name(hdl, &item->entry, &item->desc, hdl->tmp, sizeof(hdl->tmp),
-                        &trunc);
+                err = read_file_descriptor_name(hdl, &item->entry, &item->desc, hdl->tmp, sizeof(hdl->tmp), &trunc);
                 if (err) {
                         return err;
                 }
@@ -1313,7 +1309,7 @@ static int dir_next(romfs_t *hdl, struct fpkg_dir *dir, bool *is_dir, uint32_t *
                 if (slash) {
                         *slash = '\0';
                 } else if (trunc) {
-                        continue;       // name cannot be represented
+                        continue; // name cannot be represented
                 }
 
                 if ((item_name[0] == '\0') or (strcmp(item_name, dir->item_name) == 0)) {
@@ -1668,8 +1664,7 @@ static int read_item(romfs_t *hdl, uint32_t n, file_entry_t *entry, file_descrip
  * @return One of errno value.
  */
 //==============================================================================
-static int region_crc32(romfs_t *hdl, uint32_t offset, uint32_t len, uint32_t seed, bool decrypt,
-        uint32_t *crc_out)
+static int region_crc32(romfs_t *hdl, uint32_t offset, uint32_t len, uint32_t seed, bool decrypt, uint32_t *crc_out)
 {
         uint8_t *buf = cast(uint8_t *, hdl->tmp);
         uint32_t crc = ~FPKG_CRC32_INIT;
@@ -1759,8 +1754,8 @@ static int file_validity_check(romfs_t *hdl)
 
                 uint32_t name_offset = entry.file_descriptor_address + sizeof(file_descriptor_t);
 
-                err = region_crc32(hdl, name_offset, desc.file_name_len, desc.content_prng_seed,
-                        is_encrypted(hdl), &crc);
+                err = region_crc32(hdl, name_offset, desc.file_name_len, desc.content_prng_seed, is_encrypted(hdl),
+                        &crc);
                 if (err) {
                         break;
                 }
@@ -1770,8 +1765,8 @@ static int file_validity_check(romfs_t *hdl)
                         break;
                 }
 
-                err = region_crc32(hdl, name_offset + desc.file_name_len, desc.file_size,
-                        desc.content_prng_seed, is_encrypted(hdl), &crc);
+                err = region_crc32(hdl, name_offset + desc.file_name_len, desc.file_size, desc.content_prng_seed,
+                        is_encrypted(hdl), &crc);
                 if (err) {
                         break;
                 }
@@ -1792,7 +1787,7 @@ static int file_validity_check(romfs_t *hdl)
                                 int cmp = strcmp(prev, hdl->tmp);
 
                                 if ((cmp > 0) or ((cmp == 0) and not prev_trunc and not trunc)) {
-                                        err = EILSEQ;   // wrong order or duplicated name
+                                        err = EILSEQ; // wrong order or duplicated name
                                         break;
                                 }
                         }
@@ -1830,7 +1825,7 @@ static bool is_container_header_valid(const container_header_t *hdr)
                 if (hdr->prng_seed != 0) {
                         valid = (hdr->flags & FLAG_ENCRYPTED);
                 } else {
-                        valid = not (hdr->flags & FLAG_ENCRYPTED);
+                        valid = not(hdr->flags & FLAG_ENCRYPTED);
                 }
         }
 
@@ -1870,16 +1865,13 @@ static bool is_file_entry_valid(romfs_t *hdl, const file_entry_t *file_entry)
  * @return True if valid, otherwise false.
  */
 //==============================================================================
-static bool is_file_descriptor_valid(romfs_t *hdl, const file_entry_t *file_entry,
-        const file_descriptor_t *file_desc)
+static bool is_file_descriptor_valid(romfs_t *hdl, const file_entry_t *file_entry, const file_descriptor_t *file_desc)
 {
         uint32_t crc = calc_CRC32(&file_desc->file_name_len,
                 sizeof(*file_desc) - offsetof(file_descriptor_t, file_name_len), FPKG_CRC32_INIT);
 
-        uint64_t end = cast(uint64_t, file_entry->file_descriptor_address)
-                     + sizeof(file_descriptor_t)
-                     + file_desc->file_name_len
-                     + file_desc->file_size;
+        uint64_t end = cast(uint64_t, file_entry->file_descriptor_address) + sizeof(file_descriptor_t) +
+                file_desc->file_name_len + file_desc->file_size;
 
         return ((file_desc->magic == FILE_DESCRIPTOR_MAGIC) and (file_desc->crc32 == crc) and
                 (file_desc->file_name_len > 0) and (end <= hdl->entries_offset));

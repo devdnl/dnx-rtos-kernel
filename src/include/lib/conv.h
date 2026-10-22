@@ -5,7 +5,7 @@
 
 @brief   Module with calculation and convert functions.
 
-@note    Copyright (C) 2013 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -51,20 +51,20 @@ extern "C" {
   Exported objects
 ==============================================================================*/
 extern struct tm _tmbuf;
-extern int       _ltimeoff_sec;
+extern int _ltimeoff_sec;
 
 /*==============================================================================
   Exported functions
 ==============================================================================*/
-extern char      *_itoa(i64_t, char *, u8_t, bool, u8_t);
-extern int        _dtoa(double, char *, int, int);
-extern double     sys_strtod(const char *, char **);
-extern float      _strtof(const char *, char **);
-extern i32_t      sys_atoi(const char *);
-extern char      *sys_strtoi32(const char *, int, i32_t *);
-extern char      *sys_strtou32(const char *, int, u32_t *);
-extern double     sys_atof(const char *);
-extern time_t     _mktime(struct tm *);
+extern char *_itoa(i64_t, char *, u8_t, bool, u8_t);
+extern int _dtoa(double, char *, int, int);
+extern double sys_strtod(const char *, char **);
+extern float _strtof(const char *, char **);
+extern i32_t sys_atoi(const char *);
+extern char *sys_strtoi32(const char *, int, i32_t *);
+extern char *sys_strtou32(const char *, int, u32_t *);
+extern double sys_atof(const char *);
+extern time_t _mktime(struct tm *);
 extern struct tm *_gmtime_r(const time_t *, struct tm *);
 extern struct tm *_localtime_r(const time_t *, struct tm *);
 

@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   SPI module ioctl request codes.
 
-        Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -328,40 +328,40 @@ extern "C" {
  *  @param  [WR] @ref SPI_config_t * SPI peripheral configuration
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_SPI__SET_CONFIGURATION    _IOW(SPI, 0x00, const SPI_config_t*)
+#define IOCTL_SPI__SET_CONFIGURATION _IOW(SPI, 0x00, const SPI_config_t *)
 
 /**
  *  @brief  Gets SPI configuration
  *  @param  [RD] @ref SPI_config_t * SPI peripheral configuration
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_SPI__GET_CONFIGURATION    _IOR(SPI, 0x01, SPI_config_t*)
+#define IOCTL_SPI__GET_CONFIGURATION _IOR(SPI, 0x01, SPI_config_t *)
 
 /**
  *  @brief  Select specified slave (CS = 0) [RAW mode].
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_SPI__SELECT               _IO(SPI, 0x02)
+#define IOCTL_SPI__SELECT _IO(SPI, 0x02)
 
 /**
  *  @brief  Deselect specified slave (CS = 1) [RAW mode].
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_SPI__DESELECT             _IO(SPI, 0x03)
+#define IOCTL_SPI__DESELECT _IO(SPI, 0x03)
 
 /**
  *  @brief  Transmit and receive specified buffer.
  *  @param  [WR] @ref SPI_transceive_t * transmit and receive frame
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_SPI__TRANSCEIVE           _IOWR(SPI, 0x04, SPI_transceive_t*)
+#define IOCTL_SPI__TRANSCEIVE _IOWR(SPI, 0x04, SPI_transceive_t *)
 
 /**
  *  @brief  Transmit without selection.
  *  @param  [WR] @ref u8_t*        byte to transfer
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_SPI__TRANSMIT_NO_SELECT   _IOW(SPI, 0x05, const u8_t*)
+#define IOCTL_SPI__TRANSMIT_NO_SELECT _IOW(SPI, 0x05, const u8_t *)
 
 /*==============================================================================
   Exported object types
@@ -370,47 +370,47 @@ extern "C" {
  * Type represent peripheral divider.
  */
 enum SPI_clk_div {
-        SPI_CLK_DIV__2,         /*!< SPI peripheral clock divided by 2.*/
-        SPI_CLK_DIV__4,         /*!< SPI peripheral clock divided by 4.*/
-        SPI_CLK_DIV__8,         /*!< SPI peripheral clock divided by 8.*/
-        SPI_CLK_DIV__16,        /*!< SPI peripheral clock divided by 16.*/
-        SPI_CLK_DIV__32,        /*!< SPI peripheral clock divided by 32.*/
-        SPI_CLK_DIV__64,        /*!< SPI peripheral clock divided by 64.*/
-        SPI_CLK_DIV__128,       /*!< SPI peripheral clock divided by 128.*/
-        SPI_CLK_DIV__256        /*!< SPI peripheral clock divided by 256.*/
+        SPI_CLK_DIV__2,   /*!< SPI peripheral clock divided by 2.*/
+        SPI_CLK_DIV__4,   /*!< SPI peripheral clock divided by 4.*/
+        SPI_CLK_DIV__8,   /*!< SPI peripheral clock divided by 8.*/
+        SPI_CLK_DIV__16,  /*!< SPI peripheral clock divided by 16.*/
+        SPI_CLK_DIV__32,  /*!< SPI peripheral clock divided by 32.*/
+        SPI_CLK_DIV__64,  /*!< SPI peripheral clock divided by 64.*/
+        SPI_CLK_DIV__128, /*!< SPI peripheral clock divided by 128.*/
+        SPI_CLK_DIV__256  /*!< SPI peripheral clock divided by 256.*/
 };
 
 /**
  * SPI peripheral modes.
  */
 enum SPI_mode {
-        SPI_MODE__0,    /*!< CPOL = 0; CPHA = 0 (SCK 0 at idle, capture on rising edge).*/
-        SPI_MODE__1,    /*!< CPOL = 0; CPHA = 1 (SCK 0 at idle, capture on falling edge).*/
-        SPI_MODE__2,    /*!< CPOL = 1; CPHA = 0 (SCK 1 at idle, capture on falling edge).*/
-        SPI_MODE__3     /*!< CPOL = 1; CPHA = 1 (SCK 1 at idle, capture on rising edge).*/
+        SPI_MODE__0, /*!< CPOL = 0; CPHA = 0 (SCK 0 at idle, capture on rising edge).*/
+        SPI_MODE__1, /*!< CPOL = 0; CPHA = 1 (SCK 0 at idle, capture on falling edge).*/
+        SPI_MODE__2, /*!< CPOL = 1; CPHA = 0 (SCK 1 at idle, capture on falling edge).*/
+        SPI_MODE__3  /*!< CPOL = 1; CPHA = 1 (SCK 1 at idle, capture on rising edge).*/
 };
 
 /**
  *  SPI configuration type.
  */
 typedef struct {
-        enum SPI_clk_div clk_divider;           /*!< Peripheral clock divider.*/
-        enum SPI_mode    mode;                  /*!< SPI mode.*/
-        bool             msb_first;             /*!< MSb first (@b true).*/
-        u8_t             CS_port_idx;           /*!< Chip Select port index.*/
-        u8_t             CS_pin_idx;            /*!< Chip Select pin index.*/
-        bool             CS_reverse;
+        enum SPI_clk_div clk_divider; /*!< Peripheral clock divider.*/
+        enum SPI_mode mode;           /*!< SPI mode.*/
+        bool msb_first;               /*!< MSb first (@b true).*/
+        u8_t CS_port_idx;             /*!< Chip Select port index.*/
+        u8_t CS_pin_idx;              /*!< Chip Select pin index.*/
+        bool CS_reverse;
 } SPI_config_t;
 
 /**
  * SPI transmit and receive type.
  */
 typedef struct SPI_transceive {
-        const u8_t            *tx_buffer;       /*!< TX buffer pointer.*/
-        u8_t                  *rx_buffer;       /*!< RX buffer pointer.*/
-        size_t                 count;           /*!< RX and TX buffer size.*/
-        bool                   separated;       /*!< Each chain in separated transfer. */
-        struct SPI_transceive *next;            /*!< Next transceive buffer.*/
+        const u8_t *tx_buffer;       /*!< TX buffer pointer.*/
+        u8_t *rx_buffer;             /*!< RX buffer pointer.*/
+        size_t count;                /*!< RX and TX buffer size.*/
+        bool separated;              /*!< Each chain in separated transfer. */
+        struct SPI_transceive *next; /*!< Next transceive buffer.*/
 } SPI_transceive_t;
 
 /*==============================================================================

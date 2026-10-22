@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   MBR handling functions.
 
-        Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -72,8 +72,7 @@ Brief   MBR handling functions.
 //==============================================================================
 static u16_t load_u16(u8_t *buff, u16_t offset)
 {
-        return cast(u16_t, ( (cast(u16_t, buff[offset + 0] << 0))
-                           | (cast(u16_t, buff[offset + 1] << 8)) ) );
+        return cast(u16_t, ((cast(u16_t, buff[offset + 0] << 0)) | (cast(u16_t, buff[offset + 1] << 8))));
 }
 
 //==============================================================================
@@ -88,10 +87,9 @@ static u16_t load_u16(u8_t *buff, u16_t offset)
 //==============================================================================
 static u32_t load_u32(u8_t *buff, u16_t offset)
 {
-        return cast(u32_t, ( (cast(u32_t, buff[offset + 0] <<  0))
-                           | (cast(u32_t, buff[offset + 1] <<  8))
-                           | (cast(u32_t, buff[offset + 2] << 16))
-                           | (cast(u32_t, buff[offset + 3] << 24)) ) );
+        return cast(u32_t,
+                ((cast(u32_t, buff[offset + 0] << 0)) | (cast(u32_t, buff[offset + 1] << 8)) |
+                        (cast(u32_t, buff[offset + 2] << 16)) | (cast(u32_t, buff[offset + 3] << 24))));
 }
 
 //==============================================================================
@@ -105,7 +103,7 @@ static u32_t load_u32(u8_t *buff, u16_t offset)
 //==============================================================================
 u16_t MBR_get_boot_signature(u8_t *sector)
 {
-     return load_u16(sector, MBR_BOOT_SIGNATURE_OFFSET);
+        return load_u16(sector, MBR_BOOT_SIGNATURE_OFFSET);
 }
 
 //==============================================================================
@@ -122,9 +120,9 @@ u32_t MBR_get_partition_first_LBA_sector(int partition, u8_t *sector)
 {
         if ((partition >= 1) && (partition <= 4) && sector) {
 
-                return load_u32(sector, ((partition - 1) * MBR_PARTITION_ENTRY_SIZE)
-                                        + MBR_PARTITION_1_ENTRY_OFFSET
-                                        + MBR_PARTITION_ENTRY_LBA_FIRST_ADDR_OFFSET);
+                return load_u32(sector,
+                        ((partition - 1) * MBR_PARTITION_ENTRY_SIZE) + MBR_PARTITION_1_ENTRY_OFFSET +
+                                MBR_PARTITION_ENTRY_LBA_FIRST_ADDR_OFFSET);
         } else {
                 return 0;
         }
@@ -144,9 +142,9 @@ u32_t MBR_get_partition_number_of_sectors(int partition, u8_t *sector)
 {
         if ((partition >= 1) && (partition <= 4) && sector) {
 
-                return load_u32(sector, ((partition - 1) * MBR_PARTITION_ENTRY_SIZE)
-                                        + MBR_PARTITION_1_ENTRY_OFFSET
-                                        + MBR_PARTITION_ENTRY_NUM_OF_SECTORS_OFFSET);
+                return load_u32(sector,
+                        ((partition - 1) * MBR_PARTITION_ENTRY_SIZE) + MBR_PARTITION_1_ENTRY_OFFSET +
+                                MBR_PARTITION_ENTRY_NUM_OF_SECTORS_OFFSET);
         } else {
                 return 0;
         }

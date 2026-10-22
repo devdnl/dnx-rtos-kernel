@@ -5,7 +5,7 @@ Author   Daniel Zorychta
 
 Brief    RPCM0 vectors.
 
-         Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
+         Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ static void __Default_Handler(void) __attribute__((interrupt));
 static void __Default_Handler(void)
 {
         while (1) {
-                __asm volatile ("nop");
+                __asm volatile("nop");
         }
 }
 
@@ -94,7 +94,7 @@ WEAK_DEFAULT void RTC_IRQ_IRQHandler(void);
 /*==============================================================================
 Vector table
 ==============================================================================*/
-extern const char __main_stack_end;          /* imported main stack end (from linker script) */
+extern const char __main_stack_end; /* imported main stack end (from linker script) */
 
 void Reset_Handler(void); /* import the address of Reset_Handler()             */
 

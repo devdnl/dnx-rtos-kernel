@@ -5,7 +5,7 @@
 
 @brief   This function provide all required function needed to write modules.
 
-@note    Copyright (C) 2012 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -61,71 +61,90 @@ extern "C" {
 #undef errno
 
 #ifndef DOXYGEN /* Doxygen documentation in sysfunc.h */
-#undef  sys_zalloc
-#define sys_zalloc(size_t__size, void__ppmem)\
+#undef sys_zalloc
+#define sys_zalloc(size_t__size, void__ppmem) \
         _kzalloc(_MM_MOD, size_t__size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, void__ppmem, _module_get_ID(_module_name_))
 
-#undef  sys_malloc
-#define sys_malloc(size_t__size, void__ppmem)\
+#undef sys_malloc
+#define sys_malloc(size_t__size, void__ppmem) \
         _kmalloc(_MM_MOD, size_t__size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, void__ppmem, _module_get_ID(_module_name_))
 
-#undef  sys_zalloc2
-#define sys_zalloc2(size_t__size, prefreg_name, required_features, required_features_mask, void__ppmem)\
-        _kzalloc(_MM_MOD, size_t__size, prefreg_name, required_features, required_features_mask, void__ppmem, _module_get_ID(_module_name_))
+#undef sys_zalloc2
+#define sys_zalloc2(size_t__size, prefreg_name, required_features, required_features_mask, void__ppmem)       \
+        _kzalloc(_MM_MOD, size_t__size, prefreg_name, required_features, required_features_mask, void__ppmem, \
+                _module_get_ID(_module_name_))
 
-#undef  sys_malloc2
-#define sys_malloc2(size_t__size, prefreg_name, required_features, required_features_mask, void__ppmem)\
-        _kzalloc(_MM_MOD, size_t__size, prefreg_name, required_features, required_features_mask, void__ppmem, _module_get_ID(_module_name_))
+#undef sys_malloc2
+#define sys_malloc2(size_t__size, prefreg_name, required_features, required_features_mask, void__ppmem)       \
+        _kzalloc(_MM_MOD, size_t__size, prefreg_name, required_features, required_features_mask, void__ppmem, \
+                _module_get_ID(_module_name_))
 
-#undef  sys_free
-#define sys_free(void__ppmem)\
-        _kfree(_MM_MOD, void__ppmem, _module_get_ID(_module_name_))
+#undef sys_free
+#define sys_free(void__ppmem) _kfree(_MM_MOD, void__ppmem, _module_get_ID(_module_name_))
 
 #undef sys_get_driver_instance
-#define sys_module_get_instance(u8_t__major, u8_t__minor, void_pp__mem)\
+#define sys_module_get_instance(u8_t__major, u8_t__minor, void_pp__mem) \
         _module_get_instance(_module_name_, u8_t__major, u8_t__minor, void_pp__mem)
 
-#undef  sys_llist_create
-#define sys_llist_create(llist_cmp_functor_t__functor, llist_obj_dtor_t__obj_dtor, llist_t__pplist)\
-        _llist_create_mod(_module_get_ID(_module_name_), llist_cmp_functor_t__functor, llist_obj_dtor_t__obj_dtor, llist_t__pplist);
+#undef sys_llist_create
+#define sys_llist_create(llist_cmp_functor_t__functor, llist_obj_dtor_t__obj_dtor, llist_t__pplist)                \
+        _llist_create_mod(_module_get_ID(_module_name_), llist_cmp_functor_t__functor, llist_obj_dtor_t__obj_dtor, \
+                llist_t__pplist);
 
 #undef sys_btree_create
-#define sys_btree_create(size_t__size, btree_cmp_functor_t__functor, btree_obj_dtor_t__obj_dtor, btree_t__pptree)\
-        _btree_create_mod(_module_get_ID(_module_name_), size_t__size, btree_cmp_functor_t__functor, btree_obj_dtor_t__obj_dtor, btree_t__pptree)
+#define sys_btree_create(size_t__size, btree_cmp_functor_t__functor, btree_obj_dtor_t__obj_dtor, btree_t__pptree) \
+        _btree_create_mod(_module_get_ID(_module_name_), size_t__size, btree_cmp_functor_t__functor,              \
+                btree_obj_dtor_t__obj_dtor, btree_t__pptree)
 #endif /* DOXYGEN */
 
 #ifndef DOXYGEN
-  #ifdef __cplusplus
-    #define MODULE_NAME(modname) \
-    static const char *_module_name_ = #modname;\
-    inline void* operator new     (size_t size) {void *mem = NULL; _modmalloc(size, _module_get_ID(_module_name_), &mem); return mem;}\
-    inline void* operator new[]   (size_t size) {void *mem = NULL; _modmalloc(size, _module_get_ID(_module_name_), &mem); return mem;}\
-    inline void  operator delete  (void* ptr  ) {_modfree(&ptr, _module_get_ID(_module_name_));}\
-    inline void  operator delete[](void* ptr  ) {_modfree(&ptr, _module_get_ID(_module_name_));}
-    #define _MODULE_EXTERN_C extern "C"
-  #else
-    #define MODULE_NAME(modname) static const char *_module_name_ = #modname
-    #define GET_MODULE_NAME() _module_name_
-    #define _MODULE_EXTERN_C
-  #endif /* __cplusplus */
-#else /* defined(DOXYGEN) */
-  /**
-   * @brief Macro set name of module.
-   *
-   * Macro is used in each source file of driver to set module name.
-   *
-   * @note Macro can be used only by driver code.
-   *
-   * @param modname       module name
-   *
-   * @b Example
-   * @code
-          // ...
-          MODULE_NAME(UART);
-          // ...
-     @endcode
-   */
-  #define MODULE_NAME(modname)
+#ifdef __cplusplus
+#define MODULE_NAME(modname)                                           \
+        static const char *_module_name_ = #modname;                   \
+        inline void *operator new(size_t size)                         \
+        {                                                              \
+                void *mem = NULL;                                      \
+                _modmalloc(size, _module_get_ID(_module_name_), &mem); \
+                return mem;                                            \
+        }                                                              \
+        inline void *operator new[](size_t size)                       \
+        {                                                              \
+                void *mem = NULL;                                      \
+                _modmalloc(size, _module_get_ID(_module_name_), &mem); \
+                return mem;                                            \
+        }                                                              \
+        inline void operator delete(void *ptr)                         \
+        {                                                              \
+                _modfree(&ptr, _module_get_ID(_module_name_));         \
+        }                                                              \
+        inline void operator delete[](void *ptr)                       \
+        {                                                              \
+                _modfree(&ptr, _module_get_ID(_module_name_));         \
+        }
+#define _MODULE_EXTERN_C extern "C"
+#else
+#define MODULE_NAME(modname) static const char *_module_name_ = #modname
+#define GET_MODULE_NAME()    _module_name_
+#define _MODULE_EXTERN_C
+#endif /* __cplusplus */
+#else  /* defined(DOXYGEN) */
+/**
+ * @brief Macro set name of module.
+ *
+ * Macro is used in each source file of driver to set module name.
+ *
+ * @note Macro can be used only by driver code.
+ *
+ * @param modname       module name
+ *
+ * @b Example
+ * @code
+        // ...
+        MODULE_NAME(UART);
+        // ...
+   @endcode
+ */
+#define MODULE_NAME(modname)
 #endif /* DOXYGEN */
 
 #ifdef DOXYGEN
@@ -145,7 +164,7 @@ extern "C" {
  */
 #define API_MOD_INIT(modname, device_handle, major, minor)
 #else
-#define API_MOD_INIT(modname, ...)              _MODULE_EXTERN_C int _##modname##_init(__VA_ARGS__)
+#define API_MOD_INIT(modname, ...) _MODULE_EXTERN_C int _##modname##_init(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -162,7 +181,7 @@ extern "C" {
  */
 #define API_MOD_RELEASE(modname, device_handle)
 #else
-#define API_MOD_RELEASE(modname, ...)           _MODULE_EXTERN_C int _##modname##_release(__VA_ARGS__)
+#define API_MOD_RELEASE(modname, ...) _MODULE_EXTERN_C int _##modname##_release(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -183,7 +202,7 @@ extern "C" {
  */
 #define API_MOD_OPEN(modname, device_handle, flags)
 #else
-#define API_MOD_OPEN(modname, ...)              _MODULE_EXTERN_C int _##modname##_open(__VA_ARGS__)
+#define API_MOD_OPEN(modname, ...) _MODULE_EXTERN_C int _##modname##_open(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -203,7 +222,7 @@ extern "C" {
  */
 #define API_MOD_CLOSE(modname, device_handle, force)
 #else
-#define API_MOD_CLOSE(modname, ...)             _MODULE_EXTERN_C int _##modname##_close(__VA_ARGS__)
+#define API_MOD_CLOSE(modname, ...) _MODULE_EXTERN_C int _##modname##_close(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -228,7 +247,7 @@ extern "C" {
  */
 #define API_MOD_WRITE(modname, device_handle, src, count, fpos, wrcnt, fattr)
 #else
-#define API_MOD_WRITE(modname, ...)             _MODULE_EXTERN_C int _##modname##_write(__VA_ARGS__)
+#define API_MOD_WRITE(modname, ...) _MODULE_EXTERN_C int _##modname##_write(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -253,7 +272,7 @@ extern "C" {
  */
 #define API_MOD_READ(modname, device_handle, dst, count, fpos, rdcnt, fattr)
 #else
-#define API_MOD_READ(modname, ...)              _MODULE_EXTERN_C int _##modname##_read(__VA_ARGS__)
+#define API_MOD_READ(modname, ...) _MODULE_EXTERN_C int _##modname##_read(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -273,7 +292,7 @@ extern "C" {
  */
 #define API_MOD_IOCTL(modname, device_handle, request, arg)
 #else
-#define API_MOD_IOCTL(modname, ...)             _MODULE_EXTERN_C int _##modname##_ioctl(__VA_ARGS__)
+#define API_MOD_IOCTL(modname, ...) _MODULE_EXTERN_C int _##modname##_ioctl(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -291,7 +310,7 @@ extern "C" {
  */
 #define API_MOD_FLUSH(modname, device_handle)
 #else
-#define API_MOD_FLUSH(modname, ...)             _MODULE_EXTERN_C int _##modname##_flush(__VA_ARGS__)
+#define API_MOD_FLUSH(modname, ...) _MODULE_EXTERN_C int _##modname##_flush(__VA_ARGS__)
 #endif
 
 #ifdef DOXYGEN
@@ -312,11 +331,13 @@ extern "C" {
  */
 #define API_MOD_STAT(modname, device_handle, device_stat)
 #else
-#define API_MOD_STAT(modname, ...)              _MODULE_EXTERN_C int _##modname##_stat(__VA_ARGS__)
+#define API_MOD_STAT(modname, ...) _MODULE_EXTERN_C int _##modname##_stat(__VA_ARGS__)
 #endif
 
-#define dev_dbg(_hdl, format, ...)              printk("%s:%u-%u: "format, GET_MODULE_NAME(), _hdl->major, _hdl->minor __VA_OPT__(,) __VA_ARGS__)
-#define dev_dbg2(_major, _minor, format, ...)   printk("%s:%u-%u: "format, GET_MODULE_NAME(), _major, _minor __VA_OPT__(,) __VA_ARGS__)
+#define dev_dbg(_hdl, format, ...) \
+        printk("%s:%u-%u: " format, GET_MODULE_NAME(), _hdl->major, _hdl->minor __VA_OPT__(, ) __VA_ARGS__)
+#define dev_dbg2(_major, _minor, format, ...) \
+        printk("%s:%u-%u: " format, GET_MODULE_NAME(), _major, _minor __VA_OPT__(, ) __VA_ARGS__)
 
 /*==============================================================================
   Exported object types
@@ -328,9 +349,9 @@ extern "C" {
  * The type represents device information e.g. size and address.
  */
 struct vfs_dev_stat {
-        u64_t st_size;                  /*!< Total size, in bytes.*/
-        u8_t  st_major;                 /*!< Device major number.*/
-        u8_t  st_minor;                 /*!< Device minor number.*/
+        u64_t st_size; /*!< Total size, in bytes.*/
+        u8_t st_major; /*!< Device major number.*/
+        u8_t st_minor; /*!< Device minor number.*/
 };
 
 /**
@@ -343,7 +364,7 @@ struct vfs_dev_stat {
  *
  * @note Type can be used only by driver code.
  */
-typedef void* dev_lock_t;
+typedef void *dev_lock_t;
 #endif /* DOXYGEN*/
 
 /*==============================================================================

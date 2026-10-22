@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   CAN driver
 
-        Copyright (C) 2018 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -295,70 +295,70 @@ extern "C" {
  *  @param  [WR] const @ref CAN_config_t * configuration container
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_CAN__CONFIGURE                    _IOW(CAN, 0x00, const CAN_config_t*)
+#define IOCTL_CAN__CONFIGURE _IOW(CAN, 0x00, const CAN_config_t *)
 
 /**
  *  @brief  Acceptance filter setup.
  *  @param  [WR] const @ref CAN_filter_t * filter container
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_CAN__SET_FILTER                   _IOW(CAN, 0x01, const CAN_filter_t*)
+#define IOCTL_CAN__SET_FILTER _IOW(CAN, 0x01, const CAN_filter_t *)
 
 /**
  *  @brief  Disable selected filter.
  *  @param  [WR] const @ref u32_t * filter number
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_CAN__DISABLE_FILTER               _IOW(CAN, 0x02, const u32_t*)
+#define IOCTL_CAN__DISABLE_FILTER _IOW(CAN, 0x02, const u32_t *)
 
 /**
  *  @brief  Get total number of filter slots.
  *  @param  [WR] const @ref u32_t * number of filters
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_CAN__GET_NUMBER_OF_FILTERS        _IOR(CAN, 0x03, u32_t*)
+#define IOCTL_CAN__GET_NUMBER_OF_FILTERS _IOR(CAN, 0x03, u32_t *)
 
 /**
  *  @brief  CAN controller mode selection.
  *  @param  [WR] const @ref CAN_mode_t * can mode
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_CAN__SET_MODE                     _IOW(CAN, 0x04, const CAN_mode_t*)
+#define IOCTL_CAN__SET_MODE _IOW(CAN, 0x04, const CAN_mode_t *)
 
 /**
  *  @brief  Set send timeout in milliseconds. Used in write() family function.
  *  @param  [WR] const @ref u32_t * timeout in milliseconds
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_CAN__SET_SEND_TIMEOUT             _IOW(CAN, 0x05, const u32_t*)
+#define IOCTL_CAN__SET_SEND_TIMEOUT _IOW(CAN, 0x05, const u32_t *)
 
 /**
  *  @brief  Set receive timeout in milliseconds. Used in read() family function.
  *  @param  [WR] const @ref u32_t * timeout in milliseconds
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_CAN__SET_RECV_TIMEOUT             _IOW(CAN, 0x06, const u32_t*)
+#define IOCTL_CAN__SET_RECV_TIMEOUT _IOW(CAN, 0x06, const u32_t *)
 
 /**
  *  @brief  Send CAN message.
  *  @param  [WR] const @ref CAN_msg_t * CAN message source
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_CAN__SEND_MSG                     _IOW(CAN, 0x07, const CAN_msg_t*)
+#define IOCTL_CAN__SEND_MSG _IOW(CAN, 0x07, const CAN_msg_t *)
 
 /**
  *  @brief  Receive CAN message.
  *  @param  [RD] @ref CAN_msg_t * CAN message destination
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_CAN__RECV_MSG                     _IOR(CAN, 0x08, CAN_msg_t*)
+#define IOCTL_CAN__RECV_MSG _IOR(CAN, 0x08, CAN_msg_t *)
 
 /**
  *  @brief  CAN status.
  *  @param  [WR] const @ref CAN_mode_t * can mode
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_CAN__GET_STATUS                   _IOW(CAN, 0x09, CAN_status_t*)
+#define IOCTL_CAN__GET_STATUS _IOW(CAN, 0x09, CAN_status_t *)
 
 /*==============================================================================
   Exported object types
@@ -367,19 +367,19 @@ extern "C" {
  * Type represent CAN mode.
  */
 typedef enum {
-        CAN_MODE__INIT,                 /*!< CAN controller in initialization mode. */
-        CAN_MODE__NORMAL,               /*!< CAN controller in normal mode. */
-        CAN_MODE__SLEEP,                /*!< CAN controller in sleep mode. */
+        CAN_MODE__INIT,   /*!< CAN controller in initialization mode. */
+        CAN_MODE__NORMAL, /*!< CAN controller in normal mode. */
+        CAN_MODE__SLEEP,  /*!< CAN controller in sleep mode. */
 } CAN_mode_t;
 
 /**
  * Type represent CAN acceptance filter.
  */
 typedef struct {
-        u32_t number;                   /*!< Filter number. */
-        u32_t ID;                       /*!< Identifier. */
-        u32_t mask;                     /*!< Identifier mask. */
-        bool  extended_ID;              /*!< Extended identifier. */
+        u32_t number;     /*!< Filter number. */
+        u32_t ID;         /*!< Identifier. */
+        u32_t mask;       /*!< Identifier mask. */
+        bool extended_ID; /*!< Extended identifier. */
 } CAN_filter_t;
 
 /**
@@ -395,26 +395,26 @@ typedef enum {
  * Type represent configuration container.
  */
 typedef struct {
-        bool  loopback;                 /*!< Loopback mode. */
-        bool  silent;                   /*!< Silent mode. */
-        bool  auto_bus_off_management;  /*!< Automatic bus off management. */
-        bool  auto_wake_up;             /*!< Automatic wake up. */
-        bool  auto_retransmission;      /*!< Auto retransmission. */
+        bool loopback;                /*!< Loopback mode. */
+        bool silent;                  /*!< Silent mode. */
+        bool auto_bus_off_management; /*!< Automatic bus off management. */
+        bool auto_wake_up;            /*!< Automatic wake up. */
+        bool auto_retransmission;     /*!< Auto retransmission. */
 
         /* control bits and data bits in classic CAN communication */
         struct {
-                u32_t SJW;              /*!< Resynchronization jump width <1,n> */
-                u32_t TS1;              /*!< Time segment 1 <1,n> */
-                u32_t TS2;              /*!< Time segment 2 <1,n> */
-                u32_t prescaler;        /*!< Peripheral prescaler <1,n> */
+                u32_t SJW;       /*!< Resynchronization jump width <1,n> */
+                u32_t TS1;       /*!< Time segment 1 <1,n> */
+                u32_t TS2;       /*!< Time segment 2 <1,n> */
+                u32_t prescaler; /*!< Peripheral prescaler <1,n> */
         } nominal_bit_rate;
 
         /* data bits in FD CAN communication if bit rate switch is enabled */
         struct {
-                u32_t SJW;              /*!< Resynchronization jump width <1,n> */
-                u32_t TS1;              /*!< Time segment 1 <1,n> */
-                u32_t TS2;              /*!< Time segment 2 <1,n> */
-                u32_t prescaler;        /*!< Peripheral prescaler <1,n> */
+                u32_t SJW;       /*!< Resynchronization jump width <1,n> */
+                u32_t TS1;       /*!< Time segment 1 <1,n> */
+                u32_t TS2;       /*!< Time segment 2 <1,n> */
+                u32_t prescaler; /*!< Peripheral prescaler <1,n> */
         } data_bit_rate;
 } CAN_config_t;
 
@@ -422,22 +422,22 @@ typedef struct {
  * Type represent classic/FD CAN message.
  */
 typedef struct {
-        CAN_frame_mode_t frame_mode;    /*!< Frame mode. */
-        u32_t ID;                       /*!< Message identifier. */
-        bool  extended_ID;              /*!< Extended identifier (true). */
-        bool  remote_transmission;      /*!< Remote transmission (true). */
-        u32_t data_length;              /*!< Data length (0-8, 12, 16, 20, 24, 32, 48, 64). */
-        u8_t  data[64];                 /*!< Data buffer holder up to 64 bytes. */
+        CAN_frame_mode_t frame_mode; /*!< Frame mode. */
+        u32_t ID;                    /*!< Message identifier. */
+        bool extended_ID;            /*!< Extended identifier (true). */
+        bool remote_transmission;    /*!< Remote transmission (true). */
+        u32_t data_length;           /*!< Data length (0-8, 12, 16, 20, 24, 32, 48, 64). */
+        u8_t data[64];               /*!< Data buffer holder up to 64 bytes. */
 } CAN_msg_t;
 
 /**
  * Type represent bus status.
  */
 typedef enum {
-        CAN_BUS_STATUS__OK,             /*!< Bus is working without errors */
-        CAN_BUS_STATUS__WARNING,        /*!< Bus receive/transmit some errors */
-        CAN_BUS_STATUS__PASSIVE,        /*!< Bus is in passive mode */
-        CAN_BUS_STATUS__OFF,            /*!< Bus off state */
+        CAN_BUS_STATUS__OK,      /*!< Bus is working without errors */
+        CAN_BUS_STATUS__WARNING, /*!< Bus receive/transmit some errors */
+        CAN_BUS_STATUS__PASSIVE, /*!< Bus is in passive mode */
+        CAN_BUS_STATUS__OFF,     /*!< Bus off state */
 } CAN_bus_status_t;
 
 /**

@@ -5,7 +5,7 @@
 
 @brief   CRC driver ioctl request codes.
 
-@note    Copyright (C) 2014 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -161,14 +161,14 @@ extern "C" {
  * @param  [WR] const u32_t * polynomial value
  * @return On success 0 is returned, otherwise -1 and @ref errno code is set.
  */
-#define IOCTL_CRC__SET_POLYNOMIAL       _IOW(CRC, 0x00, const u32_t*)
+#define IOCTL_CRC__SET_POLYNOMIAL _IOW(CRC, 0x00, const u32_t *)
 
- /**
-  * @brief  Set initial CRC value (if supported by CRC peripheral).
-  * @param  [WR] const u32_t * initial value
-  * @return On success 0 is returned, otherwise -1 and @ref errno code is set.
-  */
-#define IOCTL_CRC__SET_INITIAL_VALUE    _IOW(CRC, 0x01, const u32_t*)
+/**
+ * @brief  Set initial CRC value (if supported by CRC peripheral).
+ * @param  [WR] const u32_t * initial value
+ * @return On success 0 is returned, otherwise -1 and @ref errno code is set.
+ */
+#define IOCTL_CRC__SET_INITIAL_VALUE _IOW(CRC, 0x01, const u32_t *)
 
 /*==============================================================================
   Exported object types

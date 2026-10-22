@@ -5,7 +5,7 @@
 
 @brief   DHT11 sensor driver.
 
-@note    Copyright (C) 2016 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -153,7 +153,7 @@ extern "C" {
  *  @param  [WR] @ref DHT11_config_t*           Driver configuration structure.
  *  @return On success 0 is returned, otherwise -1 and @ref errno code is set.
  */
-#define IOCTL_DHT11__CONFIGURE          _IOW(DHT11, 0, const DHT11_config_t*)
+#define IOCTL_DHT11__CONFIGURE _IOW(DHT11, 0, const DHT11_config_t *)
 
 /*==============================================================================
   Exported object types
@@ -162,8 +162,8 @@ extern "C" {
  * Type represent DHT11 configuration.
  */
 typedef struct {
-        u8_t port_idx;      /*!< Port index (use IOCTL_GPIO_PORT_IDX__xxx macro).*/
-        u8_t pin_idx;       /*!< Pin index (use IOCTL_GPIO_PIN_IDX__xxx macro).*/
+        u8_t port_idx; /*!< Port index (use IOCTL_GPIO_PORT_IDX__xxx macro).*/
+        u8_t pin_idx;  /*!< Pin index (use IOCTL_GPIO_PIN_IDX__xxx macro).*/
 } DHT11_config_t;
 
 /*==============================================================================

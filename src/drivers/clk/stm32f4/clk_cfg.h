@@ -5,7 +5,7 @@
 
 @brief   PLL configuration file
 
-@note    Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ extern "C" {
  * ENABLE : enable oscillator
  * DISABLE: disable oscillator
  */
-#define _CLK_CFG__LSI_ON                __CLK_LSI_ON__
+#define _CLK_CFG__LSI_ON __CLK_LSI_ON__
 
 /*
  * LSE
@@ -57,7 +57,7 @@ extern "C" {
  * RCC_LSE_ON    : LSE oscillator ON
  * RCC_LSE_Bypass: LSE oscillator bypassed with external clock
  */
-#define _CLK_CFG__LSE_ON                __CLK_LSE_ON__
+#define _CLK_CFG__LSE_ON __CLK_LSE_ON__
 
 /*
  * HSE
@@ -65,7 +65,7 @@ extern "C" {
  * RCC_HSE_ON    : HSE oscillator ON
  * RCC_HSE_Bypass: HSE oscillator bypassed with external clock
  */
-#define _CLK_CFG__HSE_ON                __CLK_HSE_ON__
+#define _CLK_CFG__HSE_ON __CLK_HSE_ON__
 
 /*------------------------------------------------------------------------------
  * CLOCK SOURCES
@@ -76,7 +76,7 @@ extern "C" {
  * RCC_RTCCLKSource_LSE
  * RCC_RTCCLKSource_HSE_Div2..31
  */
-#define _CLK_CFG__RTCCLK_SRC            __CLK_RTC_CLK_SRC__
+#define _CLK_CFG__RTCCLK_SRC __CLK_RTC_CLK_SRC__
 
 /*
  * System clock source
@@ -85,7 +85,7 @@ extern "C" {
  * RCC_SYSCLKSource_PLLCLK (RCC_SYSCLKSource_PLLPCLK STM32F446xx)
  * RCC_SYSCLKSource_PLLRCLK (STM32F412xG, STM32F413_423xx and STM32F446xx)
  */
-#define _CLK_CFG__SYSCLK_SRC            __CLK_SYS_CLK_SRC__
+#define _CLK_CFG__SYSCLK_SRC __CLK_SYS_CLK_SRC__
 
 /*
  * MCO1 clock source
@@ -94,7 +94,7 @@ extern "C" {
  * RCC_MCO1Source_LSE
  * RCC_MCO1Source_PLLCLK
  */
-#define _CLK_CFG__MCO1_SRC              __CLK_MC01_CLK_SRC__
+#define _CLK_CFG__MCO1_SRC __CLK_MC01_CLK_SRC__
 
 /*
  * MCO1 clock divider
@@ -104,7 +104,7 @@ extern "C" {
  * RCC_MCO1Div_4
  * RCC_MCO1Div_5
  */
-#define _CLK_CFG__MCO1_DIV              __CLK_MC01_CLK_DIV__
+#define _CLK_CFG__MCO1_DIV __CLK_MC01_CLK_DIV__
 
 /*
  * MCO1 clock source
@@ -114,13 +114,13 @@ extern "C" {
  * RCC_MCO2Source_HSE
  * RCC_MCO2Source_PLLCLK
  */
-#define _CLK_CFG__MCO2_SRC              __CLK_MC02_CLK_SRC__
+#define _CLK_CFG__MCO2_SRC __CLK_MC02_CLK_SRC__
 
 /*
  * MCO1 clock divider
  * RCC_MCO2Div_1..5
  */
-#define _CLK_CFG__MCO2_DIV              __CLK_MC02_CLK_DIV__
+#define _CLK_CFG__MCO2_DIV __CLK_MC02_CLK_DIV__
 
 /*
  * Clock source of I2S peripheral instance on APB1 Bus
@@ -130,7 +130,7 @@ extern "C" {
  * RCC_I2SCLKSource_PLL
  * RCC_I2SCLKSource_HSI_HSE
  */
-#define _CLK_CFG__I2SAPB1_CLK_SRC       __CLK_I2SAPB1_CLK_SRC__
+#define _CLK_CFG__I2SAPB1_CLK_SRC __CLK_I2SAPB1_CLK_SRC__
 
 /*
  * Clock source of I2S peripheral instance on APB2 Bus
@@ -140,7 +140,7 @@ extern "C" {
  * RCC_I2SCLKSource_PLL
  * RCC_I2SCLKSource_HSI_HSE
  */
-#define _CLK_CFG__I2SAPB2_CLK_SRC       __CLK_I2SAPB2_CLK_SRC__
+#define _CLK_CFG__I2SAPB2_CLK_SRC __CLK_I2SAPB2_CLK_SRC__
 
 /*
  * Clock source of I2S peripheral
@@ -153,7 +153,7 @@ extern "C" {
  * RCC_I2S2CLKSource_PLLI2S
  * RCC_I2SAPBCLKSOURCE_EXT
  */
-#define _CLK_CFG__I2S_CLK_SRC           __CLK_I2S_CLK_SRC__
+#define _CLK_CFG__I2S_CLK_SRC __CLK_I2S_CLK_SRC__
 
 /*
  * SAI1 clock source
@@ -163,7 +163,7 @@ extern "C" {
  * RCC_SAICLKSource_PLL
  * RCC_SAICLKSource_HSI_HSE
  */
-#define _CLK_CFG__SAI1_CLK_SRC          __CLK_SAI1_CLK_SRC__
+#define _CLK_CFG__SAI1_CLK_SRC __CLK_SAI1_CLK_SRC__
 
 /*
  * SAI2 clock source
@@ -173,35 +173,35 @@ extern "C" {
  * RCC_SAICLKSource_PLL
  * RCC_SAICLKSource_HSI_HSE
  */
-#define _CLK_CFG__SAI2_CLK_SRC          __CLK_SAI2_CLK_SRC__
+#define _CLK_CFG__SAI2_CLK_SRC __CLK_SAI2_CLK_SRC__
 
 /*
  * Configures the SAI clock Divider coming from PLLSAI.
  * (STM32F42xxx/43xxx/446xx/469xx/479xx devices):
  * 1..32
  */
-#define _CLK_CFG__SAI_PLLSAI_CLK_DIV    __CLK_SAI_PLLSAI_CLK_DIV__
+#define _CLK_CFG__SAI_PLLSAI_CLK_DIV __CLK_SAI_PLLSAI_CLK_DIV__
 
 /*
  * Configures the SAI clock Divider coming from PLLI2S.
  * (STM32F42xxx/43xxx/446xx/469xx/479xx devices):
  * 1..32
  */
-#define _CLK_CFG__SAI_PLLI2S_CLK_DIV    __CLK_SAI_PLLI2S_CLK_DIV__
+#define _CLK_CFG__SAI_PLLI2S_CLK_DIV __CLK_SAI_PLLI2S_CLK_DIV__
 
 /*
  * Configures the SAI clock Divider coming from PLLI2S.
  * (STM32F413, STM32F423):
  * 1..32
  */
-#define _CLK_CFG__SAI_PLLI2S_CLK_DIVR   __CLK_SAI_PLLI2S_CLK_DIVR__
+#define _CLK_CFG__SAI_PLLI2S_CLK_DIVR __CLK_SAI_PLLI2S_CLK_DIVR__
 
 /*
  * Configures the SAI clock Divider coming from PLL.
  * (STM32F413, STM32F423):
  * 1..32
  */
-#define _CLK_CFG__SAI_PLL_CLK_DIVR      __CLK_SAI_PLL_CLK_DIVR__
+#define _CLK_CFG__SAI_PLL_CLK_DIVR __CLK_SAI_PLL_CLK_DIVR__
 
 /*
  * SAI Block A Clock Source
@@ -216,7 +216,7 @@ extern "C" {
  * RCC_SAIACLKSource_PLL:     PLL clock used as SAI clock source
  * RCC_SAIACLKSource_HSI_HSE: HSI or HSE depends on PLLSRC used as SAI clock source
  */
-#define _CLK_CFG__SAI_BLOCK_A_CLK_SRC   __CLK_SAI_BLOCK_A_CLK_SRC__
+#define _CLK_CFG__SAI_BLOCK_A_CLK_SRC __CLK_SAI_BLOCK_A_CLK_SRC__
 
 /*
  * SAI Block B Clock Source
@@ -231,7 +231,7 @@ extern "C" {
  * RCC_SAIACLKSource_PLL:     PLL clock used as SAI clock source
  * RCC_SAIACLKSource_HSI_HSE: HSI or HSE depends on PLLSRC used as SAI clock source
  */
-#define _CLK_CFG__SAI_BLOCK_B_CLK_SRC   __CLK_SAI_BLOCK_B_CLK_SRC__
+#define _CLK_CFG__SAI_BLOCK_B_CLK_SRC __CLK_SAI_BLOCK_B_CLK_SRC__
 
 /*
  * Configures the LTDC clock Divider coming from PLLSAI.
@@ -241,7 +241,7 @@ extern "C" {
  * RCC_PLLSAIDivR_Div8
  * RCC_PLLSAIDivR_Div16
  */
-#define _CLK_CFG__LTDC_CLK_DIV          __CLK_LTDC_DIV__
+#define _CLK_CFG__LTDC_CLK_DIV __CLK_LTDC_DIV__
 
 /*
  * Configures the DFSDM clock source (DFSDMCLK).
@@ -249,7 +249,7 @@ extern "C" {
  * RCC_DFSDMCLKSource_APB
  * RCC_DFSDMCLKSource_SYS
  */
-#define _CLK_CFG__DFSDM1_CLK_SRC        __CLK_DFSDM1_CLK_SRC__
+#define _CLK_CFG__DFSDM1_CLK_SRC __CLK_DFSDM1_CLK_SRC__
 
 /*
  * Configures the DFSDM Audio clock source (DFSDMACLK).
@@ -257,7 +257,7 @@ extern "C" {
  * RCC_DFSDM1AUDIOCLKSOURCE_I2SAPB1
  * RCC_DFSDM1AUDIOCLKSOURCE_I2SAPB2
  */
-#define _CLK_CFG__DFSDM1_ACLK_SRC       __CLK_DFSDM1_ACLK_SRC__
+#define _CLK_CFG__DFSDM1_ACLK_SRC __CLK_DFSDM1_ACLK_SRC__
 
 /*
  * Configures the DFSDM Audio clock source (DFSDMACLK).
@@ -265,7 +265,7 @@ extern "C" {
  * RCC_DFSDM1AUDIOCLKSOURCE_I2SAPB1
  * RCC_DFSDM1AUDIOCLKSOURCE_I2SAPB2
  */
-#define _CLK_CFG__DFSDM2_ACLK_SRC       __CLK_DFSDM2_ACLK_SRC__
+#define _CLK_CFG__DFSDM2_ACLK_SRC __CLK_DFSDM2_ACLK_SRC__
 
 /*
  * Configures the DSI clock Source.
@@ -273,7 +273,7 @@ extern "C" {
  * RCC_DSICLKSource_PHY
  * RCC_DSICLKSource_PLLR
  */
-#define _CLK_CFG__DSI_CLK_SRC           __CLK_DSI_SRC__
+#define _CLK_CFG__DSI_CLK_SRC __CLK_DSI_SRC__
 
 /*
  * Configures the 48MHz clock Source.
@@ -282,7 +282,7 @@ extern "C" {
  * RCC_48MHZCLKSource_PLLSAI
  * RCC_CK48CLKSOURCE_PLLI2SQ
  */
-#define _CLK_CFG__48MHZ_CLK_SRC         __CLK_48MHZ_SRC__
+#define _CLK_CFG__48MHZ_CLK_SRC __CLK_48MHZ_SRC__
 
 /*
  * Configures the SDIO clock Source.
@@ -290,7 +290,7 @@ extern "C" {
  * RCC_SDIOCLKSource_48MHZ
  * RCC_SDIOCLKSource_SYSCLK
  */
-#define _CLK_CFG__SDIO_CLK_SRC          __CLK_SDIO_SRC__
+#define _CLK_CFG__SDIO_CLK_SRC __CLK_SDIO_SRC__
 
 /*
  * Configures the SPDIFRX clock Source.
@@ -298,7 +298,7 @@ extern "C" {
  * RCC_SPDIFRXCLKSource_PLLR
  * RCC_SPDIFRXCLKSource_PLLI2SP
  */
-#define _CLK_CFG__SPDIF_CLK_SRC         __CLK_SPDIF_SRC__
+#define _CLK_CFG__SPDIF_CLK_SRC __CLK_SPDIF_SRC__
 
 /*
  * Configures the CEC clock Source.
@@ -306,7 +306,7 @@ extern "C" {
  * RCC_CECCLKSource_HSIDiv488
  * RCC_CECCLKSource_LSE
  */
-#define _CLK_CFG__CEC_CLK_SRC           __CLK_CEC_SRC__
+#define _CLK_CFG__CEC_CLK_SRC __CLK_CEC_SRC__
 
 /*
  * Configures the FMPI2C1 clock Source.
@@ -315,7 +315,7 @@ extern "C" {
  * RCC_FMPI2C1CLKSource_SYSCLK
  * RCC_FMPI2C1CLKSource_HSI
  */
-#define _CLK_CFG__FMPI2C1_CLK_SRC        __CLK_FMPI2C1_SRC__
+#define _CLK_CFG__FMPI2C1_CLK_SRC __CLK_FMPI2C1_SRC__
 
 /*------------------------------------------------------------------------------
  * PLL CONFIGURATION
@@ -325,14 +325,14 @@ extern "C" {
  * ENABLE
  * DISABLE
  */
-#define _CLK_CFG__PLL_ON                __CLK_PLL_ON__
+#define _CLK_CFG__PLL_ON __CLK_PLL_ON__
 
 /*
  * PLL clock source
  * RCC_PLLSource_HSI
  * RCC_PLLSource_HSE
  */
-#define _CLK_CFG__PLL_SRC               __CLK_PLL_SRC__
+#define _CLK_CFG__PLL_SRC __CLK_PLL_SRC__
 
 /*
  * PLL source divider (PLLM)
@@ -344,7 +344,7 @@ extern "C" {
  *       frequency ranges from 1 to 2 MHz. It is recommended to select a frequency
  *       of 2 MHz to limit PLL jitter.
  */
-#define _CLK_CFG__PLL_SRC_DIV_M         __CLK_PLL_SRC_DIV_M__
+#define _CLK_CFG__PLL_SRC_DIV_M __CLK_PLL_SRC_DIV_M__
 
 /*
  * PLL multiplier (PLLN)
@@ -355,7 +355,7 @@ extern "C" {
  * NOTE: You have to set the PLLN parameter correctly to ensure that the VCO
  *       output frequency is between 100 and 432 MHz.
  */
-#define _CLK_CFG__PLL_N                 __CLK_PLL_N__
+#define _CLK_CFG__PLL_N __CLK_PLL_N__
 
 /*
  * PLL output division factor (PLLP)
@@ -366,7 +366,7 @@ extern "C" {
  * NOTE: You have to set the PLLP parameter correctly to not exceed 168 MHz on
  *       the System clock frequency.
  */
-#define _CLK_CFG__PLL_P                 __CLK_PLL_P__
+#define _CLK_CFG__PLL_P __CLK_PLL_P__
 
 /*
  * PLL OTG FS, SDIO, RNG output division factor (PLLQ)
@@ -379,7 +379,7 @@ extern "C" {
  *       the SDIO and RNG need a frequency lower than or equal to 48 MHz to work
  *       correctly.
  */
-#define _CLK_CFG__PLL_Q                 __CLK_PLL_Q__
+#define _CLK_CFG__PLL_Q __CLK_PLL_Q__
 
 /*
  * PLL I2S, SAI, SYSTEM, SPDIF (PLLR)
@@ -393,8 +393,7 @@ extern "C" {
  *       the SDIO and RNG need a frequency lower than or equal to 48 MHz to work
  *       correctly.
  */
-#define _CLK_CFG__PLL_R                 __CLK_PLL_R__
-
+#define _CLK_CFG__PLL_R __CLK_PLL_R__
 
 /*------------------------------------------------------------------------------
  * PLLI2S CONFIGURATION
@@ -404,7 +403,7 @@ extern "C" {
  * ENABLE
  * DISABLE
  */
-#define _CLK_CFG__PLLI2S_ON             __CLK_PLLI2S_ON__
+#define _CLK_CFG__PLLI2S_ON __CLK_PLLI2S_ON__
 
 /*
  * PLLI2S division factor for VCO input clock
@@ -417,7 +416,7 @@ extern "C" {
  *          frequency ranges from 1 to 2 MHz. It is recommended to select a frequency
  *          of 2 MHz to limit PLLI2S jitter.
  */
-#define _CLK_CFG__PLLI2S_M              __CLK_PLL_SRC_DIV_M__
+#define _CLK_CFG__PLLI2S_M __CLK_PLL_SRC_DIV_M__
 
 /*
  * PLLI2S multiplication factor
@@ -429,7 +428,7 @@ extern "C" {
  * NOTE:    You have to set the PLLI2SN parameter correctly to ensure that the VCO
  *          output frequency is between 100 and 432 MHz.
  */
-#define _CLK_CFG__PLLI2S_N              __CLK_PLLI2S_N__
+#define _CLK_CFG__PLLI2S_N __CLK_PLLI2S_N__
 
 /*
  * PLLI2S division factor for 48MHz
@@ -438,7 +437,7 @@ extern "C" {
  * PLLI2SP: specifies the division factor for PLL 48Mhz clock output
  *          This parameter must be a number in the range {2, 4, 6, or 8}.
  */
-#define _CLK_CFG__PLLI2S_P              __CLK_PLLI2S_P__
+#define _CLK_CFG__PLLI2S_P __CLK_PLLI2S_P__
 
 /*
  * PLLI2S division factor for SAI1 clock
@@ -447,7 +446,7 @@ extern "C" {
  * PLLI2SQ: specifies the division factor for SAI1 clock
  *          This parameter must be a number between 2 and 15.
  */
-#define _CLK_CFG__PLLI2S_Q              __CLK_PLLI2S_Q__
+#define _CLK_CFG__PLLI2S_Q __CLK_PLLI2S_Q__
 
 /*
  * PLLI2S division factor for I2S clock
@@ -459,8 +458,7 @@ extern "C" {
  * NOTE:    You have to set the PLLI2SR parameter correctly to not exceed 192 MHz
  *          on the I2S clock frequency.
  */
-#define _CLK_CFG__PLLI2S_R              __CLK_PLLI2S_R__
-
+#define _CLK_CFG__PLLI2S_R __CLK_PLLI2S_R__
 
 /*------------------------------------------------------------------------------
  * PLLSAI CONFIGURATION
@@ -470,7 +468,7 @@ extern "C" {
  * ENABLE
  * DISABLE
  */
-#define _CLK_CFG__PLLSAI_ON             __CLK_PLLSAI_ON__
+#define _CLK_CFG__PLLSAI_ON __CLK_PLLSAI_ON__
 
 /*
  * PLLSAI division factor for VCO input clock
@@ -483,7 +481,7 @@ extern "C" {
  *          frequency ranges from 1 to 2 MHz. It is recommended to select a frequency
  *          of 2 MHz to limit PLLSAI jitter.
  */
-#define _CLK_CFG__PLLSAI_M              __CLK_PLL_SRC_DIV_M__
+#define _CLK_CFG__PLLSAI_M __CLK_PLL_SRC_DIV_M__
 
 /*
  * PLLSAI multiplication factor
@@ -495,7 +493,7 @@ extern "C" {
  * NOTE:    You have to set the PLLSAIN parameter correctly to ensure that the VCO
  *          output frequency is between 100 and 432 MHz.
  */
-#define _CLK_CFG__PLLSAI_N              __CLK_PLLSAI_N__
+#define _CLK_CFG__PLLSAI_N __CLK_PLLSAI_N__
 
 /*
  * PLLSAI division factor for 48MHz
@@ -504,7 +502,7 @@ extern "C" {
  * PLLSAIP: specifies the division factor for PLL 48Mhz clock output
  *          This parameter must be a number in the range {2, 4, 6, or 8}.
  */
-#define _CLK_CFG__PLLSAI_P              __CLK_PLLSAI_P__
+#define _CLK_CFG__PLLSAI_P __CLK_PLLSAI_P__
 
 /*
  * PLLSAI division factor for SAI1 clock
@@ -513,7 +511,7 @@ extern "C" {
  * PLLSAIQ: specifies the division factor for SAI1 clock
  *          This parameter must be a number between 2 and 15.
  */
-#define _CLK_CFG__PLLSAI_Q              __CLK_PLLSAI_Q__
+#define _CLK_CFG__PLLSAI_Q __CLK_PLLSAI_Q__
 
 /*
  * PLLSAI division factor for LTDC clock
@@ -522,8 +520,7 @@ extern "C" {
  * PLLSAIR: specifies the division factor for LTDC clock
  *          This parameter must be a number between 2 and 7.
  */
-#define _CLK_CFG__PLLSAI_R              __CLK_PLLSAI_R__
-
+#define _CLK_CFG__PLLSAI_R __CLK_PLLSAI_R__
 
 /*------------------------------------------------------------------------------
  * SYSTEM PRESCALERS
@@ -540,7 +537,7 @@ extern "C" {
  * RCC_SYSCLK_Div256: AHB clock = SYSCLK/256
  * RCC_SYSCLK_Div512: AHB clock = SYSCLK/512
  */
-#define _CLK_CFG__AHB_PRE               __CLK_AHB_PRE__
+#define _CLK_CFG__AHB_PRE __CLK_AHB_PRE__
 
 /*
  * APB1 prescaler (in: HCLK; out: PCLK1) (low speed)
@@ -550,7 +547,7 @@ extern "C" {
  * RCC_HCLK_Div8 : APB1 clock = HCLK/8
  * RCC_HCLK_Div16: APB1 clock = HCLK/16
  */
-#define _CLK_CFG__APB1_PRE              __CLK_APB1_PRE__
+#define _CLK_CFG__APB1_PRE __CLK_APB1_PRE__
 
 /*
  * APB2 prescaler (in: HCLK; out: PCLK2) (high speed)
@@ -560,7 +557,7 @@ extern "C" {
  * RCC_HCLK_Div8 : APB2 clock = HCLK/8
  * RCC_HCLK_Div16: APB2 clock = HCLK/16
  */
-#define _CLK_CFG__APB2_PRE              __CLK_APB2_PRE__
+#define _CLK_CFG__APB2_PRE __CLK_APB2_PRE__
 
 /*
  * Flash Latency (Flash wait-state)
@@ -605,7 +602,7 @@ extern "C" {
  * 7: SYSCLK <= 160MHz
  * 8: SYSCLK <= 168MHz
  */
-#define _CLK_CFG__FLASH_LATENCY         __CLK_FLASH_LATENCY__
+#define _CLK_CFG__FLASH_LATENCY __CLK_FLASH_LATENCY__
 
 /*==============================================================================
   Exported types, enums definitions

@@ -5,7 +5,7 @@
 
 @brief   This driver support external interrupts.
 
-@note    Copyright (C) 2014 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -185,12 +185,12 @@ extern "C" {
  * Type represent IRQ trigger selecteion.
  */
 typedef enum {
-        IRQ_CONFIG__IRQ_DISABLED,           //!< IRQ disabled.
-        IRQ_CONFIG__TRIGGER_ON_FALLING_EDGE,//!< IRQ triggered on falling edge.
-        IRQ_CONFIG__TRIGGER_ON_RISING_EDGE, //!< IRQ triggered on rising edge.
-        IRQ_CONFIG__TRIGGER_ON_BOTH_EDGES,  //!< IRQ triggered on both edges.
-        IRQ_CONFIG__TRIGGER_ON_LOW_LEVEL,   //!< IRQ triggered on low level.
-        IRQ_CONFIG__TRIGGER_ON_HIGH_LEVEL,  //!< IRQ triggered on high level.
+        IRQ_CONFIG__IRQ_DISABLED,            //!< IRQ disabled.
+        IRQ_CONFIG__TRIGGER_ON_FALLING_EDGE, //!< IRQ triggered on falling edge.
+        IRQ_CONFIG__TRIGGER_ON_RISING_EDGE,  //!< IRQ triggered on rising edge.
+        IRQ_CONFIG__TRIGGER_ON_BOTH_EDGES,   //!< IRQ triggered on both edges.
+        IRQ_CONFIG__TRIGGER_ON_LOW_LEVEL,    //!< IRQ triggered on low level.
+        IRQ_CONFIG__TRIGGER_ON_HIGH_LEVEL,   //!< IRQ triggered on high level.
 } IRQ_config_t;
 
 /*==============================================================================
@@ -201,27 +201,27 @@ typedef enum {
  * @param  [WR] @ref u32_t*       timeout in milliseconds
  * @return On success 0 is returned, otherwise -1 and @ref errno code is set
  */
-#define IOCTL_IRQ__CATCH                _IOW(IRQ, 0, const u32_t*)
+#define IOCTL_IRQ__CATCH _IOW(IRQ, 0, const u32_t *)
 
 /**
  * @brief  Software interrupt trigger
  * @return On success 0 is returned, otherwise -1 and @ref errno code is set
  */
-#define IOCTL_IRQ__TRIGGER              _IO(IRQ, 1)
+#define IOCTL_IRQ__TRIGGER _IO(IRQ, 1)
 
 /**
  * @brief  Set IRQ configuration
  * @param  [WR] @ref IRQ_config_t * IRQ trigger configuration
  * @return On success 0 is returned, otherwise -1 and @ref errno code is set
  */
-#define IOCTL_IRQ__CONFIGURE            _IOW(IRQ, 2, const IRQ_config_t*)
+#define IOCTL_IRQ__CONFIGURE _IOW(IRQ, 2, const IRQ_config_t *)
 
 /**
  * @brief  Get number of interrupt occurence
  * @param  [RD] @ref u32_t*       number of interrupt occurence
  * @return On success 0 is returned, otherwise -1 and @ref errno code is set
  */
-#define IOCTL_IRQ__GET_COUNTER          _IOR(IRQ, 3, u32_t*)
+#define IOCTL_IRQ__GET_COUNTER _IOR(IRQ, 3, u32_t *)
 
 /*==============================================================================
   Exported objects

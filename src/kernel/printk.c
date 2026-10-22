@@ -5,7 +5,7 @@
 
 @brief   Kernel print support
 
-@note    Copyright (C) 2015 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -55,13 +55,13 @@
   Local object types
 ==============================================================================*/
 typedef struct {
-        u64_t  last_timestamp_os;
-        u64_t  last_timestamp;
-        char   line[__OS_SYSTEM_MSG_COLS__];
-        char   buf[max(__OS_SYSTEM_LOG_SIZE__, 2 * __OS_SYSTEM_MSG_COLS__)];
+        u64_t last_timestamp_os;
+        u64_t last_timestamp;
+        char line[__OS_SYSTEM_MSG_COLS__];
+        char buf[max(__OS_SYSTEM_LOG_SIZE__, 2 * __OS_SYSTEM_MSG_COLS__)];
         size_t head;
         size_t tail;
-        bool   non_empty;
+        bool non_empty;
 } printk_log_t;
 
 /*==============================================================================
@@ -107,8 +107,7 @@ int _printk_init(void)
 static void put_char(char c)
 {
         if (printk.non_empty && (printk.tail == printk.head)) {
-                for (size_t i = 0; i < (size_of_timestamp_type + size_of_msg_len_type);
-                        i++) {
+                for (size_t i = 0; i < (size_of_timestamp_type + size_of_msg_len_type); i++) {
                         printk.buf[printk.tail] = '\0';
                         increment_index(printk.tail);
                 }
@@ -137,7 +136,7 @@ static void put_char(char c)
 static char get_char(size_t *idx)
 {
         size_t i = *idx;
-        char   c = printk.buf[i];
+        char c = printk.buf[i];
         increment_index(i);
         *idx = i;
         return c;
@@ -175,7 +174,7 @@ void _printk(const char *format, ...)
                         now_us = printk.last_timestamp;
                 } else {
                         printk.last_timestamp_os = now_us;
-                        printk.last_timestamp    = now_us;
+                        printk.last_timestamp = now_us;
                 }
 
                 // start of message
@@ -215,8 +214,7 @@ void _printk(const char *format, ...)
  * @return Number of characters copied to the buffer. 0 if message is empty.
  */
 //==============================================================================
-size_t _printk_read(char *str, size_t len, const struct timeval *from_time,
-        struct timeval *msg_time)
+size_t _printk_read(char *str, size_t len, const struct timeval *from_time, struct timeval *msg_time)
 {
         size_t n = 0;
 
@@ -248,13 +246,12 @@ size_t _printk_read(char *str, size_t len, const struct timeval *from_time,
                                 msg_len |= get_char(&tail) << 8;
 
                                 if (timestamp > from_us) {
-                                        msg_time->tv_sec  = timestamp / 1000000ULL;
+                                        msg_time->tv_sec = timestamp / 1000000ULL;
                                         msg_time->tv_usec = timestamp % 1000000ULL;
 
                                         len = min(len - 1, msg_len);
 
-                                        while (((c = get_char(&tail)) != '\0') &&
-                                                (len > 0)) {
+                                        while (((c = get_char(&tail)) != '\0') && (len > 0)) {
                                                 *str++ = c;
                                                 len--;
                                                 n++;

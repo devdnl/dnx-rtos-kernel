@@ -5,7 +5,7 @@ Author   Daniel Zorychta
 
 Brief    String options analyze library.
 
-         Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+         Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -84,11 +84,11 @@ static const char *find_var(const char *opts, const char *var, size_t *len)
         _strlcat(token, "=", sizeof(token));
 
         const char *val = NULL;
-        const char *o   = opts;
+        const char *o = opts;
 
         while ((o = strstr(o, token))) {
                 if ((o == opts) || isspace(*(o - 1)) || (*(o - 1) == ',')) {
-                        val       = o + strlen(token);
+                        val = o + strlen(token);
                         char *end = strchr(val, ',');
 
                         if (end) {
@@ -157,7 +157,7 @@ int _stropt_get_int(const char *opts, const char *var, int defval)
 
         if (opts && var) {
 
-                size_t      len = 0;
+                size_t len = 0;
                 const char *val = find_var(opts, var, &len);
 
                 if (val && len) {
@@ -213,7 +213,7 @@ size_t _stropt_get_string_copy(const char *opts, const char *var, char *buf, siz
         size_t copied = 0;
 
         if (opts && var && buf && buflen) {
-                size_t      len = 0;
+                size_t len = 0;
                 const char *str = find_var(opts, var, &len);
 
                 if (str && len) {
@@ -244,7 +244,7 @@ int _stropt_get_bool(const char *opts, const char *var, int defval)
 
         if (opts && var) {
 
-                size_t      len = 0;
+                size_t len = 0;
                 const char *val = find_var(opts, var, &len);
 
                 if (val && len) {

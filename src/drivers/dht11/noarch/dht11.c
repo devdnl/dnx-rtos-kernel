@@ -5,7 +5,7 @@
 
 @brief   DHT11 sensor driver.
 
-@note    Copyright (C) 2016 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -37,14 +37,14 @@
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define READ_TIMEOUT_MS         10
+#define READ_TIMEOUT_MS 10
 
 /*==============================================================================
   Local object types
 ==============================================================================*/
 typedef struct {
         DHT11_config_t cfg;
-        dev_lock_t     lock;
+        dev_lock_t lock;
 } DHT11_t;
 
 /*==============================================================================
@@ -89,12 +89,12 @@ API_MOD_INIT(DHT11, void **device_handle, u8_t major, u8_t minor, const void *co
 
         int err = sys_zalloc(sizeof(DHT11_t), device_handle);
         if (!err) {
-                DHT11_t *hdl      = *device_handle;
-                hdl->cfg.pin_idx  = UINT8_MAX;
+                DHT11_t *hdl = *device_handle;
+                hdl->cfg.pin_idx = UINT8_MAX;
                 hdl->cfg.port_idx = UINT8_MAX;
 
                 if (config) {
-                        hdl->cfg = *cast(DHT11_config_t*, config);
+                        hdl->cfg = *cast(DHT11_config_t *, config);
                 }
 
                 sys_device_unlock(&hdl->lock, true);
@@ -174,13 +174,8 @@ API_MOD_CLOSE(DHT11, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(DHT11,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(DHT11, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
 
         UNUSED_ARG6(device_handle, src, count, fpos, wrcnt, fattr);
@@ -201,19 +196,13 @@ API_MOD_WRITE(DHT11,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(DHT11,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(DHT11, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
         DHT11_t *hdl = device_handle;
-        int      err = EIO;
-        u8_t     buf[5];
+        int err = EIO;
+        u8_t buf[5];
 
         // set start bit and calculate timeout value
         set_pin_low(hdl);
@@ -233,11 +222,14 @@ API_MOD_READ(DHT11,
         {
                 // finish start bit
                 set_pin_high(hdl);
-                while ((--timeout > 0) && (get_pin(hdl) == 0));
+                while ((--timeout > 0) && (get_pin(hdl) == 0))
+                        ;
 
                 // wait for start bit from sensor side
-                while ((--timeout > 0) && (get_pin(hdl) == 1));
-                while ((--timeout > 0) && (get_pin(hdl) == 0));
+                while ((--timeout > 0) && (get_pin(hdl) == 1))
+                        ;
+                while ((--timeout > 0) && (get_pin(hdl) == 0))
+                        ;
 
                 // calculate reference bit length
                 u32_t refbittime = 0;
@@ -251,7 +243,8 @@ API_MOD_READ(DHT11,
                         for (u8_t bit = 0; bit < 8; bit++) {
                                 buf[byte] <<= 1;
 
-                                while ((--timeout > 0) && (get_pin(hdl) == 0));
+                                while ((--timeout > 0) && (get_pin(hdl) == 0))
+                                        ;
 
                                 u32_t bittime = 0;
                                 while ((--timeout > 0) && (get_pin(hdl) == 1)) {
@@ -269,7 +262,7 @@ API_MOD_READ(DHT11,
         sys_context_switch_unlock();
 
         if (!err) {
-                *fpos  = 0;
+                *fpos = 0;
                 *rdcnt = min(5, count);
                 memcpy(dst, buf, *rdcnt);
         }
@@ -291,13 +284,13 @@ API_MOD_READ(DHT11,
 API_MOD_IOCTL(DHT11, void *device_handle, int request, void *arg)
 {
         DHT11_t *hdl = device_handle;
-        int      err = EINVAL;
+        int err = EINVAL;
 
         if (arg) {
                 switch (request) {
                 case IOCTL_DHT11__CONFIGURE:
-                        hdl->cfg = *cast(DHT11_config_t*, arg);
-                        err      = ESUCC;
+                        hdl->cfg = *cast(DHT11_config_t *, arg);
+                        err = ESUCC;
                         break;
                 }
         }

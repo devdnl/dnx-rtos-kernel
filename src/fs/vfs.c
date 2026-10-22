@@ -5,7 +5,7 @@
 
 @brief   This file support virtual file system
 
-@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -221,8 +221,7 @@ int _vfs_mount(const struct vfs_path *src_path, const struct vfs_path *mount_poi
                         err = get_path_base_FS(cwd_mount_point, false, &ext_path, &base_fs);
                         if (!err) {
                                 FS_entry_t *mounted_fs;
-                                if (get_path_FS(cwd_mount_point, strlen(cwd_mount_point), NULL, &mounted_fs) ==
-                                        ESUCC) {
+                                if (get_path_FS(cwd_mount_point, strlen(cwd_mount_point), NULL, &mounted_fs) == ESUCC) {
                                         err = EADDRINUSE;
                                 } else {
                                         err = check_dir_exists(base_fs, ext_path);

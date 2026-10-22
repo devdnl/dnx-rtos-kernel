@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   EXT4 file system
 
-        Copyright (C) 2019 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -34,16 +34,16 @@ Brief   EXT4 file system
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define SECTOR_SIZE     512
-#define LOCK_TIMEOUT    _WAIT_FOREVER_MS
-#define SYNC_TIMEOUT    2000
-#define NAME_MAX_LEN    255
+#define SECTOR_SIZE  512
+#define LOCK_TIMEOUT _WAIT_FOREVER_MS
+#define SYNC_TIMEOUT 2000
+#define NAME_MAX_LEN 255
 
 /* open flags handled by lwext4 (values in vfs.h are equal to lwext4 ones) */
 #define EXT4_OPEN_FLAGS_MASK (O_ACCMODE | O_CREAT | O_TRUNC | O_APPEND)
 
 /* mode bits accepted by chmod and mkdir */
-#define MODE_PERM_MASK  (S_IPMT | S_ISUID | S_ISGID | S_ISVTX)
+#define MODE_PERM_MASK (S_IPMT | S_ISUID | S_ISGID | S_ISVTX)
 
 /*==============================================================================
   Local object types
@@ -56,21 +56,21 @@ typedef struct {
         kmtx_t *fs_mutex;
         u8_t buf[SECTOR_SIZE];
         u32_t open_files;
-        struct ext4fs_file *files;      /* list of opened files */
+        struct ext4fs_file *files; /* list of opened files */
 } ext4fs_t;
 
 typedef struct ext4fs_file {
         ext4_file file;
-        struct ext4fs_file *next;       /* next opened file */
-        bool modified;                  /* mtime must be updated */
+        struct ext4fs_file *next; /* next opened file */
+        bool modified;            /* mtime must be updated */
 } ext4fs_file_t;
 
 typedef struct {
         ext4_dir dir;
-        size_t seek;                    /* position of the next entry */
-        char *path;                     /* directory path + space for entry name */
-        size_t path_len;                /* length of directory path with '/' */
-        char name[NAME_MAX_LEN + 1];    /* name of current entry */
+        size_t seek;                 /* position of the next entry */
+        char *path;                  /* directory path + space for entry name */
+        size_t path_len;             /* length of directory path with '/' */
+        char name[NAME_MAX_LEN + 1]; /* name of current entry */
 } ext4fs_dir_t;
 
 /*==============================================================================
@@ -833,7 +833,7 @@ API_FS_READDIR(ext4fs, void *fs_handle, kdir_t *dir)
         }
 
         d->seek = (size_t)d->dir.next_off;
-        dir->d_seek = d->seek;  /* advance even if entry is unreadable */
+        dir->d_seek = d->seek; /* advance even if entry is unreadable */
 
         size_t len = de->name_length;
         memcpy(d->name, de->name, len);
@@ -1157,9 +1157,8 @@ static int dir_is_empty(ext4fs_t *hdl, const char *path)
                 const ext4_direntry *de;
 
                 while ((de = ext4_dir_entry_next(d)) != NULL) {
-                        bool dot    = (de->name_length == 1) && (de->name[0] == '.');
-                        bool dotdot = (de->name_length == 2) && (de->name[0] == '.')
-                                                             && (de->name[1] == '.');
+                        bool dot = (de->name_length == 1) && (de->name[0] == '.');
+                        bool dotdot = (de->name_length == 2) && (de->name[0] == '.') && (de->name[1] == '.');
                         if (!dot && !dotdot) {
                                 err = ENOTEMPTY;
                                 break;

@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   Sound interface driver
 
-        Copyright (C) 2020 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -37,40 +37,40 @@ Brief   Sound interface driver
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define DMA_CHANNEL                     0
-#define DMA_STREAM_PRI                  1
-#define DMA_STREAM_ALT                  3
+#define DMA_CHANNEL    0
+#define DMA_STREAM_PRI 1
+#define DMA_STREAM_ALT 3
 
 /*==============================================================================
   Local object types
 ==============================================================================*/
 enum {
-        #if defined(RCC_APB2ENR_SAI1EN)
+#if defined(RCC_APB2ENR_SAI1EN)
         _SAI1,
-        #endif
-        #if defined(RCC_APB1ENR_SAI2EN) || defined(RCC_APB2ENR_SAI2EN)
+#endif
+#if defined(RCC_APB1ENR_SAI2EN) || defined(RCC_APB2ENR_SAI2EN)
         _SAI2,
-        #endif
+#endif
         SAI_PERIPHERALS,
         SAI_BLOCKS = 2,
 };
 
 /* SAI peripheral info */
 struct SAI_info {
-        SAI_TypeDef       *const BASE;                  //!< SAI peripheral address
-        SAI_Block_TypeDef *const BLOCK[SAI_BLOCKS];     //!< SAI BLOCK address
-        __IO u32_t        *APBRSTR;                     //!< APB reset register address
-        __IO u32_t        *APBENR;                      //!< APB enable register
-        u32_t              APBRSTRENR;                  //!< APB reset/enable bit
-        u8_t               DMA_major[SAI_BLOCKS];       //!< DMA peripheral number
-        u8_t               DMA_channel_pri[SAI_BLOCKS]; //!< DMA peripheral request channel number
-        u8_t               DMA_channel_alt[SAI_BLOCKS]; //!< DMA peripheral request channel number
-        u8_t               DMA_stream_pri[SAI_BLOCKS];  //!< primary stream number
-        u8_t               DMA_stream_alt[SAI_BLOCKS];  //!< alternative stream number
-        u32_t              CR1_CONF[SAI_BLOCKS];
-        u32_t              CR2_CONF[SAI_BLOCKS];
-        u32_t              FRCR_CONF[SAI_BLOCKS];
-        u32_t              SLOTR_CONF[SAI_BLOCKS];
+        SAI_TypeDef *const BASE;                    //!< SAI peripheral address
+        SAI_Block_TypeDef *const BLOCK[SAI_BLOCKS]; //!< SAI BLOCK address
+        __IO u32_t *APBRSTR;                        //!< APB reset register address
+        __IO u32_t *APBENR;                         //!< APB enable register
+        u32_t APBRSTRENR;                           //!< APB reset/enable bit
+        u8_t DMA_major[SAI_BLOCKS];                 //!< DMA peripheral number
+        u8_t DMA_channel_pri[SAI_BLOCKS];           //!< DMA peripheral request channel number
+        u8_t DMA_channel_alt[SAI_BLOCKS];           //!< DMA peripheral request channel number
+        u8_t DMA_stream_pri[SAI_BLOCKS];            //!< primary stream number
+        u8_t DMA_stream_alt[SAI_BLOCKS];            //!< alternative stream number
+        u32_t CR1_CONF[SAI_BLOCKS];
+        u32_t CR2_CONF[SAI_BLOCKS];
+        u32_t FRCR_CONF[SAI_BLOCKS];
+        u32_t SLOTR_CONF[SAI_BLOCKS];
 };
 
 typedef struct {
@@ -80,22 +80,22 @@ typedef struct {
 
 typedef struct {
         const struct SAI_info *SAI;
-        ksem_t      *sem;
-        u32_t        dmad;
+        ksem_t *sem;
+        u32_t dmad;
         SND_config_t conf;
-        u8_t         major;
-        u8_t         minor;
-        u8_t         DMA_channel;
-        bool         configured;
-        bool         active;
-        buf_t        next;
+        u8_t major;
+        u8_t minor;
+        u8_t DMA_channel;
+        bool configured;
+        bool active;
+        buf_t next;
 } SND_t;
 
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static int  configure(SND_t *hdl, const SND_config_t *config);
-static int  DMA_start(SND_t *hdl, const buf_t *buf);
+static int configure(SND_t *hdl, const SND_config_t *config);
+static int DMA_start(SND_t *hdl, const buf_t *buf);
 static bool DMA_next(DMA_Stream_TypeDef *stream, u8_t SR, void *arg);
 
 /*==============================================================================
@@ -106,38 +106,38 @@ MODULE_NAME(SND);
 static const struct SAI_info SAI_INFO[SAI_PERIPHERALS] = {
 #if defined(RCC_APB2ENR_SAI1EN)
         {
-                .BASE            = SAI1,
-                .BLOCK           = {SAI1_Block_A, SAI1_Block_B},
-                .APBRSTR         = &RCC->APB2RSTR,
-                .APBENR          = &RCC->APB2ENR,
-                .APBRSTRENR      = RCC_APB2ENR_SAI1EN,
-                .DMA_major       = {_DMA_DDI_DMA2, _DMA_DDI_DMA2},
+                .BASE = SAI1,
+                .BLOCK = {SAI1_Block_A, SAI1_Block_B},
+                .APBRSTR = &RCC->APB2RSTR,
+                .APBENR = &RCC->APB2ENR,
+                .APBRSTRENR = RCC_APB2ENR_SAI1EN,
+                .DMA_major = {_DMA_DDI_DMA2, _DMA_DDI_DMA2},
                 .DMA_channel_pri = {0, 0},
                 .DMA_channel_alt = {0, 1},
-                .DMA_stream_pri  = {1, 5},
-                .DMA_stream_alt  = {3, 4},
-                .CR1_CONF        = {_SND_CFG_SAI1_BLKA_CR1, _SND_CFG_SAI1_BLKB_CR1},
-                .CR2_CONF        = {_SND_CFG_SAI1_BLKA_CR2, _SND_CFG_SAI1_BLKB_CR2},
-                .FRCR_CONF       = {_SND_CFG_SAI1_BLKA_FRCR, _SND_CFG_SAI1_BLKB_FRCR},
-                .SLOTR_CONF      = {_SND_CFG_SAI1_BLKA_SLOTR, _SND_CFG_SAI1_BLKB_SLOTR},
+                .DMA_stream_pri = {1, 5},
+                .DMA_stream_alt = {3, 4},
+                .CR1_CONF = {_SND_CFG_SAI1_BLKA_CR1, _SND_CFG_SAI1_BLKB_CR1},
+                .CR2_CONF = {_SND_CFG_SAI1_BLKA_CR2, _SND_CFG_SAI1_BLKB_CR2},
+                .FRCR_CONF = {_SND_CFG_SAI1_BLKA_FRCR, _SND_CFG_SAI1_BLKB_FRCR},
+                .SLOTR_CONF = {_SND_CFG_SAI1_BLKA_SLOTR, _SND_CFG_SAI1_BLKB_SLOTR},
         },
 #endif
 #if defined(RCC_APB1ENR_SAI2EN) || defined(RCC_APB2ENR_SAI2EN)
         {
-                .BASE            = SAI2,
-                .BLOCK           = {SAI2_Block_A, SAI2_Block_B},
-                .APBRSTR         = &RCC->APB2RSTR,
-                .APBENR          = &RCC->APB2ENR,
-                .APBRSTRENR      = RCC_APB2ENR_SAI2EN,
-                .DMA_major       = {_DMA_DDI_DMA2, _DMA_DDI_DMA2},
+                .BASE = SAI2,
+                .BLOCK = {SAI2_Block_A, SAI2_Block_B},
+                .APBRSTR = &RCC->APB2RSTR,
+                .APBENR = &RCC->APB2ENR,
+                .APBRSTRENR = RCC_APB2ENR_SAI2EN,
+                .DMA_major = {_DMA_DDI_DMA2, _DMA_DDI_DMA2},
                 .DMA_channel_pri = {3, 0},
                 .DMA_channel_alt = {3, 3},
-                .DMA_stream_pri  = {4, 7},
-                .DMA_stream_alt  = {4, 6},
-                .CR1_CONF        = {_SND_CFG_SAI2_BLKA_CR1, _SND_CFG_SAI2_BLKB_CR1},
-                .CR2_CONF        = {_SND_CFG_SAI2_BLKA_CR2, _SND_CFG_SAI2_BLKB_CR2},
-                .FRCR_CONF       = {_SND_CFG_SAI2_BLKA_FRCR, _SND_CFG_SAI2_BLKB_FRCR},
-                .SLOTR_CONF      = {_SND_CFG_SAI2_BLKA_SLOTR, _SND_CFG_SAI2_BLKB_SLOTR},
+                .DMA_stream_pri = {4, 7},
+                .DMA_stream_alt = {4, 6},
+                .CR1_CONF = {_SND_CFG_SAI2_BLKA_CR1, _SND_CFG_SAI2_BLKB_CR1},
+                .CR2_CONF = {_SND_CFG_SAI2_BLKA_CR2, _SND_CFG_SAI2_BLKB_CR2},
+                .FRCR_CONF = {_SND_CFG_SAI2_BLKA_FRCR, _SND_CFG_SAI2_BLKB_FRCR},
+                .SLOTR_CONF = {_SND_CFG_SAI2_BLKA_SLOTR, _SND_CFG_SAI2_BLKB_SLOTR},
         },
 #endif
 };
@@ -176,20 +176,19 @@ API_MOD_INIT(SND, void **device_handle, u8_t major, u8_t minor, const void *conf
                         SND_t *hdl = *device_handle;
                         hdl->major = major;
                         hdl->minor = minor;
-                        hdl->SAI   = &SAI_INFO[major];
+                        hdl->SAI = &SAI_INFO[major];
 
                         SET_BIT(*hdl->SAI->APBENR, hdl->SAI->APBRSTRENR);
                         SET_BIT(*hdl->SAI->APBRSTR, hdl->SAI->APBRSTRENR);
                         CLEAR_BIT(*hdl->SAI->APBRSTR, hdl->SAI->APBRSTRENR);
 
                         hdl->DMA_channel = hdl->SAI->DMA_channel_pri[minor];
-                        hdl->dmad = _DMA_DDI_reserve(hdl->SAI->DMA_major[minor],
-                                                     hdl->SAI->DMA_stream_pri[minor]);
+                        hdl->dmad = _DMA_DDI_reserve(hdl->SAI->DMA_major[minor], hdl->SAI->DMA_stream_pri[minor]);
 
                         if (!hdl->dmad) {
                                 hdl->DMA_channel = hdl->SAI->DMA_channel_alt[minor];
                                 hdl->dmad = _DMA_DDI_reserve(hdl->SAI->DMA_major[minor],
-                                                             hdl->SAI->DMA_stream_alt[minor]);
+                                        hdl->SAI->DMA_stream_alt[minor]);
                         }
 
                         if (!hdl->dmad) {
@@ -290,37 +289,32 @@ API_MOD_CLOSE(SND, void *device_handle, bool force)
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_WRITE(SND,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(SND, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
         SND_t *hdl = device_handle;
 
         int err = (not hdl->configured) ? EIO : ESUCC;
-            err = (sys_is_mem_dma_capable(src) ? err : EFAULT);
+        err = (sys_is_mem_dma_capable(src) ? err : EFAULT);
 
         if (!err) {
                 buf_t buf;
-                buf.ptr  = src;
+                buf.ptr = src;
                 buf.size = count;
 
                 if (not hdl->active) {
                         err = DMA_start(hdl, &buf);
 
                 } else {
-                        hdl->next.ptr  = src;
+                        hdl->next.ptr = src;
                         hdl->next.size = count;
                         err = sys_semaphore_wait(hdl->sem, _WAIT_FOREVER_MS);
                 }
         }
 
-        *fpos  = 0;
+        *fpos = 0;
         *wrcnt = !err ? count : 0;
 
         return err;
@@ -340,13 +334,7 @@ API_MOD_WRITE(SND,
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(SND,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(SND, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, dst, count, fpos, rdcnt, fattr);
 
@@ -374,7 +362,7 @@ API_MOD_IOCTL(SND, void *device_handle, int request, void *arg)
 
         switch (request) {
         case IOCTL_SND__SET_CONFIGURATION: {
-                const SND_config_t *conf = cast(const SND_config_t*, arg);
+                const SND_config_t *conf = cast(const SND_config_t *, arg);
                 if (conf) {
                         err = configure(hdl, conf);
                 } else {
@@ -437,9 +425,8 @@ API_MOD_STAT(SND, void *device_handle, struct vfs_dev_stat *device_stat)
 //==============================================================================
 static int configure(SND_t *hdl, const SND_config_t *config)
 {
-        if (  (config->bits_per_sample > _SND_BITS_PER_SAMPLE_AMOUNT)
-           or (config->channels > _SND_CHANNELS_AMOUNT)
-           or (config->sample_rate > _SND_SAMPLE_RATE_AMOUNT) ) {
+        if ((config->bits_per_sample > _SND_BITS_PER_SAMPLE_AMOUNT) or (config->channels > _SND_CHANNELS_AMOUNT) or
+                (config->sample_rate > _SND_SAMPLE_RATE_AMOUNT)) {
 
                 hdl->configured = false;
                 return EINVAL;
@@ -470,19 +457,15 @@ static int configure(SND_t *hdl, const SND_config_t *config)
                 mono = SAI_xCR1_MONO;
         }
 
-
         SET_BIT(*hdl->SAI->APBRSTR, hdl->SAI->APBRSTRENR);
         CLEAR_BIT(*hdl->SAI->APBRSTR, hdl->SAI->APBRSTRENR);
 
         hdl->SAI->BASE->GCR = 0;
 
-        SAI_BLK->CR1 = ((mckdiv << SAI_xCR1_MCKDIV_Pos) & SAI_xCR1_MCKDIV_Msk)
-                       | (1 * SAI_xCR1_DMAEN)
-                       | mono
-                       | hdl->SAI->CR1_CONF[minor];
+        SAI_BLK->CR1 = ((mckdiv << SAI_xCR1_MCKDIV_Pos) & SAI_xCR1_MCKDIV_Msk) | (1 * SAI_xCR1_DMAEN) | mono |
+                hdl->SAI->CR1_CONF[minor];
 
-        SAI_BLK->CR2 = ((3 << SAI_xCR2_FTH_Pos ) & SAI_xCR2_FTH_Msk)
-                       | hdl->SAI->CR2_CONF[minor];
+        SAI_BLK->CR2 = ((3 << SAI_xCR2_FTH_Pos) & SAI_xCR2_FTH_Msk) | hdl->SAI->CR2_CONF[minor];
 
         SAI_BLK->FRCR = hdl->SAI->FRCR_CONF[minor];
 
@@ -508,43 +491,43 @@ static int configure(SND_t *hdl, const SND_config_t *config)
 static int DMA_start(SND_t *hdl, const buf_t *buf)
 {
         const u32_t PSIZE[_SND_BITS_PER_SAMPLE_AMOUNT] = {
-                [SND_BITS_PER_SAMPLE__8]  = _DMA_DDI_PERIPHERAL_DATA_SIZE_BYTE,
+                [SND_BITS_PER_SAMPLE__8] = _DMA_DDI_PERIPHERAL_DATA_SIZE_BYTE,
                 [SND_BITS_PER_SAMPLE__16] = _DMA_DDI_PERIPHERAL_DATA_SIZE_HALF_WORD,
                 [SND_BITS_PER_SAMPLE__32] = _DMA_DDI_PERIPHERAL_DATA_SIZE_WORD,
         };
 
         const u32_t WLEN[_SND_BITS_PER_SAMPLE_AMOUNT] = {
-                [SND_BITS_PER_SAMPLE__8]  = 1,
+                [SND_BITS_PER_SAMPLE__8] = 1,
                 [SND_BITS_PER_SAMPLE__16] = 2,
                 [SND_BITS_PER_SAMPLE__32] = 4,
         };
 
         _DMA_DDI_config_t config = {0};
-        config.user_ctx                     = hdl;
-        config.cb_finish                    = NULL;
-        config.cb_half                      = NULL;
-        config.cb_next                      = DMA_next;
-        config.data_number                  = buf->size / WLEN[hdl->conf.bits_per_sample];
-        config.peripheral_address           = cast(u32_t, &hdl->SAI->BLOCK[hdl->minor]->DR);
-        config.memory_address[0]            = cast(u32_t, buf->ptr);
-        config.memory_address[1]            = 0;
-        config.IRQ_priority                 = __CPU_DEFAULT_IRQ_PRIORITY__;
-        config.channel                      = hdl->DMA_channel;
-        config.release                      = false;
-        config.mode                         = _DMA_DDI_MODE_FIFO;
-        config.fifo_threshold               = _DMA_DDI_FIFO_THRESHOLD_FULL;
-        config.memory_burst                 = _DMA_DDI_MEMORY_BURST_SINGLE_TRANSFER;
-        config.peripheral_burst             = _DMA_DDI_PERIPHERAL_BURST_SINGLE_TRANSFER;
-        config.double_buffer_mode           = _DMA_DDI_DOUBLE_BUFFER_MODE_DISABLED;
-        config.priority_level               = _DMA_DDI_PRIORITY_LEVEL_MEDIUM;
-        config.peripheral_increment_offset  = _DMA_DDI_PERIPHERAL_INCREMENT_OFFSET_ACCORDING_TO_PERIPHERAL_SIZE;
-        config.memory_data_size             = _DMA_DDI_MEMORY_DATA_SIZE_BYTE;
-        config.peripheral_data_size         = PSIZE[hdl->conf.bits_per_sample];
-        config.memory_address_increment     = _DMA_DDI_MEMORY_ADDRESS_POINTER_INCREMENTED;
+        config.user_ctx = hdl;
+        config.cb_finish = NULL;
+        config.cb_half = NULL;
+        config.cb_next = DMA_next;
+        config.data_number = buf->size / WLEN[hdl->conf.bits_per_sample];
+        config.peripheral_address = cast(u32_t, &hdl->SAI->BLOCK[hdl->minor]->DR);
+        config.memory_address[0] = cast(u32_t, buf->ptr);
+        config.memory_address[1] = 0;
+        config.IRQ_priority = __CPU_DEFAULT_IRQ_PRIORITY__;
+        config.channel = hdl->DMA_channel;
+        config.release = false;
+        config.mode = _DMA_DDI_MODE_FIFO;
+        config.fifo_threshold = _DMA_DDI_FIFO_THRESHOLD_FULL;
+        config.memory_burst = _DMA_DDI_MEMORY_BURST_SINGLE_TRANSFER;
+        config.peripheral_burst = _DMA_DDI_PERIPHERAL_BURST_SINGLE_TRANSFER;
+        config.double_buffer_mode = _DMA_DDI_DOUBLE_BUFFER_MODE_DISABLED;
+        config.priority_level = _DMA_DDI_PRIORITY_LEVEL_MEDIUM;
+        config.peripheral_increment_offset = _DMA_DDI_PERIPHERAL_INCREMENT_OFFSET_ACCORDING_TO_PERIPHERAL_SIZE;
+        config.memory_data_size = _DMA_DDI_MEMORY_DATA_SIZE_BYTE;
+        config.peripheral_data_size = PSIZE[hdl->conf.bits_per_sample];
+        config.memory_address_increment = _DMA_DDI_MEMORY_ADDRESS_POINTER_INCREMENTED;
         config.peripheral_address_increment = _DMA_DDI_PERIPHERAL_ADDRESS_POINTER_IS_FIXED;
-        config.circular_mode                = _DMA_DDI_CIRCULAR_MODE_DISABLED;
-        config.transfer_direction           = _DMA_DDI_TRANSFER_DIRECTION_MEMORY_TO_PERIPHERAL;
-        config.flow_controller              = _DMA_DDI_FLOW_CONTROLLER_DMA;
+        config.circular_mode = _DMA_DDI_CIRCULAR_MODE_DISABLED;
+        config.transfer_direction = _DMA_DDI_TRANSFER_DIRECTION_MEMORY_TO_PERIPHERAL;
+        config.flow_controller = _DMA_DDI_FLOW_CONTROLLER_DMA;
 
         int err = _DMA_DDI_transfer(hdl->dmad, &config);
         if (!err) {
@@ -579,7 +562,7 @@ static bool DMA_next(DMA_Stream_TypeDef *stream, u8_t SR, void *arg)
                         hdl->active = false;
                 }
 
-                hdl->next.ptr  = NULL;
+                hdl->next.ptr = NULL;
                 hdl->next.size = 0;
 
                 sys_semaphore_signal_from_ISR(hdl->sem, &yield);

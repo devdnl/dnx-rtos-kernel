@@ -5,7 +5,7 @@
 
 @brief   Print function.
 
-@note    Copyright (C) 2015 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -43,7 +43,6 @@ extern "C" {
   Exported macros
 ==============================================================================*/
 
-
 /*==============================================================================
   Exported object types
 ==============================================================================*/
@@ -55,7 +54,7 @@ extern "C" {
 /*==============================================================================
   Exported functions
 ==============================================================================*/
-extern int _vfprintf(kfile_t*, const char*, va_list);
+extern int _vfprintf(kfile_t *, const char *, va_list);
 
 /*==============================================================================
   Exported inline functions

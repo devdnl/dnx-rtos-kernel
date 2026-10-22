@@ -5,7 +5,7 @@
 
 @brief   This driver support AFM.
 
-@note    Copyright (C) 2014  Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026  Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -43,23 +43,23 @@ extern "C" {
 /**
  * FMC swap
  */
-#define _AFM_SWP_FMC                    __AFM_SWP_FMC__
+#define _AFM_SWP_FMC __AFM_SWP_FMC__
 
 /**
  * Flash bank mode
  */
-#define _AFM_FB_MODE                    __AFM_FB_MODE__
+#define _AFM_FB_MODE __AFM_FB_MODE__
 
 /**
  * Memory map mode
  */
-#define _AFM_MEM_MODE_AUTO              (7 << 0)
-#define _AFM_MEM_MODE                   __AFM_MEM_MODE__
+#define _AFM_MEM_MODE_AUTO (7 << 0)
+#define _AFM_MEM_MODE      __AFM_MEM_MODE__
 
 /**
  * Ethernet interface selection
  */
-#define _AFM_MII_RMII_SEL               __AFM_MII_RMII_SEL__
+#define _AFM_MII_RMII_SEL __AFM_MII_RMII_SEL__
 
 /*==============================================================================
   Exported types, enums definitions

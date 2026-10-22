@@ -5,7 +5,7 @@
 
 @brief   File support system clokc (PLL).
 
-@note    Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -38,13 +38,13 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define TIMEOUT_MS                      250
-#define LSE_TIMEOUT_MS                  5000
+#define TIMEOUT_MS     250
+#define LSE_TIMEOUT_MS 5000
 
-#define PWR_REGULATOR_VOLTAGE_SCALE0    (0)
-#define PWR_REGULATOR_VOLTAGE_SCALE1    ((1*PWR_CR1_VOS_1) | (1*PWR_CR1_VOS_0))
-#define PWR_REGULATOR_VOLTAGE_SCALE2    ((1*PWR_CR1_VOS_1) | (0*PWR_CR1_VOS_0))
-#define PWR_REGULATOR_VOLTAGE_SCALE3    ((0*PWR_CR1_VOS_1) | (1*PWR_CR1_VOS_0))
+#define PWR_REGULATOR_VOLTAGE_SCALE0 (0)
+#define PWR_REGULATOR_VOLTAGE_SCALE1 ((1 * PWR_CR1_VOS_1) | (1 * PWR_CR1_VOS_0))
+#define PWR_REGULATOR_VOLTAGE_SCALE2 ((1 * PWR_CR1_VOS_1) | (0 * PWR_CR1_VOS_0))
+#define PWR_REGULATOR_VOLTAGE_SCALE3 ((0 * PWR_CR1_VOS_1) | (1 * PWR_CR1_VOS_0))
 
 /*==============================================================================
   Local types, enums definitions
@@ -181,12 +181,11 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         //----------------------------------------------------------------------
         // RTC clock selection
         //----------------------------------------------------------------------
-        if ( (  (__CLK_RTC_SRC__ == LL_RCC_RTC_CLKSOURCE_LSE && __CLK_LSE_ON__ && !lseoff)
-             || (__CLK_RTC_SRC__ == LL_RCC_RTC_CLKSOURCE_LSI && __CLK_LSI_ON__)
-             || (__CLK_RTC_SRC__ == LL_RCC_RTC_CLKSOURCE_HSE_RTC && __CLK_HSE_ON__) )
+        if (((__CLK_RTC_SRC__ == LL_RCC_RTC_CLKSOURCE_LSE && __CLK_LSE_ON__ && !lseoff) ||
+                    (__CLK_RTC_SRC__ == LL_RCC_RTC_CLKSOURCE_LSI && __CLK_LSI_ON__) ||
+                    (__CLK_RTC_SRC__ == LL_RCC_RTC_CLKSOURCE_HSE_RTC && __CLK_HSE_ON__))
 
-           && (RCC->BDCR & RCC_BDCR_RTCEN) == 0
-           && (RCC->BDCR & (RCC_BDCR_RTCSEL_1 | RCC_BDCR_RTCSEL_0)) == 0) {
+                && (RCC->BDCR & RCC_BDCR_RTCEN) == 0 && (RCC->BDCR & (RCC_BDCR_RTCSEL_1 | RCC_BDCR_RTCSEL_0)) == 0) {
 
                 SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);
                 SET_BIT(PWR->CR1, PWR_CR1_DBP);
@@ -198,11 +197,9 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         //----------------------------------------------------------------------
         if (__CLK_PLL_ON__) {
 
-                LL_RCC_PLL_ConfigDomain_SYS(__CLK_PLL_SRC__, __CLK_PLL_SRC_DIV_M__,
-                                            __CLK_PLL_N__, __CLK_PLL_P__);
+                LL_RCC_PLL_ConfigDomain_SYS(__CLK_PLL_SRC__, __CLK_PLL_SRC_DIV_M__, __CLK_PLL_N__, __CLK_PLL_P__);
 
-                LL_RCC_PLL_ConfigDomain_48M(__CLK_PLL_SRC__, __CLK_PLL_SRC_DIV_M__,
-                                            __CLK_PLL_N__, __CLK_PLL_Q__);
+                LL_RCC_PLL_ConfigDomain_48M(__CLK_PLL_SRC__, __CLK_PLL_SRC_DIV_M__, __CLK_PLL_N__, __CLK_PLL_Q__);
 
                 LL_RCC_PLL_Enable();
 
@@ -223,15 +220,14 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         //----------------------------------------------------------------------
         if (__CLK_PLLI2S_ON__) {
 
-                LL_RCC_PLLI2S_ConfigDomain_I2S(__CLK_PLL_SRC__, __CLK_PLL_SRC_DIV_M__,
-                                               __CLK_PLLI2S_N__, __CLK_PLLI2S_R__);
+                LL_RCC_PLLI2S_ConfigDomain_I2S(__CLK_PLL_SRC__, __CLK_PLL_SRC_DIV_M__, __CLK_PLLI2S_N__,
+                        __CLK_PLLI2S_R__);
 
-                LL_RCC_PLLI2S_ConfigDomain_SAI(__CLK_PLL_SRC__, __CLK_PLL_SRC_DIV_M__,
-                                               __CLK_PLLI2S_N__, __CLK_PLLI2S_Q__,
-                                               __CLK_PLLI2S_Q_DIV__);
+                LL_RCC_PLLI2S_ConfigDomain_SAI(__CLK_PLL_SRC__, __CLK_PLL_SRC_DIV_M__, __CLK_PLLI2S_N__,
+                        __CLK_PLLI2S_Q__, __CLK_PLLI2S_Q_DIV__);
 
-                LL_RCC_PLLI2S_ConfigDomain_SPDIFRX(__CLK_PLL_SRC__, __CLK_PLL_SRC_DIV_M__,
-                                                   __CLK_PLLI2S_N__, __CLK_PLLI2S_P__);
+                LL_RCC_PLLI2S_ConfigDomain_SPDIFRX(__CLK_PLL_SRC__, __CLK_PLL_SRC_DIV_M__, __CLK_PLLI2S_N__,
+                        __CLK_PLLI2S_P__);
 
                 LL_RCC_PLLI2S_Enable();
 
@@ -252,14 +248,12 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         //----------------------------------------------------------------------
         if (__CLK_PLLSAI_ON__) {
 
-                LL_RCC_PLLSAI_ConfigDomain_48M(__CLK_PLL_SRC__, __CLK_PLL_SRC_DIV_M__,
-                                               __CLK_PLLSAI_N__, __CLK_PLLSAI_P__);
-                LL_RCC_PLLSAI_ConfigDomain_LTDC(__CLK_PLL_SRC__, __CLK_PLL_SRC_DIV_M__,
-                                                __CLK_PLLSAI_N__, __CLK_PLLSAI_R__,
-                                                __CLK_PLLSAI_R_DIV__);
-                LL_RCC_PLLSAI_ConfigDomain_SAI(__CLK_PLL_SRC__, __CLK_PLL_SRC_DIV_M__,
-                                               __CLK_PLLSAI_N__, __CLK_PLLSAI_Q__,
-                                               __CLK_PLLSAI_Q_DIV__);
+                LL_RCC_PLLSAI_ConfigDomain_48M(__CLK_PLL_SRC__, __CLK_PLL_SRC_DIV_M__, __CLK_PLLSAI_N__,
+                        __CLK_PLLSAI_P__);
+                LL_RCC_PLLSAI_ConfigDomain_LTDC(__CLK_PLL_SRC__, __CLK_PLL_SRC_DIV_M__, __CLK_PLLSAI_N__,
+                        __CLK_PLLSAI_R__, __CLK_PLLSAI_R_DIV__);
+                LL_RCC_PLLSAI_ConfigDomain_SAI(__CLK_PLL_SRC__, __CLK_PLL_SRC_DIV_M__, __CLK_PLLSAI_N__,
+                        __CLK_PLLSAI_Q__, __CLK_PLLSAI_Q_DIV__);
 
                 LL_RCC_PLLSAI_Enable();
 
@@ -307,45 +301,45 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         LL_RCC_SetI2CClockSource(__CLK_I2C2_SRC__);
         LL_RCC_SetI2CClockSource(__CLK_I2C3_SRC__);
 
-        #if defined(I2C4)
+#if defined(I2C4)
         LL_RCC_SetI2CClockSource(__CLK_I2C4_SRC__);
-        #endif
+#endif
 
-        //----------------------------------------------------------------------
-        // SDMMC clock source
-        //----------------------------------------------------------------------
-        #if defined(SDMMC1)
+//----------------------------------------------------------------------
+// SDMMC clock source
+//----------------------------------------------------------------------
+#if defined(SDMMC1)
         LL_RCC_SetSDMMCClockSource(__CLK_SDMMC1_SRC__);
-        #endif
+#endif
 
-        #if defined(SDMMC2)
+#if defined(SDMMC2)
         LL_RCC_SetSDMMCClockSource(__CLK_SDMMC2_SRC__);
-        #endif
+#endif
 
         //----------------------------------------------------------------------
         // HDMI-CEC clock source
         //----------------------------------------------------------------------
         LL_RCC_SetCECClockSource(__CLK_CEC_SRC__);
 
-        //----------------------------------------------------------------------
-        // DFSDM clock source
-        //----------------------------------------------------------------------
-        #if defined(DFSDM1_Channel0)
+//----------------------------------------------------------------------
+// DFSDM clock source
+//----------------------------------------------------------------------
+#if defined(DFSDM1_Channel0)
         LL_RCC_SetDFSDMAudioClockSource(__CLK_DFSDM1_AUDIO_SRC__);
         LL_RCC_SetDFSDMClockSource(__CLK_DFSDM1_SRC__);
-        #endif
+#endif
 
-        //----------------------------------------------------------------------
-        // DSI clock source
-        //----------------------------------------------------------------------
-        #if defined(DSI)
+//----------------------------------------------------------------------
+// DSI clock source
+//----------------------------------------------------------------------
+#if defined(DSI)
         LL_RCC_SetDSIClockSource(__CLK_DSI_SRC__)
-        #endif
+#endif
 
-        //----------------------------------------------------------------------
-        // USB & RND clock source
-        //----------------------------------------------------------------------
-        LL_RCC_SetUSBClockSource(__CLK_USB_SRC__);
+                //----------------------------------------------------------------------
+                // USB & RND clock source
+                //----------------------------------------------------------------------
+                LL_RCC_SetUSBClockSource(__CLK_USB_SRC__);
 
         //----------------------------------------------------------------------
         // I2S clock source
@@ -428,13 +422,8 @@ API_MOD_CLOSE(CLK, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(CLK,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(CLK, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, src, count, fpos, wrcnt, fattr);
         return ENOTSUP;
@@ -454,13 +443,7 @@ API_MOD_WRITE(CLK,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(CLK,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(CLK, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, dst, count, fpos, rdcnt, fattr);
         return ENOTSUP;
@@ -605,11 +588,11 @@ API_MOD_IOCTL(CLK, void *device_handle, int request, void *arg)
                                 break;
 
                         case 21:
-                                #if defined(SDMMC2)
+#if defined(SDMMC2)
                                 clkinf->freq_Hz = LL_RCC_GetSDMMCClockFreq(LL_RCC_SDMMC2_CLKSOURCE);
-                                #else
+#else
                                 clkinf->freq_Hz = 0;
-                                #endif
+#endif
                                 clkinf->name = "SDMMC2";
                                 break;
 
@@ -619,29 +602,29 @@ API_MOD_IOCTL(CLK, void *device_handle, int request, void *arg)
                                 break;
 
                         case 23:
-                                #if defined(DFSDM1_Channel0)
+#if defined(DFSDM1_Channel0)
                                 clkinf->freq_Hz = LL_RCC_GetDFSDMAudioClockFreq(LL_RCC_DFSDM1_AUDIO_CLKSOURCE);
-                                #else
+#else
                                 clkinf->freq_Hz = 0;
-                                #endif
+#endif
                                 clkinf->name = "DFSDM Audio";
                                 break;
 
                         case 24:
-                                #if defined(DFSDM1_Channel0)
+#if defined(DFSDM1_Channel0)
                                 clkinf->freq_Hz = LL_RCC_GetDFSDMClockFreq(LL_RCC_DFSDM1_CLKSOURCE);
-                                #else
+#else
                                 clkinf->freq_Hz = 0;
-                                #endif
+#endif
                                 clkinf->name = "DFSDM";
                                 break;
 
                         case 25:
-                                #if defined(DSI)
+#if defined(DSI)
                                 clkinf->freq_Hz = LL_RCC_GetDSIClockFreq(LL_RCC_DSI_CLKSOURCE);
-                                #else
+#else
                                 clkinf->freq_Hz = 0;
-                                #endif
+#endif
                                 clkinf->name = "DSI";
                                 break;
 
@@ -651,11 +634,11 @@ API_MOD_IOCTL(CLK, void *device_handle, int request, void *arg)
                                 break;
 
                         case 27:
-                                #if defined(SPDIFRX)
+#if defined(SPDIFRX)
                                 clkinf->freq_Hz = LL_RCC_GetSPDIFRXClockFreq(LL_RCC_SPDIFRX1_CLKSOURCE);
-                                #else
+#else
                                 clkinf->freq_Hz = 0;
-                                #endif
+#endif
                                 clkinf->name = "SPDIF";
                                 break;
 
@@ -761,12 +744,12 @@ static int configure_core_voltage_and_flash_latency(void)
                 u32_t VOS_tmp = (VOS == PWR_REGULATOR_VOLTAGE_SCALE0) ? PWR_REGULATOR_VOLTAGE_SCALE1 : VOS;
                 MODIFY_REG(PWR->CR1, PWR_CR1_VOS_Msk, VOS_tmp);
 
-                // Enable core boost voltage
-                #if defined(PWR_CR1_ODEN)
+// Enable core boost voltage
+#if defined(PWR_CR1_ODEN)
                 if (!err && (VOS == PWR_REGULATOR_VOLTAGE_SCALE0)) {
                         SET_BIT(PWR->CR1, PWR_CR1_ODEN);
                         clock_t tref = sys_get_uptime_ms();
-                        while (not (PWR->CSR1 & PWR_CSR1_ODRDY)) {
+                        while (not(PWR->CSR1 & PWR_CSR1_ODRDY)) {
                                 if (sys_is_time_expired(tref, TIMEOUT_MS)) {
                                         printk("CLK: VOS0 timeout");
                                         err = ETIME;
@@ -776,7 +759,7 @@ static int configure_core_voltage_and_flash_latency(void)
                                 sys_sleep_ms(1);
                         }
                 }
-                #endif
+#endif
         }
 
         if (!err) {

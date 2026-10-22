@@ -5,7 +5,7 @@
 
 @brief   Memory management (memory distribution)
 
-@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -67,8 +67,8 @@
  */
 #define IS_IN_HEAP(heap, mem) ((mem) >= cast(void *, (heap).ram) && (mem) < (cast(void *, (heap).ram_end)))
 
-#define TEXT_START            ((void *)&__text_start)
-#define TEXT_END              ((void *)&__text_end)
+#define TEXT_START ((void *)&__text_start)
+#define TEXT_END   ((void *)&__text_end)
 
 /*==============================================================================
   Local object types
@@ -84,12 +84,12 @@ static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefre
   Local objects
 ==============================================================================*/
 #if (__OS_SYSTEM_MSG_ENABLE__ > 0)
-static const char *REGISTERED_REGION_STR  = "Registered %s region [%Xh-%Xh]";
+static const char *REGISTERED_REGION_STR = "Registered %s region [%Xh-%Xh]";
 static const char *REGISTRATION_ERROR_STR = "Memory %s registration error (%d) [%Xh-%Xh]";
 #endif
 static _mm_region_t *regions;
-static i32_t         memory_usage[_MM_COUNT - 1];
-static i32_t         module_memory_usage[_drvreg_number_of_modules];
+static i32_t memory_usage[_MM_COUNT - 1];
+static i32_t module_memory_usage[_drvreg_number_of_modules];
 
 /*==============================================================================
   Exported objects
@@ -143,12 +143,12 @@ int _mm_register_region(_mm_region_t *region, void *start, size_t size, u32_t fl
         if (region && start && size && name) {
                 if (regions == NULL) {
                         regions = region;
-                        err     = _heap_init(&region->heap, start, size);
+                        err = _heap_init(&region->heap, start, size);
                         if (!err) {
-                                region->flags    = flags;
+                                region->flags = flags;
                                 region->name_ref = name;
-                                region->next     = NULL;
-                                region->size     = size;
+                                region->next = NULL;
+                                region->size = size;
                         }
                 } else {
                         // check if memory region is already used
@@ -174,10 +174,10 @@ int _mm_register_region(_mm_region_t *region, void *start, size_t size, u32_t fl
                                         }
 
                                         if (!err) {
-                                                region->flags    = flags;
+                                                region->flags = flags;
                                                 region->name_ref = name;
-                                                r->next          = region;
-                                                region->size     = size;
+                                                r->next = region;
+                                                region->size = size;
                                         }
                                         break;
                                 }
@@ -210,8 +210,8 @@ int _mm_register_region(_mm_region_t *region, void *start, size_t size, u32_t fl
  * @return One of errno values.
  */
 //==============================================================================
-int _kzalloc(enum _mm_mem mpur, size_t size, const char *prefreg[], u32_t required, u32_t required_mask,
-        void **mem, ...)
+int _kzalloc(enum _mm_mem mpur, size_t size, const char *prefreg[], u32_t required, u32_t required_mask, void **mem,
+        ...)
 {
         va_list vaarg;
         va_start(vaarg, mem);
@@ -236,8 +236,8 @@ int _kzalloc(enum _mm_mem mpur, size_t size, const char *prefreg[], u32_t requir
  * @return One of errno values.
  */
 //==============================================================================
-int _kmalloc(enum _mm_mem mpur, size_t size, const char *prefreg[], u32_t required, u32_t required_mask,
-        void **mem, ...)
+int _kmalloc(enum _mm_mem mpur, size_t size, const char *prefreg[], u32_t required, u32_t required_mask, void **mem,
+        ...)
 {
         va_list vaarg;
         va_start(vaarg, mem);
@@ -275,15 +275,15 @@ int _kfree(enum _mm_mem mpur, void **mem, ...)
                         size_t modid = cast(size_t, arg);
                         if (modid < _drvreg_number_of_modules) {
                                 usage = &module_memory_usage[modid];
-                                err   = ESUCC;
+                                err = ESUCC;
                         }
                         break;
                 }
 
                 case _MM_PROG: {
                         if ((*cast(res_header_t **, mem))->type == RES_TYPE_MEMORY) {
-                                usage                               = &memory_usage[mpur];
-                                err                                 = ESUCC;
+                                usage = &memory_usage[mpur];
+                                err = ESUCC;
                                 (*cast(res_header_t **, mem))->next = NULL;
                                 (*cast(res_header_t **, mem))->prev = NULL;
                                 (*cast(res_header_t **, mem))->proc = NULL;
@@ -301,7 +301,7 @@ int _kfree(enum _mm_mem mpur, void **mem, ...)
                 case _MM_FS:
                 case _MM_NET:
                         usage = &memory_usage[mpur];
-                        err   = ESUCC;
+                        err = ESUCC;
                         break;
 
                 default:
@@ -345,17 +345,17 @@ int _kfree(enum _mm_mem mpur, void **mem, ...)
 int _mm_get_mem_usage_details(_mm_mem_usage_t *mem_usage)
 {
         if (mem_usage) {
-                mem_usage->used_memory              = _mm_get_mem_usage();
-                mem_usage->memory_size              = _mm_get_mem_size();
-                mem_usage->free_memory              = _mm_get_mem_free();
-                mem_usage->static_memory_usage      = STACK_START - RAM_START;
-                mem_usage->kernel_memory_usage      = memory_usage[_MM_KRN];
+                mem_usage->used_memory = _mm_get_mem_usage();
+                mem_usage->memory_size = _mm_get_mem_size();
+                mem_usage->free_memory = _mm_get_mem_free();
+                mem_usage->static_memory_usage = STACK_START - RAM_START;
+                mem_usage->kernel_memory_usage = memory_usage[_MM_KRN];
                 mem_usage->filesystems_memory_usage = memory_usage[_MM_FS];
-                mem_usage->network_memory_usage     = memory_usage[_MM_NET];
-                mem_usage->programs_memory_usage    = memory_usage[_MM_PROG];
-                mem_usage->shared_memory_usage      = memory_usage[_MM_SHM];
-                mem_usage->cached_memory_usage      = memory_usage[_MM_CACHE];
-                mem_usage->modules_memory_usage     = 0;
+                mem_usage->network_memory_usage = memory_usage[_MM_NET];
+                mem_usage->programs_memory_usage = memory_usage[_MM_PROG];
+                mem_usage->shared_memory_usage = memory_usage[_MM_SHM];
+                mem_usage->cached_memory_usage = memory_usage[_MM_CACHE];
+                mem_usage->modules_memory_usage = 0;
 
                 for (size_t i = 0; i < _drvreg_number_of_modules; i++) {
                         mem_usage->modules_memory_usage += module_memory_usage[i];
@@ -670,11 +670,11 @@ int _mm_get_region_info(size_t idx, _mm_region_info_t *info)
         for (_mm_region_t *r = regions; r; r = r->next) {
 
                 if (n == idx) {
-                        info->name_ref   = r->name_ref;
-                        info->flags      = r->flags;
-                        info->address    = cast(u32_t, r->heap.ram);
-                        info->size       = r->size;
-                        info->heap_size  = r->heap.size;
+                        info->name_ref = r->name_ref;
+                        info->flags = r->flags;
+                        info->address = cast(u32_t, r->heap.ram);
+                        info->size = r->size;
+                        info->heap_size = r->heap.size;
                         info->heap_usage = r->heap.used;
 
                         err = 0;
@@ -771,8 +771,8 @@ static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefre
                 size = MEM_ALIGN_SIZE(size);
 
                 size_t allocated = 0;
-                void  *blk       = NULL;
-                err              = ENOMEM;
+                void *blk = NULL;
+                err = ENOMEM;
 
                 if (not prefreg) {
                         for (_mm_region_t *r = regions; r && !blk; r = r->next) {

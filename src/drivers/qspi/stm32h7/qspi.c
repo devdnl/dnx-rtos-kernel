@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   Quad SPI
 
-        Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ Brief   Quad SPI
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define QSPI_BLOCKS        2
+#define QSPI_BLOCKS 2
 
 #define _QSPI_MODE_POLLING 0
 #define _QSPI_MODE_IRQ     1
@@ -47,34 +47,33 @@ Brief   Quad SPI
   Local object types
 ==============================================================================*/
 typedef struct {
-        u8_t          major;
-        u8_t          minor;
+        u8_t major;
+        u8_t minor;
         QSPI_config_t config;
-        bool          configured;
+        bool configured;
 } QSPI_block_t;
 
 typedef struct {
-        QSPI_block_t      *block[QSPI_BLOCKS];
-        kmtx_t            *mutex;
-        ksem_t            *sem_xfer_complete;
+        QSPI_block_t *block[QSPI_BLOCKS];
+        kmtx_t *mutex;
+        ksem_t *sem_xfer_complete;
         QSPI_HandleTypeDef hqspi;
-        bool               memory_mapped_mode;
-        bool               irq_yield;
+        bool memory_mapped_mode;
+        bool irq_yield;
 } QSPI_t;
 
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static void  release_resources(QSPI_block_t *hdl);
-static int   qspi_configure(QSPI_block_t *hdl, const QSPI_config_t *config);
-static int   qspi_command(QSPI_block_t *hdl, const QSPI_command_t *command);
-static int   qspi_enter_memory_mapped_mode(QSPI_block_t *hdl,
-          const QSPI_command_t                          *command);
-static int   qspi_exit_memory_mapped_mode(QSPI_block_t *hdl);
+static void release_resources(QSPI_block_t *hdl);
+static int qspi_configure(QSPI_block_t *hdl, const QSPI_config_t *config);
+static int qspi_command(QSPI_block_t *hdl, const QSPI_command_t *command);
+static int qspi_enter_memory_mapped_mode(QSPI_block_t *hdl, const QSPI_command_t *command);
+static int qspi_exit_memory_mapped_mode(QSPI_block_t *hdl);
 static u32_t get_memory_size(QSPI_block_t *hdl);
-static int   command_to_hal(const QSPI_command_t *command, QSPI_CommandTypeDef *hal_cmd);
-static int   wait_for_memory_to_be_ready(QSPI_block_t *hdl, u32_t timeout);
-//static int   register_DMA_channel(QSPI_block_t *hdl);
+static int command_to_hal(const QSPI_command_t *command, QSPI_CommandTypeDef *hal_cmd);
+static int wait_for_memory_to_be_ready(QSPI_block_t *hdl, u32_t timeout);
+// static int   register_DMA_channel(QSPI_block_t *hdl);
 
 /*==============================================================================
   Local object
@@ -120,8 +119,8 @@ API_MOD_INIT(QSPI, void **device_handle, u8_t major, u8_t minor, const void *con
         }
 
         QSPI_block_t *hdl = *device_handle;
-        hdl->major        = major;
-        hdl->minor        = minor;
+        hdl->major = major;
+        hdl->minor = minor;
 
         if (not QSPI.mutex) {
                 err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &QSPI.mutex);
@@ -218,8 +217,8 @@ API_MOD_CLOSE(QSPI, void *device_handle, bool force)
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_WRITE(QSPI, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos,
-        size_t *wrctr, struct vfs_fattr fattr)
+API_MOD_WRITE(QSPI, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrctr,
+        struct vfs_fattr fattr)
 {
         QSPI_block_t *hdl = device_handle;
 
@@ -243,21 +242,21 @@ API_MOD_WRITE(QSPI, void *device_handle, const u8_t *src, size_t count, fpos_t *
                 return err;
         }
 
-        uint32_t addr      = *fpos;
-        size_t   page_size = hdl->config.page_size;
+        uint32_t addr = *fpos;
+        size_t page_size = hdl->config.page_size;
 
         while (!err && count) {
                 QSPI_command_t cmd;
 
                 size_t pbleft = (((addr / page_size) + 1) * page_size) - addr;
-                size_t wrsz   = min(count, pbleft);
+                size_t wrsz = min(count, pbleft);
 
                 /*
                  * Write enable.
                  */
-                cmd           = *hdl->config.write_enable_command;
+                cmd = *hdl->config.write_enable_command;
                 cmd.data_size = 0;
-                cmd.data      = NULL;
+                cmd.data = NULL;
 
                 err = qspi_command(hdl, &cmd);
                 if (err) {
@@ -267,9 +266,9 @@ API_MOD_WRITE(QSPI, void *device_handle, const u8_t *src, size_t count, fpos_t *
                 /*
                  * Page program command and data transfer.
                  */
-                cmd           = *hdl->config.page_program_command;
-                cmd.address   = addr;
-                cmd.data      = const_cast(src);
+                cmd = *hdl->config.page_program_command;
+                cmd.address = addr;
+                cmd.data = const_cast(src);
                 cmd.data_size = wrsz;
                 cmd.direction = QSPI_DIRECTION__WRITE;
 
@@ -308,8 +307,7 @@ API_MOD_WRITE(QSPI, void *device_handle, const u8_t *src, size_t count, fpos_t *
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(QSPI, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
-        size_t *rdctr, struct vfs_fattr fattr)
+API_MOD_READ(QSPI, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdctr, struct vfs_fattr fattr)
 {
         QSPI_block_t *hdl = device_handle;
 
@@ -334,10 +332,10 @@ API_MOD_READ(QSPI, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
         }
 
         QSPI_command_t cmd = *hdl->config.read_command;
-        cmd.address        = *fpos;
-        cmd.data           = dst;
-        cmd.data_size      = count;
-        cmd.direction      = QSPI_DIRECTION__READ;
+        cmd.address = *fpos;
+        cmd.data = dst;
+        cmd.data_size = count;
+        cmd.direction = QSPI_DIRECTION__READ;
 
         err = qspi_command(hdl, &cmd);
         if (not err) {
@@ -403,8 +401,7 @@ API_MOD_IOCTL(QSPI, void *device_handle, int request, void *arg)
                 if (arg) {
                         err = sys_mutex_lock(QSPI.mutex, _WAIT_FOREVER_MS);
                         if (not err) {
-                                err = wait_for_memory_to_be_ready(hdl,
-                                        *cast(u32_t *, arg));
+                                err = wait_for_memory_to_be_ready(hdl, *cast(u32_t *, arg));
                                 sys_mutex_unlock(QSPI.mutex);
                         }
                 } else {
@@ -476,10 +473,10 @@ static void release_resources(QSPI_block_t *hdl)
         }
 
         if (not used) {
-                //if (QSPI.hqspi.hdma) {
-                //        _DMA_DDI_release(QSPI.hqspi.hdma->dmad);
-                //        sys_free(cast(void **, QSPI.hqspi.hdma));
-                //}
+                // if (QSPI.hqspi.hdma) {
+                //         _DMA_DDI_release(QSPI.hqspi.hdma->dmad);
+                //         sys_free(cast(void **, QSPI.hqspi.hdma));
+                // }
 
                 if (QSPI.hqspi.Instance) {
                         HAL_QSPI_DeInit(&QSPI.hqspi);
@@ -532,8 +529,7 @@ static bool is_command_config_valid(const QSPI_command_t *command)
                 return false;
         }
 
-        if ((command->data_mode == QSPI_MODE__NONE) and
-                (command->data_size or command->data)) {
+        if ((command->data_mode == QSPI_MODE__NONE) and (command->data_size or command->data)) {
                 return false;
         }
 
@@ -589,20 +585,19 @@ static int wait_for_memory_to_be_ready(QSPI_block_t *hdl, u32_t timeout)
         int err = ETIME;
 
         static const uint32_t hal_match_size[] = {
-                [QSPI_SIZE__8_BITS]  = 1,
+                [QSPI_SIZE__8_BITS] = 1,
                 [QSPI_SIZE__16_BITS] = 2,
                 [QSPI_SIZE__24_BITS] = 3,
                 [QSPI_SIZE__32_BITS] = 4,
         };
 
         QSPI_AutoPollingTypeDef auto_polling_cfg;
-        auto_polling_cfg.AutomaticStop   = QSPI_AUTOMATIC_STOP_ENABLE;
-        auto_polling_cfg.Interval        = __QSPI_CFG_POLLING_INTERVAL_CLKS__;
-        auto_polling_cfg.Mask            = hdl->config.write_in_progress_mask;
-        auto_polling_cfg.Match           = hdl->config.write_in_progress_match;
-        auto_polling_cfg.MatchMode       = QSPI_MATCH_MODE_AND;
-        auto_polling_cfg.StatusBytesSize = hal_match_size
-                [hdl->config.write_in_progress_register_size];
+        auto_polling_cfg.AutomaticStop = QSPI_AUTOMATIC_STOP_ENABLE;
+        auto_polling_cfg.Interval = __QSPI_CFG_POLLING_INTERVAL_CLKS__;
+        auto_polling_cfg.Mask = hdl->config.write_in_progress_mask;
+        auto_polling_cfg.Match = hdl->config.write_in_progress_match;
+        auto_polling_cfg.MatchMode = QSPI_MATCH_MODE_AND;
+        auto_polling_cfg.StatusBytesSize = hal_match_size[hdl->config.write_in_progress_register_size];
 
         QSPI_CommandTypeDef hal_cmd;
         command_to_hal(hdl->config.read_status_register_command, &hal_cmd);
@@ -632,7 +627,7 @@ static int wait_for_memory_to_be_ready(QSPI_block_t *hdl, u32_t timeout)
  * @return One of errno value.
  */
 //==============================================================================
-//static int register_DMA_channel(QSPI_block_t *hdl)
+// static int register_DMA_channel(QSPI_block_t *hdl)
 //{
 //        UNUSED_ARG1(hdl);
 //
@@ -700,76 +695,76 @@ static int command_to_hal(const QSPI_command_t *command, QSPI_CommandTypeDef *ha
         }
 
         static const uint32_t hal_address_mode[] = {
-                [QSPI_MODE__NONE]   = QSPI_ADDRESS_NONE,
+                [QSPI_MODE__NONE] = QSPI_ADDRESS_NONE,
                 [QSPI_MODE__SINGLE] = QSPI_ADDRESS_1_LINE,
                 [QSPI_MODE__DOUBLE] = QSPI_ADDRESS_2_LINES,
-                [QSPI_MODE__QUAD]   = QSPI_ADDRESS_4_LINES,
+                [QSPI_MODE__QUAD] = QSPI_ADDRESS_4_LINES,
         };
 
         static const uint32_t hal_alt_byte_mode[] = {
-                [QSPI_MODE__NONE]   = QSPI_ALTERNATE_BYTES_NONE,
+                [QSPI_MODE__NONE] = QSPI_ALTERNATE_BYTES_NONE,
                 [QSPI_MODE__SINGLE] = QSPI_ALTERNATE_BYTES_1_LINE,
                 [QSPI_MODE__DOUBLE] = QSPI_ALTERNATE_BYTES_2_LINES,
-                [QSPI_MODE__QUAD]   = QSPI_ALTERNATE_BYTES_4_LINES,
+                [QSPI_MODE__QUAD] = QSPI_ALTERNATE_BYTES_4_LINES,
         };
 
         static const uint32_t hal_data_mode[] = {
-                [QSPI_MODE__NONE]   = QSPI_DATA_NONE,
+                [QSPI_MODE__NONE] = QSPI_DATA_NONE,
                 [QSPI_MODE__SINGLE] = QSPI_DATA_1_LINE,
                 [QSPI_MODE__DOUBLE] = QSPI_DATA_2_LINES,
-                [QSPI_MODE__QUAD]   = QSPI_DATA_4_LINES,
+                [QSPI_MODE__QUAD] = QSPI_DATA_4_LINES,
         };
 
         static const uint32_t hal_instruction_mode[] = {
-                [QSPI_MODE__NONE]   = QSPI_INSTRUCTION_NONE,
+                [QSPI_MODE__NONE] = QSPI_INSTRUCTION_NONE,
                 [QSPI_MODE__SINGLE] = QSPI_INSTRUCTION_1_LINE,
                 [QSPI_MODE__DOUBLE] = QSPI_INSTRUCTION_2_LINES,
-                [QSPI_MODE__QUAD]   = QSPI_INSTRUCTION_4_LINES,
+                [QSPI_MODE__QUAD] = QSPI_INSTRUCTION_4_LINES,
         };
 
         static const uint32_t hal_address_size[] = {
-                [QSPI_SIZE__8_BITS]  = QSPI_ADDRESS_8_BITS,
+                [QSPI_SIZE__8_BITS] = QSPI_ADDRESS_8_BITS,
                 [QSPI_SIZE__16_BITS] = QSPI_ADDRESS_16_BITS,
                 [QSPI_SIZE__24_BITS] = QSPI_ADDRESS_24_BITS,
                 [QSPI_SIZE__32_BITS] = QSPI_ADDRESS_32_BITS,
         };
 
         static const uint32_t hal_alt_bytes_size[] = {
-                [QSPI_SIZE__8_BITS]  = QSPI_ALTERNATE_BYTES_8_BITS,
+                [QSPI_SIZE__8_BITS] = QSPI_ALTERNATE_BYTES_8_BITS,
                 [QSPI_SIZE__16_BITS] = QSPI_ALTERNATE_BYTES_16_BITS,
                 [QSPI_SIZE__24_BITS] = QSPI_ALTERNATE_BYTES_24_BITS,
                 [QSPI_SIZE__32_BITS] = QSPI_ALTERNATE_BYTES_32_BITS,
         };
 
         static const uint32_t hal_ddr_hhc[] = {
-                [QSPI_DDR_HOLD_CYCLE__ANALOG_DELAY]   = QSPI_DDR_HHC_ANALOG_DELAY,
+                [QSPI_DDR_HOLD_CYCLE__ANALOG_DELAY] = QSPI_DDR_HHC_ANALOG_DELAY,
                 [QSPI_DDR_HOLD_CYCLE__HALF_CLK_DELAY] = QSPI_DDR_HHC_HALF_CLK_DELAY,
         };
 
         static const uint32_t hal_ddr_mode[] = {
                 [false] = QSPI_DDR_MODE_DISABLE,
-                [true]  = QSPI_DDR_MODE_ENABLE,
+                [true] = QSPI_DDR_MODE_ENABLE,
         };
 
         static const uint32_t hal_SIOO_mode[] = {
                 [false] = QSPI_SIOO_INST_EVERY_CMD,
-                [true]  = QSPI_SIOO_INST_ONLY_FIRST_CMD,
+                [true] = QSPI_SIOO_INST_ONLY_FIRST_CMD,
         };
 
-        hal_cmd->Address            = command->address;
-        hal_cmd->AddressMode        = hal_address_mode[command->address_mode];
-        hal_cmd->AddressSize        = hal_address_size[command->address_size];
-        hal_cmd->AlternateByteMode  = hal_alt_byte_mode[command->alternate_byte_mode];
-        hal_cmd->AlternateBytes     = command->alternate_bytes;
+        hal_cmd->Address = command->address;
+        hal_cmd->AddressMode = hal_address_mode[command->address_mode];
+        hal_cmd->AddressSize = hal_address_size[command->address_size];
+        hal_cmd->AlternateByteMode = hal_alt_byte_mode[command->alternate_byte_mode];
+        hal_cmd->AlternateBytes = command->alternate_bytes;
         hal_cmd->AlternateBytesSize = hal_alt_bytes_size[command->alternate_bytes_size];
-        hal_cmd->DataMode           = hal_data_mode[command->data_mode];
-        hal_cmd->DdrHoldHalfCycle   = hal_ddr_hhc[command->ddr_hold_cycle];
-        hal_cmd->DdrMode            = hal_ddr_mode[command->ddr];
-        hal_cmd->DummyCycles        = command->dummy_cycles;
-        hal_cmd->Instruction        = command->instruction;
-        hal_cmd->InstructionMode    = hal_instruction_mode[command->instruction_mode];
-        hal_cmd->NbData             = command->data_size;
-        hal_cmd->SIOOMode           = hal_SIOO_mode[command->instruction_only_once];
+        hal_cmd->DataMode = hal_data_mode[command->data_mode];
+        hal_cmd->DdrHoldHalfCycle = hal_ddr_hhc[command->ddr_hold_cycle];
+        hal_cmd->DdrMode = hal_ddr_mode[command->ddr];
+        hal_cmd->DummyCycles = command->dummy_cycles;
+        hal_cmd->Instruction = command->instruction;
+        hal_cmd->InstructionMode = hal_instruction_mode[command->instruction_mode];
+        hal_cmd->NbData = command->data_size;
+        hal_cmd->SIOOMode = hal_SIOO_mode[command->instruction_only_once];
 
         return 0;
 }
@@ -846,14 +841,13 @@ static int qspi_configure(QSPI_block_t *hdl, const QSPI_config_t *config)
                 return EBUSY;
         }
 
-        if ((hdl->minor > 0) and QSPI.block[0] and QSPI.block[0]->configured and
-                QSPI.block[0]->config.dual_flash) {
+        if ((hdl->minor > 0) and QSPI.block[0] and QSPI.block[0]->configured and QSPI.block[0]->config.dual_flash) {
                 dev_dbg(hdl, "unable to initialize block 1: dual flash mode enabled");
                 return EPERM;
         }
 
         static const uint32_t sample_shift[] = {
-                [QSPI_SAMPLE_SHIFTING__NONE]       = QSPI_SAMPLE_SHIFTING_NONE,
+                [QSPI_SAMPLE_SHIFTING__NONE] = QSPI_SAMPLE_SHIFTING_NONE,
                 [QSPI_SAMPLE_SHIFTING__HALF_CYCLE] = QSPI_SAMPLE_SHIFTING_HALFCYCLE,
         };
 
@@ -864,7 +858,7 @@ static int qspi_configure(QSPI_block_t *hdl, const QSPI_config_t *config)
 
         static const uint32_t dual_flash[] = {
                 [false] = QSPI_DUALFLASH_DISABLE,
-                [true]  = QSPI_DUALFLASH_ENABLE,
+                [true] = QSPI_DUALFLASH_ENABLE,
         };
 
         int err = 0;
@@ -876,31 +870,30 @@ static int qspi_configure(QSPI_block_t *hdl, const QSPI_config_t *config)
         hdl->configured = false;
 
         if (not QSPI.hqspi.Instance) {
-                QSPI.hqspi.Instance            = QUADSPI;
+                QSPI.hqspi.Instance = QUADSPI;
                 QSPI.hqspi.Init.ClockPrescaler = config->clock_prescaller - 1;
-                QSPI.hqspi.Init.FifoThreshold  = 4;
+                QSPI.hqspi.Init.FifoThreshold = 4;
                 QSPI.hqspi.Init.SampleShifting = sample_shift[config->sample_shifting];
-                QSPI.hqspi.Init.FlashSize      = config->flash_size_bits - 1;
-                QSPI.hqspi.Init.ClockMode      = clock_mode[config->clock_mode];
-                QSPI.hqspi.Init.FlashID        = QSPI_FLASH_ID_1;
-                QSPI.hqspi.Init.DualFlash      = dual_flash[config->dual_flash];
+                QSPI.hqspi.Init.FlashSize = config->flash_size_bits - 1;
+                QSPI.hqspi.Init.ClockMode = clock_mode[config->clock_mode];
+                QSPI.hqspi.Init.FlashID = QSPI_FLASH_ID_1;
+                QSPI.hqspi.Init.DualFlash = dual_flash[config->dual_flash];
                 QSPI.hqspi.Init.ChipSelectHighTime = config->chip_select_high_time - 1;
 
                 err = HAL_QSPI_Init(&QSPI.hqspi);
         }
 
 #if (__QSPI_CFG_MODE__ == _QSPI_MODE_DMA)
-        //if (not QSPI.hqspi.hdma) {
-        //        register_DMA_channel(hdl);
-        //}
+        // if (not QSPI.hqspi.hdma) {
+        //         register_DMA_channel(hdl);
+        // }
 #endif
 
         if (not err) {
-                hdl->config     = *config;
+                hdl->config = *config;
                 hdl->configured = true;
 
-                dev_dbg(hdl, "memory size: %lu bytes",
-                        (1 << config->flash_size_bits) * (config->dual_flash ? 2 : 1));
+                dev_dbg(hdl, "memory size: %lu bytes", (1 << config->flash_size_bits) * (config->dual_flash ? 2 : 1));
 
                 if (config->dual_flash) {
                         dev_dbg(hdl, "enabled dual flash mode");
@@ -913,10 +906,10 @@ static int qspi_configure(QSPI_block_t *hdl, const QSPI_config_t *config)
                 dev_dbg(hdl, "using IRQ mode");
 
 #elif (__QSPI_CFG_MODE__ == _QSPI_MODE_DMA)
-                //if (QSPI.hqspi.hdma) {
-                //        dev_dbg(hdl, "using DMA mode");
-                //} else {
-                        dev_dbg(hdl, "DMA channel busy - using IRQ mode");
+                // if (QSPI.hqspi.hdma) {
+                //         dev_dbg(hdl, "using DMA mode");
+                // } else {
+                dev_dbg(hdl, "DMA channel busy - using IRQ mode");
                 //}
 #else
 #error "Unknown driver mode!"
@@ -952,8 +945,7 @@ static int qspi_command(QSPI_block_t *hdl, const QSPI_command_t *command)
                 return EINVAL;
         }
 
-        int err = HAL_QSPI_SetFlashID(&QSPI.hqspi,
-                (hdl->minor == 0) ? QSPI_FLASH_ID_1 : QSPI_FLASH_ID_2);
+        int err = HAL_QSPI_SetFlashID(&QSPI.hqspi, (hdl->minor == 0) ? QSPI_FLASH_ID_1 : QSPI_FLASH_ID_2);
         if (err) {
                 return err;
         }
@@ -973,28 +965,25 @@ static int qspi_command(QSPI_block_t *hdl, const QSPI_command_t *command)
         if (command->data_size > 0) {
                 if (command->direction == QSPI_DIRECTION__READ) {
 #if (__QSPI_CFG_MODE__ == _QSPI_MODE_POLLING)
-                        err = HAL_QSPI_Receive(&QSPI.hqspi, command->data,
-                                __QSPI_CFG_TIMEOUT__);
+                        err = HAL_QSPI_Receive(&QSPI.hqspi, command->data, __QSPI_CFG_TIMEOUT__);
 
 #elif (__QSPI_CFG_MODE__ == _QSPI_MODE_IRQ)
                         err = HAL_QSPI_Receive_IT(&QSPI.hqspi, command->data);
                         if (not err) {
-                                err = sys_semaphore_wait(QSPI.sem_xfer_complete,
-                                        __QSPI_CFG_TIMEOUT__);
+                                err = sys_semaphore_wait(QSPI.sem_xfer_complete, __QSPI_CFG_TIMEOUT__);
                                 if (err) {
                                         HAL_QSPI_Abort(&QSPI.hqspi);
                                 }
                         }
 
 #elif (__QSPI_CFG_MODE__ == _QSPI_MODE_DMA)
-                        //if (QSPI.hqspi.hdma) {
-                        //        err = HAL_QSPI_Receive_DMA(&QSPI.hqspi, command->data);
-                        //} else {
-                                err = HAL_QSPI_Receive_IT(&QSPI.hqspi, command->data);
+                        // if (QSPI.hqspi.hdma) {
+                        //         err = HAL_QSPI_Receive_DMA(&QSPI.hqspi, command->data);
+                        // } else {
+                        err = HAL_QSPI_Receive_IT(&QSPI.hqspi, command->data);
                         //}
                         if (not err) {
-                                err = sys_semaphore_wait(QSPI.sem_xfer_complete,
-                                        __QSPI_CFG_TIMEOUT__);
+                                err = sys_semaphore_wait(QSPI.sem_xfer_complete, __QSPI_CFG_TIMEOUT__);
                                 if (err) {
                                         HAL_QSPI_Abort(&QSPI.hqspi);
                                 }
@@ -1005,28 +994,25 @@ static int qspi_command(QSPI_block_t *hdl, const QSPI_command_t *command)
 
                 } else {
 #if (__QSPI_CFG_MODE__ == _QSPI_MODE_POLLING)
-                        err = HAL_QSPI_Transmit(&QSPI.hqspi, command->data,
-                                __QSPI_CFG_TIMEOUT__);
+                        err = HAL_QSPI_Transmit(&QSPI.hqspi, command->data, __QSPI_CFG_TIMEOUT__);
 
 #elif (__QSPI_CFG_MODE__ == _QSPI_MODE_IRQ)
                         err = HAL_QSPI_Transmit_IT(&QSPI.hqspi, command->data);
                         if (not err) {
-                                err = sys_semaphore_wait(QSPI.sem_xfer_complete,
-                                        __QSPI_CFG_TIMEOUT__);
+                                err = sys_semaphore_wait(QSPI.sem_xfer_complete, __QSPI_CFG_TIMEOUT__);
                                 if (err) {
                                         HAL_QSPI_Abort(&QSPI.hqspi);
                                 }
                         }
 
 #elif (__QSPI_CFG_MODE__ == _QSPI_MODE_DMA)
-                        //if (QSPI.hqspi.hdma) {
-                        //        err = HAL_QSPI_Transmit_DMA(&QSPI.hqspi, command->data);
-                        //} else {
-                                err = HAL_QSPI_Transmit_IT(&QSPI.hqspi, command->data);
+                        // if (QSPI.hqspi.hdma) {
+                        //         err = HAL_QSPI_Transmit_DMA(&QSPI.hqspi, command->data);
+                        // } else {
+                        err = HAL_QSPI_Transmit_IT(&QSPI.hqspi, command->data);
                         //}
                         if (not err) {
-                                err = sys_semaphore_wait(QSPI.sem_xfer_complete,
-                                        __QSPI_CFG_TIMEOUT__);
+                                err = sys_semaphore_wait(QSPI.sem_xfer_complete, __QSPI_CFG_TIMEOUT__);
                                 if (err) {
                                         HAL_QSPI_Abort(&QSPI.hqspi);
                                 }
@@ -1061,7 +1047,7 @@ static int qspi_enter_memory_mapped_mode(QSPI_block_t *hdl, const QSPI_command_t
 
         QSPI_MemoryMappedTypeDef hal_mmm_cfg;
         hal_mmm_cfg.TimeOutActivation = __QSPI_CFG_MMM_TIMOUT_COUNTER__;
-        hal_mmm_cfg.TimeOutPeriod     = __QSPI_CFG_MMM_TIMEOUT_CYCLES__;
+        hal_mmm_cfg.TimeOutPeriod = __QSPI_CFG_MMM_TIMEOUT_CYCLES__;
 
         err = HAL_QSPI_MemoryMapped(&QSPI.hqspi, &hal_cmd, &hal_mmm_cfg);
         if (err) {

@@ -5,7 +5,7 @@
 
 @brief   PLL configuration file
 
-@note    Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ extern "C" {
 /*==============================================================================
   Exported symbolic constants/macros
 ==============================================================================*/
-#define _CLK_BAYPASS                    2
+#define _CLK_BAYPASS 2
 
 /*==============================================================================
   Exported types, enums definitions

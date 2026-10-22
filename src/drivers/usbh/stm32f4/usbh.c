@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   USB Host driver
 
-        Copyright (C) 2021  <daniel.zorychta@gmail.com>
+        Copyright (C) 2026  <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -49,18 +49,18 @@ Brief   USB Host driver
   Local macros
 ==============================================================================*/
 #if __USBH_DEBUG_MSG__
-#define DEBUG(...)      printk("USBH: "__VA_ARGS__)
+#define DEBUG(...) printk("USBH: "__VA_ARGS__)
 #else
 #define DEBUG(...)
 #endif
 
-#define _PASTER(x, y)           x##y
-#define _EVALUATOR(x, y)        _PASTER(x, y)
-#define RESET_PIN_PORT_IDX      _EVALUATOR(IOCTL_GPIO_PORT_IDX__, __USBH_PHY_RESET_PIN__)
-#define RESET_PIN_PIN_IDX       _EVALUATOR(IOCTL_GPIO_PIN_IDX__, __USBH_PHY_RESET_PIN__)
+#define _PASTER(x, y)      x##y
+#define _EVALUATOR(x, y)   _PASTER(x, y)
+#define RESET_PIN_PORT_IDX _EVALUATOR(IOCTL_GPIO_PORT_IDX__, __USBH_PHY_RESET_PIN__)
+#define RESET_PIN_PIN_IDX  _EVALUATOR(IOCTL_GPIO_PIN_IDX__, __USBH_PHY_RESET_PIN__)
 
-#define RECOVERY_TIMEOUT        5000
-#define SECTOR_SIZE             512
+#define RECOVERY_TIMEOUT 5000
+#define SECTOR_SIZE      512
 
 /*==============================================================================
   Local object types
@@ -92,9 +92,9 @@ static USBH_t *usbh;
 /*==============================================================================
   Exported object
 ==============================================================================*/
-bool  usbh_irq;
+bool usbh_irq;
 u32_t usbh_irq_ctr;
-bool  usbh_force_reinit;
+bool usbh_force_reinit;
 
 /*==============================================================================
   Function definitions
@@ -122,7 +122,7 @@ API_MOD_INIT(USBH, void **device_handle, u8_t major, u8_t minor, const void *con
                 return err;
         }
 
-        err = sys_zalloc(sizeof(*usbh), cast(void*, &usbh));
+        err = sys_zalloc(sizeof(*usbh), cast(void *, &usbh));
         if (!err) {
                 *device_handle = usbh;
                 USBH_t *hdl = usbh;
@@ -151,7 +151,7 @@ API_MOD_INIT(USBH, void **device_handle, u8_t major, u8_t minor, const void *con
                         goto finish;
                 }
 
-                finish:
+        finish:
                 if (err) {
                         free_resources();
                         return err;
@@ -227,13 +227,8 @@ API_MOD_CLOSE(USBH, void *device_handle, bool force)
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_WRITE(USBH,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(USBH, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
@@ -248,9 +243,8 @@ API_MOD_WRITE(USBH,
 
                 if (hdl->class_active) {
 
-                        bool unaligned = hdl->hhcd.Init.dma_enable
-                                         && (  ((uintptr_t)src % _HEAP_ALIGN_)
-                                            || !sys_is_mem_dma_capable(src) );
+                        bool unaligned = hdl->hhcd.Init.dma_enable &&
+                                (((uintptr_t)src % _HEAP_ALIGN_) || !sys_is_mem_dma_capable(src));
 
                         if (unaligned) {
                                 DEBUG("write from unaligned source pointer");
@@ -271,15 +265,15 @@ API_MOD_WRITE(USBH,
 
                                 u8_t *buf = unaligned ? hdl->buffer : const_cast(src);
                                 uint32_t sector_count = len / SECTOR_SIZE;
-                                uint32_t sector_addr  = (*fpos / SECTOR_SIZE);
+                                uint32_t sector_addr = (*fpos / SECTOR_SIZE);
 
                                 for (int try = 0; try < 3; try ++) {
                                         err = USBH_MSC_Write(&hdl->hUSBHost, 0, sector_addr, buf, sector_count);
                                         if (!err) {
-                                                src    += len;
-                                                *fpos  += len;
+                                                src += len;
+                                                *fpos += len;
                                                 *wrcnt += len;
-                                                count  -= len;
+                                                count -= len;
                                                 break;
 
                                         } else {
@@ -290,7 +284,8 @@ API_MOD_WRITE(USBH,
                                                 case SCSI_ASC_WRITE_PROTECTED:
                                                         printk("USBH: USB Disk is Write protected!");
                                                         err = EROFS;
-                                                        try = UINT8_MAX;
+                                                        try
+                                                                = UINT8_MAX;
                                                         break;
 
                                                 case SCSI_ASC_LOGICAL_UNIT_NOT_READY:
@@ -299,13 +294,15 @@ API_MOD_WRITE(USBH,
                                                         printk("USBH: WR USB Disk is not ready! (%u)", info.sense.asc);
                                                         err = recovery_usb_connection(hdl);
                                                         if (err) {
-                                                                try = UINT8_MAX;
+                                                                try
+                                                                        = UINT8_MAX;
                                                         }
                                                         break;
 
                                                 default:
                                                         err = EIO;
-                                                        try = UINT8_MAX;
+                                                        try
+                                                                = UINT8_MAX;
                                                         break;
                                                 }
                                         }
@@ -335,13 +332,7 @@ API_MOD_WRITE(USBH,
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(USBH,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(USBH, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
@@ -356,9 +347,8 @@ API_MOD_READ(USBH,
 
                 if (hdl->class_active) {
 
-                        bool unaligned = hdl->hhcd.Init.dma_enable
-                                         && (  ((uintptr_t)dst % _HEAP_ALIGN_)
-                                            || !sys_is_mem_dma_capable(dst) );
+                        bool unaligned = hdl->hhcd.Init.dma_enable &&
+                                (((uintptr_t)dst % _HEAP_ALIGN_) || !sys_is_mem_dma_capable(dst));
 
                         if (unaligned) {
                                 DEBUG("read to unaligned destination pointer");
@@ -372,7 +362,7 @@ API_MOD_READ(USBH,
 
                                 u8_t *buf = unaligned ? hdl->buffer : dst;
                                 uint32_t sector_count = len / SECTOR_SIZE;
-                                uint32_t sector_addr  = (*fpos / SECTOR_SIZE);
+                                uint32_t sector_addr = (*fpos / SECTOR_SIZE);
 
                                 for (int try = 0; try < 3; try ++) {
                                         err = USBH_MSC_Read(&hdl->hUSBHost, 0, sector_addr, buf, sector_count);
@@ -384,10 +374,10 @@ API_MOD_READ(USBH,
                                                         }
                                                 }
 
-                                                dst    += len;
-                                                *fpos  += len;
+                                                dst += len;
+                                                *fpos += len;
                                                 *rdcnt += len;
-                                                count  -= len;
+                                                count -= len;
                                                 break;
 
                                         } else {
@@ -401,13 +391,15 @@ API_MOD_READ(USBH,
                                                         printk("USBH: RD USB Disk is not ready!");
                                                         err = recovery_usb_connection(hdl);
                                                         if (err) {
-                                                                try = UINT8_MAX;
+                                                                try
+                                                                        = UINT8_MAX;
                                                         }
                                                         break;
 
                                                 default:
                                                         err = EIO;
-                                                        try = UINT8_MAX;
+                                                        try
+                                                                = UINT8_MAX;
                                                         break;
                                                 }
                                         }
@@ -512,8 +504,7 @@ API_MOD_STAT(USBH, void *device_handle, struct vfs_dev_stat *device_stat)
         if (hdl->class_active) {
                 MSC_LUNTypeDef info;
                 USBH_MSC_GetLUNInfo(&hdl->hUSBHost, 0, &info);
-                device_stat->st_size = cast(u64_t, info.capacity.block_nbr)
-                                     * info.capacity.block_size;
+                device_stat->st_size = cast(u64_t, info.capacity.block_nbr) * info.capacity.block_size;
         }
 
         return ESUCC;
@@ -534,7 +525,7 @@ static void free_resources(void)
                         sys_mutex_destroy(usbh->mtx);
                 }
 
-                sys_free(cast(void*, &usbh));
+                sys_free(cast(void *, &usbh));
         }
 }
 
@@ -680,7 +671,9 @@ void HAL_HCD_MspDeInit(HCD_HandleTypeDef *hhcd)
 
                 /* Reset ULPI PHY */
                 _GPIO_DDI_set_pin(RESET_PIN_PORT_IDX, RESET_PIN_PIN_IDX);
-                if (!usbh_irq) sys_sleep_ms(50);
+                if (!usbh_irq) {
+                        sys_sleep_ms(50);
+                }
                 _GPIO_DDI_clear_pin(RESET_PIN_PORT_IDX, RESET_PIN_PIN_IDX);
         }
 }
@@ -950,21 +943,10 @@ uint32_t USBH_LL_GetLastXferSize(USBH_HandleTypeDef *phost, uint8_t pipe)
  * @retval USBH Status
  */
 //==============================================================================
-USBH_StatusTypeDef USBH_LL_OpenPipe(USBH_HandleTypeDef *phost,
-                                    uint8_t pipe_num,
-                                    uint8_t epnum,
-                                    uint8_t dev_address,
-                                    uint8_t speed,
-                                    uint8_t ep_type,
-                                    uint16_t mps)
+USBH_StatusTypeDef USBH_LL_OpenPipe(USBH_HandleTypeDef *phost, uint8_t pipe_num, uint8_t epnum, uint8_t dev_address,
+        uint8_t speed, uint8_t ep_type, uint16_t mps)
 {
-        HAL_HCD_HC_Init(phost->pData,
-                        pipe_num,
-                        epnum,
-                        dev_address,
-                        speed,
-                        ep_type,
-                        mps);
+        HAL_HCD_HC_Init(phost->pData, pipe_num, epnum, dev_address, speed, ep_type, mps);
         return USBH_OK;
 }
 
@@ -1013,23 +995,10 @@ USBH_StatusTypeDef USBH_LL_ClosePipe(USBH_HandleTypeDef *phost, uint8_t pipe)
  * @retval Status
  */
 //==============================================================================
-USBH_StatusTypeDef USBH_LL_SubmitURB(USBH_HandleTypeDef *phost,
-                                     uint8_t pipe,
-                                     uint8_t direction,
-                                     uint8_t ep_type,
-                                     uint8_t token,
-                                     uint8_t *pbuff,
-                                     uint16_t length,
-                                     uint8_t do_ping)
+USBH_StatusTypeDef USBH_LL_SubmitURB(USBH_HandleTypeDef *phost, uint8_t pipe, uint8_t direction, uint8_t ep_type,
+        uint8_t token, uint8_t *pbuff, uint16_t length, uint8_t do_ping)
 {
-        HAL_HCD_HC_SubmitRequest(phost->pData,
-                                 pipe,
-                                 direction,
-                                 ep_type,
-                                 token,
-                                 pbuff,
-                                 length,
-                                 do_ping);
+        HAL_HCD_HC_SubmitRequest(phost->pData, pipe, direction, ep_type, token, pbuff, length, do_ping);
         return USBH_OK;
 }
 
@@ -1052,7 +1021,7 @@ USBH_StatusTypeDef USBH_LL_SubmitURB(USBH_HandleTypeDef *phost,
 //==============================================================================
 USBH_URBStateTypeDef USBH_LL_GetURBState(USBH_HandleTypeDef *phost, uint8_t pipe)
 {
-        return (USBH_URBStateTypeDef)HAL_HCD_HC_GetURBState (phost->pData, pipe);
+        return (USBH_URBStateTypeDef)HAL_HCD_HC_GetURBState(phost->pData, pipe);
 }
 
 //==============================================================================
@@ -1072,7 +1041,7 @@ USBH_StatusTypeDef USBH_LL_DriverVBUS(USBH_HandleTypeDef *phost, uint8_t state)
         UNUSED_ARG2(phost, state);
 
 #ifdef USE_USB_FS
-        if(state == 0) {
+        if (state == 0) {
                 /* Configure Low Charge pump */
                 BSP_IO_WritePin(OTG_FS1_POWER_SWITCH_PIN, BSP_IO_PIN_RESET);
         } else {
@@ -1102,7 +1071,7 @@ USBH_StatusTypeDef USBH_LL_SetToggle(USBH_HandleTypeDef *phost, uint8_t pipe, ui
 
         USBH_t *hdl = usbh;
 
-        if(hdl->hhcd.hc[pipe].ep_is_in) {
+        if (hdl->hhcd.hc[pipe].ep_is_in) {
                 hdl->hhcd.hc[pipe].toggle_in = toggle;
         } else {
                 hdl->hhcd.hc[pipe].toggle_out = toggle;
@@ -1128,7 +1097,7 @@ uint8_t USBH_LL_GetToggle(USBH_HandleTypeDef *phost, uint8_t pipe)
 
         uint8_t toggle = 0;
 
-        if(hdl->hhcd.hc[pipe].ep_is_in) {
+        if (hdl->hhcd.hc[pipe].ep_is_in) {
                 toggle = hdl->hhcd.hc[pipe].toggle_in;
         } else {
                 toggle = hdl->hhcd.hc[pipe].toggle_out;
@@ -1192,12 +1161,12 @@ void USBH_flush_fifo(void)
         /* Restore FS Clock */
         USB_InitFSLSPClkSel(usbh->hhcd.Instance, HCFG_48_MHZ);
 
-        /* Handle Host Port Disconnect Interrupt */
-        #if (USE_HAL_HCD_REGISTER_CALLBACKS == 1U)
+/* Handle Host Port Disconnect Interrupt */
+#if (USE_HAL_HCD_REGISTER_CALLBACKS == 1U)
         hhcd->DisconnectCallback(&usbh->hhcd);
-        #else
+#else
         HAL_HCD_Disconnect_Callback(&usbh->hhcd);
-        #endif
+#endif
 }
 
 //==============================================================================

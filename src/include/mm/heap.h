@@ -5,7 +5,7 @@
 
 @brief   This file support dynamic memory management.
 
-@note    Copyright (C) 2015 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -105,14 +105,14 @@ typedef struct {
 /*==============================================================================
   Exported function prototypes
 ==============================================================================*/
-extern int    _heap_init(_heap_t*, void*, size_t);
-extern void   _heap_free(_heap_t*, void*, size_t*);
-extern void  *_heap_alloc(_heap_t*, size_t, size_t*);
-extern size_t _heap_get_free(_heap_t*);
-extern size_t _heap_get_used(_heap_t*);
-extern size_t _heap_get_size(_heap_t*);
-extern size_t _heap_get_block_size(_heap_t*, void*);
-extern bool   _heap_check_consistency(_heap_t *heap);
+extern int _heap_init(_heap_t *, void *, size_t);
+extern void _heap_free(_heap_t *, void *, size_t *);
+extern void *_heap_alloc(_heap_t *, size_t, size_t *);
+extern size_t _heap_get_free(_heap_t *);
+extern size_t _heap_get_used(_heap_t *);
+extern size_t _heap_get_size(_heap_t *);
+extern size_t _heap_get_block_size(_heap_t *, void *);
+extern bool _heap_check_consistency(_heap_t *heap);
 
 #ifdef __cplusplus
 }

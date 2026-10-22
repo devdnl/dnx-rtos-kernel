@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   miscellaneous CPU functions.
 
-        Copyright (C) 2020 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ Brief   miscellaneous CPU functions.
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define AIRCR_VECTKEY_MASK    ((uint32_t)0x05FA0000)
+#define AIRCR_VECTKEY_MASK ((uint32_t)0x05FA0000)
 
 /*==============================================================================
   Local object types
@@ -60,20 +60,20 @@ Brief   miscellaneous CPU functions.
 ==============================================================================*/
 //==============================================================================
 /**
-  * @brief  Configures the priority grouping: pre-emption priority and
-  *         subpriority.
-  * @param NVIC_PriorityGroup: specifies the priority grouping bits length.
-  *   This parameter can be one of the following values:
-  * @arg NVIC_PriorityGroup_0: 0 bits for pre-emption priority
-  *                            4 bits for subpriority
-  * @arg NVIC_PriorityGroup_1: 1 bits for pre-emption priority
-  *                            3 bits for subpriority
-  * @arg NVIC_PriorityGroup_2: 2 bits for pre-emption priority
-  *                            2 bits for subpriority
-  * @arg NVIC_PriorityGroup_3: 3 bits for pre-emption priority
-  *                            1 bits for subpriority
-  * @arg NVIC_PriorityGroup_4: 4 bits for pre-emption priority
-  *                            0 bits for subpriority
+ * @brief  Configures the priority grouping: pre-emption priority and
+ *         subpriority.
+ * @param NVIC_PriorityGroup: specifies the priority grouping bits length.
+ *   This parameter can be one of the following values:
+ * @arg NVIC_PriorityGroup_0: 0 bits for pre-emption priority
+ *                            4 bits for subpriority
+ * @arg NVIC_PriorityGroup_1: 1 bits for pre-emption priority
+ *                            3 bits for subpriority
+ * @arg NVIC_PriorityGroup_2: 2 bits for pre-emption priority
+ *                            2 bits for subpriority
+ * @arg NVIC_PriorityGroup_3: 3 bits for pre-emption priority
+ *                            1 bits for subpriority
+ * @arg NVIC_PriorityGroup_4: 4 bits for pre-emption priority
+ *                            0 bits for subpriority
  */
 //==============================================================================
 void NVIC_PriorityGroupConfig(uint32_t NVIC_PriorityGroup)
@@ -83,14 +83,14 @@ void NVIC_PriorityGroupConfig(uint32_t NVIC_PriorityGroup)
 
 //==============================================================================
 /**
-  * @brief  Sets the vector table location and Offset.
-  * @param NVIC_VectTab: specifies if the vector table is in RAM or
-  *   FLASH memory.
-  *   This parameter can be one of the following values:
-  * @arg NVIC_VectTab_RAM
-  * @arg NVIC_VectTab_FLASH
-  * @param Offset: Vector Table base offset field.
-  *   This value must be a multiple of 0x100.
+ * @brief  Sets the vector table location and Offset.
+ * @param NVIC_VectTab: specifies if the vector table is in RAM or
+ *   FLASH memory.
+ *   This parameter can be one of the following values:
+ * @arg NVIC_VectTab_RAM
+ * @arg NVIC_VectTab_FLASH
+ * @param Offset: Vector Table base offset field.
+ *   This value must be a multiple of 0x100.
  */
 //==============================================================================
 void NVIC_SetVectorTable(uint32_t NVIC_VectTab, uint32_t Offset)

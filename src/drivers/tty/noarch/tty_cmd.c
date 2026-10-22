@@ -5,7 +5,7 @@
 
 @brief   Code in this file is responsible for decode VT100 commands.
 
-@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@
 #define VT100_TOKEN_READ_TIMEOUT 250
 
 /* characters that finish VT100 key sequence ('H' added: xterm Home) */
-#define VT100_TOKEN_TERMINATORS  "~ABCDFHPQRS"
+#define VT100_TOKEN_TERMINATORS "~ABCDFHPQRS"
 
 /*==============================================================================
   Local object types
@@ -309,8 +309,7 @@ ttycmd_resp_t ttycmd_analyze(ttycmd_t *this, const char c)
 bool ttycmd_is_idle(ttycmd_t *this)
 {
         if (is_valid(this)) {
-                return (this->token_cnt == 0)
-                    || sys_is_time_expired(this->timer, VT100_TOKEN_READ_TIMEOUT);
+                return (this->token_cnt == 0) || sys_is_time_expired(this->timer, VT100_TOKEN_READ_TIMEOUT);
         }
 
         return false;

@@ -5,7 +5,7 @@
 
 @brief   CRC32.
 
-@note    Copyright (C) 2022 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -74,16 +74,16 @@
 u32_t calc_crc32(const void *message, size_t len)
 {
         const u8_t *buf = message;
-        u32_t       i   = 0;
-        u32_t       crc = 0xFFFFFFFF;
+        u32_t i = 0;
+        u32_t crc = 0xFFFFFFFF;
 
         while (len > 0) {
                 u8_t byte = buf[i];
-                crc       = crc ^ byte;
+                crc = crc ^ byte;
 
                 for (int j = 7; j >= 0; j--) {
                         u32_t mask = -(crc & 1);
-                        crc        = (crc >> 1) ^ (0xEDB88320 & mask);
+                        crc = (crc >> 1) ^ (0xEDB88320 & mask);
                 }
 
                 i = i + 1;

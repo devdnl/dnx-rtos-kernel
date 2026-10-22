@@ -5,7 +5,7 @@
 
 @brief   This driver support AFM.
 
-@note    Copyright (C) 2014  Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026  Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -78,8 +78,7 @@ API_MOD_INIT(AFM, void **device_handle, u8_t major, u8_t minor, const void *conf
 
                 SET_BIT(RCC->APB2ENR, RCC_APB2ENR_SYSCFGEN);
 
-                u32_t MEM_MODE = (_AFM_MEM_MODE == _AFM_MEM_MODE_AUTO) ?
-                                 0 : _AFM_MEM_MODE;
+                u32_t MEM_MODE = (_AFM_MEM_MODE == _AFM_MEM_MODE_AUTO) ? 0 : _AFM_MEM_MODE;
 
                 SYSCFG->MEMRMP |= _AFM_SWP_FMC | _AFM_FB_MODE | MEM_MODE;
 
@@ -98,7 +97,7 @@ API_MOD_INIT(AFM, void **device_handle, u8_t major, u8_t minor, const void *conf
                         }
                 }
 
-                if (not (PWR->CSR & PWR_CSR_BRR)) {
+                if (not(PWR->CSR & PWR_CSR_BRR)) {
                         printk("AFM: backup regulator timeout");
                 }
 #endif
@@ -179,13 +178,8 @@ API_MOD_CLOSE(AFM, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(AFM,
-              void            *device_handle,
-              const u8_t      *src,
-              size_t           count,
-              fpos_t          *fpos,
-              size_t          *wrcnt,
-              struct vfs_fattr fattr)
+API_MOD_WRITE(AFM, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, src, count, fpos, wrcnt, fattr);
 
@@ -206,13 +200,7 @@ API_MOD_WRITE(AFM,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(AFM,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(AFM, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, dst, count, fpos, rdcnt, fattr);
 

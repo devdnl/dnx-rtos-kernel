@@ -5,7 +5,7 @@
 
 @brief   File support system clokc (PLL).
 
-@note    Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -38,8 +38,8 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define TIMEOUT_MS                      250
-#define LSE_TIMEOUT_MS                  5000
+#define TIMEOUT_MS     250
+#define LSE_TIMEOUT_MS 5000
 
 /*==============================================================================
   Local types, enums definitions
@@ -48,11 +48,11 @@
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static void set_flash_latency       (u32_t latency);
-static void enable_prefetch_buffer  (void);
-static int  wait_for_flag           (u32_t flag, u32_t timeout);
-static bool is_APB1_divided         (void);
-static bool is_APB2_divided         (void);
+static void set_flash_latency(u32_t latency);
+static void enable_prefetch_buffer(void);
+static int wait_for_flag(u32_t flag, u32_t timeout);
+static bool is_APB1_divided(void);
+static bool is_APB2_divided(void);
 
 /*==============================================================================
   Local object definitions
@@ -124,11 +124,11 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
                 }
         }
 
-        if (  (  (_CLK_CFG__RTCCLK_SRC == RCC_RTCCLKSource_LSE        && _CLK_CFG__LSE_ON)
-              || (_CLK_CFG__RTCCLK_SRC == RCC_RTCCLKSource_LSI        && _CLK_CFG__LSI_ON)
-              || (_CLK_CFG__RTCCLK_SRC == RCC_RTCCLKSource_HSE_Div128 && _CLK_CFG__HSE_ON) )
-           && (RCC->BDCR & RCC_BDCR_RTCEN) == 0
-           && (RCC->BDCR & (RCC_BDCR_RTCSEL_1 | RCC_BDCR_RTCSEL_0)) == RCC_BDCR_RTCSEL_NOCLOCK) {
+        if (((_CLK_CFG__RTCCLK_SRC == RCC_RTCCLKSource_LSE && _CLK_CFG__LSE_ON) ||
+                    (_CLK_CFG__RTCCLK_SRC == RCC_RTCCLKSource_LSI && _CLK_CFG__LSI_ON) ||
+                    (_CLK_CFG__RTCCLK_SRC == RCC_RTCCLKSource_HSE_Div128 && _CLK_CFG__HSE_ON)) &&
+                (RCC->BDCR & RCC_BDCR_RTCEN) == 0 &&
+                (RCC->BDCR & (RCC_BDCR_RTCSEL_1 | RCC_BDCR_RTCSEL_0)) == RCC_BDCR_RTCSEL_NOCLOCK) {
 
                 SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN);
                 SET_BIT(PWR->CR, PWR_CR_DBP);
@@ -171,7 +171,7 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         RCC_PLLCmd(_CLK_CFG__PLL_ON);
         if (_CLK_CFG__PLL_ON) {
                 err = wait_for_flag(RCC_FLAG_PLLRDY, TIMEOUT_MS);
-                if (err)  {
+                if (err) {
                         printk("CLK: PLL timeout");
                 }
         }
@@ -258,13 +258,8 @@ API_MOD_CLOSE(CLK, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(CLK,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(CLK, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG1(device_handle);
         UNUSED_ARG1(src);
@@ -290,13 +285,7 @@ API_MOD_WRITE(CLK,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(CLK,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(CLK, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG1(device_handle);
         UNUSED_ARG1(dst);
@@ -433,7 +422,7 @@ API_MOD_STAT(CLK, void *device_handle, struct vfs_dev_stat *device_stat)
 {
         UNUSED_ARG1(device_handle);
 
-        device_stat->st_size  = 0;
+        device_stat->st_size = 0;
         device_stat->st_major = 0;
         device_stat->st_minor = 0;
 

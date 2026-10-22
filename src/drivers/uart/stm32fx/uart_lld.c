@@ -7,7 +7,7 @@
          * STM32F7 architecture is supported without extra features.
          * STM32H7 architecture is supported without extra features.
 
-@note    Copyright (C) 2020 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -40,112 +40,115 @@
 #include "stm32f1/stm32f10x.h"
 #include "stm32f1/lib/stm32f10x_rcc.h"
 #include "stm32f1/dma_ddi.h"
-#define RDR                     DR
-#define TDR                     DR
-#define USART_CLKSOURCE_PCLK1   1
-#define USART_CLKSOURCE_PCLK2   2
-#define NDTR                    CNDTR
-#define _DMA_DDI_get_stream     _DMA_DDI_get_channel
-typedef DMA_Channel_TypeDef     DMA_Stream_TypeDef;
-#define UART_MEM                NULL
+#define RDR                   DR
+#define TDR                   DR
+#define USART_CLKSOURCE_PCLK1 1
+#define USART_CLKSOURCE_PCLK2 2
+#define NDTR                  CNDTR
+#define _DMA_DDI_get_stream   _DMA_DDI_get_channel
+typedef DMA_Channel_TypeDef DMA_Stream_TypeDef;
+#define UART_MEM NULL
 #ifndef USART_CR1_M0
-#define USART_CR1_M0            USART_CR1_M
+#define USART_CR1_M0 USART_CR1_M
 #endif
 
 #elif defined(ARCH_stm32f3)
 #include "stm32f3/stm32f3xx.h"
 #include "stm32f3/lib/stm32f3xx_ll_rcc.h"
 #include "stm32f3/dma_ddi.h"
-#define SR                      ISR
-#define USART_SR_RXNE           USART_ISR_RXNE
-#define USART_SR_ORE            USART_ISR_ORE
-#define USART_SR_TC             USART_ISR_TC
-#define USART_SR_IDLE           USART_ISR_IDLE
-#define USART_SR_TXE            USART_ISR_TXE
-#define NDTR                    CNDTR
-#define _DMA_DDI_get_stream     _DMA_DDI_get_channel
-typedef DMA_Channel_TypeDef     DMA_Stream_TypeDef;
-#define UART_MEM                NULL
+#define SR                  ISR
+#define USART_SR_RXNE       USART_ISR_RXNE
+#define USART_SR_ORE        USART_ISR_ORE
+#define USART_SR_TC         USART_ISR_TC
+#define USART_SR_IDLE       USART_ISR_IDLE
+#define USART_SR_TXE        USART_ISR_TXE
+#define NDTR                CNDTR
+#define _DMA_DDI_get_stream _DMA_DDI_get_channel
+typedef DMA_Channel_TypeDef DMA_Stream_TypeDef;
+#define UART_MEM            NULL
 
 #elif defined(ARCH_stm32f4)
 #include "stm32f4/stm32f4xx.h"
 #include "stm32f4/lib/stm32f4xx_rcc.h"
 #include "stm32f4/dma_ddi.h"
-#define RDR                     DR
-#define TDR                     DR
-#define USART_CLKSOURCE_PCLK1   1
-#define USART_CLKSOURCE_PCLK2   2
-#define UART_MEM                NULL
+#define RDR                   DR
+#define TDR                   DR
+#define USART_CLKSOURCE_PCLK1 1
+#define USART_CLKSOURCE_PCLK2 2
+#define UART_MEM              NULL
 #ifndef USART_CR1_M0
-#define USART_CR1_M0            USART_CR1_M
+#define USART_CR1_M0 USART_CR1_M
 #endif
 
 #elif defined(ARCH_stm32f7)
 #include "stm32f7/stm32f7xx.h"
 #include "stm32f7/lib/stm32f7xx_ll_rcc.h"
 #include "stm32f7/dma_ddi.h"
-#define SR                      ISR
-#define USART_SR_RXNE           USART_ISR_RXNE
-#define USART_SR_ORE            USART_ISR_ORE
-#define USART_SR_TC             USART_ISR_TC
-#define USART_SR_IDLE           USART_ISR_IDLE
-#define USART_SR_TXE            USART_ISR_TXE
-#define UART_MEM                NULL
+#define SR            ISR
+#define USART_SR_RXNE USART_ISR_RXNE
+#define USART_SR_ORE  USART_ISR_ORE
+#define USART_SR_TC   USART_ISR_TC
+#define USART_SR_IDLE USART_ISR_IDLE
+#define USART_SR_TXE  USART_ISR_TXE
+#define UART_MEM      NULL
 #elif defined(ARCH_stm32h7)
 #include "stm32h7/stm32h7xx.h"
 #include "stm32h7/lib/stm32h7xx_ll_rcc.h"
 #include "stm32h7/dma_ddi.h"
-#define SR                      ISR
-#define USART_SR_RXNE           USART_ISR_RXNE_RXFNE
-#define USART_SR_ORE            USART_ISR_ORE
-#define USART_SR_TC             USART_ISR_TC
-#define USART_SR_IDLE           USART_ISR_IDLE
-#define USART_SR_TXE            USART_ISR_TXE_TXFNF
-#define UART_MEM                (const char *[]){"SRAM1", "SRAM2", "SRAM3", "SRAM4", NULL}
+#define SR            ISR
+#define USART_SR_RXNE USART_ISR_RXNE_RXFNE
+#define USART_SR_ORE  USART_ISR_ORE
+#define USART_SR_TC   USART_ISR_TC
+#define USART_SR_IDLE USART_ISR_IDLE
+#define USART_SR_TXE  USART_ISR_TXE_TXFNF
+#define UART_MEM                                         \
+        (const char *[])                                 \
+        {                                                \
+                "SRAM1", "SRAM2", "SRAM3", "SRAM4", NULL \
+        }
 #endif
 
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define DMA_BUFFER_MASK         (_CPUCTL_CACHE_ALIGN - 1)
-#define DMA_ALIGN_UP(n)         (((n) + DMA_BUFFER_MASK) & ~DMA_BUFFER_MASK)
-#define DMA_ALIGN_DOWN(n)       ((n) & ~DMA_BUFFER_MASK)
+#define DMA_BUFFER_MASK   (_CPUCTL_CACHE_ALIGN - 1)
+#define DMA_ALIGN_UP(n)   (((n) + DMA_BUFFER_MASK) & ~DMA_BUFFER_MASK)
+#define DMA_ALIGN_DOWN(n) ((n) & ~DMA_BUFFER_MASK)
 
-#define USE_DMA __UART_UART1_DMA_MODE__ || __UART_UART2_DMA_MODE__\
-             || __UART_UART3_DMA_MODE__ || __UART_UART4_DMA_MODE__\
-             || __UART_UART5_DMA_MODE__ || __UART_UART6_DMA_MODE__\
-             || __UART_UART7_DMA_MODE__ || __UART_UART8_DMA_MODE__\
-             || __UART_UART9_DMA_MODE__ || __UART_UART10_DMA_MODE__
+#define USE_DMA                                                                                                     \
+        __UART_UART1_DMA_MODE__ || __UART_UART2_DMA_MODE__ || __UART_UART3_DMA_MODE__ || __UART_UART4_DMA_MODE__ || \
+                __UART_UART5_DMA_MODE__ || __UART_UART6_DMA_MODE__ || __UART_UART7_DMA_MODE__ ||                    \
+                __UART_UART8_DMA_MODE__ || __UART_UART9_DMA_MODE__ || __UART_UART10_DMA_MODE__
 
 /*==============================================================================
   Local types, enums definitions
 ==============================================================================*/
 /* UART registers */
 typedef struct {
-        USART_TypeDef  *UART;
-        __IO uint32_t  *APBENR;
-        __IO uint32_t  *APBRSTR;
-        const uint32_t  APBENR_UARTEN;
-        const uint32_t  APBRSTR_UARTRST;
+        USART_TypeDef *UART;
+        __IO uint32_t *APBENR;
+        __IO uint32_t *APBRSTR;
+        const uint32_t APBENR_UARTEN;
+        const uint32_t APBRSTR_UARTRST;
         const IRQn_Type IRQn;
-        const u32_t     IRQ_priority;
-        const u32_t     CLKSRC;
-        const bool      use_DMA;
-        const u16_t     DMA_buf_len;
-        const u8_t      DMA_channel;
-        const u8_t      DMA_major;
-        const u8_t      DMA_rx_stream_pri;
-        const u8_t      DMA_rx_stream_alt;
+        const u32_t IRQ_priority;
+        const u32_t CLKSRC;
+        const bool use_DMA;
+        const u16_t DMA_buf_len;
+        const u8_t DMA_channel;
+        const u8_t DMA_major;
+        const u8_t DMA_rx_stream_pri;
+        const u8_t DMA_rx_stream_alt;
 } UART_setup_t;
 
 /* UART DMA buffer */
 typedef struct {
-        u16_t               rd_idx;
-        u32_t               desc;
+        u16_t rd_idx;
+        u32_t desc;
         DMA_Stream_TypeDef *stream;
-        u8_t               *buf;
-        u16_t               buflen;
-        u8_t                buf_holder[];
+        u8_t *buf;
+        u16_t buflen;
+        u8_t buf_holder[];
 } uart_dma_t;
 
 /* UART specific handle */
@@ -167,468 +170,468 @@ MODULE_NAME(UART);
 
 // all registers which are need to control particular UART peripheral
 static const UART_setup_t UART[] = {
-        #if defined(RCC_APB2ENR_USART1EN)
+#if defined(RCC_APB2ENR_USART1EN)
         {
-                .UART            = USART1,
-                .IRQn            = USART1_IRQn,
-                .IRQ_priority    = __UART_UART1_IRQ_PRIORITY__,
-                .use_DMA         = __UART_UART1_DMA_MODE__,
-                .DMA_buf_len     = __UART_UART1_DMA_BUF_LEN__,
-                #if defined(ARCH_stm32h7)
-                .APBENR          = &RCC->APB2ENR,
-                .APBRSTR         = &RCC->APB2RSTR,
-                .APBENR_UARTEN   = RCC_APB2ENR_USART1EN,
+                .UART = USART1,
+                .IRQn = USART1_IRQn,
+                .IRQ_priority = __UART_UART1_IRQ_PRIORITY__,
+                .use_DMA = __UART_UART1_DMA_MODE__,
+                .DMA_buf_len = __UART_UART1_DMA_BUF_LEN__,
+#if defined(ARCH_stm32h7)
+                .APBENR = &RCC->APB2ENR,
+                .APBRSTR = &RCC->APB2RSTR,
+                .APBENR_UARTEN = RCC_APB2ENR_USART1EN,
                 .APBRSTR_UARTRST = RCC_APB2RSTR_USART1RST,
-                #else
-                .APBENR          = &RCC->APB2ENR,
-                .APBRSTR         = &RCC->APB2RSTR,
-                .APBENR_UARTEN   = RCC_APB2ENR_USART1EN,
+#else
+                .APBENR = &RCC->APB2ENR,
+                .APBRSTR = &RCC->APB2RSTR,
+                .APBENR_UARTEN = RCC_APB2ENR_USART1EN,
                 .APBRSTR_UARTRST = RCC_APB2RSTR_USART1RST,
-                #endif
-                #if defined(ARCH_stm32f1)
-                .CLKSRC            = USART_CLKSOURCE_PCLK2,
-                .DMA_channel       = UINT8_MAX,
-                .DMA_major         = _DMA_DDI_DMA1,
+#endif
+#if defined(ARCH_stm32f1)
+                .CLKSRC = USART_CLKSOURCE_PCLK2,
+                .DMA_channel = UINT8_MAX,
+                .DMA_major = _DMA_DDI_DMA1,
                 .DMA_rx_stream_pri = 5,
                 .DMA_rx_stream_alt = UINT8_MAX,
-                #elif defined(ARCH_stm32f3)
-                .CLKSRC            = LL_RCC_USART1_CLKSOURCE,
-                .DMA_channel       = UINT8_MAX,
-                .DMA_major         = 0,
+#elif defined(ARCH_stm32f3)
+                .CLKSRC = LL_RCC_USART1_CLKSOURCE,
+                .DMA_channel = UINT8_MAX,
+                .DMA_major = 0,
                 .DMA_rx_stream_pri = 5,
                 .DMA_rx_stream_alt = UINT8_MAX,
-                #elif defined(ARCH_stm32f4)
-                .CLKSRC            = USART_CLKSOURCE_PCLK2,
-                .DMA_channel       = 4,
-                .DMA_major         = _DMA_DDI_DMA2,
+#elif defined(ARCH_stm32f4)
+                .CLKSRC = USART_CLKSOURCE_PCLK2,
+                .DMA_channel = 4,
+                .DMA_major = _DMA_DDI_DMA2,
                 .DMA_rx_stream_pri = 2,
                 .DMA_rx_stream_alt = 5,
-                #elif defined(ARCH_stm32f7)
-                .CLKSRC            = LL_RCC_USART1_CLKSOURCE,
-                .DMA_channel       = 4,
-                .DMA_major         = _DMA_DDI_DMA2,
+#elif defined(ARCH_stm32f7)
+                .CLKSRC = LL_RCC_USART1_CLKSOURCE,
+                .DMA_channel = 4,
+                .DMA_major = _DMA_DDI_DMA2,
                 .DMA_rx_stream_pri = 2,
                 .DMA_rx_stream_alt = 5,
-                #elif defined(ARCH_stm32h7)
-                .CLKSRC            = LL_RCC_USART16_CLKSOURCE,
-                .DMA_major         = _DMA_DDI_DMA1 | _DMA_DDI_DMA2,
-                .DMA_channel       = 41,
-                #endif
+#elif defined(ARCH_stm32h7)
+                .CLKSRC = LL_RCC_USART16_CLKSOURCE,
+                .DMA_major = _DMA_DDI_DMA1 | _DMA_DDI_DMA2,
+                .DMA_channel = 41,
+#endif
         },
-        #endif
-        #if defined(RCC_APB1ENR_USART2EN) || defined(RCC_APB1LENR_USART2EN)
+#endif
+#if defined(RCC_APB1ENR_USART2EN) || defined(RCC_APB1LENR_USART2EN)
         {
-                .UART            = USART2,
-                .IRQn            = USART2_IRQn,
-                .IRQ_priority    = __UART_UART2_IRQ_PRIORITY__,
-                .use_DMA         = __UART_UART2_DMA_MODE__,
-                .DMA_buf_len     = __UART_UART2_DMA_BUF_LEN__,
-                #if defined(ARCH_stm32h7)
-                .APBENR          = &RCC->APB1LENR,
-                .APBRSTR         = &RCC->APB1LRSTR,
-                .APBENR_UARTEN   = RCC_APB1LENR_USART2EN,
+                .UART = USART2,
+                .IRQn = USART2_IRQn,
+                .IRQ_priority = __UART_UART2_IRQ_PRIORITY__,
+                .use_DMA = __UART_UART2_DMA_MODE__,
+                .DMA_buf_len = __UART_UART2_DMA_BUF_LEN__,
+#if defined(ARCH_stm32h7)
+                .APBENR = &RCC->APB1LENR,
+                .APBRSTR = &RCC->APB1LRSTR,
+                .APBENR_UARTEN = RCC_APB1LENR_USART2EN,
                 .APBRSTR_UARTRST = RCC_APB1LRSTR_USART2RST,
-                #else
-                .APBENR          = &RCC->APB1ENR,
-                .APBRSTR         = &RCC->APB1RSTR,
-                .APBENR_UARTEN   = RCC_APB1ENR_USART2EN,
+#else
+                .APBENR = &RCC->APB1ENR,
+                .APBRSTR = &RCC->APB1RSTR,
+                .APBENR_UARTEN = RCC_APB1ENR_USART2EN,
                 .APBRSTR_UARTRST = RCC_APB1RSTR_USART2RST,
-                #endif
-                #if defined(ARCH_stm32f1)
-                .CLKSRC            = USART_CLKSOURCE_PCLK1,
-                .DMA_channel       = UINT8_MAX,
-                .DMA_major         = _DMA_DDI_DMA1,
+#endif
+#if defined(ARCH_stm32f1)
+                .CLKSRC = USART_CLKSOURCE_PCLK1,
+                .DMA_channel = UINT8_MAX,
+                .DMA_major = _DMA_DDI_DMA1,
                 .DMA_rx_stream_pri = 6,
                 .DMA_rx_stream_alt = UINT8_MAX,
-                #elif defined(ARCH_stm32f3)
-                .CLKSRC            = LL_RCC_USART2_CLKSOURCE,
-                .DMA_channel       = UINT8_MAX,
-                .DMA_major         = 0,
+#elif defined(ARCH_stm32f3)
+                .CLKSRC = LL_RCC_USART2_CLKSOURCE,
+                .DMA_channel = UINT8_MAX,
+                .DMA_major = 0,
                 .DMA_rx_stream_pri = 6,
                 .DMA_rx_stream_alt = UINT8_MAX,
-                #elif defined(ARCH_stm32f4)
-                .CLKSRC            = USART_CLKSOURCE_PCLK1,
-                .DMA_channel       = 4,
-                .DMA_major         = _DMA_DDI_DMA1,
+#elif defined(ARCH_stm32f4)
+                .CLKSRC = USART_CLKSOURCE_PCLK1,
+                .DMA_channel = 4,
+                .DMA_major = _DMA_DDI_DMA1,
                 .DMA_rx_stream_pri = 5,
                 .DMA_rx_stream_alt = 5,
-                #elif defined(ARCH_stm32f7)
-                .CLKSRC            = LL_RCC_USART2_CLKSOURCE,
-                .DMA_channel       = 4,
-                .DMA_major         = _DMA_DDI_DMA1,
+#elif defined(ARCH_stm32f7)
+                .CLKSRC = LL_RCC_USART2_CLKSOURCE,
+                .DMA_channel = 4,
+                .DMA_major = _DMA_DDI_DMA1,
                 .DMA_rx_stream_pri = 5,
                 .DMA_rx_stream_alt = 5,
-                #elif defined(ARCH_stm32h7)
-                .CLKSRC            = LL_RCC_USART234578_CLKSOURCE,
-                .DMA_major         = _DMA_DDI_DMA1 | _DMA_DDI_DMA2,
-                .DMA_channel       = 43,
-                #endif
+#elif defined(ARCH_stm32h7)
+                .CLKSRC = LL_RCC_USART234578_CLKSOURCE,
+                .DMA_major = _DMA_DDI_DMA1 | _DMA_DDI_DMA2,
+                .DMA_channel = 43,
+#endif
         },
-        #endif
-        #if defined(RCC_APB1ENR_USART3EN) || defined(RCC_APB1LENR_USART3EN)
+#endif
+#if defined(RCC_APB1ENR_USART3EN) || defined(RCC_APB1LENR_USART3EN)
         {
-                .UART            = USART3,
-                .IRQn            = USART3_IRQn,
-                .IRQ_priority    = __UART_UART3_IRQ_PRIORITY__,
-                .use_DMA         = __UART_UART3_DMA_MODE__,
-                .DMA_buf_len     = __UART_UART3_DMA_BUF_LEN__,
-                #if defined(ARCH_stm32h7)
-                .APBENR          = &RCC->APB1LENR,
-                .APBRSTR         = &RCC->APB1LRSTR,
-                .APBENR_UARTEN   = RCC_APB1LENR_USART3EN,
+                .UART = USART3,
+                .IRQn = USART3_IRQn,
+                .IRQ_priority = __UART_UART3_IRQ_PRIORITY__,
+                .use_DMA = __UART_UART3_DMA_MODE__,
+                .DMA_buf_len = __UART_UART3_DMA_BUF_LEN__,
+#if defined(ARCH_stm32h7)
+                .APBENR = &RCC->APB1LENR,
+                .APBRSTR = &RCC->APB1LRSTR,
+                .APBENR_UARTEN = RCC_APB1LENR_USART3EN,
                 .APBRSTR_UARTRST = RCC_APB1LRSTR_USART3RST,
-                #else
-                .APBENR          = &RCC->APB1ENR,
-                .APBRSTR         = &RCC->APB1RSTR,
-                .APBENR_UARTEN   = RCC_APB1ENR_USART3EN,
+#else
+                .APBENR = &RCC->APB1ENR,
+                .APBRSTR = &RCC->APB1RSTR,
+                .APBENR_UARTEN = RCC_APB1ENR_USART3EN,
                 .APBRSTR_UARTRST = RCC_APB1RSTR_USART3RST,
-                #endif
-                #if defined(ARCH_stm32f1)
-                .CLKSRC            = USART_CLKSOURCE_PCLK1,
-                .DMA_channel       = UINT8_MAX,
-                .DMA_major         = _DMA_DDI_DMA1,
+#endif
+#if defined(ARCH_stm32f1)
+                .CLKSRC = USART_CLKSOURCE_PCLK1,
+                .DMA_channel = UINT8_MAX,
+                .DMA_major = _DMA_DDI_DMA1,
                 .DMA_rx_stream_pri = 3,
                 .DMA_rx_stream_alt = UINT8_MAX,
-                #elif defined(ARCH_stm32f3)
-                .CLKSRC            = LL_RCC_USART3_CLKSOURCE,
-                .DMA_channel       = UINT8_MAX,
-                .DMA_major         = 0,
+#elif defined(ARCH_stm32f3)
+                .CLKSRC = LL_RCC_USART3_CLKSOURCE,
+                .DMA_channel = UINT8_MAX,
+                .DMA_major = 0,
                 .DMA_rx_stream_pri = 3,
                 .DMA_rx_stream_alt = UINT8_MAX,
-                #elif defined(ARCH_stm32f4)
-                .CLKSRC            = USART_CLKSOURCE_PCLK1,
-                .DMA_channel       = 4,
-                .DMA_major         = _DMA_DDI_DMA1,
+#elif defined(ARCH_stm32f4)
+                .CLKSRC = USART_CLKSOURCE_PCLK1,
+                .DMA_channel = 4,
+                .DMA_major = _DMA_DDI_DMA1,
                 .DMA_rx_stream_pri = 1,
                 .DMA_rx_stream_alt = 1,
-                #elif defined(ARCH_stm32f7)
-                .CLKSRC            = LL_RCC_USART3_CLKSOURCE,
-                .DMA_channel       = 4,
-                .DMA_major         = _DMA_DDI_DMA1,
+#elif defined(ARCH_stm32f7)
+                .CLKSRC = LL_RCC_USART3_CLKSOURCE,
+                .DMA_channel = 4,
+                .DMA_major = _DMA_DDI_DMA1,
                 .DMA_rx_stream_pri = 1,
                 .DMA_rx_stream_alt = 1,
-                #elif defined(ARCH_stm32h7)
-                .CLKSRC            = LL_RCC_USART234578_CLKSOURCE,
-                .DMA_major         = _DMA_DDI_DMA1 | _DMA_DDI_DMA2,
-                .DMA_channel       = 45,
-                #endif
+#elif defined(ARCH_stm32h7)
+                .CLKSRC = LL_RCC_USART234578_CLKSOURCE,
+                .DMA_major = _DMA_DDI_DMA1 | _DMA_DDI_DMA2,
+                .DMA_channel = 45,
+#endif
         },
-        #endif
-        #if defined(RCC_APB1ENR_UART4EN) || defined(RCC_APB1LENR_UART4EN)
+#endif
+#if defined(RCC_APB1ENR_UART4EN) || defined(RCC_APB1LENR_UART4EN)
         {
-                .UART            = UART4,
-                .IRQn            = UART4_IRQn,
-                .IRQ_priority    = __UART_UART4_IRQ_PRIORITY__,
-                .use_DMA         = __UART_UART4_DMA_MODE__,
-                .DMA_buf_len     = __UART_UART4_DMA_BUF_LEN__,
-                #if defined(ARCH_stm32h7)
-                .APBENR          = &RCC->APB1LENR,
-                .APBRSTR         = &RCC->APB1LRSTR,
-                .APBENR_UARTEN   = RCC_APB1LENR_UART4EN,
+                .UART = UART4,
+                .IRQn = UART4_IRQn,
+                .IRQ_priority = __UART_UART4_IRQ_PRIORITY__,
+                .use_DMA = __UART_UART4_DMA_MODE__,
+                .DMA_buf_len = __UART_UART4_DMA_BUF_LEN__,
+#if defined(ARCH_stm32h7)
+                .APBENR = &RCC->APB1LENR,
+                .APBRSTR = &RCC->APB1LRSTR,
+                .APBENR_UARTEN = RCC_APB1LENR_UART4EN,
                 .APBRSTR_UARTRST = RCC_APB1LRSTR_UART4RST,
-                #else
-                .APBENR          = &RCC->APB1ENR,
-                .APBRSTR         = &RCC->APB1RSTR,
-                .APBENR_UARTEN   = RCC_APB1ENR_UART4EN,
+#else
+                .APBENR = &RCC->APB1ENR,
+                .APBRSTR = &RCC->APB1RSTR,
+                .APBENR_UARTEN = RCC_APB1ENR_UART4EN,
                 .APBRSTR_UARTRST = RCC_APB1RSTR_UART4RST,
-                #endif
-                #if defined(ARCH_stm32f1)
-                .CLKSRC            = USART_CLKSOURCE_PCLK1,
-                .DMA_channel       = UINT8_MAX,
-                .DMA_major         = _DMA_DDI_DMA2,
+#endif
+#if defined(ARCH_stm32f1)
+                .CLKSRC = USART_CLKSOURCE_PCLK1,
+                .DMA_channel = UINT8_MAX,
+                .DMA_major = _DMA_DDI_DMA2,
                 .DMA_rx_stream_pri = 3,
                 .DMA_rx_stream_alt = UINT8_MAX,
-                #elif defined(ARCH_stm32f3)
-                .CLKSRC            = LL_RCC_UART4_CLKSOURCE,
-                .DMA_channel       = UINT8_MAX,
-                .DMA_major         = 1,
+#elif defined(ARCH_stm32f3)
+                .CLKSRC = LL_RCC_UART4_CLKSOURCE,
+                .DMA_channel = UINT8_MAX,
+                .DMA_major = 1,
                 .DMA_rx_stream_pri = 3,
                 .DMA_rx_stream_alt = UINT8_MAX,
-                #elif defined(ARCH_stm32f4)
-                .CLKSRC            = USART_CLKSOURCE_PCLK1,
-                .DMA_channel       = 4,
-                .DMA_major         = _DMA_DDI_DMA1,
+#elif defined(ARCH_stm32f4)
+                .CLKSRC = USART_CLKSOURCE_PCLK1,
+                .DMA_channel = 4,
+                .DMA_major = _DMA_DDI_DMA1,
                 .DMA_rx_stream_pri = 2,
                 .DMA_rx_stream_alt = 2,
-                #elif defined(ARCH_stm32f7)
-                .CLKSRC            = LL_RCC_UART4_CLKSOURCE,
-                .DMA_channel       = 4,
-                .DMA_major         = _DMA_DDI_DMA1,
+#elif defined(ARCH_stm32f7)
+                .CLKSRC = LL_RCC_UART4_CLKSOURCE,
+                .DMA_channel = 4,
+                .DMA_major = _DMA_DDI_DMA1,
                 .DMA_rx_stream_pri = 2,
                 .DMA_rx_stream_alt = 2,
-                #elif defined(ARCH_stm32h7)
-                .CLKSRC            = LL_RCC_USART234578_CLKSOURCE,
-                .DMA_major         = _DMA_DDI_DMA1 | _DMA_DDI_DMA2,
-                .DMA_channel       = 63,
-                #endif
+#elif defined(ARCH_stm32h7)
+                .CLKSRC = LL_RCC_USART234578_CLKSOURCE,
+                .DMA_major = _DMA_DDI_DMA1 | _DMA_DDI_DMA2,
+                .DMA_channel = 63,
+#endif
         },
-        #endif
-        #if defined(RCC_APB1ENR_UART5EN) || defined(RCC_APB1LENR_UART5EN)
+#endif
+#if defined(RCC_APB1ENR_UART5EN) || defined(RCC_APB1LENR_UART5EN)
         {
-                .UART            = UART5,
-                .IRQn            = UART5_IRQn,
-                .IRQ_priority    = __UART_UART5_IRQ_PRIORITY__,
-                .use_DMA         = __UART_UART5_DMA_MODE__,
-                .DMA_buf_len     = __UART_UART5_DMA_BUF_LEN__,
-                #if defined(ARCH_stm32h7)
-                .APBENR          = &RCC->APB1LENR,
-                .APBRSTR         = &RCC->APB1LRSTR,
-                .APBENR_UARTEN   = RCC_APB1LENR_UART5EN,
+                .UART = UART5,
+                .IRQn = UART5_IRQn,
+                .IRQ_priority = __UART_UART5_IRQ_PRIORITY__,
+                .use_DMA = __UART_UART5_DMA_MODE__,
+                .DMA_buf_len = __UART_UART5_DMA_BUF_LEN__,
+#if defined(ARCH_stm32h7)
+                .APBENR = &RCC->APB1LENR,
+                .APBRSTR = &RCC->APB1LRSTR,
+                .APBENR_UARTEN = RCC_APB1LENR_UART5EN,
                 .APBRSTR_UARTRST = RCC_APB1LRSTR_UART5RST,
-                #else
-                .APBENR          = &RCC->APB1ENR,
-                .APBRSTR         = &RCC->APB1RSTR,
-                .APBENR_UARTEN   = RCC_APB1ENR_UART5EN,
+#else
+                .APBENR = &RCC->APB1ENR,
+                .APBRSTR = &RCC->APB1RSTR,
+                .APBENR_UARTEN = RCC_APB1ENR_UART5EN,
                 .APBRSTR_UARTRST = RCC_APB1RSTR_UART5RST,
-                #endif
-                #if defined(ARCH_stm32f1)
-                .CLKSRC            = USART_CLKSOURCE_PCLK1,
-                .DMA_channel       = UINT8_MAX,
-                .DMA_major         = _DMA_DDI_DMA2,
+#endif
+#if defined(ARCH_stm32f1)
+                .CLKSRC = USART_CLKSOURCE_PCLK1,
+                .DMA_channel = UINT8_MAX,
+                .DMA_major = _DMA_DDI_DMA2,
                 .DMA_rx_stream_pri = 4,
                 .DMA_rx_stream_alt = UINT8_MAX,
-                #elif defined(ARCH_stm32f3)
-                .CLKSRC            = LL_RCC_UART5_CLKSOURCE,
-                .DMA_channel       = UINT8_MAX,
-                .DMA_major         = 1,
+#elif defined(ARCH_stm32f3)
+                .CLKSRC = LL_RCC_UART5_CLKSOURCE,
+                .DMA_channel = UINT8_MAX,
+                .DMA_major = 1,
                 .DMA_rx_stream_pri = UINT8_MAX,
                 .DMA_rx_stream_alt = UINT8_MAX,
-                #elif defined(ARCH_stm32f4)
-                .CLKSRC            = USART_CLKSOURCE_PCLK1,
-                .DMA_channel       = 4,
-                .DMA_major         = _DMA_DDI_DMA1,
+#elif defined(ARCH_stm32f4)
+                .CLKSRC = USART_CLKSOURCE_PCLK1,
+                .DMA_channel = 4,
+                .DMA_major = _DMA_DDI_DMA1,
                 .DMA_rx_stream_pri = 0,
                 .DMA_rx_stream_alt = 0,
-                #elif defined(ARCH_stm32f7)
-                .CLKSRC            = LL_RCC_UART5_CLKSOURCE,
-                .DMA_channel       = 4,
-                .DMA_major         = _DMA_DDI_DMA1,
+#elif defined(ARCH_stm32f7)
+                .CLKSRC = LL_RCC_UART5_CLKSOURCE,
+                .DMA_channel = 4,
+                .DMA_major = _DMA_DDI_DMA1,
                 .DMA_rx_stream_pri = 0,
                 .DMA_rx_stream_alt = 0,
-                #elif defined(ARCH_stm32h7)
-                .CLKSRC            = LL_RCC_USART234578_CLKSOURCE,
-                .DMA_major         = _DMA_DDI_DMA1 | _DMA_DDI_DMA2,
-                .DMA_channel       = 65,
-                #endif
+#elif defined(ARCH_stm32h7)
+                .CLKSRC = LL_RCC_USART234578_CLKSOURCE,
+                .DMA_major = _DMA_DDI_DMA1 | _DMA_DDI_DMA2,
+                .DMA_channel = 65,
+#endif
         },
-        #endif
-        #if defined(RCC_APB2ENR_USART6EN)
+#endif
+#if defined(RCC_APB2ENR_USART6EN)
         {
-                .UART            = USART6,
-                .IRQn            = USART6_IRQn,
-                .IRQ_priority    = __UART_UART6_IRQ_PRIORITY__,
-                .use_DMA         = __UART_UART6_DMA_MODE__,
-                .DMA_buf_len     = __UART_UART6_DMA_BUF_LEN__,
-                #if defined(ARCH_stm32h7)
-                .APBENR          = &RCC->APB2ENR,
-                .APBRSTR         = &RCC->APB2RSTR,
-                .APBENR_UARTEN   = RCC_APB2ENR_USART6EN,
+                .UART = USART6,
+                .IRQn = USART6_IRQn,
+                .IRQ_priority = __UART_UART6_IRQ_PRIORITY__,
+                .use_DMA = __UART_UART6_DMA_MODE__,
+                .DMA_buf_len = __UART_UART6_DMA_BUF_LEN__,
+#if defined(ARCH_stm32h7)
+                .APBENR = &RCC->APB2ENR,
+                .APBRSTR = &RCC->APB2RSTR,
+                .APBENR_UARTEN = RCC_APB2ENR_USART6EN,
                 .APBRSTR_UARTRST = RCC_APB2RSTR_USART6RST,
-                #else
-                .APBENR          = &RCC->APB2ENR,
-                .APBRSTR         = &RCC->APB2RSTR,
-                .APBENR_UARTEN   = RCC_APB2ENR_USART6EN,
+#else
+                .APBENR = &RCC->APB2ENR,
+                .APBRSTR = &RCC->APB2RSTR,
+                .APBENR_UARTEN = RCC_APB2ENR_USART6EN,
                 .APBRSTR_UARTRST = RCC_APB2RSTR_USART6RST,
-                #endif
-                #if defined(ARCH_stm32f1)
-                .CLKSRC            = USART_CLKSOURCE_PCLK2,
-                .DMA_channel       = UINT8_MAX,
-                .DMA_major         = 0,
+#endif
+#if defined(ARCH_stm32f1)
+                .CLKSRC = USART_CLKSOURCE_PCLK2,
+                .DMA_channel = UINT8_MAX,
+                .DMA_major = 0,
                 .DMA_rx_stream_pri = UINT8_MAX,
                 .DMA_rx_stream_alt = UINT8_MAX,
-                #elif defined(ARCH_stm32f3)
-                .CLKSRC          = LL_RCC_USART6_CLKSOURCE,
-                #elif defined(ARCH_stm32f4)
-                .CLKSRC          = USART_CLKSOURCE_PCLK2,
-                .DMA_channel       = 5,
-                .DMA_major         = _DMA_DDI_DMA2,
+#elif defined(ARCH_stm32f3)
+                .CLKSRC = LL_RCC_USART6_CLKSOURCE,
+#elif defined(ARCH_stm32f4)
+                .CLKSRC = USART_CLKSOURCE_PCLK2,
+                .DMA_channel = 5,
+                .DMA_major = _DMA_DDI_DMA2,
                 .DMA_rx_stream_pri = 1,
                 .DMA_rx_stream_alt = 2,
-                #elif defined(ARCH_stm32f7)
-                .CLKSRC            = LL_RCC_USART6_CLKSOURCE,
-                .DMA_channel       = 5,
-                .DMA_major         = _DMA_DDI_DMA2,
+#elif defined(ARCH_stm32f7)
+                .CLKSRC = LL_RCC_USART6_CLKSOURCE,
+                .DMA_channel = 5,
+                .DMA_major = _DMA_DDI_DMA2,
                 .DMA_rx_stream_pri = 1,
                 .DMA_rx_stream_alt = 2,
-                #elif defined(ARCH_stm32h7)
-                .CLKSRC            = LL_RCC_USART16_CLKSOURCE,
-                .DMA_major         = _DMA_DDI_DMA1 | _DMA_DDI_DMA2,
-                .DMA_channel       = 71,
-                #endif
+#elif defined(ARCH_stm32h7)
+                .CLKSRC = LL_RCC_USART16_CLKSOURCE,
+                .DMA_major = _DMA_DDI_DMA1 | _DMA_DDI_DMA2,
+                .DMA_channel = 71,
+#endif
         },
-        #endif
-        #if defined(RCC_APB1ENR_UART7EN) || defined(RCC_APB1LENR_UART7EN)
+#endif
+#if defined(RCC_APB1ENR_UART7EN) || defined(RCC_APB1LENR_UART7EN)
         {
-                .UART            = UART7,
-                .IRQn            = UART7_IRQn,
-                .IRQ_priority    = __UART_UART7_IRQ_PRIORITY__,
-                .use_DMA         = __UART_UART7_DMA_MODE__,
-                .DMA_buf_len     = __UART_UART7_DMA_BUF_LEN__,
-                #if defined(ARCH_stm32h7)
-                .APBENR          = &RCC->APB1LENR,
-                .APBRSTR         = &RCC->APB1LRSTR,
-                .APBENR_UARTEN   = RCC_APB1LENR_UART7EN,
+                .UART = UART7,
+                .IRQn = UART7_IRQn,
+                .IRQ_priority = __UART_UART7_IRQ_PRIORITY__,
+                .use_DMA = __UART_UART7_DMA_MODE__,
+                .DMA_buf_len = __UART_UART7_DMA_BUF_LEN__,
+#if defined(ARCH_stm32h7)
+                .APBENR = &RCC->APB1LENR,
+                .APBRSTR = &RCC->APB1LRSTR,
+                .APBENR_UARTEN = RCC_APB1LENR_UART7EN,
                 .APBRSTR_UARTRST = RCC_APB1LRSTR_UART7RST,
-                #else
-                .APBENR          = &RCC->APB1ENR,
-                .APBRSTR         = &RCC->APB1RSTR,
-                .APBENR_UARTEN   = RCC_APB1ENR_UART7EN,
+#else
+                .APBENR = &RCC->APB1ENR,
+                .APBRSTR = &RCC->APB1RSTR,
+                .APBENR_UARTEN = RCC_APB1ENR_UART7EN,
                 .APBRSTR_UARTRST = RCC_APB1RSTR_UART7RST,
-                #endif
-                #if defined(ARCH_stm32f1)
-                .CLKSRC            = USART_CLKSOURCE_PCLK1,
-                .DMA_channel       = UINT8_MAX,
-                .DMA_major         = 0,
+#endif
+#if defined(ARCH_stm32f1)
+                .CLKSRC = USART_CLKSOURCE_PCLK1,
+                .DMA_channel = UINT8_MAX,
+                .DMA_major = 0,
                 .DMA_rx_stream_pri = UINT8_MAX,
                 .DMA_rx_stream_alt = UINT8_MAX,
-                #elif defined(ARCH_stm32f3)
-                .CLKSRC          = LL_RCC_UART7_CLKSOURCE,
-                #elif defined(ARCH_stm32f4)
-                .CLKSRC          = USART_CLKSOURCE_PCLK1,
-                .DMA_channel       = 5,
-                .DMA_major         = _DMA_DDI_DMA1,
+#elif defined(ARCH_stm32f3)
+                .CLKSRC = LL_RCC_UART7_CLKSOURCE,
+#elif defined(ARCH_stm32f4)
+                .CLKSRC = USART_CLKSOURCE_PCLK1,
+                .DMA_channel = 5,
+                .DMA_major = _DMA_DDI_DMA1,
                 .DMA_rx_stream_pri = 3,
                 .DMA_rx_stream_alt = 3,
-                #elif defined(ARCH_stm32f7)
-                .CLKSRC            = LL_RCC_UART7_CLKSOURCE,
-                .DMA_channel       = 5,
-                .DMA_major         = _DMA_DDI_DMA1,
+#elif defined(ARCH_stm32f7)
+                .CLKSRC = LL_RCC_UART7_CLKSOURCE,
+                .DMA_channel = 5,
+                .DMA_major = _DMA_DDI_DMA1,
                 .DMA_rx_stream_pri = 3,
                 .DMA_rx_stream_alt = 3,
-                #elif defined(ARCH_stm32h7)
-                .CLKSRC            = LL_RCC_USART234578_CLKSOURCE,
-                .DMA_major         = _DMA_DDI_DMA1 | _DMA_DDI_DMA2,
-                .DMA_channel       = 79,
-                #endif
+#elif defined(ARCH_stm32h7)
+                .CLKSRC = LL_RCC_USART234578_CLKSOURCE,
+                .DMA_major = _DMA_DDI_DMA1 | _DMA_DDI_DMA2,
+                .DMA_channel = 79,
+#endif
         },
-        #endif
-        #if defined(RCC_APB1ENR_UART8EN) || defined(RCC_APB1LENR_UART8EN)
+#endif
+#if defined(RCC_APB1ENR_UART8EN) || defined(RCC_APB1LENR_UART8EN)
         {
-                .UART            = UART8,
-                .IRQn            = UART8_IRQn,
-                .IRQ_priority    = __UART_UART8_IRQ_PRIORITY__,
-                .use_DMA         = __UART_UART8_DMA_MODE__,
-                .DMA_buf_len     = __UART_UART8_DMA_BUF_LEN__,
-                #if defined(ARCH_stm32h7)
-                .APBENR          = &RCC->APB1LENR,
-                .APBRSTR         = &RCC->APB1LRSTR,
-                .APBENR_UARTEN   = RCC_APB1LENR_UART8EN,
+                .UART = UART8,
+                .IRQn = UART8_IRQn,
+                .IRQ_priority = __UART_UART8_IRQ_PRIORITY__,
+                .use_DMA = __UART_UART8_DMA_MODE__,
+                .DMA_buf_len = __UART_UART8_DMA_BUF_LEN__,
+#if defined(ARCH_stm32h7)
+                .APBENR = &RCC->APB1LENR,
+                .APBRSTR = &RCC->APB1LRSTR,
+                .APBENR_UARTEN = RCC_APB1LENR_UART8EN,
                 .APBRSTR_UARTRST = RCC_APB1LRSTR_UART8RST,
-                #else
-                .APBENR          = &RCC->APB1ENR,
-                .APBRSTR         = &RCC->APB1RSTR,
-                .APBENR_UARTEN   = RCC_APB1ENR_UART8EN,
+#else
+                .APBENR = &RCC->APB1ENR,
+                .APBRSTR = &RCC->APB1RSTR,
+                .APBENR_UARTEN = RCC_APB1ENR_UART8EN,
                 .APBRSTR_UARTRST = RCC_APB1RSTR_UART8RST,
-                #endif
-                #if defined(ARCH_stm32f1)
-                .CLKSRC            = USART_CLKSOURCE_PCLK1,
-                .DMA_channel       = UINT8_MAX,
-                .DMA_major         = 0,
+#endif
+#if defined(ARCH_stm32f1)
+                .CLKSRC = USART_CLKSOURCE_PCLK1,
+                .DMA_channel = UINT8_MAX,
+                .DMA_major = 0,
                 .DMA_rx_stream_pri = UINT8_MAX,
                 .DMA_rx_stream_alt = UINT8_MAX,
-                #elif defined(ARCH_stm32f3)
-                .CLKSRC          = LL_RCC_UART8_CLKSOURCE,
-                #elif defined(ARCH_stm32f4)
-                .CLKSRC            = USART_CLKSOURCE_PCLK1,
-                .DMA_channel       = 5,
-                .DMA_major         = _DMA_DDI_DMA1,
+#elif defined(ARCH_stm32f3)
+                .CLKSRC = LL_RCC_UART8_CLKSOURCE,
+#elif defined(ARCH_stm32f4)
+                .CLKSRC = USART_CLKSOURCE_PCLK1,
+                .DMA_channel = 5,
+                .DMA_major = _DMA_DDI_DMA1,
                 .DMA_rx_stream_pri = 6,
                 .DMA_rx_stream_alt = 6,
-                #elif defined(ARCH_stm32f7)
-                .CLKSRC            = LL_RCC_UART8_CLKSOURCE,
-                .DMA_channel       = 5,
-                .DMA_major         = _DMA_DDI_DMA1,
+#elif defined(ARCH_stm32f7)
+                .CLKSRC = LL_RCC_UART8_CLKSOURCE,
+                .DMA_channel = 5,
+                .DMA_major = _DMA_DDI_DMA1,
                 .DMA_rx_stream_pri = 6,
                 .DMA_rx_stream_alt = 6,
-                #elif defined(ARCH_stm32h7)
-                .CLKSRC            = LL_RCC_USART234578_CLKSOURCE,
-                .DMA_major         = _DMA_DDI_DMA1 | _DMA_DDI_DMA2,
-                .DMA_channel       = 81,
-                #endif
+#elif defined(ARCH_stm32h7)
+                .CLKSRC = LL_RCC_USART234578_CLKSOURCE,
+                .DMA_major = _DMA_DDI_DMA1 | _DMA_DDI_DMA2,
+                .DMA_channel = 81,
+#endif
         },
-        #endif
-        #if defined(RCC_APB2ENR_UART9EN)
+#endif
+#if defined(RCC_APB2ENR_UART9EN)
         {
-                .UART            = UART9,
-                .IRQn            = UART9_IRQn,
-                .IRQ_priority    = __UART_UART9_IRQ_PRIORITY__,
-                .use_DMA         = __UART_UART9_DMA_MODE__,
-                .DMA_buf_len     = __UART_UART9_DMA_BUF_LEN__,
-                #if defined(ARCH_stm32h7)
-                .APBENR          = &RCC->APB2ENR,
-                .APBRSTR         = &RCC->APB2RSTR,
-                .APBENR_UARTEN   = RCC_APB2ENR_UART9EN,
+                .UART = UART9,
+                .IRQn = UART9_IRQn,
+                .IRQ_priority = __UART_UART9_IRQ_PRIORITY__,
+                .use_DMA = __UART_UART9_DMA_MODE__,
+                .DMA_buf_len = __UART_UART9_DMA_BUF_LEN__,
+#if defined(ARCH_stm32h7)
+                .APBENR = &RCC->APB2ENR,
+                .APBRSTR = &RCC->APB2RSTR,
+                .APBENR_UARTEN = RCC_APB2ENR_UART9EN,
                 .APBRSTR_UARTRST = RCC_APB2RSTR_UART9RST,
-                #else
-                .APBENR          = &RCC->APB2ENR,
-                .APBRSTR         = &RCC->APB2RSTR,
-                .APBENR_UARTEN   = RCC_APB2ENR_UART9EN,
+#else
+                .APBENR = &RCC->APB2ENR,
+                .APBRSTR = &RCC->APB2RSTR,
+                .APBENR_UARTEN = RCC_APB2ENR_UART9EN,
                 .APBRSTR_UARTRST = RCC_APB2RSTR_UART9RST,
-                #endif
-                #if defined(ARCH_stm32f1)
-                .CLKSRC            = USART9_CLKSOURCE_PCLK1,
-                .DMA_channel       = UINT8_MAX,
-                .DMA_major         = 0,
+#endif
+#if defined(ARCH_stm32f1)
+                .CLKSRC = USART9_CLKSOURCE_PCLK1,
+                .DMA_channel = UINT8_MAX,
+                .DMA_major = 0,
                 .DMA_rx_stream_pri = UINT8_MAX,
                 .DMA_rx_stream_alt = UINT8_MAX,
-                #elif defined(ARCH_stm32f3)
-                .CLKSRC            = LL_RCC_UART9_CLKSOURCE,
-                #elif defined(ARCH_stm32f4)
-                .CLKSRC            = USART_CLKSOURCE_PCLK1,
-                .DMA_channel       = UINT8_MAX,
-                .DMA_major         = 0,
+#elif defined(ARCH_stm32f3)
+                .CLKSRC = LL_RCC_UART9_CLKSOURCE,
+#elif defined(ARCH_stm32f4)
+                .CLKSRC = USART_CLKSOURCE_PCLK1,
+                .DMA_channel = UINT8_MAX,
+                .DMA_major = 0,
                 .DMA_rx_stream_pri = UINT8_MAX,
                 .DMA_rx_stream_alt = UINT8_MAX,
-                #elif defined(ARCH_stm32f7)
-                .CLKSRC            = LL_RCC_UART9_CLKSOURCE,
-                #elif defined(ARCH_stm32h7)
-                .CLKSRC            = LL_RCC_USART16910_CLKSOURCE,
-                .DMA_major         = _DMA_DDI_DMA1 | _DMA_DDI_DMA2,
-                .DMA_channel       = UINT8_MAX,
-                #endif
+#elif defined(ARCH_stm32f7)
+                .CLKSRC = LL_RCC_UART9_CLKSOURCE,
+#elif defined(ARCH_stm32h7)
+                .CLKSRC = LL_RCC_USART16910_CLKSOURCE,
+                .DMA_major = _DMA_DDI_DMA1 | _DMA_DDI_DMA2,
+                .DMA_channel = UINT8_MAX,
+#endif
         },
-        #endif
-        #if defined(RCC_APB2ENR_UART10EN) || defined(RCC_APB2ENR_USART10EN)
+#endif
+#if defined(RCC_APB2ENR_UART10EN) || defined(RCC_APB2ENR_USART10EN)
         {
-                .UART            = UART10,
-                .IRQn            = UART10_IRQn,
-                .IRQ_priority    = __UART_UART10_IRQ_PRIORITY__,
-                .use_DMA         = __UART_UART10_DMA_MODE__,
-                .DMA_buf_len     = __UART_UART10_DMA_BUF_LEN__,
-                #if defined(ARCH_stm32h7)
-                .APBENR          = &RCC->APB2ENR,
-                .APBRSTR         = &RCC->APB2RSTR,
-                .APBENR_UARTEN   = RCC_APB2ENR_UART10EN,
+                .UART = UART10,
+                .IRQn = UART10_IRQn,
+                .IRQ_priority = __UART_UART10_IRQ_PRIORITY__,
+                .use_DMA = __UART_UART10_DMA_MODE__,
+                .DMA_buf_len = __UART_UART10_DMA_BUF_LEN__,
+#if defined(ARCH_stm32h7)
+                .APBENR = &RCC->APB2ENR,
+                .APBRSTR = &RCC->APB2RSTR,
+                .APBENR_UARTEN = RCC_APB2ENR_UART10EN,
                 .APBRSTR_UARTRST = RCC_APB2RSTR_UART10RST,
-                #else
-                .APBENR          = &RCC->APB2ENR,
-                .APBRSTR         = &RCC->APB2RSTR,
-                .APBENR_UARTEN   = RCC_APB2ENR_UART10EN,
+#else
+                .APBENR = &RCC->APB2ENR,
+                .APBRSTR = &RCC->APB2RSTR,
+                .APBENR_UARTEN = RCC_APB2ENR_UART10EN,
                 .APBRSTR_UARTRST = RCC_APB2RSTR_UART10RST,
-                #endif
-                #if defined(ARCH_stm32f1)
-                .CLKSRC            = USART_CLKSOURCE_PCLK1,
-                .DMA_channel       = UINT8_MAX,
-                .DMA_major         = 0,
+#endif
+#if defined(ARCH_stm32f1)
+                .CLKSRC = USART_CLKSOURCE_PCLK1,
+                .DMA_channel = UINT8_MAX,
+                .DMA_major = 0,
                 .DMA_rx_stream_pri = UINT8_MAX,
                 .DMA_rx_stream_alt = UINT8_MAX,
-                #elif defined(ARCH_stm32f3)
-                .CLKSRC            = LL_RCC_UART10_CLKSOURCE,
-                #elif defined(ARCH_stm32f4)
-                .CLKSRC            = USART_CLKSOURCE_PCLK1,
-                .DMA_channel       = UINT8_MAX,
-                .DMA_major         = 0,
+#elif defined(ARCH_stm32f3)
+                .CLKSRC = LL_RCC_UART10_CLKSOURCE,
+#elif defined(ARCH_stm32f4)
+                .CLKSRC = USART_CLKSOURCE_PCLK1,
+                .DMA_channel = UINT8_MAX,
+                .DMA_major = 0,
                 .DMA_rx_stream_pri = UINT8_MAX,
                 .DMA_rx_stream_alt = UINT8_MAX,
-                #elif defined(ARCH_stm32f7)
-                .CLKSRC            = LL_RCC_UART10_CLKSOURCE,
-                #elif defined(ARCH_stm32h7)
-                .CLKSRC            = LL_RCC_USART16910_CLKSOURCE,
-                .DMA_major         = _DMA_DDI_DMA1 | _DMA_DDI_DMA2,
-                .DMA_channel       = UINT8_MAX,
-                #endif
+#elif defined(ARCH_stm32f7)
+                .CLKSRC = LL_RCC_UART10_CLKSOURCE,
+#elif defined(ARCH_stm32h7)
+                .CLKSRC = LL_RCC_USART16910_CLKSOURCE,
+                .DMA_major = _DMA_DDI_DMA1 | _DMA_DDI_DMA2,
+                .DMA_channel = UINT8_MAX,
+#endif
         }
-        #endif
+#endif
 };
 
 /*==============================================================================
@@ -652,10 +655,10 @@ int _UART_LLD__turn_on(struct UART_mem *hdl)
         if (!(*SETUP->APBENR & SETUP->APBENR_UARTEN)) {
 
                 uarthdl_t *uarthdl;
-                err = sys_zalloc(sizeof(*uarthdl), cast(void**, &uarthdl));
+                err = sys_zalloc(sizeof(*uarthdl), cast(void **, &uarthdl));
                 if (!err) {
 
-                        #if USE_DMA
+#if USE_DMA
                         if (SETUP->use_DMA) {
 
                                 size_t buf_len = DMA_ALIGN_UP(UART[hdl->major].DMA_buf_len);
@@ -664,18 +667,17 @@ int _UART_LLD__turn_on(struct UART_mem *hdl)
                                 uart_dma_t *dmabuf;
                                 size_t dma_buf_size = sizeof(*dmabuf) + buf_len + _CPUCTL_CACHE_ALIGN;
 
-                                err = sys_zalloc2(dma_buf_size, UART_MEM, _MM_FLAG__DMA,
-                                                  _MM_FLAG__DMA, cast(void**, &dmabuf));
+                                err = sys_zalloc2(dma_buf_size, UART_MEM, _MM_FLAG__DMA, _MM_FLAG__DMA,
+                                        cast(void **, &dmabuf));
                                 if (!err) {
                                         dmabuf->buflen = buf_len;
-                                        dmabuf->buf    = (void*)DMA_ALIGN_UP((u32_t)&dmabuf->buf_holder);
+                                        dmabuf->buf = (void *)DMA_ALIGN_UP((u32_t)&dmabuf->buf_holder);
 
 #if defined(ARCH_stm32f1) || defined(ARCH_stm32f3) || defined(ARCH_stm32f4) || defined(ARCH_stm32f7)
-                                        dmabuf->desc = _DMA_DDI_reserve(SETUP->DMA_major,
-                                                                        SETUP->DMA_rx_stream_pri);
+                                        dmabuf->desc = _DMA_DDI_reserve(SETUP->DMA_major, SETUP->DMA_rx_stream_pri);
                                         if (dmabuf->desc == 0) {
                                                 dmabuf->desc = _DMA_DDI_reserve(SETUP->DMA_major,
-                                                                                SETUP->DMA_rx_stream_alt);
+                                                        SETUP->DMA_rx_stream_alt);
                                         }
 #elif defined(ARCH_stm32h7)
                                         dmabuf->desc = _DMA_DDI_reserve(SETUP->DMA_major);
@@ -686,7 +688,7 @@ int _UART_LLD__turn_on(struct UART_mem *hdl)
 
                                         if (err or (dmabuf->desc == 0)) {
                                                 dev_dbg(hdl, "DMA not accessible, using IRQ mode");
-                                                sys_free(cast(void*, &dmabuf));
+                                                sys_free(cast(void *, &dmabuf));
                                         } else {
                                                 uarthdl->DMA = dmabuf;
                                         }
@@ -697,7 +699,7 @@ int _UART_LLD__turn_on(struct UART_mem *hdl)
 
                                 err = 0;
                         }
-                        #endif
+#endif
                 }
 
                 if (!err) {
@@ -727,13 +729,13 @@ int _UART_LLD__turn_on(struct UART_mem *hdl)
 int _UART_LLD__turn_off(struct UART_mem *hdl)
 {
         uarthdl_t *uarthdl = hdl->uarthdl;
-        const UART_setup_t *SETUP =  &UART[hdl->major];
+        const UART_setup_t *SETUP = &UART[hdl->major];
 
         if (uarthdl->DMA) {
-                #if USE_DMA
+#if USE_DMA
                 _DMA_DDI_release(uarthdl->DMA->desc);
-                #endif
-                sys_free(cast(void*, &uarthdl->DMA));
+#endif
+                sys_free(cast(void *, &uarthdl->DMA));
         }
 
         NVIC_DisableIRQ(SETUP->IRQn);
@@ -754,7 +756,7 @@ int _UART_LLD__turn_off(struct UART_mem *hdl)
 //==============================================================================
 void _UART_LLD__resume_transmit(struct UART_mem *hdl)
 {
-        const UART_setup_t *SETUP =  &UART[hdl->major];
+        const UART_setup_t *SETUP = &UART[hdl->major];
 
         if (!(SETUP->UART->CR1 & USART_CR1_TCIE)) {
                 sys_critical_section_begin();
@@ -804,32 +806,32 @@ int _UART_LLD__configure(struct UART_mem *hdl, const struct UART_rich_config *co
         }
 #elif defined(ARCH_stm32f7) || defined(ARCH_stm32f3)
         switch (SETUP->CLKSRC) {
-        #if defined(LL_RCC_USART1_CLKSOURCE)
+#if defined(LL_RCC_USART1_CLKSOURCE)
         case LL_RCC_USART1_CLKSOURCE:
-        #endif
-        #if defined(LL_RCC_USART2_CLKSOURCE)
+#endif
+#if defined(LL_RCC_USART2_CLKSOURCE)
         case LL_RCC_USART2_CLKSOURCE:
-        #endif
-        #if defined(LL_RCC_USART3_CLKSOURCE)
+#endif
+#if defined(LL_RCC_USART3_CLKSOURCE)
         case LL_RCC_USART3_CLKSOURCE:
-        #endif
-        #if defined(LL_RCC_USART6_CLKSOURCE)
+#endif
+#if defined(LL_RCC_USART6_CLKSOURCE)
         case LL_RCC_USART6_CLKSOURCE:
-        #endif
+#endif
                 PCLK = LL_RCC_GetUSARTClockFreq(SETUP->CLKSRC);
                 break;
-        #if defined(LL_RCC_UART4_CLKSOURCE)
+#if defined(LL_RCC_UART4_CLKSOURCE)
         case LL_RCC_UART4_CLKSOURCE:
-        #endif
-        #if defined(LL_RCC_UART5_CLKSOURCE)
+#endif
+#if defined(LL_RCC_UART5_CLKSOURCE)
         case LL_RCC_UART5_CLKSOURCE:
-        #endif
-        #if defined(LL_RCC_UART7_CLKSOURCE)
+#endif
+#if defined(LL_RCC_UART7_CLKSOURCE)
         case LL_RCC_UART7_CLKSOURCE:
-        #endif
-        #if defined(LL_RCC_UART8_CLKSOURCE)
+#endif
+#if defined(LL_RCC_UART8_CLKSOURCE)
         case LL_RCC_UART8_CLKSOURCE:
-        #endif
+#endif
                 PCLK = LL_RCC_GetUARTClockFreq(SETUP->CLKSRC);
                 break;
 
@@ -874,10 +876,10 @@ int _UART_LLD__configure(struct UART_mem *hdl, const struct UART_rich_config *co
                 CLEAR_BIT(SETUP->UART->CR1, USART_CR1_RE);
         }
 
-        /* FIFO enable */
-        #if defined(USART_CR1_FIFOEN)
+/* FIFO enable */
+#if defined(USART_CR1_FIFOEN)
         SET_BIT(SETUP->UART->CR1, USART_CR1_FIFOEN);
-        #endif
+#endif
 
         /* enable LIN if configured */
         if (config->basic.mode == UART_MODE__LIN) {
@@ -922,38 +924,39 @@ int _UART_LLD__configure(struct UART_mem *hdl, const struct UART_rich_config *co
         uarthdl_t *uarthdl = hdl->uarthdl;
         if (uarthdl->DMA) {
                 _DMA_DDI_config_t dma_conf = {0};
-                dma_conf.IRQ_priority                 = __CPU_DEFAULT_IRQ_PRIORITY__;
-                dma_conf.user_ctx                     = hdl;
-                dma_conf.cb_finish                    = dma_half_and_finish;
-                dma_conf.cb_half                      = dma_half_and_finish;
-                dma_conf.cb_next                      = NULL;
-                dma_conf.release                      = false;
-                dma_conf.data_number                  = uarthdl->DMA->buflen;
-                dma_conf.peripheral_address           = cast(u32_t, &UART[hdl->major].UART->RDR);
+                dma_conf.IRQ_priority = __CPU_DEFAULT_IRQ_PRIORITY__;
+                dma_conf.user_ctx = hdl;
+                dma_conf.cb_finish = dma_half_and_finish;
+                dma_conf.cb_half = dma_half_and_finish;
+                dma_conf.cb_next = NULL;
+                dma_conf.release = false;
+                dma_conf.data_number = uarthdl->DMA->buflen;
+                dma_conf.peripheral_address = cast(u32_t, &UART[hdl->major].UART->RDR);
 #if defined(ARCH_stm32f1) || defined(ARCH_stm32f3)
-                dma_conf.memory_address               = cast(u32_t, uarthdl->DMA->buf);
+                dma_conf.memory_address = cast(u32_t, uarthdl->DMA->buf);
 #elif defined(ARCH_stm32f4) || defined(ARCH_stm32f7) || defined(ARCH_stm32h7)
-                dma_conf.memory_address[0]            = cast(u32_t, uarthdl->DMA->buf);
-                dma_conf.memory_address[1]            = 0;
+                dma_conf.memory_address[0] = cast(u32_t, uarthdl->DMA->buf);
+                dma_conf.memory_address[1] = 0;
 #endif
-                dma_conf.priority_level               = _DMA_DDI_PRIORITY_LEVEL_HIGH;
-                dma_conf.memory_data_size             = _DMA_DDI_MEMORY_DATA_SIZE_BYTE;
-                dma_conf.peripheral_data_size         = _DMA_DDI_PERIPHERAL_DATA_SIZE_BYTE;
-                dma_conf.memory_address_increment     = _DMA_DDI_MEMORY_ADDRESS_POINTER_INCREMENTED;
+                dma_conf.priority_level = _DMA_DDI_PRIORITY_LEVEL_HIGH;
+                dma_conf.memory_data_size = _DMA_DDI_MEMORY_DATA_SIZE_BYTE;
+                dma_conf.peripheral_data_size = _DMA_DDI_PERIPHERAL_DATA_SIZE_BYTE;
+                dma_conf.memory_address_increment = _DMA_DDI_MEMORY_ADDRESS_POINTER_INCREMENTED;
                 dma_conf.peripheral_address_increment = _DMA_DDI_PERIPHERAL_ADDRESS_POINTER_IS_FIXED;
-                dma_conf.circular_mode                = _DMA_DDI_CIRCULAR_MODE_ENABLED;
-                dma_conf.transfer_direction           = _DMA_DDI_TRANSFER_DIRECTION_PERIPHERAL_TO_MEMORY;
+                dma_conf.circular_mode = _DMA_DDI_CIRCULAR_MODE_ENABLED;
+                dma_conf.transfer_direction = _DMA_DDI_TRANSFER_DIRECTION_PERIPHERAL_TO_MEMORY;
 #if defined(ARCH_stm32f4) || defined(ARCH_stm32f7) || defined(ARCH_stm32h7)
-                dma_conf.memory_burst                 = _DMA_DDI_MEMORY_BURST_SINGLE_TRANSFER;
-                dma_conf.peripheral_burst             = _DMA_DDI_PERIPHERAL_BURST_SINGLE_TRANSFER;
-                dma_conf.double_buffer_mode           = _DMA_DDI_DOUBLE_BUFFER_MODE_DISABLED;
-                dma_conf.flow_controller              = _DMA_DDI_FLOW_CONTROLLER_DMA;
-                dma_conf.peripheral_increment_offset  = _DMA_DDI_PERIPHERAL_INCREMENT_OFFSET_ACCORDING_TO_PERIPHERAL_SIZE;
-                dma_conf.channel                      = UART[hdl->major].DMA_channel;
-                dma_conf.mode                         = _DMA_DDI_MODE_DIRECT;
-        #if defined(ARCH_stm32h7)
-                dma_conf.bufferable_transfer          = _DMA_DDI_BUFFERABLE_TRANSFER_ENABLED;
-        #endif
+                dma_conf.memory_burst = _DMA_DDI_MEMORY_BURST_SINGLE_TRANSFER;
+                dma_conf.peripheral_burst = _DMA_DDI_PERIPHERAL_BURST_SINGLE_TRANSFER;
+                dma_conf.double_buffer_mode = _DMA_DDI_DOUBLE_BUFFER_MODE_DISABLED;
+                dma_conf.flow_controller = _DMA_DDI_FLOW_CONTROLLER_DMA;
+                dma_conf.peripheral_increment_offset =
+                        _DMA_DDI_PERIPHERAL_INCREMENT_OFFSET_ACCORDING_TO_PERIPHERAL_SIZE;
+                dma_conf.channel = UART[hdl->major].DMA_channel;
+                dma_conf.mode = _DMA_DDI_MODE_DIRECT;
+#if defined(ARCH_stm32h7)
+                dma_conf.bufferable_transfer = _DMA_DDI_BUFFERABLE_TRANSFER_ENABLED;
+#endif
 #endif
                 _DMA_DDI_transfer(uarthdl->DMA->desc, &dma_conf);
 
@@ -1045,16 +1048,16 @@ static void IRQ_handle(u8_t major)
 
         /* IDLE line interrupt handler */
         if ((DEV->UART->CR1 & USART_CR1_IDLEIE) && (DEV->UART->SR & (USART_SR_IDLE))) {
-                #if defined(ARCH_stm32f1) || defined(ARCH_stm32f4)
+#if defined(ARCH_stm32f1) || defined(ARCH_stm32f4)
                 volatile u8_t DR = DEV->UART->RDR;
                 UNUSED_ARG1(DR);
-                #endif
+#endif
 
                 yield |= receive_from_DMA_buffer(hdl);
 
-                #if defined(ARCH_stm32f3) || defined(ARCH_stm32f7) || defined(ARCH_stm32h7)
+#if defined(ARCH_stm32f3) || defined(ARCH_stm32f7) || defined(ARCH_stm32h7)
                 WRITE_REG(DEV->UART->ICR, USART_ICR_IDLECF);
-                #endif
+#endif
         }
 
         /* receiver interrupt handler */
@@ -1066,11 +1069,11 @@ static void IRQ_handle(u8_t major)
                 sys_queue_send_from_ISR(hdl->rx_queue, &DR, &woken);
                 yield |= woken;
 
-                #if defined(ARCH_stm32f3) || defined(ARCH_stm32f7) || defined(ARCH_stm32h7)
+#if defined(ARCH_stm32f3) || defined(ARCH_stm32f7) || defined(ARCH_stm32h7)
                 if (DEV->UART->SR & USART_SR_ORE) {
                         WRITE_REG(DEV->UART->ICR, USART_ICR_ORECF);
                 }
-                #endif
+#endif
         }
 
         /* transmitter interrupt handler */

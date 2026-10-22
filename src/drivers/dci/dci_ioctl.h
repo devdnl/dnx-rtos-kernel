@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   Digital Camera Interface Driver
 
-        Copyright (C) 2017 Daniel Zorychta <daniel.zorychta>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -92,16 +92,16 @@ extern "C" {
  * @param  [RD] @ref DCI_params_t*        image parameters
  * @return On success 0 is returned, otherwise -1 and @ref errno code is set.
  */
-#define IOCTL_DCI__GET_PARAMS           _IOR(DCI, 0x00, DCI_params_t*)
+#define IOCTL_DCI__GET_PARAMS _IOR(DCI, 0x00, DCI_params_t *)
 
 /*==============================================================================
   Exported object types
 ==============================================================================*/
 typedef struct {
-        u16_t x_resolution;             /*!< X camera resolution */
-        u16_t y_resolution;             /*!< Y camera resolution */
-        u8_t  bytes_per_pixel;          /*!< Bytes per pixel     */
-        bool  JPEG_mode;                /*!< JPEG mode           */
+        u16_t x_resolution;   /*!< X camera resolution */
+        u16_t y_resolution;   /*!< Y camera resolution */
+        u8_t bytes_per_pixel; /*!< Bytes per pixel     */
+        bool JPEG_mode;       /*!< JPEG mode           */
 } DCI_params_t;
 
 /*==============================================================================

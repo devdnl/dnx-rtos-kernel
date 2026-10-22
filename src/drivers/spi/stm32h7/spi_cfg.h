@@ -5,7 +5,7 @@
 
 @brief   SPI driver configuration
 
-@note    Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -43,9 +43,9 @@ extern "C" {
 /*
  *  SPI default configuration (for all devices)
  */
-#define _SPI_DEFAULT_CFG_CLK_DIVIDER            __SPI_DEFAULT_CLK_DIV__
-#define _SPI_DEFAULT_CFG_MODE                   __SPI_DEFAULT_MODE__
-#define _SPI_DEFAULT_CFG_MSB_FIRST              __SPI_DEFAULT_MSB_FIRST__
+#define _SPI_DEFAULT_CFG_CLK_DIVIDER __SPI_DEFAULT_CLK_DIV__
+#define _SPI_DEFAULT_CFG_MODE        __SPI_DEFAULT_MODE__
+#define _SPI_DEFAULT_CFG_MSB_FIRST   __SPI_DEFAULT_MSB_FIRST__
 
 /*==============================================================================
   Exported object types

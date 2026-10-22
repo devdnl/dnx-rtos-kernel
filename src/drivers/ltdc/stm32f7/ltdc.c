@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   LCD-TFT Display Controller module
 
-        Copyright (C) 2022 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -50,13 +50,13 @@ _Static_assert(LTDC_PIXEL_FORMAT__AL88 == LTDC_PIXEL_FORMAT_AL88, "");
   Local object types
 ==============================================================================*/
 typedef struct {
-        u8_t               major;
-        u8_t               minor;
-        LTDC_config_t      config;
+        u8_t major;
+        u8_t minor;
+        LTDC_config_t config;
         LTDC_HandleTypeDef ltdc;
-        bool               user_framebuffer;
-        size_t             framebuffer_size;
-        void              *framebuffer;
+        bool user_framebuffer;
+        size_t framebuffer_size;
+        void *framebuffer;
 } LTDC_t;
 
 /*==============================================================================
@@ -71,13 +71,13 @@ MODULE_NAME(LTDC);
 
 static const u8_t PIXEL_FORMAT_TO_PIXEL_SIZE[] = {
         [LTDC_PIXEL_FORMAT__ARGB8888] = 4,
-        [LTDC_PIXEL_FORMAT__RGB888]   = 3,
-        [LTDC_PIXEL_FORMAT__RGB565]   = 2,
+        [LTDC_PIXEL_FORMAT__RGB888] = 3,
+        [LTDC_PIXEL_FORMAT__RGB565] = 2,
         [LTDC_PIXEL_FORMAT__ARGB1555] = 2,
         [LTDC_PIXEL_FORMAT__ARGB4444] = 2,
-        [LTDC_PIXEL_FORMAT__L8]       = 1,
-        [LTDC_PIXEL_FORMAT__AL44]     = 1,
-        [LTDC_PIXEL_FORMAT__AL88]     = 2,
+        [LTDC_PIXEL_FORMAT__L8] = 1,
+        [LTDC_PIXEL_FORMAT__AL44] = 1,
+        [LTDC_PIXEL_FORMAT__AL88] = 2,
 };
 
 /*==============================================================================
@@ -108,8 +108,8 @@ API_MOD_INIT(LTDC, void **device_handle, u8_t major, u8_t minor, const void *con
                 err = sys_zalloc(sizeof(LTDC_t), device_handle);
                 if (!err) {
                         LTDC_t *hdl = *device_handle;
-                        hdl->major  = major;
-                        hdl->minor  = minor;
+                        hdl->major = major;
+                        hdl->minor = minor;
 
                         if (config) {
                                 err = configure(hdl, config);
@@ -201,7 +201,7 @@ API_MOD_WRITE(LTDC, void *device_handle, const u8_t *src, size_t count, fpos_t *
 
         if (*fpos < hdl->framebuffer_size) {
                 size_t to_write = min(count, hdl->framebuffer_size - *fpos);
-                *wrctr          = to_write;
+                *wrctr = to_write;
                 memcpy(hdl->framebuffer + *fpos, src, to_write);
         } else {
                 *wrctr = 0;
@@ -224,8 +224,7 @@ API_MOD_WRITE(LTDC, void *device_handle, const u8_t *src, size_t count, fpos_t *
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(LTDC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdctr,
-        struct vfs_fattr fattr)
+API_MOD_READ(LTDC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdctr, struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
@@ -233,7 +232,7 @@ API_MOD_READ(LTDC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, s
 
         if (*fpos < hdl->framebuffer_size) {
                 size_t to_read = min(count, hdl->framebuffer_size - *fpos);
-                *rdctr         = to_read;
+                *rdctr = to_read;
                 memcpy(dst, hdl->framebuffer + *fpos, to_read);
         } else {
                 *rdctr = 0;
@@ -265,14 +264,14 @@ API_MOD_IOCTL(LTDC, void *device_handle, int request, void *arg)
                 break;
 
         case IOCTL_LTDC__GET_FEATURES: {
-                LTDC_features_t *feat  = arg;
-                feat->bits_per_pixel   = PIXEL_FORMAT_TO_PIXEL_SIZE[hdl->config.pixel_format] * BITS_IN_BYTE;
+                LTDC_features_t *feat = arg;
+                feat->bits_per_pixel = PIXEL_FORMAT_TO_PIXEL_SIZE[hdl->config.pixel_format] * BITS_IN_BYTE;
                 feat->framebuffer_addr = hdl->framebuffer;
                 feat->framebuffer_size = hdl->framebuffer_size;
-                feat->pixel_format     = hdl->config.pixel_format;
-                feat->width            = __LTDC_WIDTH__;
-                feat->height           = __LTDC_HEIGHT__;
-                err                    = 0;
+                feat->pixel_format = hdl->config.pixel_format;
+                feat->width = __LTDC_WIDTH__;
+                feat->height = __LTDC_HEIGHT__;
+                err = 0;
                 break;
         }
 
@@ -337,8 +336,7 @@ static int configure(LTDC_t *hdl, const LTDC_config_t *config)
                 return EINVAL;
         }
 
-        hdl->framebuffer_size = __LTDC_WIDTH__ * __LTDC_HEIGHT__ *
-                PIXEL_FORMAT_TO_PIXEL_SIZE[config->pixel_format];
+        hdl->framebuffer_size = __LTDC_WIDTH__ * __LTDC_HEIGHT__ * PIXEL_FORMAT_TO_PIXEL_SIZE[config->pixel_format];
 
         if (config->framebuffer_addr) {
                 if (config->framebuffer_size == 0) {
@@ -358,14 +356,13 @@ static int configure(LTDC_t *hdl, const LTDC_config_t *config)
         }
 
         if (config->framebuffer_addr) {
-                hdl->framebuffer      = config->framebuffer_addr;
+                hdl->framebuffer = config->framebuffer_addr;
                 hdl->user_framebuffer = true;
 
         } else {
                 const char *region[] = {config->mem_region_name, NULL};
 
-                err = sys_zalloc2(hdl->framebuffer_size, region, _MM_FLAG__DMA, _MM_FLAG__DMA,
-                        &hdl->framebuffer);
+                err = sys_zalloc2(hdl->framebuffer_size, region, _MM_FLAG__DMA, _MM_FLAG__DMA, &hdl->framebuffer);
                 if (err) {
                         return err;
                 }
@@ -378,44 +375,44 @@ static int configure(LTDC_t *hdl, const LTDC_config_t *config)
 
         dev_dbg(hdl, "framebuffer size: %ux%u px", __LTDC_WIDTH__, __LTDC_HEIGHT__);
 
-        hdl->ltdc.Instance        = LTDC;
+        hdl->ltdc.Instance = LTDC;
         hdl->ltdc.Init.HSPolarity = __LTDC_HSPOLARITY__;
         hdl->ltdc.Init.VSPolarity = __LTDC_VSPOLARITY__;
         hdl->ltdc.Init.DEPolarity = __LTDC_DEPOLARITY__;
         hdl->ltdc.Init.PCPolarity = __LTDC_PCPOLARITY__;
 
-        hdl->ltdc.Init.HorizontalSync     = __LTDC_HSYNC__ - 1U;
-        hdl->ltdc.Init.AccumulatedHBP     = (__LTDC_HSYNC__ + (__LTDC_HBP__ - 0U) - 1U);
+        hdl->ltdc.Init.HorizontalSync = __LTDC_HSYNC__ - 1U;
+        hdl->ltdc.Init.AccumulatedHBP = (__LTDC_HSYNC__ + (__LTDC_HBP__ - 0U) - 1U);
         hdl->ltdc.Init.AccumulatedActiveW = __LTDC_HSYNC__ + __LTDC_WIDTH__ + __LTDC_HBP__ - 1U;
         hdl->ltdc.Init.TotalWidth = __LTDC_HSYNC__ + __LTDC_WIDTH__ + (__LTDC_HBP__ - 0U) + __LTDC_HFP__ - 1U;
-        hdl->ltdc.Init.VerticalSync       = __LTDC_VSYNC__ - 1U;
-        hdl->ltdc.Init.AccumulatedVBP     = __LTDC_VSYNC__ + __LTDC_VBP__ - 1U;
+        hdl->ltdc.Init.VerticalSync = __LTDC_VSYNC__ - 1U;
+        hdl->ltdc.Init.AccumulatedVBP = __LTDC_VSYNC__ + __LTDC_VBP__ - 1U;
         hdl->ltdc.Init.AccumulatedActiveH = __LTDC_VSYNC__ + __LTDC_HEIGHT__ + __LTDC_VBP__ - 1U;
         hdl->ltdc.Init.TotalHeigh = __LTDC_VSYNC__ + __LTDC_HEIGHT__ + __LTDC_VBP__ + __LTDC_VFP__ - 1U;
 
-        hdl->ltdc.Init.Backcolor.Red   = config->background_color_R;
+        hdl->ltdc.Init.Backcolor.Red = config->background_color_R;
         hdl->ltdc.Init.Backcolor.Green = config->background_color_G;
-        hdl->ltdc.Init.Backcolor.Blue  = config->background_color_B;
+        hdl->ltdc.Init.Backcolor.Blue = config->background_color_B;
 
         err = HAL_LTDC_Init(&hdl->ltdc);
         if (!err) {
                 LTDC_LayerCfgTypeDef layer_cfg;
-                layer_cfg.WindowX0        = 0;
-                layer_cfg.WindowX1        = __LTDC_WIDTH__;
-                layer_cfg.WindowY0        = 0;
-                layer_cfg.WindowY1        = __LTDC_HEIGHT__;
-                layer_cfg.PixelFormat     = config->pixel_format;
-                layer_cfg.Alpha           = 255;
-                layer_cfg.Alpha0          = 0;
+                layer_cfg.WindowX0 = 0;
+                layer_cfg.WindowX1 = __LTDC_WIDTH__;
+                layer_cfg.WindowY0 = 0;
+                layer_cfg.WindowY1 = __LTDC_HEIGHT__;
+                layer_cfg.PixelFormat = config->pixel_format;
+                layer_cfg.Alpha = 255;
+                layer_cfg.Alpha0 = 0;
                 layer_cfg.BlendingFactor1 = LTDC_BLENDING_FACTOR1_PAxCA;
                 layer_cfg.BlendingFactor2 = LTDC_BLENDING_FACTOR2_PAxCA;
-                layer_cfg.FBStartAdress   = cast(u32_t, hdl->framebuffer);
-                layer_cfg.ImageWidth      = layer_cfg.WindowX1 - layer_cfg.WindowX0;
-                layer_cfg.ImageHeight     = layer_cfg.WindowY1 - layer_cfg.WindowY0;
-                layer_cfg.Backcolor.Blue  = 0;
+                layer_cfg.FBStartAdress = cast(u32_t, hdl->framebuffer);
+                layer_cfg.ImageWidth = layer_cfg.WindowX1 - layer_cfg.WindowX0;
+                layer_cfg.ImageHeight = layer_cfg.WindowY1 - layer_cfg.WindowY0;
+                layer_cfg.Backcolor.Blue = 0;
                 layer_cfg.Backcolor.Green = 0;
-                layer_cfg.Backcolor.Red   = 0;
-                err                       = HAL_LTDC_ConfigLayer(&hdl->ltdc, &layer_cfg, 0);
+                layer_cfg.Backcolor.Red = 0;
+                err = HAL_LTDC_ConfigLayer(&hdl->ltdc, &layer_cfg, 0);
         }
 
         if (err) {

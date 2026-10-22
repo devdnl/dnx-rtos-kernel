@@ -5,7 +5,7 @@
 
 @brief   File support system clokc (PLL).
 
-@note    Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -38,8 +38,8 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define TIMEOUT_MS                      250
-#define LSE_TIMEOUT_MS                  5000
+#define TIMEOUT_MS     250
+#define LSE_TIMEOUT_MS 5000
 
 /*==============================================================================
   Local types, enums definitions
@@ -48,10 +48,10 @@
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static void set_flash_latency       (u32_t latency);
-static void enable_prefetch_buffer  (void);
-static bool is_APB1_divided         (void);
-static bool is_APB2_divided         (void);
+static void set_flash_latency(u32_t latency);
+static void enable_prefetch_buffer(void);
+static bool is_APB1_divided(void);
+static bool is_APB2_divided(void);
 
 /*==============================================================================
   Local object definitions
@@ -169,12 +169,11 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         //----------------------------------------------------------------------
         // RTC clock selection
         //----------------------------------------------------------------------
-        if ( (  (__CLK_RTC_SRC__ == LL_RCC_RTC_CLKSOURCE_LSE && __CLK_LSE_ON__)
-             || (__CLK_RTC_SRC__ == LL_RCC_RTC_CLKSOURCE_LSI && __CLK_LSI_ON__)
-             || (__CLK_RTC_SRC__ == LL_RCC_RTC_CLKSOURCE_HSE_DIV32 && __CLK_HSE_ON__) )
+        if (((__CLK_RTC_SRC__ == LL_RCC_RTC_CLKSOURCE_LSE && __CLK_LSE_ON__) ||
+                    (__CLK_RTC_SRC__ == LL_RCC_RTC_CLKSOURCE_LSI && __CLK_LSI_ON__) ||
+                    (__CLK_RTC_SRC__ == LL_RCC_RTC_CLKSOURCE_HSE_DIV32 && __CLK_HSE_ON__))
 
-           && (RCC->BDCR & RCC_BDCR_RTCEN) == 0
-           && (RCC->BDCR & (RCC_BDCR_RTCSEL_1 | RCC_BDCR_RTCSEL_0)) == 0) {
+                && (RCC->BDCR & RCC_BDCR_RTCEN) == 0 && (RCC->BDCR & (RCC_BDCR_RTCSEL_1 | RCC_BDCR_RTCSEL_0)) == 0) {
 
                 SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);
                 SET_BIT(PWR->CR, PWR_CR_DBP);
@@ -186,8 +185,7 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         //----------------------------------------------------------------------
         if (__CLK_PLL_ON__) {
 
-                LL_RCC_PLL_ConfigDomain_SYS(__CLK_PLL_SRC__,
-                                            __CLK_PLL_N__, __CLK_PLL_SRC_DIV_M__);
+                LL_RCC_PLL_ConfigDomain_SYS(__CLK_PLL_SRC__, __CLK_PLL_N__, __CLK_PLL_SRC_DIV_M__);
 
                 LL_RCC_PLL_Enable();
 
@@ -226,36 +224,36 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         LL_RCC_SetI2CClockSource(__CLK_I2C1_SRC__);
         LL_RCC_SetI2CClockSource(__CLK_I2C2_SRC__);
 
-        //----------------------------------------------------------------------
-        // HDMI-CEC clock source
-        //----------------------------------------------------------------------
-        #if defined(CEC)
+//----------------------------------------------------------------------
+// HDMI-CEC clock source
+//----------------------------------------------------------------------
+#if defined(CEC)
         LL_RCC_SetCECClockSource(__CLK_CEC_SRC__);
-        #endif
+#endif
 
-        //----------------------------------------------------------------------
-        // USB & RND clock source
-        //----------------------------------------------------------------------
-        #if defined(USB)
+//----------------------------------------------------------------------
+// USB & RND clock source
+//----------------------------------------------------------------------
+#if defined(USB)
         LL_RCC_SetUSBClockSource(__CLK_USB_DIV__);
-        #endif
+#endif
 
-        //----------------------------------------------------------------------
-        // I2S clock source
-        //----------------------------------------------------------------------
-        #if defined(RCC_CFGR_I2SSRC)
+//----------------------------------------------------------------------
+// I2S clock source
+//----------------------------------------------------------------------
+#if defined(RCC_CFGR_I2SSRC)
         LL_RCC_SetI2SClockSource(__CLK_I2S_SRC__);
-        #endif
+#endif
 
-        //----------------------------------------------------------------------
-        // ADC clock source
-        //----------------------------------------------------------------------
-        #if defined(RCC_CFGR2_ADCPRE12)
+//----------------------------------------------------------------------
+// ADC clock source
+//----------------------------------------------------------------------
+#if defined(RCC_CFGR2_ADCPRE12)
         LL_RCC_SetADCClockSource(__CLK_ADC12_SRC__);
-        #endif
-        #if defined(RCC_CFGR2_ADCPRE34)
+#endif
+#if defined(RCC_CFGR2_ADCPRE34)
         LL_RCC_SetADCClockSource(__CLK_ADC34_SRC__);
-        #endif
+#endif
 
         sys_update_system_clocks();
 
@@ -327,13 +325,8 @@ API_MOD_CLOSE(CLK, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(CLK,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(CLK, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, src, count, fpos, wrcnt, fattr);
         return ENOTSUP;
@@ -353,13 +346,7 @@ API_MOD_WRITE(CLK,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(CLK,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(CLK, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, dst, count, fpos, rdcnt, fattr);
         return ENOTSUP;
@@ -469,56 +456,56 @@ API_MOD_IOCTL(CLK, void *device_handle, int request, void *arg)
                                 break;
 
                         case 14:
-                                #if defined(CEC)
+#if defined(CEC)
                                 clkinf->freq_Hz = LL_RCC_GetCECClockFreq(LL_RCC_CEC_CLKSOURCE);
-                                #else
+#else
                                 clkinf->freq_Hz = 0;
-                                #endif
+#endif
                                 clkinf->name = "CEC";
                                 break;
 
                         case 15:
-                                #if defined(USB)
+#if defined(USB)
                                 clkinf->freq_Hz = LL_RCC_GetUSBClockFreq(LL_RCC_USB_CLKSOURCE);
-                                #else
+#else
                                 clkinf->freq_Hz = 0;
-                                #endif
+#endif
                                 clkinf->name = "USB";
                                 break;
 
                         case 16:
-                                #if defined(RCC_CFGR_I2SSRC)
+#if defined(RCC_CFGR_I2SSRC)
                                 clkinf->freq_Hz = LL_RCC_GetI2SClockFreq(LL_RCC_I2S_CLKSOURCE);
-                                #else
+#else
                                 clkinf->freq_Hz = 0;
-                                #endif
+#endif
                                 clkinf->name = "I2S";
                                 break;
 
                         case 17:
-                                #if defined(RCC_CFGR_I2SSRC)
+#if defined(RCC_CFGR_I2SSRC)
                                 clkinf->freq_Hz = LL_RCC_GetI2SClockFreq(LL_RCC_I2S_CLKSOURCE);
-                                #else
+#else
                                 clkinf->freq_Hz = 0;
-                                #endif
+#endif
                                 clkinf->name = "I2S";
                                 break;
 
                         case 18:
-                                #if defined(RCC_CFGR2_ADCPRE12)
+#if defined(RCC_CFGR2_ADCPRE12)
                                 clkinf->freq_Hz = LL_RCC_GetADCClockFreq(LL_RCC_ADC12_CLKSOURCE);
-                                #else
+#else
                                 clkinf->freq_Hz = 0;
-                                #endif
+#endif
                                 clkinf->name = "ADC12";
                                 break;
 
                         case 19:
-                                #if defined(RCC_CFGR2_ADCPRE34)
+#if defined(RCC_CFGR2_ADCPRE34)
                                 clkinf->freq_Hz = LL_RCC_GetADCClockFreq(LL_RCC_ADC34_CLKSOURCE);
-                                #else
+#else
                                 clkinf->freq_Hz = 0;
-                                #endif
+#endif
                                 clkinf->name = "ADC34";
                                 break;
 

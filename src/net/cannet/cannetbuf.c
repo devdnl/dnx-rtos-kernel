@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   Socket buffer.
 
-        Copyright (C) 2021 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -37,24 +37,24 @@ Brief   Socket buffer.
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define CHAIN_BUFFER_LENGTH     32
+#define CHAIN_BUFFER_LENGTH 32
 
 /*==============================================================================
   Local object types
 ==============================================================================*/
 typedef struct data_chain {
         struct data_chain *next;
-        u8_t   seek;
-        u8_t   skip;
-        u8_t   buf[CHAIN_BUFFER_LENGTH];
+        u8_t seek;
+        u8_t skip;
+        u8_t buf[CHAIN_BUFFER_LENGTH];
 } data_chain_t;
 
 struct cannetbuf {
-        kmtx_t       *mutex;
+        kmtx_t *mutex;
         data_chain_t *begin;
         data_chain_t *end;
-        size_t        total_size;
-        size_t        max_capacity;
+        size_t total_size;
+        size_t max_capacity;
 };
 
 /*==============================================================================
@@ -91,18 +91,17 @@ int cannetbuf__create(cannetbuf_t **cannetbuf, size_t max_capacity)
 {
         cannetbuf_t *this = NULL;
 
-        int err = _kzalloc(_MM_NET, sizeof(cannetbuf_t), NULL, 0, 0, (void*)&this);
+        int err = _kzalloc(_MM_NET, sizeof(cannetbuf_t), NULL, 0, 0, (void *)&this);
 
         if (!err) {
                 err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &this->mutex);
 
                 if (!err) {
-                        this->max_capacity = (CEILING(max(CHAIN_BUFFER_LENGTH, max_capacity),
-                                                      CHAIN_BUFFER_LENGTH))
-                                           * CHAIN_BUFFER_LENGTH;
+                        this->max_capacity = (CEILING(max(CHAIN_BUFFER_LENGTH, max_capacity), CHAIN_BUFFER_LENGTH)) *
+                                CHAIN_BUFFER_LENGTH;
                         *cannetbuf = this;
                 } else {
-                        _kfree(_MM_NET, (void*)&this);
+                        _kfree(_MM_NET, (void *)&this);
                 }
         }
 
@@ -133,7 +132,7 @@ void cannetbuf__destroy(cannetbuf_t *cannetbuf)
 
                 sys_mutex_destroy(mtx);
 
-                _kfree(_MM_NET, (void*)&cannetbuf);
+                _kfree(_MM_NET, (void *)&cannetbuf);
         }
 }
 
@@ -178,7 +177,7 @@ int cannetbuf__write(cannetbuf_t *cannetbuf, const u8_t *data, size_t size)
 
                                 } else {
                                         data_chain_t *new_chain;
-                                        err = _kzalloc(_MM_NET, sizeof(*new_chain), NULL, 0, 0, (void*)&new_chain);
+                                        err = _kzalloc(_MM_NET, sizeof(*new_chain), NULL, 0, 0, (void *)&new_chain);
                                         if (!err) {
                                                 if (*chain) {
                                                         (*chain)->next = new_chain;
@@ -259,19 +258,19 @@ int cannetbuf__read(cannetbuf_t *cannetbuf, u8_t *data, size_t size, size_t *rdc
                                 data_chain_t *next = chain->next;
 
                                 size_t tocpy = chain->seek - chain->skip;
-                                       tocpy = min(tocpy, size);
+                                tocpy = min(tocpy, size);
 
                                 memcpy(data, &chain->buf[chain->skip], tocpy);
-                                data   += tocpy;
+                                data += tocpy;
                                 *rdctr += tocpy;
-                                size   -= tocpy;
+                                size -= tocpy;
 
                                 chain->skip += tocpy;
                                 cannetbuf->total_size -= tocpy;
 
                                 if (chain->skip >= chain->seek) {
 
-                                        _kfree(_MM_NET, (void*)&chain);
+                                        _kfree(_MM_NET, (void *)&chain);
 
                                         cannetbuf->begin = next;
 
@@ -306,12 +305,12 @@ void cannetbuf__clear(cannetbuf_t *cannetbuf)
 
                         while (chain) {
                                 data_chain_t *next = chain->next;
-                                _kfree(_MM_NET, (void*)&chain);
+                                _kfree(_MM_NET, (void *)&chain);
                                 chain = next;
                         }
 
-                        cannetbuf->begin      = NULL;
-                        cannetbuf->end        = NULL;
+                        cannetbuf->begin = NULL;
+                        cannetbuf->end = NULL;
                         cannetbuf->total_size = 0;
 
                         sys_mutex_unlock(cannetbuf->mutex);

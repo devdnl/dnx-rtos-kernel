@@ -5,7 +5,7 @@ Author   Daniel Zorychta
 
 Brief    EEPROM File System. File system for small memories 1-64KiB EEPROM.
 
-         Copyright (C) 2016 Daniel Zorychta <daniel.zorychta@gmail.com>
+         Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -86,7 +86,7 @@ Brief    EEPROM File System. File system for small memories 1-64KiB EEPROM.
 
 #define BMP_MAIN_BITS     (sizeof(((block_main_t *)0)->bitmap) * BLOCKS_IN_BYTE) // 952 blocks
 #define BMP_BLK_BITS      (sizeof(((block_bitmap_t *)0)->map) * BLOCKS_IN_BYTE)  // 976 blocks
-#define BITMAP_BLOCKS_MAX 67 // enough for 65535 blocks
+#define BITMAP_BLOCKS_MAX 67                                                     // enough for 65535 blocks
 #define FILE_HDR_DATA     sizeof(((block_file_t *)0)->data)
 #define FILE_BLK_DATA     sizeof(((block_file_data_t *)0)->data)
 #define FILE_SIZE_MAX     UINT16_MAX
@@ -341,8 +341,8 @@ static const char *path_get_basename(const char *path, size_t *len);
 static int dir_get_entry_params(EEFS_t *hdl, dir_entry_t **dirent, u8_t *items, u16_t *blknext);
 static int dir_set_next(EEFS_t *hdl, u16_t next);
 static int dir_add_chain(EEFS_t *hdl);
-static int dir_find_entry(EEFS_t *hdl, u16_t blkdir, const char *name, size_t len, dir_entry_t **entry,
-        u16_t *blkprev, u8_t *used);
+static int dir_find_entry(EEFS_t *hdl, u16_t blkdir, const char *name, size_t len, dir_entry_t **entry, u16_t *blkprev,
+        u8_t *used);
 static int dir_find_free_slot(EEFS_t *hdl, u16_t blkdir, dir_entry_t **slot);
 static int dir_detach_entry(EEFS_t *hdl, dir_entry_t *entry, u16_t blkprev, u8_t used);
 static int dir_update_items(EEFS_t *hdl, u16_t blkdir, int delta);
@@ -2350,8 +2350,8 @@ static int dir_add_chain(EEFS_t *hdl)
  * @return One of errno value.
  */
 //==============================================================================
-static int dir_find_entry(EEFS_t *hdl, u16_t blkdir, const char *name, size_t len, dir_entry_t **entry,
-        u16_t *blkprev, u8_t *used)
+static int dir_find_entry(EEFS_t *hdl, u16_t blkdir, const char *name, size_t len, dir_entry_t **entry, u16_t *blkprev,
+        u8_t *used)
 {
         u16_t guard = hdl->blocks;
         u16_t prev = 0;
@@ -2807,9 +2807,9 @@ static int dir_add_entry(EEFS_t *hdl, const char *path, uint32_t type, mode_t mo
         err = dir_find_free_slot(hdl, blkparent, &slot);
         if (!err) {
                 slot->block_addr = blkobj;
-                slot->type = (type == BLOCK_MAGIC_DIR)    ? ENTRY_TYPE_DIR
-                           : (type == BLOCK_MAGIC_FILE)   ? ENTRY_TYPE_FILE
-                                                          : ENTRY_TYPE_NODE;
+                slot->type = (type == BLOCK_MAGIC_DIR) ? ENTRY_TYPE_DIR
+                        : (type == BLOCK_MAGIC_FILE)   ? ENTRY_TYPE_FILE
+                                                       : ENTRY_TYPE_NODE;
                 memset(slot->name, 0, sizeof(slot->name));
                 memcpy(slot->name, name, namelen);
 
@@ -3627,10 +3627,10 @@ typedef struct {
         block_buf_t obj;
 } fs_check_t;
 
-#define CHK_MSG(chk, ...)                                                                                          \
-        do {                                                                                                       \
-                (chk)->problems++;                                                                                 \
-                MSG("check: "__VA_ARGS__);                                                                        \
+#define CHK_MSG(chk, ...)                  \
+        do {                               \
+                (chk)->problems++;         \
+                MSG("check: "__VA_ARGS__); \
         } while (0)
 
 //==============================================================================
@@ -3864,9 +3864,9 @@ static int chk_entry(EEFS_t *hdl, fs_check_t *chk, u16_t blkdir, dir_entry_t *e,
                 return err;
         }
 
-        u32_t expected = (e->type == ENTRY_TYPE_DIR)    ? BLOCK_MAGIC_DIR
-                       : (e->type == ENTRY_TYPE_FILE)   ? BLOCK_MAGIC_FILE
-                                                        : BLOCK_MAGIC_NODE;
+        u32_t expected = (e->type == ENTRY_TYPE_DIR) ? BLOCK_MAGIC_DIR
+                : (e->type == ENTRY_TYPE_FILE)       ? BLOCK_MAGIC_FILE
+                                                     : BLOCK_MAGIC_NODE;
 
         if (chk->obj.buf.dir.magic != expected) {
                 CHK_MSG(chk, "dir %u: '%s' type does not match block %u, removed", blkdir, e->name, addr);
@@ -4149,7 +4149,7 @@ static int chk_find_orphans(EEFS_t *hdl, fs_check_t *chk)
 
                                 u16_t p = chk->obj.buf.dir.parent;
                                 bool parent_orphan = (p < hdl->blocks) && (p != n) && chk_bit(chk->orphan, p) &&
-                                                     !chk_bit(chk->used, p);
+                                        !chk_bit(chk->used, p);
 
                                 if ((pass == 1) || !parent_orphan) {
                                         chk_set(chk->used, n, true); // orphan bit stays: to reconnect

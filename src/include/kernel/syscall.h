@@ -5,7 +5,7 @@
 
 @brief   System call handling
 
-@note    Copyright (C) 2015 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -41,8 +41,8 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
-#define REBOOT_TO_ADDRESS_KEY           0x3626681b
-#define REBOOT_TO_ADDRESS_VALIDATOR     0xdb526861
+#define REBOOT_TO_ADDRESS_KEY       0x3626681b
+#define REBOOT_TO_ADDRESS_VALIDATOR 0xdb526861
 
 /*==============================================================================
   Exported object types
@@ -59,13 +59,13 @@ struct reboot_to_address {
 extern struct _process *_kworker_proc;
 extern const char *const dnx_RTOS_version;
 extern const char *const dnx_RTOS_platform_name;
-extern struct reboot_to_address reboot_address __attribute__ ((section (".noinit")));
+extern struct reboot_to_address reboot_address __attribute__((section(".noinit")));
 
 /*==============================================================================
   Exported functions
 ==============================================================================*/
 extern int _syscall_init();
-extern int _syscall_kworker_process(int, char**);
+extern int _syscall_kworker_process(int, char **);
 
 /*==============================================================================
   Exported inline functions

@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   NVM driver
 
-        Copyright (C) 2022 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -48,26 +48,26 @@ Brief   NVM driver
 #define FLASH_CR_PSIZE_DOUBLE   ((1 * FLASH_CR_PSIZE_1) | (1 * FLASH_CR_PSIZE_0))
 
 #define FLASH_WORD_BYTES  (FLASH_NB_32BITWORD_IN_FLASHWORD * sizeof(u32_t))
-#define SECTOR_ADDRESS(n) (0x08000000UL + ((n)*FLASH_SECTOR_SIZE))
+#define SECTOR_ADDRESS(n) (0x08000000UL + ((n) * FLASH_SECTOR_SIZE))
 
 /*==============================================================================
   Local object types
 ==============================================================================*/
 typedef struct {
-        u8_t     major;
-        u8_t     minor;
-        kmtx_t  *mtx;
+        u8_t major;
+        u8_t minor;
+        kmtx_t *mtx;
         uint32_t start_sector;
         uint32_t sector_count;
         uint32_t total_size;
-        uint8_t  tmp_buf[FLASH_WORD_BYTES];
+        uint8_t tmp_buf[FLASH_WORD_BYTES];
 } NVM_t;
 
 typedef struct {
         uint32_t addr;
         uint32_t size;
-        uint8_t  bank;
-        uint8_t  sector;
+        uint8_t bank;
+        uint8_t sector;
 } sector_info_t;
 
 /*==============================================================================
@@ -75,12 +75,12 @@ typedef struct {
 ==============================================================================*/
 static void FLASH_unlock(NVM_t *hdl, u8_t bank);
 static void FLASH_lock(NVM_t *hdl, u8_t bank);
-static int  FLASH_erase_sector(NVM_t *hdl, u8_t bank, uint32_t sector);
-static int  FLASH_wait_for_operation_finish(NVM_t *hdl, u8_t bank);
-static int  FLASH_program_flash_word(NVM_t *hdl, u8_t bank, u32_t address, u32_t *data);
-static int  configure(NVM_t *hdl, const NVM_config_t *conf);
-static int  get_sector_info_by_addr(NVM_t *hdl, u32_t logic_addr, u8_t *sector_num,
-         size_t *offset, sector_info_t *sector_info);
+static int FLASH_erase_sector(NVM_t *hdl, u8_t bank, uint32_t sector);
+static int FLASH_wait_for_operation_finish(NVM_t *hdl, u8_t bank);
+static int FLASH_program_flash_word(NVM_t *hdl, u8_t bank, u32_t address, u32_t *data);
+static int configure(NVM_t *hdl, const NVM_config_t *conf);
+static int get_sector_info_by_addr(NVM_t *hdl, u32_t logic_addr, u8_t *sector_num, size_t *offset,
+        sector_info_t *sector_info);
 
 /*==============================================================================
   Local object
@@ -252,8 +252,8 @@ API_MOD_CLOSE(NVM, void *device_handle, bool force)
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_WRITE(NVM, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos,
-        size_t *wrcnt, struct vfs_fattr fattr)
+API_MOD_WRITE(NVM, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
@@ -270,8 +270,7 @@ API_MOD_WRITE(NVM, void *device_handle, const u8_t *src, size_t count, fpos_t *f
         }
 
         if (*fpos % FLASH_WORD_BYTES != 0) {
-                dev_dbg(hdl, "write pointer shall be aligned to Flash Word (%u bytes)",
-                        FLASH_WORD_BYTES);
+                dev_dbg(hdl, "write pointer shall be aligned to Flash Word (%u bytes)", FLASH_WORD_BYTES);
                 return EINVAL;
         }
 
@@ -289,11 +288,10 @@ API_MOD_WRITE(NVM, void *device_handle, const u8_t *src, size_t count, fpos_t *f
 
         while (not err and count) {
                 sector_info_t sector_info;
-                u8_t          sector_num;
-                size_t        offset;
+                u8_t sector_num;
+                size_t offset;
 
-                err = get_sector_info_by_addr(hdl, pos, &sector_num, &offset,
-                        &sector_info);
+                err = get_sector_info_by_addr(hdl, pos, &sector_num, &offset, &sector_info);
 
                 if (!err) {
                         uint32_t dst = sector_info.addr + offset;
@@ -305,8 +303,7 @@ API_MOD_WRITE(NVM, void *device_handle, const u8_t *src, size_t count, fpos_t *f
                                 src = hdl->tmp_buf;
                         }
 
-                        err = FLASH_program_flash_word(hdl, sector_info.bank, dst,
-                                cast(u32_t *, src));
+                        err = FLASH_program_flash_word(hdl, sector_info.bank, dst, cast(u32_t *, src));
 
                         if (not err) {
                                 size_t bytes = min(count, FLASH_WORD_BYTES);
@@ -339,8 +336,7 @@ API_MOD_WRITE(NVM, void *device_handle, const u8_t *src, size_t count, fpos_t *f
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(NVM, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
-        size_t *rdcnt, struct vfs_fattr fattr)
+API_MOD_READ(NVM, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
@@ -368,15 +364,14 @@ API_MOD_READ(NVM, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
 
         while (not err and count) {
                 sector_info_t sector_info;
-                u8_t          sector_num;
-                size_t        offset;
+                u8_t sector_num;
+                size_t offset;
 
-                err = get_sector_info_by_addr(hdl, pos, &sector_num, &offset,
-                        &sector_info);
+                err = get_sector_info_by_addr(hdl, pos, &sector_num, &offset, &sector_info);
 
                 if (!err) {
-                        uint32_t src   = sector_info.addr + offset;
-                        size_t   bytes = min(count, sector_info.size - offset);
+                        uint32_t src = sector_info.addr + offset;
+                        size_t bytes = min(count, sector_info.size - offset);
 
                         memcpy(dst, cast(uint8_t *, src), bytes);
 
@@ -467,7 +462,7 @@ API_MOD_IOCTL(NVM, void *device_handle, int request, void *arg)
 
                         if (secsz->sector < hdl->sector_count) {
                                 secsz->size = SECTOR_INFO[sector].size;
-                                err         = ESUCC;
+                                err = ESUCC;
                         }
                 }
                 break;
@@ -475,7 +470,7 @@ API_MOD_IOCTL(NVM, void *device_handle, int request, void *arg)
         case IOCTL_NVM__GET_SECTOR_COUNT:
                 if (arg) {
                         *cast(size_t *, arg) = hdl->sector_count;
-                        err                  = ESUCC;
+                        err = ESUCC;
                 }
                 break;
 
@@ -534,10 +529,8 @@ API_MOD_STAT(NVM, void *device_handle, struct vfs_dev_stat *device_stat)
 //==============================================================================
 static int configure(NVM_t *hdl, const NVM_config_t *conf)
 {
-        if ((conf->number_of_sectors == 0)
-                || (conf->start_sector >= ARRAY_SIZE(SECTOR_INFO))
-                || ((conf->start_sector + conf->number_of_sectors - 1)
-                        >= ARRAY_SIZE(SECTOR_INFO))) {
+        if ((conf->number_of_sectors == 0) || (conf->start_sector >= ARRAY_SIZE(SECTOR_INFO)) ||
+                ((conf->start_sector + conf->number_of_sectors - 1) >= ARRAY_SIZE(SECTOR_INFO))) {
 
                 return EINVAL;
         }
@@ -548,8 +541,8 @@ static int configure(NVM_t *hdl, const NVM_config_t *conf)
                 hdl->start_sector = conf->start_sector;
 
                 hdl->total_size = 0;
-                size_t sector   = hdl->start_sector;
-                size_t count    = hdl->sector_count;
+                size_t sector = hdl->start_sector;
+                size_t count = hdl->sector_count;
 
                 while (count--) {
                         hdl->total_size += SECTOR_INFO[sector].size;
@@ -574,15 +567,15 @@ static int configure(NVM_t *hdl, const NVM_config_t *conf)
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-static int get_sector_info_by_addr(NVM_t *hdl, u32_t logic_addr, u8_t *sector_num,
-        size_t *offset, sector_info_t *sector_info)
+static int get_sector_info_by_addr(NVM_t *hdl, u32_t logic_addr, u8_t *sector_num, size_t *offset,
+        sector_info_t *sector_info)
 {
         u8_t sector = logic_addr / FLASH_SECTOR_SIZE + hdl->start_sector;
 
         if (sector < ARRAY_SIZE(SECTOR_INFO)) {
-                *sector_num  = sector;
+                *sector_num = sector;
                 *sector_info = SECTOR_INFO[sector];
-                *offset      = logic_addr % FLASH_SECTOR_SIZE;
+                *offset = logic_addr % FLASH_SECTOR_SIZE;
                 return 0;
         } else {
                 return ENODEV;
@@ -602,8 +595,8 @@ static void FLASH_unlock(NVM_t *hdl, u8_t bank)
 
         sys_critical_section_begin();
 
-        volatile u32_t *CR   = (bank == 1) ? &FLASH->CR1 : &FLASH->CR2;
-        volatile u32_t *CCR  = (bank == 1) ? &FLASH->CCR1 : &FLASH->CCR2;
+        volatile u32_t *CR = (bank == 1) ? &FLASH->CR1 : &FLASH->CR2;
+        volatile u32_t *CCR = (bank == 1) ? &FLASH->CCR1 : &FLASH->CCR2;
         volatile u32_t *KEYR = (bank == 1) ? &FLASH->KEYR1 : &FLASH->KEYR2;
 
         WRITE_REG(*CCR, FLASH_CCR_CLR_INCERR | FLASH_CCR_CLR_PGSERR);
@@ -652,7 +645,7 @@ static int FLASH_erase_sector(NVM_t *hdl, u8_t bank, uint32_t sector)
                 FLASH_unlock(hdl, bank);
 
                 volatile u32_t *CR = (bank == 1) ? &FLASH->CR1 : &FLASH->CR2;
-                u32_t sector_mask  = ((sector << FLASH_CR_SNB_Pos) & FLASH_CR_SNB_Msk);
+                u32_t sector_mask = ((sector << FLASH_CR_SNB_Pos) & FLASH_CR_SNB_Msk);
 
                 CLEAR_BIT(*CR, FLASH_CR_PSIZE | FLASH_CR_SNB);
                 SET_BIT(*CR, FLASH_CR_PSIZE_WORD | FLASH_CR_SER | sector_mask);
@@ -702,9 +695,9 @@ static int FLASH_program_flash_word(NVM_t *hdl, u8_t bank, u32_t address, u32_t 
         __ISB();
         __DSB();
 
-        size_t             row_index = FLASH_NB_32BITWORD_IN_FLASHWORD;
+        size_t row_index = FLASH_NB_32BITWORD_IN_FLASHWORD;
         volatile uint32_t *dest_addr = cast(volatile uint32_t *, address);
-        volatile uint32_t *src_addr  = data;
+        volatile uint32_t *src_addr = data;
 
         while (row_index--) {
                 *dest_addr++ = *src_addr++;
@@ -723,12 +716,11 @@ static int FLASH_program_flash_word(NVM_t *hdl, u8_t bank, u32_t address, u32_t 
         if (!err) {
                 row_index = FLASH_NB_32BITWORD_IN_FLASHWORD;
                 dest_addr = cast(volatile uint32_t *, address);
-                src_addr  = data;
+                src_addr = data;
 
                 while (row_index--) {
                         if (*dest_addr++ != *src_addr++) {
-                                dev_dbg(hdl, "verification fail @ %p",
-                                        src_addr - 1);
+                                dev_dbg(hdl, "verification fail @ %p", src_addr - 1);
                                 err = EILSEQ;
                                 break;
                         }
@@ -757,7 +749,7 @@ static int FLASH_wait_for_operation_finish(NVM_t *hdl, u8_t bank)
 
         clock_t tref = sys_get_uptime_ms();
 
-        volatile u32_t *SR  = (bank == 1) ? &FLASH->SR1 : &FLASH->SR2;
+        volatile u32_t *SR = (bank == 1) ? &FLASH->SR1 : &FLASH->SR2;
         volatile u32_t *CCR = (bank == 1) ? &FLASH->CCR1 : &FLASH->CCR2;
 
         while (*SR & FLASH_SR_QW) {
@@ -767,10 +759,9 @@ static int FLASH_wait_for_operation_finish(NVM_t *hdl, u8_t bank)
                 }
         }
 
-        u32_t status = *SR
-                & (FLASH_SR_WRPERR | FLASH_SR_PGSERR | FLASH_SR_STRBERR | FLASH_SR_INCERR
-                        | FLASH_SR_OPERR | FLASH_SR_RDPERR | FLASH_SR_RDSERR
-                        | FLASH_SR_SNECCERR | FLASH_SR_DBECCERR | FLASH_SR_CRCRDERR);
+        u32_t status = *SR &
+                (FLASH_SR_WRPERR | FLASH_SR_PGSERR | FLASH_SR_STRBERR | FLASH_SR_INCERR | FLASH_SR_OPERR |
+                        FLASH_SR_RDPERR | FLASH_SR_RDSERR | FLASH_SR_SNECCERR | FLASH_SR_DBECCERR | FLASH_SR_CRCRDERR);
 
         if (status & FLASH_SR_WRPERR) {
                 dev_dbg(hdl, "write protection error");

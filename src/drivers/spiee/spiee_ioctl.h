@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   SPI EEPROM
 
-        Copyright (C) 2019 Daniel Zorychta <>
+        Copyright (C) 2026 Daniel Zorychta <>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -133,14 +133,14 @@ extern "C" {
  * @param  [WR] @ref SPIEE_config_t*            driver configuration.
  * @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_SPIEE__CONFIGURE          _IOW(SPIEE, 0x00, SPIEE_config_t*)
+#define IOCTL_SPIEE__CONFIGURE _IOW(SPIEE, 0x00, SPIEE_config_t *)
 
 /**
  * @brief  SPI EEPROM driver configuration by using string.
  * @param  [WR] const char*             configuration string
  * @return On success 0 is returned, otherwise -1 and @ref errno code is set.
  */
-#define IOCTL_SPIEE__CONFIGURE_STR      IOCTL_DEVICE__CONFIGURE_STR
+#define IOCTL_SPIEE__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
 /*==============================================================================
   Exported object types
@@ -149,21 +149,21 @@ extern "C" {
  * Type defines possible number of bytes of address.
  */
 typedef enum {
-        SPIEE_ADDR__1_BYTE   = 1,        //!< Address is 1 byte long.
-        SPIEE_ADDR__2_BYTES  = 2,        //!< Address is 2 byte long.
-        SPIEE_ADDR__3_BYTES  = 3,        //!< Address is 3 byte long.
-        SPIEE_ADDR__4_BYTES  = 4,        //!< Address is 4 byte long.
+        SPIEE_ADDR__1_BYTE = 1,  //!< Address is 1 byte long.
+        SPIEE_ADDR__2_BYTES = 2, //!< Address is 2 byte long.
+        SPIEE_ADDR__3_BYTES = 3, //!< Address is 3 byte long.
+        SPIEE_ADDR__4_BYTES = 4, //!< Address is 4 byte long.
 } SPIEE_addr_t;
 
 /**
  * Type represent driver configuration.
  */
 typedef struct {
-        const char *spi_path;           /*!< SPI device file */
-        u32_t memory_size;              /*!< Memory size in bytes */
-        u16_t page_size;                /*!< EEPROM page size in bytes */
-        SPIEE_addr_t address_size;      /*!< Number of address bytes (1..4) */
-        u32_t timeout_ms;               /*!< Operation timeout */
+        const char *spi_path;      /*!< SPI device file */
+        u32_t memory_size;         /*!< Memory size in bytes */
+        u16_t page_size;           /*!< EEPROM page size in bytes */
+        SPIEE_addr_t address_size; /*!< Number of address bytes (1..4) */
+        u32_t timeout_ms;          /*!< Operation timeout */
 } SPIEE_config_t;
 
 /*==============================================================================

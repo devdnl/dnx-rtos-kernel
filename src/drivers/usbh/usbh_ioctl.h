@@ -92,27 +92,27 @@ extern "C" {
  *  @param  [RD] usbh_buf_t*
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_USBH__GET_MANUFACTURER_STRING     _IOR(USBH, 0x00, usbh_buf_t*)
+#define IOCTL_USBH__GET_MANUFACTURER_STRING _IOR(USBH, 0x00, usbh_buf_t *)
 
 /**
  *  @brief  Return product string.
  *  @param  [RD] usbh_buf_t*
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_USBH__GET_PRODUCT_STRING          _IOR(USBH, 0x01, usbh_buf_t*)
+#define IOCTL_USBH__GET_PRODUCT_STRING _IOR(USBH, 0x01, usbh_buf_t *)
 
 /**
  *  @brief  Return serial string.
  *  @param  [RD] usbh_buf_t*
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_USBH__GET_SERIAL_STRING           _IOR(USBH, 0x02, usbh_buf_t*)
+#define IOCTL_USBH__GET_SERIAL_STRING _IOR(USBH, 0x02, usbh_buf_t *)
 
 /*==============================================================================
   Exported object types
 ==============================================================================*/
 typedef struct {
-        char  *ptr;
+        char *ptr;
         size_t len;
 } usbh_buf_t;
 

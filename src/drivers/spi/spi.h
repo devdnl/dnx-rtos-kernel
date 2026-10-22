@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   SPI driver.
 
-        Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -147,28 +147,28 @@ enum {
 
 /* independent SPI instance */
 struct SPI_slave {
-        dev_lock_t   lock;
-        u8_t         major;
-        u8_t         minor;
+        dev_lock_t lock;
+        u8_t major;
+        u8_t minor;
         SPI_config_t config;
 };
 
 /* general module data */
 struct SPI {
-        ksem_t           *wait_irq_sem;
-        kmtx_t           *periph_protect_mtx;
+        ksem_t *wait_irq_sem;
+        kmtx_t *periph_protect_mtx;
         struct SPI_slave *current_slave;
-        const u8_t       *tx_buffer;
-        u8_t             *rx_buffer;
-        size_t            count;
-        dev_lock_t        RAW_mode;
-        u8_t              flush_byte;
-        u8_t              slave_count;
-        bool              irq_yield;
+        const u8_t *tx_buffer;
+        u8_t *rx_buffer;
+        size_t count;
+        dev_lock_t RAW_mode;
+        u8_t flush_byte;
+        u8_t slave_count;
+        bool irq_yield;
 
 #if defined(ARCH_stm32h7)
         SPI_HandleTypeDef hspi;
-        u8_t              mode;
+        u8_t mode;
 #endif
 };
 
@@ -180,10 +180,9 @@ extern struct SPI *_SPI[];
 /*==============================================================================
   Exported functions
 ==============================================================================*/
-extern int  _SPI_LLD__turn_on(u8_t major);
+extern int _SPI_LLD__turn_on(u8_t major);
 extern void _SPI_LLD__turn_off(u8_t major);
-extern int  _SPI_LLD__transceive(struct SPI_slave *hdl, const u8_t *txbuf, u8_t *rxbuf,
-         size_t count);
+extern int _SPI_LLD__transceive(struct SPI_slave *hdl, const u8_t *txbuf, u8_t *rxbuf, size_t count);
 extern void _SPI_LLD__apply_config(struct SPI_slave *hdl);
 extern void _SPI_LLD__halt(u8_t major);
 

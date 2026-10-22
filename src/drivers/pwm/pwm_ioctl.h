@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   PWM driver
 
-        Copyright (C) 2018 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -142,42 +142,42 @@ extern "C" {
  *  @param  [WR] PWM_const_t*   configuration object
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_PWM__SET_CONFIGURATION    _IOW(PWM, 0x00, const PWM_config_t*)
+#define IOCTL_PWM__SET_CONFIGURATION _IOW(PWM, 0x00, const PWM_config_t *)
 
 /**
  *  @brief  Return base frequency of timer.
  *  @param  [RD] uint32_t*      frequency in Hz
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_PWM__GET_BASE_FREQUENCY   _IOR(PWM, 0x01, uint32_t*)
+#define IOCTL_PWM__GET_BASE_FREQUENCY _IOR(PWM, 0x01, uint32_t *)
 
 /**
  *  @brief  Set PWM value (duty).
  *  @param  [WR] uint16_t*      PWM value
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_PWM__SET_VALUE            _IOW(PWM, 0x02, uint16_t*)
+#define IOCTL_PWM__SET_VALUE _IOW(PWM, 0x02, uint16_t *)
 
 /**
  *  @brief  Get PWM value (duty).
  *  @param  [RD] uint16_t*      PWM value
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_PWM__GET_VALUE            _IOR(PWM, 0x03, uint16_t*)
+#define IOCTL_PWM__GET_VALUE _IOR(PWM, 0x03, uint16_t *)
 
 /**
  *  @brief  Get PWM reload (top).
  *  @param  [RD] uint16_t*      PWM reload
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_PWM__GET_RELOAD           _IOR(PWM, 0x04, uint16_t*)
+#define IOCTL_PWM__GET_RELOAD _IOR(PWM, 0x04, uint16_t *)
 
 /**
  *  @brief  Auto adjust of PWM output frequency.
  *  @param  [WR] PWM_auto_adjust_t*     auto adjust configuration object
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_PWM__AUTO_ADJUST          _IOW(PWM, 0x05, const PWM_auto_adjust_t*)
+#define IOCTL_PWM__AUTO_ADJUST _IOW(PWM, 0x05, const PWM_auto_adjust_t *)
 
 /*==============================================================================
   Exported object types
@@ -186,16 +186,16 @@ extern "C" {
  * Type represent PWM configuration object.
  */
 typedef struct {
-        uint16_t reload;        /*!< Reload value (top) */
-        uint16_t prescaler;     /*!< Prescaler (divider) */
+        uint16_t reload;    /*!< Reload value (top) */
+        uint16_t prescaler; /*!< Prescaler (divider) */
 } PWM_config_t;
 
 /**
  * Type represent PWM auto adjust configuration object.
  */
 typedef struct {
-        uint32_t frequency;     /*!< Target PWM frequency in Hz */
-        uint16_t reload;        /*!< PWM reload value (top) */
+        uint32_t frequency; /*!< Target PWM frequency in Hz */
+        uint16_t reload;    /*!< PWM reload value (top) */
 } PWM_auto_adjust_t;
 
 /*==============================================================================

@@ -5,7 +5,7 @@
 
 @brief   This driver support I2C peripherals.
 
-@note    Copyright (C) 2017  Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026  Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define ACCESS_TIMEOUT         30000
+#define ACCESS_TIMEOUT 30000
 
 /*==============================================================================
   Local types, enums definitions
@@ -57,12 +57,10 @@ static int configure(I2C_dev_t *hdl, const I2C_config_t *config);
 MODULE_NAME(I2C);
 
 /// default peripheral configuration
-static const I2C_config_t I2C_DEFAULT_CFG = {
-        .address       = 0x00,
-        .addr_10bit    = false,
+static const I2C_config_t I2C_DEFAULT_CFG = {.address = 0x00,
+        .addr_10bit = false,
         .sub_addr_mode = I2C_SUB_ADDR_MODE__DISABLED,
-        .mode          = I2C_MODE__MASTER
-};
+        .mode = I2C_MODE__MASTER};
 
 /// main memory of module
 I2C_mem_t *_I2C[_I2C_NUMBER_OF_PERIPHERALS];
@@ -97,7 +95,7 @@ API_MOD_INIT(I2C, void **device_handle, u8_t major, u8_t minor, const void *conf
 
         /* creates basic module structures */
         if (_I2C[major] == NULL) {
-                err = sys_zalloc(sizeof(I2C_mem_t), cast(void**, &_I2C[major]));
+                err = sys_zalloc(sizeof(I2C_mem_t), cast(void **, &_I2C[major]));
                 if (err) {
                         goto finish;
                 }
@@ -124,9 +122,9 @@ API_MOD_INIT(I2C, void **device_handle, u8_t major, u8_t minor, const void *conf
         err = sys_zalloc(sizeof(I2C_dev_t), device_handle);
         if (!err) {
                 I2C_dev_t *hdl = *device_handle;
-                hdl->config    = I2C_DEFAULT_CFG;
-                hdl->major     = major;
-                hdl->minor     = minor;
+                hdl->config = I2C_DEFAULT_CFG;
+                hdl->major = major;
+                hdl->minor = minor;
 
                 if (!err && config) {
                         err = configure(hdl, config);
@@ -139,7 +137,7 @@ API_MOD_INIT(I2C, void **device_handle, u8_t major, u8_t minor, const void *conf
                 }
         }
 
-        finish:
+finish:
         if (err) {
                 release_resources(major);
         }
@@ -220,13 +218,8 @@ API_MOD_CLOSE(I2C, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(I2C,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(I2C, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
@@ -263,7 +256,7 @@ API_MOD_WRITE(I2C,
                                 dev_dbg(hdl, "transmit data error %d", err);
                         }
 
-                        error:
+                error:
                         _I2C_LLD__master_stop(hdl);
                 }
 
@@ -291,13 +284,7 @@ API_MOD_WRITE(I2C,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(I2C,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(I2C, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
@@ -346,7 +333,7 @@ API_MOD_READ(I2C,
                                 dev_dbg(hdl, "receive data error %d", err);
                         }
 
-                        error:
+                error:
                         _I2C_LLD__master_stop(hdl);
                 }
 
@@ -374,7 +361,7 @@ API_MOD_READ(I2C,
 API_MOD_IOCTL(I2C, void *device_handle, int request, void *arg)
 {
         I2C_dev_t *hdl = device_handle;
-        int        err = EINVAL;
+        int err = EINVAL;
 
         if (arg) {
                 switch (request) {
@@ -395,9 +382,10 @@ API_MOD_IOCTL(I2C, void *device_handle, int request, void *arg)
                 case IOCTL_I2C__CONFIGURE_STR:
                         err = sys_mutex_lock(_I2C[hdl->major]->lock_mtx, ACCESS_TIMEOUT);
                         if (!err) {
-                                hdl->config.addr_10bit    = sys_stropt_get_bool(arg, "addr_10bit", false);
-                                hdl->config.address       = sys_stropt_get_int(arg, "address", 0);
-                                hdl->config.mode          = sys_stropt_get_bool(arg, "slave", false) ? I2C_MODE__SLAVE : I2C_MODE__MASTER;
+                                hdl->config.addr_10bit = sys_stropt_get_bool(arg, "addr_10bit", false);
+                                hdl->config.address = sys_stropt_get_int(arg, "address", 0);
+                                hdl->config.mode = sys_stropt_get_bool(arg, "slave", false) ? I2C_MODE__SLAVE
+                                                                                            : I2C_MODE__MASTER;
                                 hdl->config.sub_addr_mode = sys_stropt_get_int(arg, "sub_addr_mode", 0);
 
                                 err = _I2C_LLD__slave_mode_setup(hdl);
@@ -408,7 +396,7 @@ API_MOD_IOCTL(I2C, void *device_handle, int request, void *arg)
                 case IOCTL_I2C__CONFIGURE_RECOVERY:
                         err = sys_mutex_lock(_I2C[hdl->major]->lock_mtx, ACCESS_TIMEOUT);
                         if (!err) {
-                                _I2C[hdl->major]->recovery = *cast(const I2C_recovery_t*, arg);
+                                _I2C[hdl->major]->recovery = *cast(const I2C_recovery_t *, arg);
                                 sys_mutex_unlock(_I2C[hdl->major]->lock_mtx);
                         }
                         break;
@@ -452,7 +440,7 @@ API_MOD_STAT(I2C, void *device_handle, struct vfs_dev_stat *device_stat)
 {
         I2C_dev_t *hdl = device_handle;
 
-        device_stat->st_size  = 0;
+        device_stat->st_size = 0;
         device_stat->st_major = hdl->major;
         device_stat->st_minor = hdl->minor;
 
@@ -483,7 +471,7 @@ static void release_resources(u8_t major)
                         _I2C_LLD__release(major);
                 }
 
-                sys_free(cast(void**, &_I2C[major]));
+                sys_free(cast(void **, &_I2C[major]));
         }
 }
 
@@ -500,8 +488,8 @@ static void release_resources(u8_t major)
 //==============================================================================
 static int send_subaddress(I2C_dev_t *hdl, u32_t address, I2C_sub_addr_mode_t mode)
 {
-        int  err = 0;
-        u8_t n   = 0;
+        int err = 0;
+        u8_t n = 0;
         u8_t addr[4];
 
         if (mode >= I2C_SUB_ADDR_MODE__4_BYTES) {

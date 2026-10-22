@@ -5,7 +5,7 @@
 
 @brief   File support creating of pipies in file systems.
 
-@note    Copyright (C) 2014-2015 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -39,16 +39,16 @@
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define CLOSED          (1<<0)
-#define PERMANENT       (1<<1)
+#define CLOSED    (1 << 0)
+#define PERMANENT (1 << 1)
 
 /*==============================================================================
   Local object types
 ==============================================================================*/
 struct pipe {
-        kqueue_t    *queue;
+        kqueue_t *queue;
         struct pipe *self;
-        u32_t        flag;
+        u32_t flag;
 };
 
 /*==============================================================================
@@ -59,7 +59,7 @@ struct pipe {
   Local objects
 ==============================================================================*/
 #if __OS_ENABLE_MKFIFO__ == _YES_
-static const u32_t PIPE_READ_TIMEOUT  = _WAIT_FOREVER_MS;
+static const u32_t PIPE_READ_TIMEOUT = _WAIT_FOREVER_MS;
 static const u32_t PIPE_WRITE_TIMEOUT = _WAIT_FOREVER_MS;
 #endif
 
@@ -104,7 +104,7 @@ int _pipe_create(pipe_t **pipe)
         int err = EINVAL;
 
         if (pipe) {
-                err = _kmalloc(_MM_KRN, sizeof(pipe_t), NULL, 0, 0, cast(void**, pipe));
+                err = _kmalloc(_MM_KRN, sizeof(pipe_t), NULL, 0, 0, cast(void **, pipe));
                 if (!err) {
 
                         err = _queue_create(__OS_PIPE_LENGTH__, sizeof(u8_t), &(*pipe)->queue);
@@ -112,7 +112,7 @@ int _pipe_create(pipe_t **pipe)
                                 (*pipe)->self = *pipe;
                                 (*pipe)->flag = 0;
                         } else {
-                                _kfree(_MM_KRN, cast(void**, pipe));
+                                _kfree(_MM_KRN, cast(void **, pipe));
                         }
                 }
         }
@@ -139,7 +139,7 @@ int _pipe_destroy(pipe_t *pipe)
         if (is_valid(pipe)) {
                 _queue_destroy(pipe->queue);
                 pipe->self = NULL;
-                _kfree(_MM_KRN, cast(void**, &pipe));
+                _kfree(_MM_KRN, cast(void **, &pipe));
                 return ESUCC;
         } else {
                 return EINVAL;
@@ -280,7 +280,7 @@ int _pipe_close(pipe_t *pipe)
 #if __OS_ENABLE_MKFIFO__ == _YES_
         if (is_valid(pipe)) {
 
-                if (not (pipe->flag & PERMANENT)) {
+                if (not(pipe->flag & PERMANENT)) {
                         pipe->flag |= CLOSED;
 
                         u8_t nul = '\0';

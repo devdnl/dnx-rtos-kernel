@@ -5,7 +5,7 @@
 
 @brief   Miscellaneous macros and functions
 
-@note    Copyright (C) 2014 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -551,7 +551,7 @@ extern "C" {
  * @brief Macro tells compiler that selected structure is packed.
  */
 //==============================================================================
-#if defined (__GNUC__)
+#if defined(__GNUC__)
 #define PACKED __attribute__((packed))
 #else
 #error UNKNOWN COMPILER
@@ -563,7 +563,7 @@ extern "C" {
  * @note  Macro should be used only for positive values.
  */
 //==============================================================================
-#define CEILING(x,y) (((x) + (y) - 1) / (y))
+#define CEILING(x, y) (((x) + (y) - 1) / (y))
 
 //==============================================================================
 /**
@@ -571,7 +571,10 @@ extern "C" {
  *        user-defined label.
  */
 //==============================================================================
-#define catcherr(op, errlabel) if ((op) != 0) {goto errlabel;}
+#define catcherr(op, errlabel) \
+        if ((op) != 0) {       \
+                goto errlabel; \
+        }
 
 //==============================================================================
 /**
@@ -612,7 +615,7 @@ extern "C" {
  */
 //==============================================================================
 #ifndef offsetof
-#define offsetof(TYPE, MEMBER) __builtin_offsetof (TYPE, MEMBER)
+#define offsetof(TYPE, MEMBER) __builtin_offsetof(TYPE, MEMBER)
 #endif
 
 //==============================================================================
@@ -627,9 +630,11 @@ extern "C" {
  */
 //==============================================================================
 #ifndef container_of
-#define container_of(ptr, type, member) ({                      \
-        const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
-        (type *)( (char *)__mptr - offsetof(type,member) );})
+#define container_of(ptr, type, member)                            \
+        ({                                                         \
+                const typeof(((type *)0)->member) *__mptr = (ptr); \
+                (type *)((char *)__mptr - offsetof(type, member)); \
+        })
 #endif
 
 /*==============================================================================

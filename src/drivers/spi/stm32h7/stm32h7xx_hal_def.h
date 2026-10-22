@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   FDCAN HAL definitions.
 
-        Copyright (C) 2022 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -55,16 +55,16 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
-#define HAL_MAX_DELAY                   _WAIT_FOREVER_MS
-#define __HAL_UNLOCK(heth)              (heth->Lock = HAL_UNLOCKED)
-#define __HAL_LOCK(heth)                (heth->Lock = HAL_LOCKED)
+#define HAL_MAX_DELAY      _WAIT_FOREVER_MS
+#define __HAL_UNLOCK(heth) (heth->Lock = HAL_UNLOCKED)
+#define __HAL_LOCK(heth)   (heth->Lock = HAL_LOCKED)
 
 #ifndef UNUSED
-#define UNUSED(_x)                      UNUSED_ARG1(_x)
+#define UNUSED(_x) UNUSED_ARG1(_x)
 #endif
 
-#define HAL_IS_BIT_SET(reg, bit)        ((reg) & (bit))
-#define HAL_IS_BIT_CLR(reg, bit)        (!HAL_IS_BIT_SET(reg, bit))
+#define HAL_IS_BIT_SET(reg, bit) ((reg) & (bit))
+#define HAL_IS_BIT_CLR(reg, bit) (!HAL_IS_BIT_SET(reg, bit))
 
 /*==============================================================================
   Exported object types

@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   General usage DMA driver.
 
-        Copyright (C) 2020 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -130,15 +130,15 @@ extern "C" {
  *  @param  [WR,RD] @ref DMA_transfer_t*        DMA transfer descriptor
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_DMA__TRANSFER             _IOWR(DMA, 0x00, const DMA_transfer_t*)
+#define IOCTL_DMA__TRANSFER _IOWR(DMA, 0x00, const DMA_transfer_t *)
 
 /*==============================================================================
   Exported object types
 ==============================================================================*/
 typedef struct {
-        u8_t  *src;     /*!< Source address. */
-        u8_t  *dst;     /*!< Destination address. */
-        size_t size;    /*!< Transfer size in bytes. */
+        u8_t *src;   /*!< Source address. */
+        u8_t *dst;   /*!< Destination address. */
+        size_t size; /*!< Transfer size in bytes. */
 } DMA_transfer_t;
 
 /*==============================================================================

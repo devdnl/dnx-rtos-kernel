@@ -6,8 +6,8 @@
 
 @brief   C implementation of linked list
 
-@note    Copyright (C) 2014 Kamil Zorychta <kamil.zorychta@gmail.com>
-         Copyright (C) 2014 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Kamil Zorychta <kamil.zorychta@gmail.com>
+         Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -47,20 +47,18 @@ extern "C" {
   Exported macros
 ==============================================================================*/
 // list foreach iterator
-#define _llist_foreach(type, element, llist_t__list)\
-        for (bool __loop = true; __loop && sys_llist_size(llist_t__list); __loop = false)\
-                for (llist_iterator_t _iterator = sys_llist_iterator(llist_t__list); __loop; __loop = false)\
-                        for (type element = sys_llist_begin(&_iterator);\
-                             element;\
-                             element = sys_llist_iterator_next(&_iterator), __loop = false)
+#define _llist_foreach(type, element, llist_t__list)                                                         \
+        for (bool __loop = true; __loop && sys_llist_size(llist_t__list); __loop = false)                    \
+                for (llist_iterator_t _iterator = sys_llist_iterator(llist_t__list); __loop; __loop = false) \
+                        for (type element = sys_llist_begin(&_iterator); element;                            \
+                                element = sys_llist_iterator_next(&_iterator), __loop = false)
 
 // list reversed foreach iterator
-#define _llist_foreach_reverse(type, element, llist_t__list)\
-        for (bool __loop = true; __loop && sys_llist_size(llist_t__list); __loop = false)\
-                for (llist_iterator_t _iterator = sys_llist_iterator(llist_t__list); __loop; __loop = false)\
-                        for (type element = sys_llist_end(&_iterator);\
-                             element;\
-                             element = sys_llist_iterator_prev(&_iterator), __loop = false)
+#define _llist_foreach_reverse(type, element, llist_t__list)                                                 \
+        for (bool __loop = true; __loop && sys_llist_size(llist_t__list); __loop = false)                    \
+                for (llist_iterator_t _iterator = sys_llist_iterator(llist_t__list); __loop; __loop = false) \
+                        for (type element = sys_llist_end(&_iterator); element;                              \
+                                element = sys_llist_iterator_prev(&_iterator), __loop = false)
 
 // list iterator
 #define _llist_foreach_iterator _iterator
@@ -120,11 +118,11 @@ typedef void (*llist_free_t)(void *mem);
 
 /** iterator object */
 typedef struct {
-        llist_t  *list;
-        void     *current;
-        void     *next;
-        void     *to;
-        uint32_t  magic;
+        llist_t *list;
+        void *current;
+        void *next;
+        void *to;
+        uint32_t magic;
 } llist_iterator_t;
 
 /*==============================================================================
@@ -141,11 +139,8 @@ typedef struct {
  * @return One of errno value.
  */
 //==============================================================================
-extern int _llist_create_usr(llist_malloc_t      malloc,
-                             llist_free_t        free,
-                             llist_cmp_functor_t functor,
-                             llist_obj_dtor_t    obj_dtor,
-                             llist_t             **list);
+extern int _llist_create_usr(llist_malloc_t malloc, llist_free_t free, llist_cmp_functor_t functor,
+        llist_obj_dtor_t obj_dtor, llist_t **list);
 
 //==============================================================================
 /**
@@ -159,10 +154,8 @@ extern int _llist_create_usr(llist_malloc_t      malloc,
  * @return One of errno value.
  */
 //==============================================================================
-extern int _llist_create_krn(enum _mm_mem        mem,
-                             llist_cmp_functor_t cmp_functor,
-                             llist_obj_dtor_t    obj_dtor,
-                             llist_t             **list);
+extern int _llist_create_krn(enum _mm_mem mem, llist_cmp_functor_t cmp_functor, llist_obj_dtor_t obj_dtor,
+        llist_t **list);
 
 //==============================================================================
 /**
@@ -176,10 +169,7 @@ extern int _llist_create_krn(enum _mm_mem        mem,
  * @return One of errno value.
  */
 //==============================================================================
-extern int _llist_create_mod(size_t              modid,
-                             llist_cmp_functor_t cmp_functor,
-                             llist_obj_dtor_t    obj_dtor,
-                             llist_t             **list);
+extern int _llist_create_mod(size_t modid, llist_cmp_functor_t cmp_functor, llist_obj_dtor_t obj_dtor, llist_t **list);
 
 //==============================================================================
 /**

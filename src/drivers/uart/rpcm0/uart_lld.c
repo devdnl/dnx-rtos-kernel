@@ -5,7 +5,7 @@
 
 @brief   This file support USART peripherals for RP2040.
 
-@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -49,10 +49,10 @@
 ==============================================================================*/
 typedef struct {
         uart_hw_t *uart_hw;
-        u32_t      resets_mask;
-        u32_t      resets_done_mask;
-        IRQn_Type  IRQn;
-        u32_t      IRQ_priority;
+        u32_t resets_mask;
+        u32_t resets_done_mask;
+        IRQn_Type IRQn;
+        u32_t IRQ_priority;
 } UART_setup_t;
 
 /* UART specific handle */
@@ -64,7 +64,7 @@ typedef struct {
   Local function prototypes
 ==============================================================================*/
 static uint32_t uart_disable_before_lcr_write(struct UART_mem *hdl);
-static void     uart_set_baudrate(struct UART_mem *hdl, uint baudrate);
+static void uart_set_baudrate(struct UART_mem *hdl, uint baudrate);
 
 /*==============================================================================
   Local object definitions
@@ -73,18 +73,18 @@ MODULE_NAME(UART);
 
 static const UART_setup_t UART[] = {
         {
-                .uart_hw          = uart0_hw,
-                .resets_mask      = RESETS_RESET_UART0_BITS,
+                .uart_hw = uart0_hw,
+                .resets_mask = RESETS_RESET_UART0_BITS,
                 .resets_done_mask = RESETS_RESET_DONE_UART0_BITS,
-                .IRQn             = UART0_IRQ_IRQn,
-                .IRQ_priority     = __UART_UART0_IRQ_PRIORITY__,
+                .IRQn = UART0_IRQ_IRQn,
+                .IRQ_priority = __UART_UART0_IRQ_PRIORITY__,
         },
         {
-                .uart_hw          = uart1_hw,
-                .resets_mask      = RESETS_RESET_UART1_BITS,
+                .uart_hw = uart1_hw,
+                .resets_mask = RESETS_RESET_UART1_BITS,
                 .resets_done_mask = RESETS_RESET_DONE_UART1_BITS,
-                .IRQn             = UART1_IRQ_IRQn,
-                .IRQ_priority     = __UART_UART1_IRQ_PRIORITY__,
+                .IRQn = UART1_IRQ_IRQn,
+                .IRQ_priority = __UART_UART1_IRQ_PRIORITY__,
         },
 };
 
@@ -206,8 +206,7 @@ int _UART_LLD__configure(struct UART_mem *hdl, const struct UART_rich_config *co
         uart_hw->lcr_h = ((8 - 5u) << UART_UARTLCR_H_WLEN_LSB) |
                 ((config->basic.stop_bits) << UART_UARTLCR_H_STP2_LSB) |
                 ((config->basic.parity != UART_PARITY__OFF) << UART_UARTLCR_H_PEN_LSB) |
-                ((config->basic.parity == UART_PARITY__EVEN) << UART_UARTLCR_H_EPS_LSB) |
-                UART_UARTLCR_H_FEN_BITS;
+                ((config->basic.parity == UART_PARITY__EVEN) << UART_UARTLCR_H_EPS_LSB) | UART_UARTLCR_H_FEN_BITS;
 
         uart_hw->cr = UART_UARTCR_UARTEN_BITS | (config->basic.tx_enable * UART_UARTCR_TXE_BITS) |
                 (config->basic.rx_enable * UART_UARTCR_RXE_BITS) | (hwfc * UART_UARTCR_RTSEN_BITS) |
@@ -264,7 +263,7 @@ static uint32_t uart_disable_before_lcr_write(struct UART_mem *hdl)
                 uint32_t brdiv_ratio = 64u * current_ibrd + current_fbrd;
                 brdiv_ratio <<= 10;
                 // 3662 is ~(15 * 244.14) where 244.14 is 16e6 / 2^16
-                uint32_t scaled_freq  = clocks__get_clk_peri_frequency() / 3662ul;
+                uint32_t scaled_freq = clocks__get_clk_peri_frequency() / 3662ul;
                 uint32_t wait_time_us = brdiv_ratio / scaled_freq;
 
                 sys_sleep_ms(wait_time_us / 1000 + 1);
@@ -286,7 +285,7 @@ static void uart_set_baudrate(struct UART_mem *hdl, uint baudrate)
         uart_hw_t *uart_hw = UART[hdl->major].uart_hw;
 
         uint32_t baud_rate_div = (8 * clocks__get_clk_peri_frequency() / baudrate) + 1;
-        uint32_t baud_ibrd     = baud_rate_div >> 7;
+        uint32_t baud_ibrd = baud_rate_div >> 7;
         uint32_t baud_fbrd;
 
         if (baud_ibrd == 0) {
@@ -305,8 +304,8 @@ static void uart_set_baudrate(struct UART_mem *hdl, uint baudrate)
         // PL011 needs a (dummy) LCR_H write to latch in the divisors.
         // We don't want to actually change LCR_H contents here.
         uint32_t cr_save = uart_disable_before_lcr_write(hdl);
-        uart_hw->lcr_h   = 0;
-        uart_hw->cr      = cr_save;
+        uart_hw->lcr_h = 0;
+        uart_hw->cr = cr_save;
 }
 
 //==============================================================================
@@ -320,16 +319,16 @@ static void IRQ_handle(u8_t major)
 {
         bool yield = false;
 
-        struct UART_mem *hdl     = _UART_mem[major];
-        uart_hw_t       *uart_hw = UART[major].uart_hw;
-        uarthdl_t       *uarthdl = hdl->uarthdl;
+        struct UART_mem *hdl = _UART_mem[major];
+        uart_hw_t *uart_hw = UART[major].uart_hw;
+        uarthdl_t *uarthdl = hdl->uarthdl;
 
         /*
          * Receive interrupt
          */
         if (uart_hw->mis & (UART_UARTMIS_RTMIS_BITS | UART_UARTMIS_RXMIS_BITS)) {
                 while (not(uart_hw->fr & UART_UARTFR_RXFE_BITS)) {
-                        u8_t byte  = uart_hw->dr;
+                        u8_t byte = uart_hw->dr;
                         bool woken = false;
                         if (sys_queue_send_from_ISR(hdl->rx_queue, &byte, &woken) != 0) {
                                 uarthdl->rx_overrun++;

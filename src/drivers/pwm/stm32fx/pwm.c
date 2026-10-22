@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   PWM driver
 
-        Copyright (C) 2018 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -49,15 +49,15 @@ Brief   PWM driver
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define TIM_NULL        {.reg = NULL, .APBENR = NULL, .APBENR_TIMEN = 0}
+#define TIM_NULL {.reg = NULL, .APBENR = NULL, .APBENR_TIMEN = 0}
 
 /*==============================================================================
   Local object types
 ==============================================================================*/
 typedef struct {
-        TIM_TypeDef   *reg;
+        TIM_TypeDef *reg;
         __IO uint32_t *APBENR;
-        uint32_t       APBENR_TIMEN;
+        uint32_t APBENR_TIMEN;
 } TIM_addr_t;
 
 typedef struct {
@@ -77,47 +77,47 @@ MODULE_NAME(PWM);
 
 static const TIM_addr_t TIM[] = {
 #ifdef RCC_APB2ENR_TIM1EN
-        {.reg = TIM1,  .APBENR = &RCC->APB2ENR, .APBENR_TIMEN = RCC_APB2ENR_TIM1EN},
+        {.reg = TIM1, .APBENR = &RCC->APB2ENR, .APBENR_TIMEN = RCC_APB2ENR_TIM1EN},
 #else
         TIM_NULL,
 #endif
 #ifdef RCC_APB1ENR_TIM2EN
-        {.reg = TIM2,  .APBENR = &RCC->APB1ENR, .APBENR_TIMEN = RCC_APB1ENR_TIM2EN},
+        {.reg = TIM2, .APBENR = &RCC->APB1ENR, .APBENR_TIMEN = RCC_APB1ENR_TIM2EN},
 #else
         TIM_NULL,
 #endif
 #ifdef RCC_APB1ENR_TIM3EN
-        {.reg = TIM3,  .APBENR = &RCC->APB1ENR, .APBENR_TIMEN = RCC_APB1ENR_TIM3EN},
+        {.reg = TIM3, .APBENR = &RCC->APB1ENR, .APBENR_TIMEN = RCC_APB1ENR_TIM3EN},
 #else
         TIM_NULL,
 #endif
 #ifdef RCC_APB1ENR_TIM4EN
-        {.reg = TIM4,  .APBENR = &RCC->APB1ENR, .APBENR_TIMEN = RCC_APB1ENR_TIM4EN},
+        {.reg = TIM4, .APBENR = &RCC->APB1ENR, .APBENR_TIMEN = RCC_APB1ENR_TIM4EN},
 #else
         TIM_NULL,
 #endif
 #ifdef RCC_APB1ENR_TIM5EN
-        {.reg = TIM5,  .APBENR = &RCC->APB1ENR, .APBENR_TIMEN = RCC_APB1ENR_TIM5EN},
+        {.reg = TIM5, .APBENR = &RCC->APB1ENR, .APBENR_TIMEN = RCC_APB1ENR_TIM5EN},
 #else
         TIM_NULL,
 #endif
 #ifdef RCC_APB1ENR_TIM6EN
-        {.reg = TIM6,  .APBENR = &RCC->APB1ENR, .APBENR_TIMEN = RCC_APB1ENR_TIM6EN},
+        {.reg = TIM6, .APBENR = &RCC->APB1ENR, .APBENR_TIMEN = RCC_APB1ENR_TIM6EN},
 #else
         TIM_NULL,
 #endif
 #ifdef RCC_APB1ENR_TIM7EN
-        {.reg = TIM7,  .APBENR = &RCC->APB1ENR, .APBENR_TIMEN = RCC_APB1ENR_TIM7EN},
+        {.reg = TIM7, .APBENR = &RCC->APB1ENR, .APBENR_TIMEN = RCC_APB1ENR_TIM7EN},
 #else
         TIM_NULL,
 #endif
 #ifdef RCC_APB2ENR_TIM8EN
-        {.reg = TIM8,  .APBENR = &RCC->APB2ENR, .APBENR_TIMEN = RCC_APB2ENR_TIM8EN},
+        {.reg = TIM8, .APBENR = &RCC->APB2ENR, .APBENR_TIMEN = RCC_APB2ENR_TIM8EN},
 #else
         TIM_NULL,
 #endif
 #ifdef RCC_APB2ENR_TIM9EN
-        {.reg = TIM9,  .APBENR = &RCC->APB2ENR, .APBENR_TIMEN = RCC_APB2ENR_TIM9EN},
+        {.reg = TIM9, .APBENR = &RCC->APB2ENR, .APBENR_TIMEN = RCC_APB2ENR_TIM9EN},
 #else
         TIM_NULL,
 #endif
@@ -176,8 +176,8 @@ API_MOD_INIT(PWM, void **device_handle, u8_t major, u8_t minor, const void *conf
 
                 err = sys_zalloc(sizeof(PWM_t), device_handle);
                 if (!err) {
-                        PWM_t *hdl   = *device_handle;
-                        hdl->timer   = major;
+                        PWM_t *hdl = *device_handle;
+                        hdl->timer = major;
                         hdl->channel = minor;
 
                         SET_BIT(*TIM[hdl->timer].APBENR, TIM[hdl->timer].APBENR_TIMEN);
@@ -185,35 +185,33 @@ API_MOD_INIT(PWM, void **device_handle, u8_t major, u8_t minor, const void *conf
                         switch (hdl->channel) {
                         case 0:
                                 TIM[hdl->timer].reg->CCMR1 |= TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1;
-                                TIM[hdl->timer].reg->CCER  |= TIM_CCER_CC1E;
-                                TIM[hdl->timer].reg->CCR1   = 0;
+                                TIM[hdl->timer].reg->CCER |= TIM_CCER_CC1E;
+                                TIM[hdl->timer].reg->CCR1 = 0;
                                 break;
                         case 1:
                                 TIM[hdl->timer].reg->CCMR1 |= TIM_CCMR1_OC2M_2 | TIM_CCMR1_OC2M_1;
-                                TIM[hdl->timer].reg->CCER  |= TIM_CCER_CC2E;
-                                TIM[hdl->timer].reg->CCR2   = 0;
+                                TIM[hdl->timer].reg->CCER |= TIM_CCER_CC2E;
+                                TIM[hdl->timer].reg->CCR2 = 0;
                                 break;
                         case 2:
                                 TIM[hdl->timer].reg->CCMR2 |= TIM_CCMR2_OC3M_2 | TIM_CCMR2_OC3M_1;
-                                TIM[hdl->timer].reg->CCER  |= TIM_CCER_CC3E;
-                                TIM[hdl->timer].reg->CCR3   = 0;
+                                TIM[hdl->timer].reg->CCER |= TIM_CCER_CC3E;
+                                TIM[hdl->timer].reg->CCR3 = 0;
                                 break;
                         case 3:
                                 TIM[hdl->timer].reg->CCMR2 |= TIM_CCMR2_OC4M_2 | TIM_CCMR2_OC4M_1;
-                                TIM[hdl->timer].reg->CCER  |= TIM_CCER_CC4E;
-                                TIM[hdl->timer].reg->CCR4   = 0;
+                                TIM[hdl->timer].reg->CCER |= TIM_CCER_CC4E;
+                                TIM[hdl->timer].reg->CCR4 = 0;
                                 break;
                         }
 
-                        TIM[hdl->timer].reg->BDTR  |= TIM_BDTR_MOE;
-                        TIM[hdl->timer].reg->CR1   |= TIM_CR1_CEN;
+                        TIM[hdl->timer].reg->BDTR |= TIM_BDTR_MOE;
+                        TIM[hdl->timer].reg->CR1 |= TIM_CR1_CEN;
 
                         if (config) {
                                 const PWM_config_t *conf = config;
 
-                                TIM[hdl->timer].reg->PSC = conf->prescaler > 0
-                                                         ? conf->prescaler - 1
-                                                         : conf->prescaler;
+                                TIM[hdl->timer].reg->PSC = conf->prescaler > 0 ? conf->prescaler - 1 : conf->prescaler;
                                 TIM[hdl->timer].reg->ARR = conf->reload;
                                 TIM[hdl->timer].reg->CNT = 0;
                         }
@@ -259,10 +257,7 @@ API_MOD_RELEASE(PWM, void *device_handle)
                 break;
         }
 
-        if ( (TIM[hdl->timer].reg->CCER & ( TIM_CCER_CC1E
-                                          | TIM_CCER_CC2E
-                                          | TIM_CCER_CC3E
-                                          | TIM_CCER_CC4E) ) == 0) {
+        if ((TIM[hdl->timer].reg->CCER & (TIM_CCER_CC1E | TIM_CCER_CC2E | TIM_CCER_CC3E | TIM_CCER_CC4E)) == 0) {
 
                 CLEAR_BIT(TIM[hdl->timer].reg->BDTR, TIM_BDTR_MOE);
                 CLEAR_BIT(TIM[hdl->timer].reg->CR1, TIM_CR1_CEN);
@@ -318,26 +313,29 @@ API_MOD_CLOSE(PWM, void *device_handle, bool force)
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_WRITE(PWM,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(PWM, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
-        PWM_t   *hdl = device_handle;
-        int      err = ESUCC;
-        uint16_t val = (count == 1) ? *src : *cast(u16_t*, src);
+        PWM_t *hdl = device_handle;
+        int err = ESUCC;
+        uint16_t val = (count == 1) ? *src : *cast(u16_t *, src);
 
         if (count > 0) {
                 switch (hdl->channel) {
-                case 0: TIM[hdl->timer].reg->CCR1 = val; break;
-                case 1: TIM[hdl->timer].reg->CCR2 = val; break;
-                case 2: TIM[hdl->timer].reg->CCR3 = val; break;
-                case 3: TIM[hdl->timer].reg->CCR4 = val; break;
+                case 0:
+                        TIM[hdl->timer].reg->CCR1 = val;
+                        break;
+                case 1:
+                        TIM[hdl->timer].reg->CCR2 = val;
+                        break;
+                case 2:
+                        TIM[hdl->timer].reg->CCR3 = val;
+                        break;
+                case 3:
+                        TIM[hdl->timer].reg->CCR4 = val;
+                        break;
                 }
 
                 *wrcnt = 2;
@@ -362,30 +360,36 @@ API_MOD_WRITE(PWM,
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(PWM,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(PWM, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
-        PWM_t   *hdl = device_handle;
-        int      err = ESUCC;
+        PWM_t *hdl = device_handle;
+        int err = ESUCC;
         uint16_t val = 0;
 
         if (count > 0) {
                 switch (hdl->channel) {
-                case 0: val = TIM[hdl->timer].reg->CCR1; break;
-                case 1: val = TIM[hdl->timer].reg->CCR2; break;
-                case 2: val = TIM[hdl->timer].reg->CCR3; break;
-                case 3: val = TIM[hdl->timer].reg->CCR4; break;
+                case 0:
+                        val = TIM[hdl->timer].reg->CCR1;
+                        break;
+                case 1:
+                        val = TIM[hdl->timer].reg->CCR2;
+                        break;
+                case 2:
+                        val = TIM[hdl->timer].reg->CCR3;
+                        break;
+                case 3:
+                        val = TIM[hdl->timer].reg->CCR4;
+                        break;
                 }
 
-                if (count > 0) dst[0] = val & 0xFF;
-                if (count > 1) dst[1] = val >> 8;
+                if (count > 0) {
+                        dst[0] = val & 0xFF;
+                }
+                if (count > 1) {
+                        dst[1] = val >> 8;
+                }
 
                 *rdcnt = min(count, 2);
         }
@@ -417,9 +421,7 @@ API_MOD_IOCTL(PWM, void *device_handle, int request, void *arg)
                 if (arg) {
                         const PWM_config_t *conf = arg;
 
-                        TIM[hdl->timer].reg->PSC = conf->prescaler > 0
-                                                 ? conf->prescaler - 1
-                                                 : conf->prescaler;
+                        TIM[hdl->timer].reg->PSC = conf->prescaler > 0 ? conf->prescaler - 1 : conf->prescaler;
                         TIM[hdl->timer].reg->ARR = conf->reload;
                         TIM[hdl->timer].reg->CNT = 0;
 
@@ -434,7 +436,7 @@ API_MOD_IOCTL(PWM, void *device_handle, int request, void *arg)
                         const PWM_auto_adjust_t *adj = arg;
 
                         u32_t freq = get_timer_frequency(hdl);
-                        u32_t pre  = (freq / (adj->reload + 1) / adj->frequency);
+                        u32_t pre = (freq / (adj->reload + 1) / adj->frequency);
 
                         TIM[hdl->timer].reg->ARR = adj->reload;
                         TIM[hdl->timer].reg->PSC = pre > 0 ? pre - 1 : pre;
@@ -449,7 +451,7 @@ API_MOD_IOCTL(PWM, void *device_handle, int request, void *arg)
 
         case IOCTL_PWM__GET_BASE_FREQUENCY:
                 if (arg) {
-                        *cast(u32_t*,arg) = get_timer_frequency(hdl);
+                        *cast(u32_t *, arg) = get_timer_frequency(hdl);
                         err = ESUCC;
 
                 } else {
@@ -459,13 +461,21 @@ API_MOD_IOCTL(PWM, void *device_handle, int request, void *arg)
 
         case IOCTL_PWM__SET_VALUE:
                 if (arg) {
-                        u16_t val = *cast(u16_t*, arg);
+                        u16_t val = *cast(u16_t *, arg);
 
                         switch (hdl->channel) {
-                        case 0: TIM[hdl->timer].reg->CCR1 = val; break;
-                        case 1: TIM[hdl->timer].reg->CCR2 = val; break;
-                        case 2: TIM[hdl->timer].reg->CCR3 = val; break;
-                        case 3: TIM[hdl->timer].reg->CCR4 = val; break;
+                        case 0:
+                                TIM[hdl->timer].reg->CCR1 = val;
+                                break;
+                        case 1:
+                                TIM[hdl->timer].reg->CCR2 = val;
+                                break;
+                        case 2:
+                                TIM[hdl->timer].reg->CCR3 = val;
+                                break;
+                        case 3:
+                                TIM[hdl->timer].reg->CCR4 = val;
+                                break;
                         }
 
                         err = ESUCC;
@@ -478,13 +488,21 @@ API_MOD_IOCTL(PWM, void *device_handle, int request, void *arg)
                 if (arg) {
                         u16_t val = 0;
                         switch (hdl->channel) {
-                        case 0: val = TIM[hdl->timer].reg->CCR1; break;
-                        case 1: val = TIM[hdl->timer].reg->CCR2; break;
-                        case 2: val = TIM[hdl->timer].reg->CCR3; break;
-                        case 3: val = TIM[hdl->timer].reg->CCR4; break;
+                        case 0:
+                                val = TIM[hdl->timer].reg->CCR1;
+                                break;
+                        case 1:
+                                val = TIM[hdl->timer].reg->CCR2;
+                                break;
+                        case 2:
+                                val = TIM[hdl->timer].reg->CCR3;
+                                break;
+                        case 3:
+                                val = TIM[hdl->timer].reg->CCR4;
+                                break;
                         }
 
-                        *cast(u16_t*, arg) = val;
+                        *cast(u16_t *, arg) = val;
 
                         err = ESUCC;
                 } else {
@@ -494,7 +512,7 @@ API_MOD_IOCTL(PWM, void *device_handle, int request, void *arg)
 
         case IOCTL_PWM__GET_RELOAD:
                 if (arg) {
-                        *cast(u16_t*, arg) = TIM[hdl->timer].reg->ARR;
+                        *cast(u16_t *, arg) = TIM[hdl->timer].reg->ARR;
 
                         err = ESUCC;
                 } else {

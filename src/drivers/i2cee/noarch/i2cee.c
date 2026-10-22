@@ -5,7 +5,7 @@
 
 @brief   I2C EEPROM driver.
 
-@note    Copyright (C) 2016 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -36,24 +36,24 @@
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define MUTEX_TIMEOUT   10000
+#define MUTEX_TIMEOUT 10000
 
 /*==============================================================================
   Local object types
 ==============================================================================*/
 typedef struct {
-        kmtx_t  *mtx;
-        u8_t     devices;
+        kmtx_t *mtx;
+        u8_t devices;
 } I2CEE_main_t;
 
 typedef struct {
         I2CEE_main_t *main;
-        kfile_t         *i2c_dev;
-        u32_t         memory_size;
-        u16_t         page_size;
-        u16_t         page_prog_time_ms;
-        u8_t          major;
-        u8_t          minor;
+        kfile_t *i2c_dev;
+        u32_t memory_size;
+        u16_t page_size;
+        u16_t page_prog_time_ms;
+        u8_t major;
+        u8_t minor;
 } I2CEE_t;
 
 /*==============================================================================
@@ -102,13 +102,13 @@ API_MOD_INIT(I2CEE, void **device_handle, u8_t major, u8_t minor, const void *co
                 hdl->minor = minor;
 
                 if (minor == 0) {
-                        err = sys_zalloc(sizeof(*hdl->main), cast(void*, &hdl->main));
+                        err = sys_zalloc(sizeof(*hdl->main), cast(void *, &hdl->main));
                         if (!err) {
                                 err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &hdl->main->mtx);
                         }
                 } else {
                         I2CEE_t *hdl0;
-                        err = sys_module_get_instance(major, 0, cast(void*, &hdl0));
+                        err = sys_module_get_instance(major, 0, cast(void *, &hdl0));
                         if (!err) {
                                 if (hdl0) {
                                         hdl->main = hdl0->main;
@@ -133,7 +133,7 @@ API_MOD_INIT(I2CEE, void **device_handle, u8_t major, u8_t minor, const void *co
                                                 sys_mutex_destroy(hdl->main->mtx);
                                         }
 
-                                        sys_free(cast(void*, &hdl->main));
+                                        sys_free(cast(void *, &hdl->main));
                                 }
                         }
 
@@ -170,7 +170,7 @@ API_MOD_RELEASE(I2CEE, void *device_handle)
                         sys_mutex_unlock(mtx);
                         sys_mutex_destroy(mtx);
 
-                        sys_free(cast(void*, &hdl->main));
+                        sys_free(cast(void *, &hdl->main));
                 } else {
                         sys_mutex_unlock(mtx);
                 }
@@ -229,13 +229,8 @@ API_MOD_CLOSE(I2CEE, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(I2CEE,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(I2CEE, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
@@ -252,15 +247,15 @@ API_MOD_WRITE(I2CEE,
 
                         while (!err && count) {
                                 size_t pbleft = (((addr / hdl->page_size) + 1) * hdl->page_size) - addr;
-                                size_t wrsz   = min(count, pbleft);
-                                size_t wrb    = 0;
+                                size_t wrsz = min(count, pbleft);
+                                size_t wrb = 0;
 
                                 err = sys_fwrite(src, wrsz, &wrb, hdl->i2c_dev);
                                 if (!err) {
                                         sys_sleep_ms(hdl->page_prog_time_ms);
-                                        addr   += wrsz;
-                                        src    += wrsz;
-                                        count  -= wrsz;
+                                        addr += wrsz;
+                                        src += wrsz;
+                                        count -= wrsz;
                                         *wrcnt += wrb;
                                 }
                         }
@@ -289,13 +284,7 @@ API_MOD_WRITE(I2CEE,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(I2CEE,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(I2CEE, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
@@ -336,7 +325,7 @@ API_MOD_READ(I2CEE,
 API_MOD_IOCTL(I2CEE, void *device_handle, int request, void *arg)
 {
         I2CEE_t *hdl = device_handle;
-        int      err = EINVAL;
+        int err = EINVAL;
 
         if (arg) {
                 char pathbuf[32];
@@ -345,8 +334,7 @@ API_MOD_IOCTL(I2CEE, void *device_handle, int request, void *arg)
                 switch (request) {
                 case IOCTL_I2CEE__CONFIGURE_STR: {
 
-                        size_t pathlen = sys_stropt_get_string_copy(arg, "i2c_path",
-                                                                    pathbuf, sizeof(pathbuf));
+                        size_t pathlen = sys_stropt_get_string_copy(arg, "i2c_path", pathbuf, sizeof(pathbuf));
                         cfg.i2c_path = pathbuf;
                         cfg.memory_size = sys_stropt_get_int(arg, "memory_size", 0);
                         cfg.page_prog_time_ms = sys_stropt_get_int(arg, "page_prog_time_ms", 0);
@@ -430,8 +418,8 @@ static int configure(I2CEE_t *hdl, const I2CEE_config_t *cfg)
                 if (!err) {
                         err = sys_fopen(cfg->i2c_path, O_RDWR, 0, &hdl->i2c_dev);
                         if (!err) {
-                                hdl->memory_size       = cfg->memory_size;
-                                hdl->page_size         = cfg->page_size;
+                                hdl->memory_size = cfg->memory_size;
+                                hdl->page_size = cfg->page_size;
                                 hdl->page_prog_time_ms = cfg->page_prog_time_ms + 1;
                         }
                 }

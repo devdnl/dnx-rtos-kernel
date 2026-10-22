@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   SPI driver.
 
-        Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -48,30 +48,30 @@ Brief   SPI driver.
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define USE_DMA         (( (_SPI1_USE_DMA > 0) || (_SPI2_USE_DMA > 0)\
-                        || (_SPI3_USE_DMA > 0) || (_SPI4_USE_DMA > 0)\
-                        || (_SPI5_USE_DMA > 0) || (_SPI6_USE_DMA > 0))\
-                        && __ENABLE_DMA__)
+#define USE_DMA                                                                                       \
+        (((_SPI1_USE_DMA > 0) || (_SPI2_USE_DMA > 0) || (_SPI3_USE_DMA > 0) || (_SPI4_USE_DMA > 0) || \
+                 (_SPI5_USE_DMA > 0) || (_SPI6_USE_DMA > 0)) &&                                       \
+                __ENABLE_DMA__)
 
 /*==============================================================================
   Local object types
 ==============================================================================*/
 /* SPI peripheral configuration */
 struct SPI_info {
-        SPI_TypeDef             *const SPI;             //!< SPI peripheral address
-        __IO u32_t              *APBRSTR;               //!< APB reset register address
-        __IO u32_t              *APBENR;                //!< APB enable register
-        u32_t                    APBRSTRENR;            //!< APB reset/enable bit
-        IRQn_Type                IRQn;                  //!< SPI IRQ number
-    #if USE_DMA > 0
-        bool                     use_DMA;               //!< peripheral uses DMA and IRQ (true), or only IRQ (false)
-        u8_t                     DMA_channel;           //!< DMA peripheral request channel number
-        u8_t                     DMA_major;             //!< DMA peripheral number
-        u8_t                     DMA_tx_stream_pri;     //!< primary Tx stream number
-        u8_t                     DMA_tx_stream_alt;     //!< alternative Tx stream number
-        u8_t                     DMA_rx_stream_pri;     //!< primary Rx stream number
-        u8_t                     DMA_rx_stream_alt;     //!< alternative Rx stream number
-    #endif
+        SPI_TypeDef *const SPI; //!< SPI peripheral address
+        __IO u32_t *APBRSTR;    //!< APB reset register address
+        __IO u32_t *APBENR;     //!< APB enable register
+        u32_t APBRSTRENR;       //!< APB reset/enable bit
+        IRQn_Type IRQn;         //!< SPI IRQ number
+#if USE_DMA > 0
+        bool use_DMA;           //!< peripheral uses DMA and IRQ (true), or only IRQ (false)
+        u8_t DMA_channel;       //!< DMA peripheral request channel number
+        u8_t DMA_major;         //!< DMA peripheral number
+        u8_t DMA_tx_stream_pri; //!< primary Tx stream number
+        u8_t DMA_tx_stream_alt; //!< alternative Tx stream number
+        u8_t DMA_rx_stream_pri; //!< primary Rx stream number
+        u8_t DMA_rx_stream_alt; //!< alternative Rx stream number
+#endif
 };
 
 /*==============================================================================
@@ -91,166 +91,166 @@ static bool DMA_callback(DMA_Stream_TypeDef *stream, u8_t SR, void *arg);
 /* SPI peripherals basic parameters */
 static const struct SPI_info SPI_HW[_NUMBER_OF_SPI_PERIPHERALS] = {
 #if defined(ARCH_stm32f1)
-        #if defined(RCC_APB2ENR_SPI1EN)
+#if defined(RCC_APB2ENR_SPI1EN)
         {
-                .SPI                   = SPI1,
-                .APBENR                = &RCC->APB2ENR,
-                .APBRSTR               = &RCC->APB2RSTR,
-                .APBRSTRENR            = RCC_APB2ENR_SPI1EN,
-                .IRQn                  = SPI1_IRQn,
-                #if USE_DMA > 0
-                .use_DMA               = _SPI1_USE_DMA,
-                .DMA_tx_stream_pri     = 3,
-                .DMA_tx_stream_alt     = UINT8_MAX,
-                .DMA_rx_stream_pri     = 2,
-                .DMA_rx_stream_alt     = UINT8_MAX,
-                .DMA_major             = _DMA_DDI_DMA1,
-                #endif
+                .SPI = SPI1,
+                .APBENR = &RCC->APB2ENR,
+                .APBRSTR = &RCC->APB2RSTR,
+                .APBRSTRENR = RCC_APB2ENR_SPI1EN,
+                .IRQn = SPI1_IRQn,
+#if USE_DMA > 0
+                .use_DMA = _SPI1_USE_DMA,
+                .DMA_tx_stream_pri = 3,
+                .DMA_tx_stream_alt = UINT8_MAX,
+                .DMA_rx_stream_pri = 2,
+                .DMA_rx_stream_alt = UINT8_MAX,
+                .DMA_major = _DMA_DDI_DMA1,
+#endif
         },
-        #endif
-        #if defined(RCC_APB1ENR_SPI2EN)
+#endif
+#if defined(RCC_APB1ENR_SPI2EN)
         {
-                .SPI                   = SPI2,
-                .APBENR                = &RCC->APB1ENR,
-                .APBRSTR               = &RCC->APB1RSTR,
-                .APBRSTRENR            = RCC_APB1ENR_SPI2EN,
-                .IRQn                  = SPI2_IRQn,
-                #if USE_DMA > 0
-                .use_DMA               = _SPI2_USE_DMA,
-                .DMA_tx_stream_pri     = 5,
-                .DMA_tx_stream_alt     = UINT8_MAX,
-                .DMA_rx_stream_pri     = 4,
-                .DMA_rx_stream_alt     = UINT8_MAX,
-                .DMA_major             = _DMA_DDI_DMA1,
-                #endif
+                .SPI = SPI2,
+                .APBENR = &RCC->APB1ENR,
+                .APBRSTR = &RCC->APB1RSTR,
+                .APBRSTRENR = RCC_APB1ENR_SPI2EN,
+                .IRQn = SPI2_IRQn,
+#if USE_DMA > 0
+                .use_DMA = _SPI2_USE_DMA,
+                .DMA_tx_stream_pri = 5,
+                .DMA_tx_stream_alt = UINT8_MAX,
+                .DMA_rx_stream_pri = 4,
+                .DMA_rx_stream_alt = UINT8_MAX,
+                .DMA_major = _DMA_DDI_DMA1,
+#endif
         },
-        #endif
-        #if defined(RCC_APB1ENR_SPI3EN)
+#endif
+#if defined(RCC_APB1ENR_SPI3EN)
         {
-                .SPI                   = SPI3,
-                .APBENR                = &RCC->APB1ENR,
-                .APBRSTR               = &RCC->APB1RSTR,
-                .APBRSTRENR            = RCC_APB1ENR_SPI3EN,
-                .IRQn                  = SPI3_IRQn,
-                #if USE_DMA > 0
-                .use_DMA               = _SPI3_USE_DMA,
-                .DMA_tx_stream_pri     = 2,
-                .DMA_tx_stream_alt     = UINT8_MAX,
-                .DMA_rx_stream_pri     = 1,
-                .DMA_rx_stream_alt     = UINT8_MAX,
-                .DMA_major             = _DMA_DDI_DMA2,
-                #endif
+                .SPI = SPI3,
+                .APBENR = &RCC->APB1ENR,
+                .APBRSTR = &RCC->APB1RSTR,
+                .APBRSTRENR = RCC_APB1ENR_SPI3EN,
+                .IRQn = SPI3_IRQn,
+#if USE_DMA > 0
+                .use_DMA = _SPI3_USE_DMA,
+                .DMA_tx_stream_pri = 2,
+                .DMA_tx_stream_alt = UINT8_MAX,
+                .DMA_rx_stream_pri = 1,
+                .DMA_rx_stream_alt = UINT8_MAX,
+                .DMA_major = _DMA_DDI_DMA2,
+#endif
         }
-        #endif
+#endif
 #elif defined(ARCH_stm32f4) || defined(ARCH_stm32f7)
-        #if defined(RCC_APB2ENR_SPI1EN)
+#if defined(RCC_APB2ENR_SPI1EN)
         {
-                .SPI                    = SPI1,
-                .APBENR                 = &RCC->APB2ENR,
-                .APBRSTR                = &RCC->APB2RSTR,
-                .APBRSTRENR             = RCC_APB2ENR_SPI1EN,
-                .IRQn                   = SPI1_IRQn,
-                #if USE_DMA > 0
-                .use_DMA                = _SPI1_USE_DMA,
-                .DMA_tx_stream_pri      = 3,
-                .DMA_tx_stream_alt      = 5,
-                .DMA_rx_stream_pri      = 0,
-                .DMA_rx_stream_alt      = 2,
-                .DMA_channel            = 3,
-                .DMA_major              = _DMA_DDI_DMA2,
-                #endif
+                .SPI = SPI1,
+                .APBENR = &RCC->APB2ENR,
+                .APBRSTR = &RCC->APB2RSTR,
+                .APBRSTRENR = RCC_APB2ENR_SPI1EN,
+                .IRQn = SPI1_IRQn,
+#if USE_DMA > 0
+                .use_DMA = _SPI1_USE_DMA,
+                .DMA_tx_stream_pri = 3,
+                .DMA_tx_stream_alt = 5,
+                .DMA_rx_stream_pri = 0,
+                .DMA_rx_stream_alt = 2,
+                .DMA_channel = 3,
+                .DMA_major = _DMA_DDI_DMA2,
+#endif
         },
-        #endif
-        #if defined(RCC_APB1ENR_SPI2EN)
+#endif
+#if defined(RCC_APB1ENR_SPI2EN)
         {
-                .SPI                    = SPI2,
-                .APBENR                 = &RCC->APB1ENR,
-                .APBRSTR                = &RCC->APB1RSTR,
-                .APBRSTRENR             = RCC_APB1ENR_SPI2EN,
-                .IRQn                   = SPI2_IRQn,
-                #if USE_DMA > 0
-                .use_DMA                = _SPI2_USE_DMA,
-                .DMA_tx_stream_pri      = 4,
-                .DMA_tx_stream_alt      = 4,
-                .DMA_rx_stream_pri      = 3,
-                .DMA_rx_stream_alt      = 3,
-                .DMA_channel            = 0,
-                .DMA_major              = _DMA_DDI_DMA1,
-                #endif
+                .SPI = SPI2,
+                .APBENR = &RCC->APB1ENR,
+                .APBRSTR = &RCC->APB1RSTR,
+                .APBRSTRENR = RCC_APB1ENR_SPI2EN,
+                .IRQn = SPI2_IRQn,
+#if USE_DMA > 0
+                .use_DMA = _SPI2_USE_DMA,
+                .DMA_tx_stream_pri = 4,
+                .DMA_tx_stream_alt = 4,
+                .DMA_rx_stream_pri = 3,
+                .DMA_rx_stream_alt = 3,
+                .DMA_channel = 0,
+                .DMA_major = _DMA_DDI_DMA1,
+#endif
         },
-        #endif
-        #if defined(RCC_APB1ENR_SPI3EN)
+#endif
+#if defined(RCC_APB1ENR_SPI3EN)
         {
-                .SPI                    = SPI3,
-                .APBENR                 = &RCC->APB1ENR,
-                .APBRSTR                = &RCC->APB1RSTR,
-                .APBRSTRENR             = RCC_APB1ENR_SPI3EN,
-                .IRQn                   = SPI3_IRQn,
-                #if USE_DMA > 0
-                .use_DMA                = _SPI3_USE_DMA,
-                .DMA_tx_stream_pri      = 5,
-                .DMA_tx_stream_alt      = 7,
-                .DMA_rx_stream_pri      = 0,
-                .DMA_rx_stream_alt      = 2,
-                .DMA_channel            = 0,
-                .DMA_major              = _DMA_DDI_DMA1,
-                #endif
+                .SPI = SPI3,
+                .APBENR = &RCC->APB1ENR,
+                .APBRSTR = &RCC->APB1RSTR,
+                .APBRSTRENR = RCC_APB1ENR_SPI3EN,
+                .IRQn = SPI3_IRQn,
+#if USE_DMA > 0
+                .use_DMA = _SPI3_USE_DMA,
+                .DMA_tx_stream_pri = 5,
+                .DMA_tx_stream_alt = 7,
+                .DMA_rx_stream_pri = 0,
+                .DMA_rx_stream_alt = 2,
+                .DMA_channel = 0,
+                .DMA_major = _DMA_DDI_DMA1,
+#endif
         },
-        #endif
-        #if defined(RCC_APB2ENR_SPI4EN)
+#endif
+#if defined(RCC_APB2ENR_SPI4EN)
         {
-                .SPI                    = SPI4,
-                .APBENR                 = &RCC->APB2ENR,
-                .APBRSTR                = &RCC->APB2RSTR,
-                .APBRSTRENR             = RCC_APB2ENR_SPI4EN,
-                .IRQn                   = SPI4_IRQn,
-                #if USE_DMA > 0
-                .use_DMA                = _SPI4_USE_DMA,
-                .DMA_tx_stream_pri      = 1,
-                .DMA_tx_stream_alt      = 1,
-                .DMA_rx_stream_pri      = 0,
-                .DMA_rx_stream_alt      = 0,
-                .DMA_channel            = 4,
-                .DMA_major              = _DMA_DDI_DMA2,
-                #endif
+                .SPI = SPI4,
+                .APBENR = &RCC->APB2ENR,
+                .APBRSTR = &RCC->APB2RSTR,
+                .APBRSTRENR = RCC_APB2ENR_SPI4EN,
+                .IRQn = SPI4_IRQn,
+#if USE_DMA > 0
+                .use_DMA = _SPI4_USE_DMA,
+                .DMA_tx_stream_pri = 1,
+                .DMA_tx_stream_alt = 1,
+                .DMA_rx_stream_pri = 0,
+                .DMA_rx_stream_alt = 0,
+                .DMA_channel = 4,
+                .DMA_major = _DMA_DDI_DMA2,
+#endif
         },
-        #endif
-        #if defined(RCC_APB2ENR_SPI5EN)
+#endif
+#if defined(RCC_APB2ENR_SPI5EN)
         {
-                .SPI                    = SPI5,
-                .APBENR                 = &RCC->APB2ENR,
-                .APBRSTR                = &RCC->APB2RSTR,
-                .APBRSTRENR             = RCC_APB2ENR_SPI5EN,
-                .IRQn                   = SPI5_IRQn,
-                #if USE_DMA > 0
-                .use_DMA                = _SPI5_USE_DMA,
-                .DMA_tx_stream_pri      = 4,
-                .DMA_tx_stream_alt      = 4,
-                .DMA_rx_stream_pri      = 3,
-                .DMA_rx_stream_alt      = 3,
-                .DMA_channel            = 2,
-                .DMA_major              = _DMA_DDI_DMA2,
-                #endif
+                .SPI = SPI5,
+                .APBENR = &RCC->APB2ENR,
+                .APBRSTR = &RCC->APB2RSTR,
+                .APBRSTRENR = RCC_APB2ENR_SPI5EN,
+                .IRQn = SPI5_IRQn,
+#if USE_DMA > 0
+                .use_DMA = _SPI5_USE_DMA,
+                .DMA_tx_stream_pri = 4,
+                .DMA_tx_stream_alt = 4,
+                .DMA_rx_stream_pri = 3,
+                .DMA_rx_stream_alt = 3,
+                .DMA_channel = 2,
+                .DMA_major = _DMA_DDI_DMA2,
+#endif
         },
-        #endif
-        #if defined(RCC_APB2ENR_SPI6EN)
+#endif
+#if defined(RCC_APB2ENR_SPI6EN)
         {
-                .SPI                    = SPI6,
-                .APBENR                 = &RCC->APB2ENR,
-                .APBRSTR                = &RCC->APB2RSTR,
-                .APBRSTRENR             = RCC_APB2ENR_SPI6EN,
-                .IRQn                   = SPI6_IRQn,
-                #if USE_DMA > 0
-                .use_DMA                = _SPI6_USE_DMA,
-                .DMA_tx_stream_pri      = 5,
-                .DMA_tx_stream_alt      = 5,
-                .DMA_rx_stream_pri      = 6,
-                .DMA_rx_stream_alt      = 6,
-                .DMA_channel            = 1,
-                .DMA_major              = _DMA_DDI_DMA2,
-                #endif
+                .SPI = SPI6,
+                .APBENR = &RCC->APB2ENR,
+                .APBRSTR = &RCC->APB2RSTR,
+                .APBRSTRENR = RCC_APB2ENR_SPI6EN,
+                .IRQn = SPI6_IRQn,
+#if USE_DMA > 0
+                .use_DMA = _SPI6_USE_DMA,
+                .DMA_tx_stream_pri = 5,
+                .DMA_tx_stream_alt = 5,
+                .DMA_rx_stream_pri = 6,
+                .DMA_rx_stream_alt = 6,
+                .DMA_channel = 1,
+                .DMA_major = _DMA_DDI_DMA2,
+#endif
         },
-        #endif
+#endif
 #endif
 };
 
@@ -314,22 +314,20 @@ void _SPI_LLD__turn_off(u8_t major)
 void _SPI_LLD__apply_config(struct SPI_slave *hdl)
 {
         static const u16_t divider_mask[] = {
-                [SPI_CLK_DIV__2  ] = 0x00,
-                [SPI_CLK_DIV__4  ] = SPI_CR1_BR_0,
-                [SPI_CLK_DIV__8  ] = SPI_CR1_BR_1,
-                [SPI_CLK_DIV__16 ] = SPI_CR1_BR_1 | SPI_CR1_BR_0,
-                [SPI_CLK_DIV__32 ] = SPI_CR1_BR_2,
-                [SPI_CLK_DIV__64 ] = SPI_CR1_BR_2 | SPI_CR1_BR_0,
+                [SPI_CLK_DIV__2] = 0x00,
+                [SPI_CLK_DIV__4] = SPI_CR1_BR_0,
+                [SPI_CLK_DIV__8] = SPI_CR1_BR_1,
+                [SPI_CLK_DIV__16] = SPI_CR1_BR_1 | SPI_CR1_BR_0,
+                [SPI_CLK_DIV__32] = SPI_CR1_BR_2,
+                [SPI_CLK_DIV__64] = SPI_CR1_BR_2 | SPI_CR1_BR_0,
                 [SPI_CLK_DIV__128] = SPI_CR1_BR_2 | SPI_CR1_BR_1,
                 [SPI_CLK_DIV__256] = SPI_CR1_BR_2 | SPI_CR1_BR_1 | SPI_CR1_BR_0,
         };
 
-        static const u16_t spi_mode_mask[] = {
-                [SPI_MODE__0] = 0x00,
+        static const u16_t spi_mode_mask[] = {[SPI_MODE__0] = 0x00,
                 [SPI_MODE__1] = SPI_CR1_CPHA,
                 [SPI_MODE__2] = SPI_CR1_CPOL,
-                [SPI_MODE__3] = SPI_CR1_CPOL | SPI_CR1_CPHA
-        };
+                [SPI_MODE__3] = SPI_CR1_CPOL | SPI_CR1_CPHA};
 
         SPI_TypeDef *SPI = SPI_HW[hdl->major].SPI;
 
@@ -377,7 +375,8 @@ void _SPI_LLD__halt(u8_t major)
 {
         SPI_TypeDef *SPI = SPI_HW[major].SPI;
 
-        while (SPI->SR & SPI_SR_BSY);
+        while (SPI->SR & SPI_SR_BSY)
+                ;
 
         CLEAR_BIT(SPI->CR1, SPI_CR1_SPE);
         SET_BIT(SPI->CR1, SPI_CR1_MSTR);
@@ -401,28 +400,22 @@ int _SPI_LLD__transceive(struct SPI_slave *hdl, const u8_t *txbuf, u8_t *rxbuf, 
 #if USE_DMA > 0
         bool dma_capable = true;
 
-        if (  (count < 16)
-           || (txbuf && !sys_is_mem_dma_capable(txbuf))
-           || (rxbuf && !sys_is_mem_dma_capable(rxbuf)) ) {
+        if ((count < 16) || (txbuf && !sys_is_mem_dma_capable(txbuf)) || (rxbuf && !sys_is_mem_dma_capable(rxbuf))) {
                 dma_capable = false;
         }
 
         // try to send/receive buffers by using DMA
         if (SPI_HW[hdl->major].use_DMA && dma_capable) {
                 // reserve TX stream
-                u32_t dmadtx = _DMA_DDI_reserve(SPI_HW[hdl->major].DMA_major,
-                                                SPI_HW[hdl->major].DMA_tx_stream_pri);
+                u32_t dmadtx = _DMA_DDI_reserve(SPI_HW[hdl->major].DMA_major, SPI_HW[hdl->major].DMA_tx_stream_pri);
                 if (dmadtx == 0) {
-                        dmadtx = _DMA_DDI_reserve(SPI_HW[hdl->major].DMA_major,
-                                                  SPI_HW[hdl->major].DMA_tx_stream_alt);
+                        dmadtx = _DMA_DDI_reserve(SPI_HW[hdl->major].DMA_major, SPI_HW[hdl->major].DMA_tx_stream_alt);
                 }
 
                 // reserve RX stream
-                u32_t dmadrx = _DMA_DDI_reserve(SPI_HW[hdl->major].DMA_major,
-                                                SPI_HW[hdl->major].DMA_rx_stream_pri);
+                u32_t dmadrx = _DMA_DDI_reserve(SPI_HW[hdl->major].DMA_major, SPI_HW[hdl->major].DMA_rx_stream_pri);
                 if (dmadrx == 0) {
-                        dmadrx = _DMA_DDI_reserve(SPI_HW[hdl->major].DMA_major,
-                                                  SPI_HW[hdl->major].DMA_rx_stream_alt);
+                        dmadrx = _DMA_DDI_reserve(SPI_HW[hdl->major].DMA_major, SPI_HW[hdl->major].DMA_rx_stream_alt);
                 }
 
                 // configure channels
@@ -430,70 +423,74 @@ int _SPI_LLD__transceive(struct SPI_slave *hdl, const u8_t *txbuf, u8_t *rxbuf, 
                         CLEAR_BIT(SPI_HW[hdl->major].SPI->CR2, SPI_CR2_RXDMAEN | SPI_CR2_TXDMAEN);
 
                         _SPI[hdl->major]->flush_byte = 0;
-                        _SPI[hdl->major]->count      = count;
+                        _SPI[hdl->major]->count = count;
 
                         _DMA_DDI_config_t config_tx = {0};
-                        config_tx.user_ctx                     = NULL;
-                        config_tx.cb_finish                    = NULL;
-                        config_tx.cb_half                      = NULL;
-                        config_tx.cb_next                      = NULL;
-                        config_tx.data_number                  = count;
-                        config_tx.peripheral_address           = cast(u32_t, &SPI_HW[hdl->major].SPI->DR);
+                        config_tx.user_ctx = NULL;
+                        config_tx.cb_finish = NULL;
+                        config_tx.cb_half = NULL;
+                        config_tx.cb_next = NULL;
+                        config_tx.data_number = count;
+                        config_tx.peripheral_address = cast(u32_t, &SPI_HW[hdl->major].SPI->DR);
 #if defined(ARCH_stm32f1) || defined(ARCH_stm32f3)
-                        config_tx.memory_address               = cast(u32_t, txbuf ? txbuf : &_SPI[hdl->major]->flush_byte);
+                        config_tx.memory_address = cast(u32_t, txbuf ? txbuf : &_SPI[hdl->major]->flush_byte);
 #endif
-                        config_tx.IRQ_priority                 = __CPU_DEFAULT_IRQ_PRIORITY__;
-                        config_tx.release                      = true;
-                        config_tx.priority_level               = _DMA_DDI_PRIORITY_LEVEL_LOW;
-                        config_tx.memory_data_size             = _DMA_DDI_MEMORY_DATA_SIZE_BYTE;
-                        config_tx.peripheral_data_size         = _DMA_DDI_PERIPHERAL_DATA_SIZE_BYTE;
+                        config_tx.IRQ_priority = __CPU_DEFAULT_IRQ_PRIORITY__;
+                        config_tx.release = true;
+                        config_tx.priority_level = _DMA_DDI_PRIORITY_LEVEL_LOW;
+                        config_tx.memory_data_size = _DMA_DDI_MEMORY_DATA_SIZE_BYTE;
+                        config_tx.peripheral_data_size = _DMA_DDI_PERIPHERAL_DATA_SIZE_BYTE;
                         config_tx.peripheral_address_increment = _DMA_DDI_PERIPHERAL_ADDRESS_POINTER_IS_FIXED;
-                        config_tx.memory_address_increment     = (txbuf ? _DMA_DDI_MEMORY_ADDRESS_POINTER_INCREMENTED : _DMA_DDI_MEMORY_ADDRESS_POINTER_IS_FIXED);
-                        config_tx.circular_mode                = _DMA_DDI_CIRCULAR_MODE_DISABLED;
-                        config_tx.transfer_direction           = _DMA_DDI_TRANSFER_DIRECTION_MEMORY_TO_PERIPHERAL;
+                        config_tx.memory_address_increment = (txbuf ? _DMA_DDI_MEMORY_ADDRESS_POINTER_INCREMENTED
+                                                                    : _DMA_DDI_MEMORY_ADDRESS_POINTER_IS_FIXED);
+                        config_tx.circular_mode = _DMA_DDI_CIRCULAR_MODE_DISABLED;
+                        config_tx.transfer_direction = _DMA_DDI_TRANSFER_DIRECTION_MEMORY_TO_PERIPHERAL;
 #if defined(ARCH_stm32f4) || defined(ARCH_stm32f7)
-                        config_tx.memory_burst                 = _DMA_DDI_MEMORY_BURST_SINGLE_TRANSFER;
-                        config_tx.peripheral_burst             = _DMA_DDI_PERIPHERAL_BURST_SINGLE_TRANSFER;
-                        config_tx.double_buffer_mode           = _DMA_DDI_DOUBLE_BUFFER_MODE_DISABLED;
-                        config_tx.peripheral_increment_offset  = _DMA_DDI_PERIPHERAL_INCREMENT_OFFSET_ACCORDING_TO_PERIPHERAL_SIZE;
-                        config_tx.flow_controller              = _DMA_DDI_FLOW_CONTROLLER_DMA;
-                        config_tx.channel                      = SPI_HW[hdl->major].DMA_channel;
-                        config_tx.mode                         = _DMA_DDI_MODE_FIFO;
-                        config_tx.fifo_threshold               = _DMA_DDI_FIFO_THRESHOLD_FULL;
-                        config_tx.memory_address[0]            = cast(u32_t, txbuf ? txbuf : &_SPI[hdl->major]->flush_byte);
-                        config_tx.memory_address[1]            = 0;
+                        config_tx.memory_burst = _DMA_DDI_MEMORY_BURST_SINGLE_TRANSFER;
+                        config_tx.peripheral_burst = _DMA_DDI_PERIPHERAL_BURST_SINGLE_TRANSFER;
+                        config_tx.double_buffer_mode = _DMA_DDI_DOUBLE_BUFFER_MODE_DISABLED;
+                        config_tx.peripheral_increment_offset =
+                                _DMA_DDI_PERIPHERAL_INCREMENT_OFFSET_ACCORDING_TO_PERIPHERAL_SIZE;
+                        config_tx.flow_controller = _DMA_DDI_FLOW_CONTROLLER_DMA;
+                        config_tx.channel = SPI_HW[hdl->major].DMA_channel;
+                        config_tx.mode = _DMA_DDI_MODE_FIFO;
+                        config_tx.fifo_threshold = _DMA_DDI_FIFO_THRESHOLD_FULL;
+                        config_tx.memory_address[0] = cast(u32_t, txbuf ? txbuf : &_SPI[hdl->major]->flush_byte);
+                        config_tx.memory_address[1] = 0;
 #endif
 
                         _DMA_DDI_config_t config_rx = {0};
-                        config_rx.user_ctx                     = hdl;
-                        config_rx.cb_finish                    = DMA_callback;
-                        config_rx.cb_half                      = NULL;
-                        config_rx.cb_next                      = NULL;
-                        config_rx.data_number                  = count;
-                        config_rx.peripheral_address           = cast(u32_t, &SPI_HW[hdl->major].SPI->DR);
+                        config_rx.user_ctx = hdl;
+                        config_rx.cb_finish = DMA_callback;
+                        config_rx.cb_half = NULL;
+                        config_rx.cb_next = NULL;
+                        config_rx.data_number = count;
+                        config_rx.peripheral_address = cast(u32_t, &SPI_HW[hdl->major].SPI->DR);
 #if defined(ARCH_stm32f1) || defined(ARCH_stm32f3)
-                        config_rx.memory_address               = cast(u32_t, rxbuf ? rxbuf : &_SPI[hdl->major]->flush_byte);
+                        config_rx.memory_address = cast(u32_t, rxbuf ? rxbuf : &_SPI[hdl->major]->flush_byte);
 #endif
-                        config_rx.IRQ_priority                 = __CPU_DEFAULT_IRQ_PRIORITY__;
-                        config_rx.release                      = true;
-                        config_rx.priority_level               = _DMA_DDI_PRIORITY_LEVEL_LOW;
-                        config_rx.memory_address_increment     = (rxbuf ? _DMA_DDI_MEMORY_ADDRESS_POINTER_INCREMENTED : _DMA_DDI_MEMORY_ADDRESS_POINTER_IS_FIXED);
-                        config_rx.memory_data_size             = _DMA_DDI_MEMORY_DATA_SIZE_BYTE;
-                        config_rx.peripheral_data_size         = _DMA_DDI_PERIPHERAL_DATA_SIZE_BYTE;
+                        config_rx.IRQ_priority = __CPU_DEFAULT_IRQ_PRIORITY__;
+                        config_rx.release = true;
+                        config_rx.priority_level = _DMA_DDI_PRIORITY_LEVEL_LOW;
+                        config_rx.memory_address_increment = (rxbuf ? _DMA_DDI_MEMORY_ADDRESS_POINTER_INCREMENTED
+                                                                    : _DMA_DDI_MEMORY_ADDRESS_POINTER_IS_FIXED);
+                        config_rx.memory_data_size = _DMA_DDI_MEMORY_DATA_SIZE_BYTE;
+                        config_rx.peripheral_data_size = _DMA_DDI_PERIPHERAL_DATA_SIZE_BYTE;
                         config_rx.peripheral_address_increment = _DMA_DDI_PERIPHERAL_ADDRESS_POINTER_IS_FIXED;
-                        config_rx.circular_mode                = _DMA_DDI_CIRCULAR_MODE_DISABLED;
-                        config_rx.transfer_direction           = _DMA_DDI_TRANSFER_DIRECTION_PERIPHERAL_TO_MEMORY;
+                        config_rx.circular_mode = _DMA_DDI_CIRCULAR_MODE_DISABLED;
+                        config_rx.transfer_direction = _DMA_DDI_TRANSFER_DIRECTION_PERIPHERAL_TO_MEMORY;
 #if defined(ARCH_stm32f4) || defined(ARCH_stm32f7)
-                        config_rx.peripheral_increment_offset  = _DMA_DDI_PERIPHERAL_INCREMENT_OFFSET_ACCORDING_TO_PERIPHERAL_SIZE;
-                        config_rx.memory_burst                 = _DMA_DDI_MEMORY_BURST_SINGLE_TRANSFER;
-                        config_rx.peripheral_burst             = _DMA_DDI_PERIPHERAL_BURST_SINGLE_TRANSFER;
-                        config_rx.double_buffer_mode           = _DMA_DDI_DOUBLE_BUFFER_MODE_DISABLED;
-                        config_rx.flow_controller              = _DMA_DDI_FLOW_CONTROLLER_DMA;
-                        config_rx.mode                         = _DMA_DDI_MODE_FIFO;
-                        config_rx.fifo_threshold               = _DMA_DDI_FIFO_THRESHOLD_1_2;
-                        config_rx.channel                      = SPI_HW[hdl->major].DMA_channel;
-                        config_rx.memory_address[0]            = cast(u32_t, rxbuf ? rxbuf : &_SPI[hdl->major]->flush_byte);
-                        config_rx.memory_address[1]            = 0;
+                        config_rx.peripheral_increment_offset =
+                                _DMA_DDI_PERIPHERAL_INCREMENT_OFFSET_ACCORDING_TO_PERIPHERAL_SIZE;
+                        config_rx.memory_burst = _DMA_DDI_MEMORY_BURST_SINGLE_TRANSFER;
+                        config_rx.peripheral_burst = _DMA_DDI_PERIPHERAL_BURST_SINGLE_TRANSFER;
+                        config_rx.double_buffer_mode = _DMA_DDI_DOUBLE_BUFFER_MODE_DISABLED;
+                        config_rx.flow_controller = _DMA_DDI_FLOW_CONTROLLER_DMA;
+                        config_rx.mode = _DMA_DDI_MODE_FIFO;
+                        config_rx.fifo_threshold = _DMA_DDI_FIFO_THRESHOLD_1_2;
+                        config_rx.channel = SPI_HW[hdl->major].DMA_channel;
+                        config_rx.memory_address[0] = cast(u32_t, rxbuf ? rxbuf : &_SPI[hdl->major]->flush_byte);
+                        config_rx.memory_address[1] = 0;
 #endif
                         err = _DMA_DDI_transfer(dmadrx, &config_rx);
                         if (!err) {
@@ -501,8 +498,7 @@ int _SPI_LLD__transceive(struct SPI_slave *hdl, const u8_t *txbuf, u8_t *rxbuf, 
                                 if (!err) {
                                         SET_BIT(SPI_HW[hdl->major].SPI->CR2, SPI_CR2_RXDMAEN | SPI_CR2_TXDMAEN);
 
-                                        err = sys_semaphore_wait(_SPI[hdl->major]->wait_irq_sem,
-                                                                 _SPI_IRQ_WAIT_TIMEOUT);
+                                        err = sys_semaphore_wait(_SPI[hdl->major]->wait_irq_sem, _SPI_IRQ_WAIT_TIMEOUT);
 
                                         _DMA_DDI_release(dmadtx);
                                         _DMA_DDI_release(dmadrx);
@@ -518,9 +514,9 @@ int _SPI_LLD__transceive(struct SPI_slave *hdl, const u8_t *txbuf, u8_t *rxbuf, 
 #endif
 
         // send/receive buffers by using IRQs
-        _SPI[hdl->major]->tx_buffer  = txbuf;
-        _SPI[hdl->major]->rx_buffer  = rxbuf;
-        _SPI[hdl->major]->count      = count;
+        _SPI[hdl->major]->tx_buffer = txbuf;
+        _SPI[hdl->major]->rx_buffer = rxbuf;
+        _SPI[hdl->major]->count = count;
         _SPI[hdl->major]->flush_byte = 0;
 
         SET_BIT(SPI_HW[hdl->major].SPI->CR2, SPI_CR2_TXEIE);
@@ -539,8 +535,8 @@ int _SPI_LLD__transceive(struct SPI_slave *hdl, const u8_t *txbuf, u8_t *rxbuf, 
 //==============================================================================
 static void handle_SPI_IRQ(u8_t major)
 {
-        bool         woken = false;
-        SPI_TypeDef *spi   = SPI_HW[major].SPI;
+        bool woken = false;
+        SPI_TypeDef *spi = SPI_HW[major].SPI;
 
         /* transmit data by using Tx register */
         if ((spi->SR & SPI_SR_TXE) && (spi->CR2 & SPI_CR2_TXEIE)) {
@@ -549,7 +545,7 @@ static void handle_SPI_IRQ(u8_t major)
                         if (_SPI[major]->tx_buffer) {
                                 u8_t byte = *(_SPI[major]->tx_buffer++);
 #if defined(ARCH_stm32f7)
-                                uint8_t *DR = (uint8_t*)&spi->DR;
+                                uint8_t *DR = (uint8_t *)&spi->DR;
                                 *DR = byte;
 #else
                                 spi->DR = byte;
@@ -557,7 +553,7 @@ static void handle_SPI_IRQ(u8_t major)
                         } else {
                                 u8_t byte = _SPI[major]->flush_byte;
 #if defined(ARCH_stm32f7)
-                                uint8_t *DR = (uint8_t*)&spi->DR;
+                                uint8_t *DR = (uint8_t *)&spi->DR;
                                 *DR = byte;
 #else
                                 spi->DR = byte;

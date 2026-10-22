@@ -5,7 +5,7 @@
 
 @brief   System function that must be used in drivers (modules) and file systems.
 
-@note    Copyright (C) 2015 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -1234,7 +1234,7 @@ extern int sys_llist_functor_cmp_strings(const void *a, const void *b);
 static inline int sys_mknod(const char *path, dev_t dev)
 {
         struct vfs_path cpath;
-        cpath.CWD  = NULL;
+        cpath.CWD = NULL;
         cpath.PATH = path;
 
         return _vfs_mknod(&cpath, dev);
@@ -1269,7 +1269,7 @@ static inline int sys_mkdir(const char *pathname, mode_t mode)
 {
 #if __OS_ENABLE_MKDIR__ == _YES_
         struct vfs_path path;
-        path.CWD  = NULL;
+        path.CWD = NULL;
         path.PATH = pathname;
 
         return _vfs_mkdir(&path, mode);
@@ -1312,7 +1312,7 @@ static inline int sys_mkfifo(const char *pathname, mode_t mode)
 {
 #if __OS_ENABLE_MKFIFO__ == _YES_
         struct vfs_path cpath;
-        cpath.CWD  = NULL;
+        cpath.CWD = NULL;
         cpath.PATH = pathname;
 
         return _vfs_mkfifo(&cpath, mode);
@@ -1486,7 +1486,7 @@ static inline int sys_remove(const char *path)
 {
 #if __OS_ENABLE_REMOVE__ == _YES_
         struct vfs_path cpath;
-        cpath.CWD  = NULL;
+        cpath.CWD = NULL;
         cpath.PATH = path;
         return _vfs_remove(&cpath);
 #else
@@ -1524,11 +1524,11 @@ static inline int sys_rename(const char *old_name, const char *new_name)
 {
 #if __OS_ENABLE_RENAME__ == _YES_
         struct vfs_path cpath_old;
-        cpath_old.CWD  = NULL;
+        cpath_old.CWD = NULL;
         cpath_old.PATH = old_name;
 
         struct vfs_path cpath_new;
-        cpath_new.CWD  = NULL;
+        cpath_new.CWD = NULL;
         cpath_new.PATH = new_name;
 
         return _vfs_rename(&cpath_old, &cpath_new);
@@ -1566,7 +1566,7 @@ static inline int sys_chmod(const char *path, mode_t mode)
 {
 #if __OS_ENABLE_CHMOD__ == _YES_
         struct vfs_path cpath;
-        cpath.CWD  = NULL;
+        cpath.CWD = NULL;
         cpath.PATH = path;
         return _vfs_chmod(&cpath, mode);
 #else
@@ -1603,7 +1603,7 @@ static inline int sys_chown(const char *path, uid_t owner, gid_t group)
 {
 #if __OS_ENABLE_CHOWN__ == _YES_
         struct vfs_path cpath;
-        cpath.CWD  = NULL;
+        cpath.CWD = NULL;
         cpath.PATH = path;
         return _vfs_chown(&cpath, owner, group);
 #else
@@ -1646,7 +1646,7 @@ static inline int sys_stat(const char *path, struct stat *buf)
 {
 #if __OS_ENABLE_FSTAT__ == _YES_
         struct vfs_path cpath;
-        cpath.CWD  = NULL;
+        cpath.CWD = NULL;
         cpath.PATH = path;
         return _vfs_stat(&cpath, buf);
 #else
@@ -1688,7 +1688,7 @@ static inline int sys_statfs(const char *path, struct statfs *statfs)
 {
 #if __OS_ENABLE_STATFS__ == _YES_
         struct vfs_path cpath;
-        cpath.CWD  = NULL;
+        cpath.CWD = NULL;
         cpath.PATH = path;
         return _vfs_statfs(&cpath, statfs);
 #else
@@ -4616,7 +4616,7 @@ static inline int sys_gettime(time_t *timer)
 {
 #if __OS_ENABLE_TIMEMAN__ == _YES_
         struct timeval timeval;
-        int            err = _gettime(&timeval);
+        int err = _gettime(&timeval);
         if (!err) {
                 if (timer) {
                         *timer = timeval.tv_sec;
@@ -4752,8 +4752,7 @@ static inline struct tm *sys_localtime_r(const time_t *timer, struct tm *tm)
  *
  */
 //==============================================================================
-static inline int sys_register_region(mem_region_t *region, void *start, size_t size, u32_t flags,
-        const char *name)
+static inline int sys_register_region(mem_region_t *region, void *start, size_t size, u32_t flags, const char *name)
 {
         return _mm_register_region(region, start, size, flags, name);
 }

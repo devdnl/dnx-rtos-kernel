@@ -5,7 +5,7 @@
 
 @brief   Kernel panic handling
 
-@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -152,9 +152,8 @@ bool _kernel_panic_info(struct _kernel_panic_info *info)
                         panic_type = "APP CRASH";
                 }
 
-                printk("%s: '%s' [%u:%d:%d,%s,%s,%u]", panic_type, kpanic_desc.content.name,
-                        kpanic_desc.content.core, kpanic_desc.content.pid, kpanic_desc.content.tid,
-                        CAUSE[kpanic_desc.content.cause],
+                printk("%s: '%s' [%u:%d:%d,%s,%s,%u]", panic_type, kpanic_desc.content.name, kpanic_desc.content.core,
+                        kpanic_desc.content.pid, kpanic_desc.content.tid, CAUSE[kpanic_desc.content.cause],
                         (kpanic_desc.content.flags & _KERNEL_PANIC_FLAG__KERNEL_SPACE) ? "KRN" : "USR",
                         kpanic_desc.content.syscall);
 

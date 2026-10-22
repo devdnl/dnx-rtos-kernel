@@ -5,7 +5,7 @@
 
 @brief   Module with calculation and convert functions.
 
-@note    Copyright (C) 2013 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -39,14 +39,14 @@
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define YEAR0                   1900
-#define DAY0                    4       // day 0 was Thursday
-#define EPOCH_YR                1970
-#define SECS_MIN                60
-#define SECS_HOUR               3600
-#define SECS_DAY                86400
-#define SECS_YEAR               31536000
-#define YEARSIZE(year)          (is_leap_year(year) ? 366 : 365)
+#define YEAR0          1900
+#define DAY0           4 // day 0 was Thursday
+#define EPOCH_YR       1970
+#define SECS_MIN       60
+#define SECS_HOUR      3600
+#define SECS_DAY       86400
+#define SECS_YEAR      31536000
+#define YEARSIZE(year) (is_leap_year(year) ? 366 : 365)
 
 /*==============================================================================
   Local object types
@@ -61,10 +61,8 @@
 ==============================================================================*/
 #if __OS_ENABLE_TIMEMAN__ == _YES_
 /** number of days in months for leap and normal years */
-static const uint8_t _ytab[2][12] = {
-        {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31},
-        {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
-};
+static const uint8_t _ytab[2][12] = {{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31},
+        {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}};
 #endif
 
 /*==============================================================================
@@ -72,7 +70,7 @@ static const uint8_t _ytab[2][12] = {
 ==============================================================================*/
 #if __OS_ENABLE_TIMEMAN__ == _YES_
 /** local time offset */
-int _ltimeoff_sec = 0;      // UTC timezone offset in seconds
+int _ltimeoff_sec = 0; // UTC timezone offset in seconds
 #endif
 
 /*==============================================================================
@@ -104,7 +102,7 @@ static void reverse_buffer(char *begin, char *end)
 {
         while (end > begin) {
                 char tmp = *end;
-                *end--   = *begin;
+                *end-- = *begin;
                 *begin++ = tmp;
         }
 }
@@ -124,11 +122,11 @@ static void reverse_buffer(char *begin, char *end)
 //==============================================================================
 char *_itoa(i64_t val, char *buf, u8_t base, bool usign_val, u8_t zeros_req)
 {
-        static const char digits[]  = "0123456789ABCDEF";
-        char             *buf_start = buf;
+        static const char digits[] = "0123456789ABCDEF";
+        char *buf_start = buf;
 
         if (base >= 2 && base <= 16) {
-                bool sign     = val < 0 && !usign_val;
+                bool sign = val < 0 && !usign_val;
                 u8_t zero_cnt = 0;
 
                 if (base == 10 && sign) {
@@ -139,10 +137,10 @@ char *_itoa(i64_t val, char *buf, u8_t base, bool usign_val, u8_t zeros_req)
                 do {
                         if (usign_val) {
                                 quot = cast(u64_t, val) / base;
-                                rem  = cast(u64_t, val) % base;
+                                rem = cast(u64_t, val) % base;
                         } else {
                                 quot = cast(u64_t, val) / base;
-                                rem  = cast(u64_t, val) % base;
+                                rem = cast(u64_t, val) % base;
                         }
 
                         *buf++ = digits[rem];
@@ -183,10 +181,9 @@ char *_itoa(i64_t val, char *buf, u8_t base, bool usign_val, u8_t zeros_req)
 //==============================================================================
 int _dtoa(double value, char *str, int prec, int n)
 {
-        const double pow10[] = {1, 10, 100, 1000, 10000, 100000, 1000000,
-                                10000000, 100000000, 1000000000};
+        const double pow10[] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
 
-        int   conv = 0;
+        int conv = 0;
         char *wstr = str;
 
         void push_char(const char c)
@@ -213,7 +210,7 @@ int _dtoa(double value, char *str, int prec, int n)
         /* if input is larger than thres_max, revert to exponential */
         const double thres_max = cast(double, 0x7FFFFFFF);
 
-        double diff  = 0.0;
+        double diff = 0.0;
 
         if (prec < 0) {
                 prec = 0;
@@ -229,9 +226,9 @@ int _dtoa(double value, char *str, int prec, int n)
                 value = -value;
         }
 
-        int    whole = (int) value;
-        double tmp   = (value - whole) * pow10[prec];
-        u32_t  frac  = (u32_t)tmp;
+        int whole = (int)value;
+        double tmp = (value - whole) * pow10[prec];
+        u32_t frac = (u32_t)tmp;
 
         diff = tmp - frac;
 
@@ -276,7 +273,7 @@ int _dtoa(double value, char *str, int prec, int n)
                 /* now do fractional part, as an unsigned number */
                 do {
                         --count;
-                        push_char((char) (48 + (frac % 10)));
+                        push_char((char)(48 + (frac % 10)));
                 } while (frac /= 10);
 
                 /* add extra 0s */
@@ -290,7 +287,7 @@ int _dtoa(double value, char *str, int prec, int n)
 
         /* Do whole part. Take care of sign. Conversion. Number is reversed. */
         do {
-                push_char((char) (48 + (whole % 10)));
+                push_char((char)(48 + (whole % 10)));
         } while (whole /= 10);
 
         if (neg) {
@@ -334,13 +331,13 @@ char *sys_strtoi32(const char *string, int base, i32_t *value)
 
         if (base == 0) {
                 if (strncmp("0x", string, 2) == 0) {
-                        base    = 16;
+                        base = 16;
                         string += 2;
                 } else if (strncmp("0b", string, 2) == 0) {
-                        base    = 2;
+                        base = 2;
                         string += 2;
                 } else if (strncmp("0", string, 1) == 0) {
-                        base    = 8;
+                        base = 8;
                         string += 1;
                 } else {
                         base = 10;
@@ -349,8 +346,8 @@ char *sys_strtoi32(const char *string, int base, i32_t *value)
                 return const_cast(string);
         }
 
-        char  character;
-        bool  char_found = false;
+        char character;
+        bool char_found = false;
         while ((character = *string) != '\0') {
                 /* if space exist, atoi continue finding correct character */
                 if ((character == ' ') && (char_found == false)) {
@@ -441,14 +438,14 @@ i32_t sys_atoi(const char *str)
 //==============================================================================
 double sys_strtod(const char *str, char **end)
 {
-        double sign    = 1;
-        double div     = 1;
-        double number  = 0;
-        int    i       = 0;
-        int    decimal = 0;
-        int    base    = 10;
-        bool   isnum   = false;
-        bool   point   = false;
+        double sign = 1;
+        double div = 1;
+        double number = 0;
+        int i = 0;
+        int decimal = 0;
+        int base = 10;
+        bool isnum = false;
+        bool point = false;
 
         while (str[i] != '\0') {
                 if (isspace(str[i])) {
@@ -458,9 +455,9 @@ double sys_strtod(const char *str, char **end)
                 } else {
                         isnum = true;
 
-                        if ((str[i] == '0') && (tolower(str[i+1]) == 'x')) {
+                        if ((str[i] == '0') && (tolower(str[i + 1]) == 'x')) {
                                 base = 16;
-                                i   += 2;
+                                i += 2;
                                 continue;
                         }
 
@@ -468,10 +465,10 @@ double sys_strtod(const char *str, char **end)
 
                         if ((num >= '0') && (num <= '9')) {
                                 number *= base;
-                                number += (double) (num - '0');
+                                number += (double)(num - '0');
                         } else if ((num >= 'a') && (num <= 'f')) {
                                 number *= base;
-                                number += (double) (num - 'a') + 10;
+                                number += (double)(num - 'a') + 10;
                         } else if (num == '.' && !point) {
                                 point = true;
                                 i++;
@@ -511,7 +508,7 @@ double sys_strtod(const char *str, char **end)
         }
 
         if (end) {
-                *end = (char *) &str[i];
+                *end = (char *)&str[i];
         }
 
         return sign * (number / div);
@@ -529,14 +526,14 @@ double sys_strtod(const char *str, char **end)
 //==============================================================================
 float _strtof(const char *str, char **end)
 {
-        float  sign    = 1;
-        float  div     = 1;
-        float  number  = 0;
-        int    i       = 0;
-        int    decimal = 0;
-        int    base    = 10;
-        bool   isnum   = false;
-        bool   point   = false;
+        float sign = 1;
+        float div = 1;
+        float number = 0;
+        int i = 0;
+        int decimal = 0;
+        int base = 10;
+        bool isnum = false;
+        bool point = false;
 
         while (str[i] != '\0') {
                 if (isspace(str[i])) {
@@ -546,9 +543,9 @@ float _strtof(const char *str, char **end)
                 } else {
                         isnum = true;
 
-                        if ((str[i] == '0') && (tolower(str[i+1]) == 'x')) {
+                        if ((str[i] == '0') && (tolower(str[i + 1]) == 'x')) {
                                 base = 16;
-                                i   += 2;
+                                i += 2;
                                 continue;
                         }
 
@@ -556,10 +553,10 @@ float _strtof(const char *str, char **end)
 
                         if ((num >= '0') && (num <= '9')) {
                                 number *= base;
-                                number += (float) (num - '0');
+                                number += (float)(num - '0');
                         } else if ((num >= 'a') && (num <= 'f')) {
                                 number *= base;
-                                number += (float) (num - 'a') + 10;
+                                number += (float)(num - 'a') + 10;
                         } else if (num == '.' && !point) {
                                 point = true;
                                 i++;
@@ -599,7 +596,7 @@ float _strtof(const char *str, char **end)
         }
 
         if (end) {
-                *end = (char *) &str[i];
+                *end = (char *)&str[i];
         }
 
         return sign * (number / div);
@@ -631,13 +628,8 @@ double sys_atof(const char *str)
 //==============================================================================
 time_t _mktime(struct tm *tm)
 {
-        if (  tm->tm_mday >= 1
-           && tm->tm_mday <= 31
-           && tm->tm_mon  >= 0
-           && tm->tm_mon  <= 11
-           && tm->tm_hour <= 23
-           && tm->tm_min  <= 59
-           && tm->tm_sec  <= 59  ) {
+        if (tm->tm_mday >= 1 && tm->tm_mday <= 31 && tm->tm_mon >= 0 && tm->tm_mon <= 11 && tm->tm_hour <= 23 &&
+                tm->tm_min <= 59 && tm->tm_sec <= 59) {
 
                 uint16_t yday = 0;
                 for (int i = 0; i < tm->tm_mon; i++) {
@@ -646,9 +638,9 @@ time_t _mktime(struct tm *tm)
 
                 yday += tm->tm_mday - 1;
 
-                return cast(time_t, tm->tm_sec) + tm->tm_min * SECS_MIN + tm->tm_hour * SECS_HOUR
-                       + yday * SECS_DAY + (tm->tm_year - 70) * SECS_YEAR + ((tm->tm_year - 69) / 4) * SECS_DAY
-                       - ((tm->tm_year - 1) / 100) * SECS_DAY + ((tm->tm_year + 299) / 400) * SECS_DAY;
+                return cast(time_t, tm->tm_sec) + tm->tm_min * SECS_MIN + tm->tm_hour * SECS_HOUR + yday * SECS_DAY +
+                        (tm->tm_year - 70) * SECS_YEAR + ((tm->tm_year - 69) / 4) * SECS_DAY -
+                        ((tm->tm_year - 1) / 100) * SECS_DAY + ((tm->tm_year + 299) / 400) * SECS_DAY;
         } else {
                 return -1;
         }
@@ -668,13 +660,13 @@ struct tm *_gmtime_r(const time_t *timer, struct tm *tmbuf)
 {
         if (timer && tmbuf) {
                 time_t time = *timer;
-                u32_t  year = EPOCH_YR;
+                u32_t year = EPOCH_YR;
 
                 u32_t dayclock = (u32_t)time % SECS_DAY;
-                u32_t dayno    = (u32_t)time / SECS_DAY;
+                u32_t dayno = (u32_t)time / SECS_DAY;
 
-                tmbuf->tm_sec  = dayclock % SECS_MIN;
-                tmbuf->tm_min  = (dayclock % SECS_HOUR) / SECS_MIN;
+                tmbuf->tm_sec = dayclock % SECS_MIN;
+                tmbuf->tm_min = (dayclock % SECS_HOUR) / SECS_MIN;
                 tmbuf->tm_hour = dayclock / SECS_HOUR;
                 tmbuf->tm_wday = (dayno + DAY0) % 7;
 
@@ -685,14 +677,14 @@ struct tm *_gmtime_r(const time_t *timer, struct tm *tmbuf)
 
                 tmbuf->tm_year = year - YEAR0;
                 tmbuf->tm_yday = dayno;
-                tmbuf->tm_mon  = 0;
+                tmbuf->tm_mon = 0;
 
                 while (dayno >= (u32_t)_ytab[is_leap_year(year)][tmbuf->tm_mon]) {
                         dayno -= _ytab[is_leap_year(year)][tmbuf->tm_mon];
                         tmbuf->tm_mon++;
                 }
 
-                tmbuf->tm_mday  = dayno + 1;
+                tmbuf->tm_mday = dayno + 1;
                 tmbuf->tm_isdst = 0;
                 tmbuf->tm_isutc = 1;
 

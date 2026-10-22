@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   File Bridge
 
-        Copyright (C) 2022 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -39,8 +39,8 @@ Brief   File Bridge
   Local object types
 ==============================================================================*/
 typedef struct {
-        u8_t     major;
-        u8_t     minor;
+        u8_t major;
+        u8_t minor;
         kfile_t *read_file;
         kfile_t *write_file;
 } FBRIDGE_t;
@@ -202,8 +202,7 @@ API_MOD_WRITE(FBRIDGE, void *device_handle, const u8_t *src, size_t count, fpos_
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(FBRIDGE, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdctr,
-        struct vfs_fattr fattr)
+API_MOD_READ(FBRIDGE, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdctr, struct vfs_fattr fattr)
 {
         FBRIDGE_t *hdl = device_handle;
 
@@ -280,7 +279,7 @@ API_MOD_STAT(FBRIDGE, void *device_handle, struct vfs_dev_stat *device_stat)
         FBRIDGE_t *hdl = device_handle;
 
         struct stat stat_buf;
-        int         err      = sys_fstat(hdl->read_file, &stat_buf);
+        int err = sys_fstat(hdl->read_file, &stat_buf);
         device_stat->st_size = stat_buf.st_size;
 
         return err;
@@ -312,7 +311,7 @@ static int configure(FBRIDGE_t *hdl, const FBRIDGE_conf_t *conf)
                                 sys_fclose(hdl->write_file);
                         }
 
-                        hdl->read_file  = new_read_file;
+                        hdl->read_file = new_read_file;
                         hdl->write_file = new_write_file;
                 }
         }

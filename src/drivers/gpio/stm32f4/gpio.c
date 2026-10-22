@@ -9,7 +9,7 @@
          driver which controls pins directly and register it in the VFS if
          needed.
 
-@note    Copyright (C) 2017  Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026  Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -42,141 +42,241 @@
   Local symbolic constants/macros
 ==============================================================================*/
 /** define number of pins per port */
-#define PINS_PER_PORT                           16
+#define PINS_PER_PORT 16
 
 /** define CRL configuration macro */
-#define GPIO_SET_AFRL(CFG, PIN)                 ( (CFG) << (4 * (PIN)) )
+#define GPIO_SET_AFRL(CFG, PIN) ((CFG) << (4 * (PIN)))
 
 /** define CRH configuration macro */
-#define GPIO_SET_AFRH(CFG, PIN)                 ( (CFG) << (4 * ((PIN) - 8)) )
+#define GPIO_SET_AFRH(CFG, PIN) ((CFG) << (4 * ((PIN) - 8)))
 
 /** AFRL register value for GPIO */
-#define GPIOx_AFRL(port) \
-        ( GPIO_SET_AFRL(_##port##_PIN_0_AF, 0) | GPIO_SET_AFRL(_##port##_PIN_1_AF, 1) \
-        | GPIO_SET_AFRL(_##port##_PIN_2_AF, 2) | GPIO_SET_AFRL(_##port##_PIN_3_AF, 3) \
-        | GPIO_SET_AFRL(_##port##_PIN_4_AF, 4) | GPIO_SET_AFRL(_##port##_PIN_5_AF, 5) \
-        | GPIO_SET_AFRL(_##port##_PIN_6_AF, 6) | GPIO_SET_AFRL(_##port##_PIN_7_AF, 7) )
+#define GPIOx_AFRL(port)                                                                      \
+        (GPIO_SET_AFRL(_##port##_PIN_0_AF, 0) | GPIO_SET_AFRL(_##port##_PIN_1_AF, 1) |        \
+                GPIO_SET_AFRL(_##port##_PIN_2_AF, 2) | GPIO_SET_AFRL(_##port##_PIN_3_AF, 3) | \
+                GPIO_SET_AFRL(_##port##_PIN_4_AF, 4) | GPIO_SET_AFRL(_##port##_PIN_5_AF, 5) | \
+                GPIO_SET_AFRL(_##port##_PIN_6_AF, 6) | GPIO_SET_AFRL(_##port##_PIN_7_AF, 7))
 
 /** AFRH register value for GPIO */
-#define GPIOx_AFRH(port) \
-        ( GPIO_SET_AFRH(_##port##_PIN_8_AF,   8) | GPIO_SET_AFRH(_##port##_PIN_9_AF ,  9) \
-        | GPIO_SET_AFRH(_##port##_PIN_10_AF, 10) | GPIO_SET_AFRH(_##port##_PIN_11_AF, 11) \
-        | GPIO_SET_AFRH(_##port##_PIN_12_AF, 12) | GPIO_SET_AFRH(_##port##_PIN_13_AF, 13) \
-        | GPIO_SET_AFRH(_##port##_PIN_14_AF, 14) | GPIO_SET_AFRH(_##port##_PIN_15_AF, 15) )
+#define GPIOx_AFRH(port)                                                                          \
+        (GPIO_SET_AFRH(_##port##_PIN_8_AF, 8) | GPIO_SET_AFRH(_##port##_PIN_9_AF, 9) |            \
+                GPIO_SET_AFRH(_##port##_PIN_10_AF, 10) | GPIO_SET_AFRH(_##port##_PIN_11_AF, 11) | \
+                GPIO_SET_AFRH(_##port##_PIN_12_AF, 12) | GPIO_SET_AFRH(_##port##_PIN_13_AF, 13) | \
+                GPIO_SET_AFRH(_##port##_PIN_14_AF, 14) | GPIO_SET_AFRH(_##port##_PIN_15_AF, 15))
 
 /** ODR register value for GPIO */
-#define GPIOx_ODR(port) \
-        ( (_##port##_PIN_0_STATE  <<  0) | (_##port##_PIN_1_STATE  <<  1) \
-        | (_##port##_PIN_2_STATE  <<  2) | (_##port##_PIN_3_STATE  <<  3) \
-        | (_##port##_PIN_4_STATE  <<  4) | (_##port##_PIN_5_STATE  <<  5) \
-        | (_##port##_PIN_6_STATE  <<  6) | (_##port##_PIN_7_STATE  <<  7) \
-        | (_##port##_PIN_8_STATE  <<  8) | (_##port##_PIN_9_STATE  <<  9) \
-        | (_##port##_PIN_10_STATE << 10) | (_##port##_PIN_11_STATE << 11) \
-        | (_##port##_PIN_12_STATE << 12) | (_##port##_PIN_13_STATE << 13) \
-        | (_##port##_PIN_14_STATE << 14) | (_##port##_PIN_15_STATE << 15) )
+#define GPIOx_ODR(port)                                                                                            \
+        ((_##port##_PIN_0_STATE << 0) | (_##port##_PIN_1_STATE << 1) | (_##port##_PIN_2_STATE << 2) |              \
+                (_##port##_PIN_3_STATE << 3) | (_##port##_PIN_4_STATE << 4) | (_##port##_PIN_5_STATE << 5) |       \
+                (_##port##_PIN_6_STATE << 6) | (_##port##_PIN_7_STATE << 7) | (_##port##_PIN_8_STATE << 8) |       \
+                (_##port##_PIN_9_STATE << 9) | (_##port##_PIN_10_STATE << 10) | (_##port##_PIN_11_STATE << 11) |   \
+                (_##port##_PIN_12_STATE << 12) | (_##port##_PIN_13_STATE << 13) | (_##port##_PIN_14_STATE << 14) | \
+                (_##port##_PIN_15_STATE << 15))
 
 /** TYPE register value for GPIO */
-#define GPIOx_OTYPER(port) \
-        ( (_##port##_PIN_0_TYPE  <<  0) | (_##port##_PIN_1_TYPE  <<  1) \
-        | (_##port##_PIN_2_TYPE  <<  2) | (_##port##_PIN_3_TYPE  <<  3) \
-        | (_##port##_PIN_4_TYPE  <<  4) | (_##port##_PIN_5_TYPE  <<  5) \
-        | (_##port##_PIN_6_TYPE  <<  6) | (_##port##_PIN_7_TYPE  <<  7) \
-        | (_##port##_PIN_8_TYPE  <<  8) | (_##port##_PIN_9_TYPE  <<  9) \
-        | (_##port##_PIN_10_TYPE << 10) | (_##port##_PIN_11_TYPE << 11) \
-        | (_##port##_PIN_12_TYPE << 12) | (_##port##_PIN_13_TYPE << 13) \
-        | (_##port##_PIN_14_TYPE << 14) | (_##port##_PIN_15_TYPE << 15) )
+#define GPIOx_OTYPER(port)                                                                                      \
+        ((_##port##_PIN_0_TYPE << 0) | (_##port##_PIN_1_TYPE << 1) | (_##port##_PIN_2_TYPE << 2) |              \
+                (_##port##_PIN_3_TYPE << 3) | (_##port##_PIN_4_TYPE << 4) | (_##port##_PIN_5_TYPE << 5) |       \
+                (_##port##_PIN_6_TYPE << 6) | (_##port##_PIN_7_TYPE << 7) | (_##port##_PIN_8_TYPE << 8) |       \
+                (_##port##_PIN_9_TYPE << 9) | (_##port##_PIN_10_TYPE << 10) | (_##port##_PIN_11_TYPE << 11) |   \
+                (_##port##_PIN_12_TYPE << 12) | (_##port##_PIN_13_TYPE << 13) | (_##port##_PIN_14_TYPE << 14) | \
+                (_##port##_PIN_15_TYPE << 15))
 
 /** MODE register value for GPIO */
-#define GPIOx_MODER(port)\
-        ( (_##port##_PIN_0_MODE  <<  0) | (_##port##_PIN_1_MODE  <<  2) \
-        | (_##port##_PIN_2_MODE  <<  4) | (_##port##_PIN_3_MODE  <<  6) \
-        | (_##port##_PIN_4_MODE  <<  8) | (_##port##_PIN_5_MODE  << 10) \
-        | (_##port##_PIN_6_MODE  << 12) | (_##port##_PIN_7_MODE  << 14) \
-        | (_##port##_PIN_8_MODE  << 16) | (_##port##_PIN_9_MODE  << 18) \
-        | (_##port##_PIN_10_MODE << 20) | (_##port##_PIN_11_MODE << 22) \
-        | (_##port##_PIN_12_MODE << 24) | (_##port##_PIN_13_MODE << 26) \
-        | (_##port##_PIN_14_MODE << 28) | (_##port##_PIN_15_MODE << 30) )
+#define GPIOx_MODER(port)                                                                                       \
+        ((_##port##_PIN_0_MODE << 0) | (_##port##_PIN_1_MODE << 2) | (_##port##_PIN_2_MODE << 4) |              \
+                (_##port##_PIN_3_MODE << 6) | (_##port##_PIN_4_MODE << 8) | (_##port##_PIN_5_MODE << 10) |      \
+                (_##port##_PIN_6_MODE << 12) | (_##port##_PIN_7_MODE << 14) | (_##port##_PIN_8_MODE << 16) |    \
+                (_##port##_PIN_9_MODE << 18) | (_##port##_PIN_10_MODE << 20) | (_##port##_PIN_11_MODE << 22) |  \
+                (_##port##_PIN_12_MODE << 24) | (_##port##_PIN_13_MODE << 26) | (_##port##_PIN_14_MODE << 28) | \
+                (_##port##_PIN_15_MODE << 30))
 
 /** OSPEED register value for GPIO */
-#define GPIOx_OSPEEDR(port) \
-        ( (_##port##_PIN_0_SPEED  <<  0) | (_##port##_PIN_1_SPEED  <<  2) \
-        | (_##port##_PIN_2_SPEED  <<  4) | (_##port##_PIN_3_SPEED  <<  6) \
-        | (_##port##_PIN_4_SPEED  <<  8) | (_##port##_PIN_5_SPEED  << 10) \
-        | (_##port##_PIN_6_SPEED  << 12) | (_##port##_PIN_7_SPEED  << 14) \
-        | (_##port##_PIN_8_SPEED  << 16) | (_##port##_PIN_9_SPEED  << 18) \
-        | (_##port##_PIN_10_SPEED << 20) | (_##port##_PIN_11_SPEED << 22) \
-        | (_##port##_PIN_12_SPEED << 24) | (_##port##_PIN_13_SPEED << 26) \
-        | (_##port##_PIN_14_SPEED << 28) | (_##port##_PIN_15_SPEED << 30) )
+#define GPIOx_OSPEEDR(port)                                                                                        \
+        ((_##port##_PIN_0_SPEED << 0) | (_##port##_PIN_1_SPEED << 2) | (_##port##_PIN_2_SPEED << 4) |              \
+                (_##port##_PIN_3_SPEED << 6) | (_##port##_PIN_4_SPEED << 8) | (_##port##_PIN_5_SPEED << 10) |      \
+                (_##port##_PIN_6_SPEED << 12) | (_##port##_PIN_7_SPEED << 14) | (_##port##_PIN_8_SPEED << 16) |    \
+                (_##port##_PIN_9_SPEED << 18) | (_##port##_PIN_10_SPEED << 20) | (_##port##_PIN_11_SPEED << 22) |  \
+                (_##port##_PIN_12_SPEED << 24) | (_##port##_PIN_13_SPEED << 26) | (_##port##_PIN_14_SPEED << 28) | \
+                (_##port##_PIN_15_SPEED << 30))
 
 /** PUPD register value for GPIO */
-#define GPIOx_PUPDR(port) \
-        ( (_##port##_PIN_0_PUPD  <<  0) | (_##port##_PIN_1_PUPD  <<  2) \
-        | (_##port##_PIN_2_PUPD  <<  4) | (_##port##_PIN_3_PUPD  <<  6) \
-        | (_##port##_PIN_4_PUPD  <<  8) | (_##port##_PIN_5_PUPD  << 10) \
-        | (_##port##_PIN_6_PUPD  << 12) | (_##port##_PIN_7_PUPD  << 14) \
-        | (_##port##_PIN_8_PUPD  << 16) | (_##port##_PIN_9_PUPD  << 18) \
-        | (_##port##_PIN_10_PUPD << 20) | (_##port##_PIN_11_PUPD << 22) \
-        | (_##port##_PIN_12_PUPD << 24) | (_##port##_PIN_13_PUPD << 26) \
-        | (_##port##_PIN_14_PUPD << 28) | (_##port##_PIN_15_PUPD << 30) )
+#define GPIOx_PUPDR(port)                                                                                       \
+        ((_##port##_PIN_0_PUPD << 0) | (_##port##_PIN_1_PUPD << 2) | (_##port##_PIN_2_PUPD << 4) |              \
+                (_##port##_PIN_3_PUPD << 6) | (_##port##_PIN_4_PUPD << 8) | (_##port##_PIN_5_PUPD << 10) |      \
+                (_##port##_PIN_6_PUPD << 12) | (_##port##_PIN_7_PUPD << 14) | (_##port##_PIN_8_PUPD << 16) |    \
+                (_##port##_PIN_9_PUPD << 18) | (_##port##_PIN_10_PUPD << 20) | (_##port##_PIN_11_PUPD << 22) |  \
+                (_##port##_PIN_12_PUPD << 24) | (_##port##_PIN_13_PUPD << 26) | (_##port##_PIN_14_PUPD << 28) | \
+                (_##port##_PIN_15_PUPD << 30))
 
 /*==============================================================================
   Local types, enums definitions
 ==============================================================================*/
 struct GPIO_reg {
-        GPIO_TypeDef *const     GPIO;
-        uint32_t                IOPEN;
-        uint32_t                MODER;
-        uint32_t                OSPEEDR;
-        uint32_t                PUPDR;
-        uint32_t                AFRL;
-        uint32_t                AFRH;
-        uint16_t                OTYPER;
-        uint16_t                ODR;
+        GPIO_TypeDef *const GPIO;
+        uint32_t IOPEN;
+        uint32_t MODER;
+        uint32_t OSPEEDR;
+        uint32_t PUPDR;
+        uint32_t AFRL;
+        uint32_t AFRH;
+        uint16_t OTYPER;
+        uint16_t ODR;
 };
 
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
- static int set_pin_conf(const GPIO_pin_in_port_conf_t *conf);
- static int get_pin_conf(GPIO_pin_in_port_conf_t *conf);
+static int set_pin_conf(const GPIO_pin_in_port_conf_t *conf);
+static int get_pin_conf(GPIO_pin_in_port_conf_t *conf);
 
 /*==============================================================================
   Local object definitions
 ==============================================================================*/
 static const struct GPIO_reg GPIOx[] = {
-        #if defined(RCC_AHB1ENR_GPIOAEN)
-        {.GPIO = GPIOA, .IOPEN = RCC_AHB1ENR_GPIOAEN, .MODER = GPIOx_MODER(GPIOA), .OSPEEDR = GPIOx_OSPEEDR(GPIOA), .PUPDR = GPIOx_PUPDR(GPIOA), .AFRL = GPIOx_AFRL(GPIOA), .AFRH = GPIOx_AFRH(GPIOA), .OTYPER = GPIOx_OTYPER(GPIOA), .ODR = GPIOx_ODR(GPIOA)},
-        #endif
-        #if defined(RCC_AHB1ENR_GPIOBEN)
-        {.GPIO = GPIOB, .IOPEN = RCC_AHB1ENR_GPIOBEN, .MODER = GPIOx_MODER(GPIOB), .OSPEEDR = GPIOx_OSPEEDR(GPIOB), .PUPDR = GPIOx_PUPDR(GPIOB), .AFRL = GPIOx_AFRL(GPIOB), .AFRH = GPIOx_AFRH(GPIOB), .OTYPER = GPIOx_OTYPER(GPIOB), .ODR = GPIOx_ODR(GPIOB)},
-        #endif
-        #if defined(RCC_AHB1ENR_GPIOCEN)
-        {.GPIO = GPIOC, .IOPEN = RCC_AHB1ENR_GPIOCEN, .MODER = GPIOx_MODER(GPIOC), .OSPEEDR = GPIOx_OSPEEDR(GPIOC), .PUPDR = GPIOx_PUPDR(GPIOC), .AFRL = GPIOx_AFRL(GPIOC), .AFRH = GPIOx_AFRH(GPIOC), .OTYPER = GPIOx_OTYPER(GPIOC), .ODR = GPIOx_ODR(GPIOC)},
-        #endif
-        #if defined(RCC_AHB1ENR_GPIODEN)
-        {.GPIO = GPIOD, .IOPEN = RCC_AHB1ENR_GPIODEN, .MODER = GPIOx_MODER(GPIOD), .OSPEEDR = GPIOx_OSPEEDR(GPIOD), .PUPDR = GPIOx_PUPDR(GPIOD), .AFRL = GPIOx_AFRL(GPIOD), .AFRH = GPIOx_AFRH(GPIOD), .OTYPER = GPIOx_OTYPER(GPIOD), .ODR = GPIOx_ODR(GPIOD)},
-        #endif
-        #if defined(RCC_AHB1ENR_GPIOEEN)
-        {.GPIO = GPIOE, .IOPEN = RCC_AHB1ENR_GPIOEEN, .MODER = GPIOx_MODER(GPIOE), .OSPEEDR = GPIOx_OSPEEDR(GPIOE), .PUPDR = GPIOx_PUPDR(GPIOE), .AFRL = GPIOx_AFRL(GPIOE), .AFRH = GPIOx_AFRH(GPIOE), .OTYPER = GPIOx_OTYPER(GPIOE), .ODR = GPIOx_ODR(GPIOE)},
-        #endif
-        #if defined(RCC_AHB1ENR_GPIOFEN)
-        {.GPIO = GPIOF, .IOPEN = RCC_AHB1ENR_GPIOFEN, .MODER = GPIOx_MODER(GPIOF), .OSPEEDR = GPIOx_OSPEEDR(GPIOF), .PUPDR = GPIOx_PUPDR(GPIOF), .AFRL = GPIOx_AFRL(GPIOF), .AFRH = GPIOx_AFRH(GPIOF), .OTYPER = GPIOx_OTYPER(GPIOF), .ODR = GPIOx_ODR(GPIOF)},
-        #endif
-        #if defined(RCC_AHB1ENR_GPIOGEN)
-        {.GPIO = GPIOG, .IOPEN = RCC_AHB1ENR_GPIOGEN, .MODER = GPIOx_MODER(GPIOG), .OSPEEDR = GPIOx_OSPEEDR(GPIOG), .PUPDR = GPIOx_PUPDR(GPIOG), .AFRL = GPIOx_AFRL(GPIOG), .AFRH = GPIOx_AFRH(GPIOG), .OTYPER = GPIOx_OTYPER(GPIOG), .ODR = GPIOx_ODR(GPIOG)},
-        #endif
-        #if defined(RCC_AHB1ENR_GPIOHEN)
-        {.GPIO = GPIOH, .IOPEN = RCC_AHB1ENR_GPIOHEN, .MODER = GPIOx_MODER(GPIOH), .OSPEEDR = GPIOx_OSPEEDR(GPIOH), .PUPDR = GPIOx_PUPDR(GPIOH), .AFRL = GPIOx_AFRL(GPIOH), .AFRH = GPIOx_AFRH(GPIOH), .OTYPER = GPIOx_OTYPER(GPIOH), .ODR = GPIOx_ODR(GPIOH)},
-        #endif
-        #if defined(RCC_AHB1ENR_GPIOIEN)
-        {.GPIO = GPIOI, .IOPEN = RCC_AHB1ENR_GPIOIEN, .MODER = GPIOx_MODER(GPIOI), .OSPEEDR = GPIOx_OSPEEDR(GPIOI), .PUPDR = GPIOx_PUPDR(GPIOI), .AFRL = GPIOx_AFRL(GPIOI), .AFRH = GPIOx_AFRH(GPIOI), .OTYPER = GPIOx_OTYPER(GPIOI), .ODR = GPIOx_ODR(GPIOI)},
-        #endif
-        #if defined(RCC_AHB1ENR_GPIOJEN)
-        {.GPIO = GPIOJ, .IOPEN = RCC_AHB1ENR_GPIOJEN, .MODER = GPIOx_MODER(GPIOJ), .OSPEEDR = GPIOx_OSPEEDR(GPIOJ), .PUPDR = GPIOx_PUPDR(GPIOJ), .AFRL = GPIOx_AFRL(GPIOJ), .AFRH = GPIOx_AFRH(GPIOJ), .OTYPER = GPIOx_OTYPER(GPIOJ), .ODR = GPIOx_ODR(GPIOJ)},
-        #endif
-        #if defined(RCC_AHB1ENR_GPIOKEN)
-        {.GPIO = GPIOK, .IOPEN = RCC_AHB1ENR_GPIOKEN, .MODER = GPIOx_MODER(GPIOK), .OSPEEDR = GPIOx_OSPEEDR(GPIOK), .PUPDR = GPIOx_PUPDR(GPIOK), .AFRL = GPIOx_AFRL(GPIOK), .AFRH = GPIOx_AFRH(GPIOK), .OTYPER = GPIOx_OTYPER(GPIOK), .ODR = GPIOx_ODR(GPIOK)},
-        #endif
+#if defined(RCC_AHB1ENR_GPIOAEN)
+        {
+                .GPIO = GPIOA,
+                .IOPEN = RCC_AHB1ENR_GPIOAEN,
+                .MODER = GPIOx_MODER(GPIOA),
+                .OSPEEDR = GPIOx_OSPEEDR(GPIOA),
+                .PUPDR = GPIOx_PUPDR(GPIOA),
+                .AFRL = GPIOx_AFRL(GPIOA),
+                .AFRH = GPIOx_AFRH(GPIOA),
+                .OTYPER = GPIOx_OTYPER(GPIOA),
+                .ODR = GPIOx_ODR(GPIOA),
+        },
+#endif
+#if defined(RCC_AHB1ENR_GPIOBEN)
+        {
+                .GPIO = GPIOB,
+                .IOPEN = RCC_AHB1ENR_GPIOBEN,
+                .MODER = GPIOx_MODER(GPIOB),
+                .OSPEEDR = GPIOx_OSPEEDR(GPIOB),
+                .PUPDR = GPIOx_PUPDR(GPIOB),
+                .AFRL = GPIOx_AFRL(GPIOB),
+                .AFRH = GPIOx_AFRH(GPIOB),
+                .OTYPER = GPIOx_OTYPER(GPIOB),
+                .ODR = GPIOx_ODR(GPIOB),
+        },
+#endif
+#if defined(RCC_AHB1ENR_GPIOCEN)
+        {
+                .GPIO = GPIOC,
+                .IOPEN = RCC_AHB1ENR_GPIOCEN,
+                .MODER = GPIOx_MODER(GPIOC),
+                .OSPEEDR = GPIOx_OSPEEDR(GPIOC),
+                .PUPDR = GPIOx_PUPDR(GPIOC),
+                .AFRL = GPIOx_AFRL(GPIOC),
+                .AFRH = GPIOx_AFRH(GPIOC),
+                .OTYPER = GPIOx_OTYPER(GPIOC),
+                .ODR = GPIOx_ODR(GPIOC),
+        },
+#endif
+#if defined(RCC_AHB1ENR_GPIODEN)
+        {
+                .GPIO = GPIOD,
+                .IOPEN = RCC_AHB1ENR_GPIODEN,
+                .MODER = GPIOx_MODER(GPIOD),
+                .OSPEEDR = GPIOx_OSPEEDR(GPIOD),
+                .PUPDR = GPIOx_PUPDR(GPIOD),
+                .AFRL = GPIOx_AFRL(GPIOD),
+                .AFRH = GPIOx_AFRH(GPIOD),
+                .OTYPER = GPIOx_OTYPER(GPIOD),
+                .ODR = GPIOx_ODR(GPIOD),
+        },
+#endif
+#if defined(RCC_AHB1ENR_GPIOEEN)
+        {
+                .GPIO = GPIOE,
+                .IOPEN = RCC_AHB1ENR_GPIOEEN,
+                .MODER = GPIOx_MODER(GPIOE),
+                .OSPEEDR = GPIOx_OSPEEDR(GPIOE),
+                .PUPDR = GPIOx_PUPDR(GPIOE),
+                .AFRL = GPIOx_AFRL(GPIOE),
+                .AFRH = GPIOx_AFRH(GPIOE),
+                .OTYPER = GPIOx_OTYPER(GPIOE),
+                .ODR = GPIOx_ODR(GPIOE),
+        },
+#endif
+#if defined(RCC_AHB1ENR_GPIOFEN)
+        {
+                .GPIO = GPIOF,
+                .IOPEN = RCC_AHB1ENR_GPIOFEN,
+                .MODER = GPIOx_MODER(GPIOF),
+                .OSPEEDR = GPIOx_OSPEEDR(GPIOF),
+                .PUPDR = GPIOx_PUPDR(GPIOF),
+                .AFRL = GPIOx_AFRL(GPIOF),
+                .AFRH = GPIOx_AFRH(GPIOF),
+                .OTYPER = GPIOx_OTYPER(GPIOF),
+                .ODR = GPIOx_ODR(GPIOF),
+        },
+#endif
+#if defined(RCC_AHB1ENR_GPIOGEN)
+        {
+                .GPIO = GPIOG,
+                .IOPEN = RCC_AHB1ENR_GPIOGEN,
+                .MODER = GPIOx_MODER(GPIOG),
+                .OSPEEDR = GPIOx_OSPEEDR(GPIOG),
+                .PUPDR = GPIOx_PUPDR(GPIOG),
+                .AFRL = GPIOx_AFRL(GPIOG),
+                .AFRH = GPIOx_AFRH(GPIOG),
+                .OTYPER = GPIOx_OTYPER(GPIOG),
+                .ODR = GPIOx_ODR(GPIOG),
+        },
+#endif
+#if defined(RCC_AHB1ENR_GPIOHEN)
+        {
+                .GPIO = GPIOH,
+                .IOPEN = RCC_AHB1ENR_GPIOHEN,
+                .MODER = GPIOx_MODER(GPIOH),
+                .OSPEEDR = GPIOx_OSPEEDR(GPIOH),
+                .PUPDR = GPIOx_PUPDR(GPIOH),
+                .AFRL = GPIOx_AFRL(GPIOH),
+                .AFRH = GPIOx_AFRH(GPIOH),
+                .OTYPER = GPIOx_OTYPER(GPIOH),
+                .ODR = GPIOx_ODR(GPIOH),
+        },
+#endif
+#if defined(RCC_AHB1ENR_GPIOIEN)
+        {
+                .GPIO = GPIOI,
+                .IOPEN = RCC_AHB1ENR_GPIOIEN,
+                .MODER = GPIOx_MODER(GPIOI),
+                .OSPEEDR = GPIOx_OSPEEDR(GPIOI),
+                .PUPDR = GPIOx_PUPDR(GPIOI),
+                .AFRL = GPIOx_AFRL(GPIOI),
+                .AFRH = GPIOx_AFRH(GPIOI),
+                .OTYPER = GPIOx_OTYPER(GPIOI),
+                .ODR = GPIOx_ODR(GPIOI),
+        },
+#endif
+#if defined(RCC_AHB1ENR_GPIOJEN)
+        {
+                .GPIO = GPIOJ,
+                .IOPEN = RCC_AHB1ENR_GPIOJEN,
+                .MODER = GPIOx_MODER(GPIOJ),
+                .OSPEEDR = GPIOx_OSPEEDR(GPIOJ),
+                .PUPDR = GPIOx_PUPDR(GPIOJ),
+                .AFRL = GPIOx_AFRL(GPIOJ),
+                .AFRH = GPIOx_AFRH(GPIOJ),
+                .OTYPER = GPIOx_OTYPER(GPIOJ),
+                .ODR = GPIOx_ODR(GPIOJ),
+        },
+#endif
+#if defined(RCC_AHB1ENR_GPIOKEN)
+        {
+                .GPIO = GPIOK,
+                .IOPEN = RCC_AHB1ENR_GPIOKEN,
+                .MODER = GPIOx_MODER(GPIOK),
+                .OSPEEDR = GPIOx_OSPEEDR(GPIOK),
+                .PUPDR = GPIOx_PUPDR(GPIOK),
+                .AFRL = GPIOx_AFRL(GPIOK),
+                .AFRH = GPIOx_AFRH(GPIOK),
+                .OTYPER = GPIOx_OTYPER(GPIOK),
+                .ODR = GPIOx_ODR(GPIOK),
+        },
+#endif
 };
 
 /*==============================================================================
@@ -206,13 +306,13 @@ API_MOD_INIT(GPIO, void **device_handle, u8_t major, u8_t minor, const void *con
         if (major < ARRAY_SIZE(GPIOx) && minor == 0) {
                 SET_BIT(RCC->AHB1ENR, GPIOx[major].IOPEN);
 
-                GPIOx[major].GPIO->ODR     = GPIOx[major].ODR;
-                GPIOx[major].GPIO->PUPDR   = GPIOx[major].PUPDR;
+                GPIOx[major].GPIO->ODR = GPIOx[major].ODR;
+                GPIOx[major].GPIO->PUPDR = GPIOx[major].PUPDR;
                 GPIOx[major].GPIO->OSPEEDR = GPIOx[major].OSPEEDR;
-                GPIOx[major].GPIO->OTYPER  = GPIOx[major].OTYPER;
-                GPIOx[major].GPIO->AFR[0]  = GPIOx[major].AFRL;
-                GPIOx[major].GPIO->AFR[1]  = GPIOx[major].AFRH;
-                GPIOx[major].GPIO->MODER   = GPIOx[major].MODER;
+                GPIOx[major].GPIO->OTYPER = GPIOx[major].OTYPER;
+                GPIOx[major].GPIO->AFR[0] = GPIOx[major].AFRL;
+                GPIOx[major].GPIO->AFR[1] = GPIOx[major].AFRH;
+                GPIOx[major].GPIO->MODER = GPIOx[major].MODER;
 
                 *device_handle = const_cast(&GPIOx[major]);
 
@@ -290,13 +390,8 @@ API_MOD_CLOSE(GPIO, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(GPIO,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(GPIO, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fpos, fattr);
 
@@ -304,7 +399,7 @@ API_MOD_WRITE(GPIO,
 
         if (count >= 2) {
                 for (size_t i = 0; i < count / 2; i++) {
-                        hdl->GPIO->ODR = cast(u16_t*, src)[i];
+                        hdl->GPIO->ODR = cast(u16_t *, src)[i];
                 }
 
                 *wrcnt = count & ~(1);
@@ -327,13 +422,7 @@ API_MOD_WRITE(GPIO,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(GPIO,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(GPIO, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fpos, fattr);
 
@@ -341,7 +430,7 @@ API_MOD_READ(GPIO,
 
         if (count >= 2) {
                 for (size_t i = 0; i < count / 2; i++) {
-                        cast(u16_t*, dst)[i] = hdl->GPIO->IDR;
+                        cast(u16_t *, dst)[i] = hdl->GPIO->IDR;
                 }
 
                 *rdcnt = count & ~(1);
@@ -370,7 +459,7 @@ API_MOD_IOCTL(GPIO, void *device_handle, int request, void *arg)
         if (arg) {
                 switch (request) {
                 case IOCTL_GPIO__SET_PIN: {
-                        u8_t pin = *cast(u8_t*, arg);
+                        u8_t pin = *cast(u8_t *, arg);
                         if (pin < PINS_PER_PORT) {
                                 hdl->GPIO->BSRR = (1 << pin);
                                 err = ESUCC;
@@ -379,7 +468,7 @@ API_MOD_IOCTL(GPIO, void *device_handle, int request, void *arg)
                 }
 
                 case IOCTL_GPIO__CLEAR_PIN: {
-                        u8_t pin = *cast(u8_t*, arg);
+                        u8_t pin = *cast(u8_t *, arg);
                         if (pin < PINS_PER_PORT) {
                                 hdl->GPIO->BSRR = (1 << (pin + 16));
                                 err = ESUCC;
@@ -388,7 +477,7 @@ API_MOD_IOCTL(GPIO, void *device_handle, int request, void *arg)
                 }
 
                 case IOCTL_GPIO__TOGGLE_PIN: {
-                        u8_t pin = *cast(u8_t*, arg);
+                        u8_t pin = *cast(u8_t *, arg);
                         if (pin < PINS_PER_PORT) {
                                 hdl->GPIO->ODR ^= (1 << pin);
                                 err = ESUCC;
@@ -402,7 +491,7 @@ API_MOD_IOCTL(GPIO, void *device_handle, int request, void *arg)
                                 if (pinstate->state) {
                                         hdl->GPIO->BSRR = (1 << pinstate->pin_idx);
                                 } else {
-                                        hdl->GPIO->BSRR  = (1 << (pinstate->pin_idx + 16));
+                                        hdl->GPIO->BSRR = (1 << (pinstate->pin_idx + 16));
                                 }
                                 err = ESUCC;
                         }
@@ -514,7 +603,7 @@ API_MOD_STAT(GPIO, void *device_handle, struct vfs_dev_stat *device_stat)
 {
         const struct GPIO_reg *hdl = device_handle;
 
-        device_stat->st_size  = 2;
+        device_stat->st_size = 2;
         device_stat->st_major = (hdl->IOPEN >> 4);
         device_stat->st_minor = 0;
 
@@ -556,21 +645,21 @@ static int set_pin_conf(const GPIO_pin_in_port_conf_t *conf)
                 return EINVAL;
         }
 
-        u8_t major   = conf->pin.port_idx;
+        u8_t major = conf->pin.port_idx;
         u8_t pin_idx = conf->pin.pin_idx;
 
-        size_t AFR_shift     = ((pin_idx >= 8) ? (pin_idx - 8) : pin_idx) * 4;
-        size_t MODER_shift   = pin_idx * 2;
-        size_t PUPDR_shift   = pin_idx * 2;
+        size_t AFR_shift = ((pin_idx >= 8) ? (pin_idx - 8) : pin_idx) * 4;
+        size_t MODER_shift = pin_idx * 2;
+        size_t PUPDR_shift = pin_idx * 2;
         size_t OSPEEDR_shift = pin_idx * 2;
-        size_t OTYPER_shift  = conf->pin.pin_idx;
-        size_t ODR_shift     = conf->pin.pin_idx;
-        __IO u32_t *AFR      = &GPIOx[major].GPIO->AFR[pin_idx / 8];
-        __IO u32_t *MODER    = &GPIOx[major].GPIO->MODER;
-        __IO u32_t *PUPDR    = &GPIOx[major].GPIO->PUPDR;
-        __IO u32_t *OSPEEDR  = &GPIOx[major].GPIO->OSPEEDR;
-        __IO u32_t *OTYPER   = &GPIOx[major].GPIO->OTYPER;
-        __IO u32_t *ODR      = &GPIOx[major].GPIO->ODR;
+        size_t OTYPER_shift = conf->pin.pin_idx;
+        size_t ODR_shift = conf->pin.pin_idx;
+        __IO u32_t *AFR = &GPIOx[major].GPIO->AFR[pin_idx / 8];
+        __IO u32_t *MODER = &GPIOx[major].GPIO->MODER;
+        __IO u32_t *PUPDR = &GPIOx[major].GPIO->PUPDR;
+        __IO u32_t *OSPEEDR = &GPIOx[major].GPIO->OSPEEDR;
+        __IO u32_t *OTYPER = &GPIOx[major].GPIO->OTYPER;
+        __IO u32_t *ODR = &GPIOx[major].GPIO->ODR;
 
         CLEAR_BIT(*MODER, GPIO_MODER_MODER0 << MODER_shift);
         CLEAR_BIT(*OTYPER, GPIO_OTYPER_OT_0 << OTYPER_shift);
@@ -674,25 +763,25 @@ static int get_pin_conf(GPIO_pin_in_port_conf_t *conf)
                 return EINVAL;
         }
 
-        u8_t major   = conf->pin.port_idx;
+        u8_t major = conf->pin.port_idx;
         u8_t pin_idx = conf->pin.pin_idx;
 
-        size_t AFR_shift     = ((pin_idx >= 8) ? (pin_idx - 8) : pin_idx) * 4;
-        size_t MODER_shift   = pin_idx * 2;
-        size_t PUPDR_shift   = pin_idx * 2;
+        size_t AFR_shift = ((pin_idx >= 8) ? (pin_idx - 8) : pin_idx) * 4;
+        size_t MODER_shift = pin_idx * 2;
+        size_t PUPDR_shift = pin_idx * 2;
         size_t OSPEEDR_shift = pin_idx * 2;
-        size_t OTYPER_shift  = conf->pin.pin_idx;
-        size_t ODR_shift     = conf->pin.pin_idx;
-        u32_t AFR            = (GPIOx[major].GPIO->AFR[pin_idx / 8] >> AFR_shift) & GPIO_AFRL_AFSEL0_Msk;
-        u32_t MODER          = (GPIOx[major].GPIO->MODER >> MODER_shift) & GPIO_MODER_MODER0_Msk;
-        u32_t PUPDR          = (GPIOx[major].GPIO->PUPDR >> PUPDR_shift) & GPIO_PUPDR_PUPD0_Msk;
-        u32_t OSPEEDR        = (GPIOx[major].GPIO->OSPEEDR >> OSPEEDR_shift) & GPIO_OSPEEDR_OSPEED0_Msk;
-        u32_t OTYPER         = (GPIOx[major].GPIO->OTYPER >> OTYPER_shift) & GPIO_OTYPER_OT0_Msk;
-        u32_t ODR            = (GPIOx[major].GPIO->ODR >> ODR_shift) & GPIO_ODR_OD0_Msk;
+        size_t OTYPER_shift = conf->pin.pin_idx;
+        size_t ODR_shift = conf->pin.pin_idx;
+        u32_t AFR = (GPIOx[major].GPIO->AFR[pin_idx / 8] >> AFR_shift) & GPIO_AFRL_AFSEL0_Msk;
+        u32_t MODER = (GPIOx[major].GPIO->MODER >> MODER_shift) & GPIO_MODER_MODER0_Msk;
+        u32_t PUPDR = (GPIOx[major].GPIO->PUPDR >> PUPDR_shift) & GPIO_PUPDR_PUPD0_Msk;
+        u32_t OSPEEDR = (GPIOx[major].GPIO->OSPEEDR >> OSPEEDR_shift) & GPIO_OSPEEDR_OSPEED0_Msk;
+        u32_t OTYPER = (GPIOx[major].GPIO->OTYPER >> OTYPER_shift) & GPIO_OTYPER_OT0_Msk;
+        u32_t ODR = (GPIOx[major].GPIO->ODR >> ODR_shift) & GPIO_ODR_OD0_Msk;
 
-        conf->mode  = GPIO_pin_mode__analog;
-        conf->mux   = GPIO_pin_mux__disable;
-        conf->pull  = GPIO_pin_pull_mode__none;
+        conf->mode = GPIO_pin_mode__analog;
+        conf->mux = GPIO_pin_mux__disable;
+        conf->pull = GPIO_pin_pull_mode__none;
         conf->speed = GPIO_pin_speed__low;
         conf->state = false;
 

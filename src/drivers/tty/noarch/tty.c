@@ -5,7 +5,7 @@
 
 @brief   This file support virtual terminal.
 
-@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -38,9 +38,9 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define UNICODE_UTF8_4                  0x1fffff
-#define RELEASE_LOCK_TIMEOUT_MS         2000
-#define NEW_LINE_QUEUE_TIMEOUT_MS       1000
+#define UNICODE_UTF8_4            0x1fffff
+#define RELEASE_LOCK_TIMEOUT_MS   2000
+#define NEW_LINE_QUEUE_TIMEOUT_MS 1000
 
 /*==============================================================================
   Local types, enums definitions
@@ -641,8 +641,7 @@ static int configure(tty_t *tty, const TTY_config_t *conf)
 
         int err = ESUCC;
 
-        bool same_file = conf->input_file && conf->output_file
-                       && (strcmp(conf->input_file, conf->output_file) == 0);
+        bool same_file = conf->input_file && conf->output_file && (strcmp(conf->input_file, conf->output_file) == 0);
 
         if (same_file) {
                 err = sys_fopen(conf->input_file, O_RDWR, 0, &in);
@@ -1142,7 +1141,7 @@ static int dump_tty_buffer(tty_t *tty, char *dst, size_t *size)
         int err = sys_mutex_lock(tty->secure_mtx, _WAIT_FOREVER_MS);
         if (!err) {
 
-                size_t free_bytes = *size - 1;   /* one byte reserved for '\0' */
+                size_t free_bytes = *size - 1; /* one byte reserved for '\0' */
                 char *p = dst;
 
                 for (int i = __TTY_TERM_ROWS__ - 1; i >= 0 && free_bytes > 0; i--) {

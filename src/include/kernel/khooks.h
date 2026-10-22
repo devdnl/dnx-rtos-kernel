@@ -5,7 +5,7 @@
 
 @brief   This file support all kernel hooks
 
-@note    Copyright (C) 2012 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@
 #define _KHOOKS_H_
 
 #ifdef __cplusplus
-   extern "C" {
+extern "C" {
 #endif
 
 /*==============================================================================
@@ -42,10 +42,10 @@
   Exported symbolic constants/macros
 ==============================================================================*/
 #if __OS_ENABLE_SYS_ASSERT__ > 0
-#define _assert(x) _assert_hook(x, NULL)
+#define _assert(x)          _assert_hook(x, NULL)
 #define _assert_msg(x, msg) _assert_hook(x, msg)
 #else
-#define _assert(x) (void)(x)
+#define _assert(x)          (void)(x)
 #define _assert_msg(x, msg) (void)(x)
 #define _assert_hook_suspend(suspend)
 #endif
@@ -61,8 +61,8 @@
 /*==============================================================================
   Exported function prototypes
 ==============================================================================*/
-extern void  vApplicationStackOverflowHook(TaskHandle_t pxTask, char *pcTaskName);
-extern void  vApplicationTickHook(void);
+extern void vApplicationStackOverflowHook(TaskHandle_t pxTask, char *pcTaskName);
+extern void vApplicationTickHook(void);
 extern u32_t _get_uptime_counter(void);
 
 #if __OS_ENABLE_SYS_ASSERT__ > 0
@@ -71,7 +71,7 @@ extern void _assert_hook_suspend(bool suspend);
 #endif
 
 #ifdef __cplusplus
-   }
+}
 #endif
 
 #endif /* _KHOOKS_H_ */

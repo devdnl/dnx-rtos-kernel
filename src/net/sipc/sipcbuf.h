@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   .
 
-        Copyright (C) 2019 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -63,10 +63,10 @@ typedef struct sipcbuf sipcbuf_t;
 /*==============================================================================
   Exported functions
 ==============================================================================*/
-extern int  sipcbuf__create(sipcbuf_t **sipcbuf, size_t max_capacity);
+extern int sipcbuf__create(sipcbuf_t **sipcbuf, size_t max_capacity);
 extern void sipcbuf__destroy(sipcbuf_t *sipcbuf);
-extern int  sipcbuf__write(sipcbuf_t *sipcbuf, const u8_t *data, size_t size, bool reference);
-extern int  sipcbuf__read(sipcbuf_t *sipcbuf, u8_t *data, size_t size, size_t *rdctr);
+extern int sipcbuf__write(sipcbuf_t *sipcbuf, const u8_t *data, size_t size, bool reference);
+extern int sipcbuf__read(sipcbuf_t *sipcbuf, u8_t *data, size_t size, size_t *rdctr);
 extern void sipcbuf__clear(sipcbuf_t *sipcbuf);
 extern bool sipcbuf__is_full(sipcbuf_t *sipcbuf);
 

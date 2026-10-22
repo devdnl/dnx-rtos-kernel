@@ -5,7 +5,7 @@
 
 @brief   Kernel worker process.
 
-@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ extern struct _process *_kworker_proc;
   Exported functions
 ==============================================================================*/
 extern int _kworker_init();
-extern int _kworker_process(int, char**);
+extern int _kworker_process(int, char **);
 
 /*==============================================================================
   Exported inline functions

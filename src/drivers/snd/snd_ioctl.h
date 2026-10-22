@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   Sound interface driver
 
-        Copyright (C) 2020 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -103,7 +103,7 @@ extern "C" {
     //...
     @endcode
  */
-#define IOCTL_SND__SET_CONFIGURATION            _IOW(SND, 0x00, SND_config_t*)
+#define IOCTL_SND__SET_CONFIGURATION _IOW(SND, 0x00, SND_config_t *)
 
 /*==============================================================================
   Exported object types
@@ -129,8 +129,8 @@ typedef enum {
 } SND_bits_per_sample_t;
 
 typedef struct {
-        SND_channels_t        channels;
-        SND_sample_rate_t     sample_rate;
+        SND_channels_t channels;
+        SND_sample_rate_t sample_rate;
         SND_bits_per_sample_t bits_per_sample;
 } SND_config_t;
 

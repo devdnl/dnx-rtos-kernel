@@ -5,7 +5,7 @@
 
 @brief   Print functions.
 
-@note    Copyright (C) 2015 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -79,14 +79,14 @@
 //==============================================================================
 int _vsscanf(const char *str, const char *format, va_list args)
 {
-        int       read_fields = 0;
-        int       long_ctr    = 0;
-        char      chr;
-        int64_t   value;
-        char     *strs;
-        int       sign;
-        char     *string;
-        uint16_t  bfr_size;
+        int read_fields = 0;
+        int long_ctr = 0;
+        char chr;
+        int64_t value;
+        char *strs;
+        int sign;
+        char *string;
+        uint16_t bfr_size;
 
         if (!str || !format) {
                 return EOF;
@@ -105,13 +105,14 @@ int _vsscanf(const char *str, const char *format, va_list args)
                         while (chr >= '0' && chr <= '9') {
                                 bfr_size *= 10;
                                 bfr_size += chr - '0';
-                                chr       = *format++;
+                                chr = *format++;
                         }
 
-                        if (bfr_size == 0)
-                            bfr_size = UINT16_MAX;
+                        if (bfr_size == 0) {
+                                bfr_size = UINT16_MAX;
+                        }
 
-                        loop:
+                loop:
                         switch (chr) {
                         case '\0':
                                 break;
@@ -129,7 +130,7 @@ int _vsscanf(const char *str, const char *format, va_list args)
                         case 'd':
                         case 'i':
                                 value = 0;
-                                sign  = 1;
+                                sign = 1;
 
                                 while (*str == ' ') {
                                         str++;
@@ -140,7 +141,7 @@ int _vsscanf(const char *str, const char *format, va_list args)
                                         str++;
                                 }
 
-                                strs = (char*)str;
+                                strs = (char *)str;
 
                                 while (*str >= '0' && *str <= '9' && bfr_size > 0) {
                                         value *= 10;
@@ -155,17 +156,17 @@ int _vsscanf(const char *str, const char *format, va_list args)
                                         switch (long_ctr) {
                                         default:
                                         case 0: {
-                                                int *var = va_arg(args, int*);
+                                                int *var = va_arg(args, int *);
                                                 *var = v;
                                                 break;
                                         }
                                         case 1: {
-                                                int32_t *var = va_arg(args, int32_t*);
+                                                int32_t *var = va_arg(args, int32_t *);
                                                 *var = v;
                                                 break;
                                         }
                                         case 2: {
-                                                int64_t *var = va_arg(args, int64_t*);
+                                                int64_t *var = va_arg(args, int64_t *);
                                                 *var = v;
                                                 break;
                                         }
@@ -178,7 +179,7 @@ int _vsscanf(const char *str, const char *format, va_list args)
                         case 'x':
                         case 'X':
                                 value = 0;
-                                sign  = 1;
+                                sign = 1;
 
                                 while (*str == ' ') {
                                         str++;
@@ -189,12 +190,11 @@ int _vsscanf(const char *str, const char *format, va_list args)
                                         str++;
                                 }
 
-                                strs  = (char*)str;
+                                strs = (char *)str;
 
-                                while (  (  (*str >= '0' && *str <= '9')
-                                         || (*str >= 'a' && *str <= 'f')
-                                         || (*str >= 'A' && *str <= 'F') )
-                                      && (bfr_size > 0) ) {
+                                while (((*str >= '0' && *str <= '9') || (*str >= 'a' && *str <= 'f') ||
+                                               (*str >= 'A' && *str <= 'F')) &&
+                                        (bfr_size > 0)) {
 
                                         int var;
 
@@ -220,17 +220,17 @@ int _vsscanf(const char *str, const char *format, va_list args)
                                         switch (long_ctr) {
                                         default:
                                         case 0: {
-                                                int *var = va_arg(args, int*);
+                                                int *var = va_arg(args, int *);
                                                 *var = v;
                                                 break;
                                         }
                                         case 1: {
-                                                int32_t *var = va_arg(args, int32_t*);
+                                                int32_t *var = va_arg(args, int32_t *);
                                                 *var = v;
                                                 break;
                                         }
                                         case 2: {
-                                                int64_t *var = va_arg(args, int64_t*);
+                                                int64_t *var = va_arg(args, int64_t *);
                                                 *var = v;
                                                 break;
                                         }
@@ -242,7 +242,7 @@ int _vsscanf(const char *str, const char *format, va_list args)
 
                         case 'o':
                                 value = 0;
-                                sign  = 1;
+                                sign = 1;
 
                                 while (*str == ' ') {
                                         str++;
@@ -253,7 +253,7 @@ int _vsscanf(const char *str, const char *format, va_list args)
                                         str++;
                                 }
 
-                                strs  = (char*)str;
+                                strs = (char *)str;
 
                                 while (*str >= '0' && *str <= '7' && bfr_size > 0) {
                                         value *= 8;
@@ -268,17 +268,17 @@ int _vsscanf(const char *str, const char *format, va_list args)
                                         switch (long_ctr) {
                                         default:
                                         case 0: {
-                                                int *var = va_arg(args, int*);
+                                                int *var = va_arg(args, int *);
                                                 *var = v;
                                                 break;
                                         }
                                         case 1: {
-                                                int32_t *var = va_arg(args, int32_t*);
+                                                int32_t *var = va_arg(args, int32_t *);
                                                 *var = v;
                                                 break;
                                         }
                                         case 2: {
-                                                int64_t *var = va_arg(args, int64_t*);
+                                                int64_t *var = va_arg(args, int64_t *);
                                                 *var = v;
                                                 break;
                                         }
@@ -290,7 +290,7 @@ int _vsscanf(const char *str, const char *format, va_list args)
 
                         case 'c':
                                 if (*str >= ' ') {
-                                        char *var = va_arg(args, char*);
+                                        char *var = va_arg(args, char *);
 
                                         if (var) {
                                                 *var = *str;
@@ -301,16 +301,18 @@ int _vsscanf(const char *str, const char *format, va_list args)
                                 break;
 
                         case 's':
-                                string = va_arg(args, char*);
+                                string = va_arg(args, char *);
                                 if (string) {
-                                        while (*str != '\n' && *str != '\r' && *str != '\0' && *str != ' ' && bfr_size > 0) {
+                                        while (*str != '\n' && *str != '\r' && *str != '\0' && *str != ' ' &&
+                                                bfr_size > 0) {
                                                 *string++ = *str++;
                                                 bfr_size--;
                                         }
                                         *string++ = '\0';
 
-                                        if (bfr_size != 0)
+                                        if (bfr_size != 0) {
                                                 str++;
+                                        }
 
                                         read_fields++;
                                 }
@@ -325,14 +327,15 @@ int _vsscanf(const char *str, const char *format, va_list args)
                                                 str++;
                                         }
 
-                                        float *value = va_arg(args, float*);
+                                        float *value = va_arg(args, float *);
                                         if (value) {
                                                 char *end;
                                                 *value = sys_strtod(str, &end);
                                                 str += ((int)end - (int)str);
 
-                                                if (*end != '\0')
+                                                if (*end != '\0') {
                                                         str++;
+                                                }
 
                                                 read_fields++;
                                         }

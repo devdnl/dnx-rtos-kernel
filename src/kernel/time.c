@@ -5,7 +5,7 @@
 
 @brief   dnx RTOS time functions
 
-@note    Copyright (C) 2018 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -51,10 +51,10 @@
   Local objects
 ==============================================================================*/
 #if __OS_ENABLE_TIMEMAN__ == _YES_
-static kfile_t  *RTC;
-static time_t  last_sec;
+static kfile_t *RTC;
+static time_t last_sec;
 static clock_t last_msec;
-static u32_t   usec;
+static u32_t usec;
 #endif
 
 /*==============================================================================
@@ -80,7 +80,7 @@ static int open_RTC(void)
 
         if (RTC == NULL) {
                 struct vfs_path cpath;
-                cpath.CWD  = NULL;
+                cpath.CWD = NULL;
                 cpath.PATH = __OS_RTC_FILE_PATH__;
 
                 err = _vfs_fopen(&cpath, O_RDWR, 0, &RTC);
@@ -107,7 +107,7 @@ static void simulate_usec(struct timeval *timeval)
         } else {
                 if (usec < 998500) {
                         usec += (ms_now - last_msec) * 1000;
-                        usec  = min(usec, 998500);
+                        usec = min(usec, 998500);
                 } else {
                         usec++;
                 }
@@ -115,7 +115,7 @@ static void simulate_usec(struct timeval *timeval)
 
         timeval->tv_usec = usec;
         last_msec = ms_now;
-        last_sec  = timeval->tv_sec;
+        last_sec = timeval->tv_sec;
 }
 
 //==============================================================================

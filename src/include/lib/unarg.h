@@ -5,7 +5,7 @@
 
 @brief   Unused arguments macros.
 
-@note    Copyright (C) 2015 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -40,14 +40,28 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
-#define UNUSED_ARG1(_arg1)                                                      ((void)_arg1)
-#define UNUSED_ARG2(_arg1, _arg2)                                               UNUSED_ARG1(_arg1); UNUSED_ARG1(_arg2)
-#define UNUSED_ARG3(_arg1, _arg2, _arg3)                                        UNUSED_ARG2(_arg1, _arg2); UNUSED_ARG1(_arg3)
-#define UNUSED_ARG4(_arg1, _arg2, _arg3, _arg4)                                 UNUSED_ARG3(_arg1, _arg2, _arg3); UNUSED_ARG1(_arg4)
-#define UNUSED_ARG5(_arg1, _arg2, _arg3, _arg4, _arg5)                          UNUSED_ARG4(_arg1, _arg2, _arg3, _arg4); UNUSED_ARG1(_arg5)
-#define UNUSED_ARG6(_arg1, _arg2, _arg3, _arg4, _arg5, _arg6)                   UNUSED_ARG5(_arg1, _arg2, _arg3, _arg4, _arg5); UNUSED_ARG1(_arg6)
-#define UNUSED_ARG7(_arg1, _arg2, _arg3, _arg4, _arg5, _arg6, _arg7)            UNUSED_ARG6(_arg1, _arg2, _arg3, _arg4, _arg5, _arg6); UNUSED_ARG1(_arg7)
-#define UNUSED_ARG8(_arg1, _arg2, _arg3, _arg4, _arg5, _arg6, _arg7, _arg8)     UNUSED_ARG7(_arg1, _arg2, _arg3, _arg4, _arg5, _arg6, _arg7); UNUSED_ARG1(_arg8)
+#define UNUSED_ARG1(_arg1) ((void)_arg1)
+#define UNUSED_ARG2(_arg1, _arg2) \
+        UNUSED_ARG1(_arg1);       \
+        UNUSED_ARG1(_arg2)
+#define UNUSED_ARG3(_arg1, _arg2, _arg3) \
+        UNUSED_ARG2(_arg1, _arg2);       \
+        UNUSED_ARG1(_arg3)
+#define UNUSED_ARG4(_arg1, _arg2, _arg3, _arg4) \
+        UNUSED_ARG3(_arg1, _arg2, _arg3);       \
+        UNUSED_ARG1(_arg4)
+#define UNUSED_ARG5(_arg1, _arg2, _arg3, _arg4, _arg5) \
+        UNUSED_ARG4(_arg1, _arg2, _arg3, _arg4);       \
+        UNUSED_ARG1(_arg5)
+#define UNUSED_ARG6(_arg1, _arg2, _arg3, _arg4, _arg5, _arg6) \
+        UNUSED_ARG5(_arg1, _arg2, _arg3, _arg4, _arg5);       \
+        UNUSED_ARG1(_arg6)
+#define UNUSED_ARG7(_arg1, _arg2, _arg3, _arg4, _arg5, _arg6, _arg7) \
+        UNUSED_ARG6(_arg1, _arg2, _arg3, _arg4, _arg5, _arg6);       \
+        UNUSED_ARG1(_arg7)
+#define UNUSED_ARG8(_arg1, _arg2, _arg3, _arg4, _arg5, _arg6, _arg7, _arg8) \
+        UNUSED_ARG7(_arg1, _arg2, _arg3, _arg4, _arg5, _arg6, _arg7);       \
+        UNUSED_ARG1(_arg8)
 
 /*==============================================================================
   Exported object types

@@ -5,7 +5,7 @@
 
 @brief   This file support virtual file system
 
-@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -257,7 +257,7 @@ typedef struct vfs_file {
         fpos_t f_lseek;
         vfs_file_flags_t f_flag;
         int references;
-        void *FS_entry;  //!< VFS mount entry that holds a reference (NULL for direct device files)
+        void *FS_entry; //!< VFS mount entry that holds a reference (NULL for direct device files)
 } kfile_t;
 
 /** directory type */

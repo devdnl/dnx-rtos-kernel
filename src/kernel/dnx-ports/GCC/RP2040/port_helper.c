@@ -5,7 +5,7 @@
 
 @brief   Port helper functions.
 
-@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -226,7 +226,7 @@ static void multicore_launch_core1_raw(void (*entry)(void), uint32_t *sp, uint32
         // own purposes (expecting FIFO content after core 1 is launched). We must disable
         // the IRQ during the handshake, then restore afterwards.
         uint32_t irq_num = SIO_IRQ_PROC0_IRQn;
-        bool     enabled = NVIC->ISER[irq_num / 32] & (1 << (irq_num % 32));
+        bool enabled = NVIC->ISER[irq_num / 32] & (1 << (irq_num % 32));
         NVIC_DisableIRQ(irq_num);
 
         // Values to be sent in order over the FIFO from core 0 to core 1

@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   ENC28J60 chip driver
 
-        Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -305,10 +305,10 @@ Brief   ENC28J60 chip driver
 #define TSV_BACKPRESSUREAPP 50
 #define TSV_TXVLANTAGFRAME  51
 
-#define TSV_SIZE            7
-#define TSV_BYTEOF(x)       ((x) / 8)
-#define TSV_BITMASK(x)      (1 << ((x) % 8))
-#define TSV_GETBIT(x, y)    (((x)[TSV_BYTEOF(y)] & TSV_BITMASK(y)) ? 1 : 0)
+#define TSV_SIZE         7
+#define TSV_BYTEOF(x)    ((x) / 8)
+#define TSV_BITMASK(x)   (1 << ((x) % 8))
+#define TSV_GETBIT(x, y) (((x)[TSV_BYTEOF(y)] & TSV_BITMASK(y)) ? 1 : 0)
 
 /* ENC28J60 Receive Status Vector */
 #define RSV_RXLONGEVDROPEV  16
@@ -325,9 +325,9 @@ Brief   ENC28J60 chip driver
 #define RSV_RXUNKNOWNOPCODE 29
 #define RSV_RXTYPEVLAN      30
 
-#define RSV_SIZE            6
-#define RSV_BITMASK(x)      (1 << ((x) - 16))
-#define RSV_GETBIT(x, y)    (((x) & RSV_BITMASK(y)) ? 1 : 0)
+#define RSV_SIZE         6
+#define RSV_BITMASK(x)   (1 << ((x) - 16))
+#define RSV_GETBIT(x, y) (((x) & RSV_BITMASK(y)) ? 1 : 0)
 
 /* SPI operation codes */
 #define ENC28J60_READ_CTRL_REG  0x00
@@ -342,13 +342,13 @@ Brief   ENC28J60 chip driver
 #define MAX_FRAMELEN 1518
 
 /* Preferred half duplex: LEDA: Link status LEDB: Rx/Tx activity */
-#define ENC28J60_LAMPS_MODE     0x3476
+#define ENC28J60_LAMPS_MODE 0x3476
 
 #define ENC28J60_MEMORY_SIZE    8192
 #define ENC28J60_MAX_FRAME_SIZE 1518
 
-#define ENC28J60_TXEND          (ENC28J60_MEMORY_SIZE - 1)
-#define ENC28J60_TXSTART        (ENC28J60_MEMORY_SIZE - ENC28J60_MAX_FRAME_SIZE - 2)
+#define ENC28J60_TXEND   (ENC28J60_MEMORY_SIZE - 1)
+#define ENC28J60_TXSTART (ENC28J60_MEMORY_SIZE - ENC28J60_MAX_FRAME_SIZE - 2)
 
 /*
  * From errata:
@@ -375,46 +375,46 @@ Brief   ENC28J60 chip driver
  *
  * Here the L is dropped to make it consistent with the datasheet naming
  */
-#define EDMAST       EDMASTL
-#define EDMAND       EDMANDL
-#define ERXND        ERXNDL
-#define EDMACS       EDMACSL
-#define EBSTCS       EBSTCSL
-#define MIWR         MIWRL
-#define MIRD         MIRDL
-#define ERDPT        ERDPTL
-#define EWRPT        EWRPTL
-#define ERXWRPT      ERXWRPTL
-#define ERXST        ERXSTL
-#define ERXRDPT      ERXRDPTL
-#define ETXST        ETXSTL
-#define ETXND        ETXNDL
-#define MAIPG        MAIPGL
-#define MAMXFL       MAMXFLL
+#define EDMAST  EDMASTL
+#define EDMAND  EDMANDL
+#define ERXND   ERXNDL
+#define EDMACS  EDMACSL
+#define EBSTCS  EBSTCSL
+#define MIWR    MIWRL
+#define MIRD    MIRDL
+#define ERDPT   ERDPTL
+#define EWRPT   EWRPTL
+#define ERXWRPT ERXWRPTL
+#define ERXST   ERXSTL
+#define ERXRDPT ERXRDPTL
+#define ETXST   ETXSTL
+#define ETXND   ETXNDL
+#define MAIPG   MAIPGL
+#define MAMXFL  MAMXFLL
 
 #define MACON2       (0x01 | 0x40 | SPRD_MASK)
 #define MACON4_DEFER 0x40
 
-#define ALL_BANKS    0xE0
+#define ALL_BANKS 0xE0
 
-#define RSV_RX_OK    0b010000000u
-#define TSV_TX_DONE  0b010000000u
+#define RSV_RX_OK   0b010000000u
+#define TSV_TX_DONE 0b010000000u
 
 /*
  * Built-in self test (BIST) bits
  */
-#define EBSTCON_PSV2                 0x80
-#define EBSTCON_PSV1                 0x40
-#define EBSTCON_PSV0                 0x20
-#define EBSTCON_PSEL                 0x10
-#define EBSTCON_TMSEL1               0x08
-#define EBSTCON_TMSEL0               0x04
-#define EBSTCON_TME                  0x02
-#define EBSTCON_BISTST               0x01
+#define EBSTCON_PSV2   0x80
+#define EBSTCON_PSV1   0x40
+#define EBSTCON_PSV0   0x20
+#define EBSTCON_PSEL   0x10
+#define EBSTCON_TMSEL1 0x08
+#define EBSTCON_TMSEL0 0x04
+#define EBSTCON_TME    0x02
+#define EBSTCON_BISTST 0x01
 
-#define BIST_RANDOM_FILL             0x00
-#define BIST_ADDRESS_FILL            EBSTCON_TMSEL0
-#define BIST_PATTERN_SHIFT           EBSTCON_TMSEL1
+#define BIST_RANDOM_FILL   0x00
+#define BIST_ADDRESS_FILL  EBSTCON_TMSEL0
+#define BIST_PATTERN_SHIFT EBSTCON_TMSEL1
 
 #define ENC28J60_TRANSMIT_TIMEOUT_MS 500
 
@@ -453,19 +453,19 @@ typedef uint8_t enc28j60_addr_t;
 typedef uint8_t enc28j60_reg_t;
 
 typedef struct {
-        kfile_t          *spi;
-        kmtx_t           *mutex;
-        u8_t              major;
-        u8_t              minor;
+        kfile_t *spi;
+        kmtx_t *mutex;
+        u8_t major;
+        u8_t minor;
         ENC28J60_config_t config;
-        ETHIF_config_t    ethif_config;
-        bool              configured;
-        bool              run;
-        u32_t             rx_timeout_ms;
-        u32_t             tx_timeout_ms;
+        ETHIF_config_t ethif_config;
+        bool configured;
+        bool run;
+        u32_t rx_timeout_ms;
+        u32_t tx_timeout_ms;
 
         struct {
-                u8_t  bank;
+                u8_t bank;
                 u16_t next_packet_pointer;
         } enc28j60;
 
@@ -492,31 +492,23 @@ static int eth_packet_receive(ENC28J60_t *hdl, ETHIF_packet_t *pkt);
 
 static int eth_packet_send(ENC28J60_t *hdl, const ETHIF_packet_t *pkt);
 
-static int enc28j60_write_op(ENC28J60_t *hdl, const enc28j60_reg_t op,
-        enc28j60_addr_t address, uint8_t value);
+static int enc28j60_write_op(ENC28J60_t *hdl, const enc28j60_reg_t op, enc28j60_addr_t address, uint8_t value);
 
-static int enc28j60_read_op(ENC28J60_t *hdl, const enc28j60_reg_t op,
-        enc28j60_addr_t address, uint8_t *value);
+static int enc28j60_read_op(ENC28J60_t *hdl, const enc28j60_reg_t op, enc28j60_addr_t address, uint8_t *value);
 
 static int enc28j60_set_bank(ENC28J60_t *hdl, enc28j60_addr_t address);
 
-static int enc28j60_set_register_bit(ENC28J60_t *hdl, enc28j60_addr_t address,
-        uint8_t mask);
+static int enc28j60_set_register_bit(ENC28J60_t *hdl, enc28j60_addr_t address, uint8_t mask);
 
-static int enc28j60_clear_register_bit(ENC28J60_t *hdl, enc28j60_addr_t address,
-        uint8_t mask);
+static int enc28j60_clear_register_bit(ENC28J60_t *hdl, enc28j60_addr_t address, uint8_t mask);
 
-static int enc28j60_write_register_byte(ENC28J60_t *hdl, enc28j60_addr_t address,
-        uint8_t value);
+static int enc28j60_write_register_byte(ENC28J60_t *hdl, enc28j60_addr_t address, uint8_t value);
 
-static uint8_t enc28j60_read_register_byte(ENC28J60_t *hdl, enc28j60_addr_t address,
-        uint8_t *value);
+static uint8_t enc28j60_read_register_byte(ENC28J60_t *hdl, enc28j60_addr_t address, uint8_t *value);
 
-static int enc28j60_write_register_word(ENC28J60_t *hdl, enc28j60_addr_t address,
-        uint16_t value);
+static int enc28j60_write_register_word(ENC28J60_t *hdl, enc28j60_addr_t address, uint16_t value);
 
-static int enc28j60_read_register_word(ENC28J60_t *hdl, enc28j60_addr_t address,
-        uint16_t *value);
+static int enc28j60_read_register_word(ENC28J60_t *hdl, enc28j60_addr_t address, uint16_t *value);
 
 static int enc28j60_buffer_write(ENC28J60_t *hdl, const uint8_t *buffer, size_t length);
 
@@ -534,11 +526,9 @@ static int enc28j60_configure(ENC28J60_t *hdl);
 
 static int enc25j60_run_built_in_self_test(ENC28J60_t *hdl, u8_t address_fill);
 
-static int enc28j60_get_link_status(ENC28J60_t *hdl, enum ETHIF_link_status *link_status,
-        enum ETHIF_duplex *duplex);
+static int enc28j60_get_link_status(ENC28J60_t *hdl, enum ETHIF_link_status *link_status, enum ETHIF_duplex *duplex);
 
-static size_t enc28j60_tx_packet(ENC28J60_t *hdl, const uint8_t *buffer,
-        size_t buffer_size);
+static size_t enc28j60_tx_packet(ENC28J60_t *hdl, const uint8_t *buffer, size_t buffer_size);
 
 static int enc28j60_rx_packet(ENC28J60_t *hdl, void *buffer, uint16_t *buffer_size);
 
@@ -581,8 +571,8 @@ API_MOD_INIT(ENC28J60, void **device_handle, u8_t major, u8_t minor, const void 
         }
 
         ENC28J60_t *hdl = *device_handle;
-        hdl->major      = major;
-        hdl->minor      = minor;
+        hdl->major = major;
+        hdl->minor = minor;
 
         err = sys_mutex_create(KMTX_TYPE_NORMAL, &hdl->mutex);
         if (err) {
@@ -678,23 +668,23 @@ API_MOD_CLOSE(ENC28J60, void *device_handle, bool force)
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_WRITE(ENC28J60, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos,
-        size_t *wrctr, struct vfs_fattr fattr)
+API_MOD_WRITE(ENC28J60, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrctr,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fpos, fattr);
 
         ENC28J60_t *hdl = device_handle;
 
-        int    err = EPERM;
-        size_t n   = 0;
+        int err = EPERM;
+        size_t n = 0;
 
         while (count > 0) {
                 size_t len = min(count, IOCTL_ENC28J60_MAX_PACKET_SIZE);
 
                 ETHIF_packet_t pkt;
                 pkt.payload = const_cast(src);
-                pkt.length  = len;
-                err         = eth_packet_send(hdl, &pkt);
+                pkt.length = len;
+                err = eth_packet_send(hdl, &pkt);
                 if (!err) {
                         src += len;
                         count -= len;
@@ -723,8 +713,8 @@ API_MOD_WRITE(ENC28J60, void *device_handle, const u8_t *src, size_t count, fpos
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(ENC28J60, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
-        size_t *rdctr, struct vfs_fattr fattr)
+API_MOD_READ(ENC28J60, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdctr,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fpos, fattr);
 
@@ -732,8 +722,8 @@ API_MOD_READ(ENC28J60, void *device_handle, u8_t *dst, size_t count, fpos_t *fpo
 
         ETHIF_packet_t pkt;
         pkt.payload = dst;
-        pkt.length  = min(count, IOCTL_ENC28J60_MAX_PACKET_SIZE);
-        int err     = eth_packet_receive(hdl, &pkt);
+        pkt.length = min(count, IOCTL_ENC28J60_MAX_PACKET_SIZE);
+        int err = eth_packet_receive(hdl, &pkt);
         if (!err) {
                 *rdctr = pkt.length;
         }
@@ -762,15 +752,15 @@ API_MOD_IOCTL(ENC28J60, void *device_handle, int request, void *arg)
         case IOCTL_ENC28J60__CONFIGURE:
                 if (arg) {
                         hdl->config = *cast(ENC28J60_config_t *, arg);
-                        err         = 0;
+                        err = 0;
                 }
                 break;
 
         case IOCTL_ETHIF__CONFIGURE:
                 if (arg) {
                         hdl->ethif_config = *cast(ETHIF_config_t *, arg);
-                        hdl->configured   = true;
-                        err               = 0;
+                        hdl->configured = true;
+                        err = 0;
                 }
                 break;
 
@@ -831,7 +821,7 @@ API_MOD_IOCTL(ENC28J60, void *device_handle, int request, void *arg)
 API_MOD_FLUSH(ENC28J60, void *device_handle)
 {
         ENC28J60_t *hdl = device_handle;
-        int         err = eth_flush(hdl);
+        int err = eth_flush(hdl);
         return err;
 }
 
@@ -849,7 +839,7 @@ API_MOD_STAT(ENC28J60, void *device_handle, struct vfs_dev_stat *device_stat)
 {
         UNUSED_ARG1(device_handle);
 
-        device_stat->st_size  = 0;
+        device_stat->st_size = 0;
         device_stat->st_major = 0;
         device_stat->st_minor = 0;
 
@@ -973,10 +963,9 @@ static int eth_get_info(ENC28J60_t *hdl, ETHIF_status_t *status)
         }
 
         if (hdl->run) {
-                err = enc28j60_get_link_status(hdl, &status->link_status,
-                        &status->duplex);
+                err = enc28j60_get_link_status(hdl, &status->link_status, &status->duplex);
                 if (not err) {
-                        status->speed  = ETHIF_SPEED__10Mbps;
+                        status->speed = ETHIF_SPEED__10Mbps;
                         status->duplex = hdl->ethif_config.duplex;
                 } else {
                         status->link_status = ETHIF_LINK_STATUS__PHY_ERROR;
@@ -987,12 +976,12 @@ static int eth_get_info(ENC28J60_t *hdl, ETHIF_status_t *status)
 
         memcpy(status->MAC, hdl->ethif_config.MAC, sizeof(status->MAC));
 
-        status->configured        = hdl->configured;
-        status->rx_bytes          = hdl->stats.rx_bytes;
-        status->tx_bytes          = hdl->stats.tx_bytes;
-        status->rx_packets        = hdl->stats.rx_packets;
-        status->tx_packets        = hdl->stats.tx_packets;
-        status->state             = hdl->run ? ETHIF_STATE__READY : ETHIF_STATE__RESET;
+        status->configured = hdl->configured;
+        status->rx_bytes = hdl->stats.rx_bytes;
+        status->tx_bytes = hdl->stats.tx_bytes;
+        status->rx_packets = hdl->stats.rx_packets;
+        status->tx_packets = hdl->stats.tx_packets;
+        status->state = hdl->run ? ETHIF_STATE__READY : ETHIF_STATE__RESET;
         status->rx_dropped_frames = 0;
 
         sys_mutex_unlock(hdl->mutex);
@@ -1103,11 +1092,10 @@ static int eth_packet_receive(ENC28J60_t *hdl, ETHIF_packet_t *pkt)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-static int enc28j60_write_op(ENC28J60_t *hdl, const enc28j60_reg_t op,
-        enc28j60_addr_t address, uint8_t value)
+static int enc28j60_write_op(ENC28J60_t *hdl, const enc28j60_reg_t op, enc28j60_addr_t address, uint8_t value)
 {
         size_t wrcnt = 0;
-        u8_t   tx[2] = {op | (address & ADDR_MASK), value};
+        u8_t tx[2] = {op | (address & ADDR_MASK), value};
         return sys_fwrite(tx, sizeof(tx), &wrcnt, hdl->spi);
 }
 
@@ -1123,15 +1111,14 @@ static int enc28j60_write_op(ENC28J60_t *hdl, const enc28j60_reg_t op,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-static int enc28j60_read_op(ENC28J60_t *hdl, const enc28j60_reg_t op,
-        enc28j60_addr_t address, uint8_t *value)
+static int enc28j60_read_op(ENC28J60_t *hdl, const enc28j60_reg_t op, enc28j60_addr_t address, uint8_t *value)
 {
         u8_t tx[3] = {op | (address & ADDR_MASK), 0x00, 0x00};
         u8_t rx[3] = {0x00, 0x00, 0x00};
 
         SPI_transceive_t t;
-        t.count     = (address & SPRD_MASK) ? 3 : 2;
-        t.next      = NULL;
+        t.count = (address & SPRD_MASK) ? 3 : 2;
+        t.next = NULL;
         t.tx_buffer = tx;
         t.rx_buffer = rx;
         t.separated = true;
@@ -1167,7 +1154,7 @@ static int enc28j60_set_bank(ENC28J60_t *hdl, enc28j60_addr_t address)
         if ((address != ALL_BANKS) and (address != hdl->enc28j60.bank)) {
 
                 size_t wrcnt;
-                u8_t   tx[2];
+                u8_t tx[2];
 
                 tx[0] = (ENC28J60_BIT_FIELD_CLR | ADDR_MASK);
                 tx[1] = (ECON1_BSEL1 | ECON1_BSEL0);
@@ -1198,8 +1185,7 @@ static int enc28j60_set_bank(ENC28J60_t *hdl, enc28j60_addr_t address)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-static int enc28j60_set_register_bit(ENC28J60_t *hdl, enc28j60_addr_t address,
-        uint8_t mask)
+static int enc28j60_set_register_bit(ENC28J60_t *hdl, enc28j60_addr_t address, uint8_t mask)
 {
         int err = enc28j60_set_bank(hdl, address);
         if (not err) {
@@ -1220,8 +1206,7 @@ static int enc28j60_set_register_bit(ENC28J60_t *hdl, enc28j60_addr_t address,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-static int enc28j60_clear_register_bit(ENC28J60_t *hdl, enc28j60_addr_t address,
-        uint8_t mask)
+static int enc28j60_clear_register_bit(ENC28J60_t *hdl, enc28j60_addr_t address, uint8_t mask)
 {
         int err = enc28j60_set_bank(hdl, address);
         if (not err) {
@@ -1242,8 +1227,7 @@ static int enc28j60_clear_register_bit(ENC28J60_t *hdl, enc28j60_addr_t address,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-static int enc28j60_write_register_byte(ENC28J60_t *hdl, enc28j60_addr_t address,
-        uint8_t value)
+static int enc28j60_write_register_byte(ENC28J60_t *hdl, enc28j60_addr_t address, uint8_t value)
 {
         int err = enc28j60_set_bank(hdl, address);
         if (not err) {
@@ -1264,8 +1248,7 @@ static int enc28j60_write_register_byte(ENC28J60_t *hdl, enc28j60_addr_t address
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-static uint8_t enc28j60_read_register_byte(ENC28J60_t *hdl, enc28j60_addr_t address,
-        uint8_t *value)
+static uint8_t enc28j60_read_register_byte(ENC28J60_t *hdl, enc28j60_addr_t address, uint8_t *value)
 {
         int err = enc28j60_set_bank(hdl, address);
         if (not err) {
@@ -1286,19 +1269,16 @@ static uint8_t enc28j60_read_register_byte(ENC28J60_t *hdl, enc28j60_addr_t addr
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-static int enc28j60_write_register_word(ENC28J60_t *hdl, enc28j60_addr_t address,
-        uint16_t value)
+static int enc28j60_write_register_word(ENC28J60_t *hdl, enc28j60_addr_t address, uint16_t value)
 {
         int err = enc28j60_set_bank(hdl, address);
 
         if (not err) {
-                err = enc28j60_write_op(hdl, ENC28J60_WRITE_CTRL_REG, (address + 0),
-                        (value & 0xFF));
+                err = enc28j60_write_op(hdl, ENC28J60_WRITE_CTRL_REG, (address + 0), (value & 0xFF));
         }
 
         if (not err) {
-                err = enc28j60_write_op(hdl, ENC28J60_WRITE_CTRL_REG, (address + 1),
-                        (value >> 8));
+                err = enc28j60_write_op(hdl, ENC28J60_WRITE_CTRL_REG, (address + 1), (value >> 8));
         }
 
         return err;
@@ -1315,10 +1295,9 @@ static int enc28j60_write_register_word(ENC28J60_t *hdl, enc28j60_addr_t address
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-static int enc28j60_read_register_word(ENC28J60_t *hdl, enc28j60_addr_t address,
-        uint16_t *value)
+static int enc28j60_read_register_word(ENC28J60_t *hdl, enc28j60_addr_t address, uint16_t *value)
 {
-        u8_t low  = 0;
+        u8_t low = 0;
         u8_t high = 0;
 
         int err = enc28j60_set_bank(hdl, address);
@@ -1356,16 +1335,16 @@ static int enc28j60_buffer_write(ENC28J60_t *hdl, const uint8_t *buffer, size_t 
         SPI_transceive_t data;
         data.tx_buffer = buffer;
         data.rx_buffer = NULL;
-        data.count     = length;
+        data.count = length;
         data.separated = false;
-        data.next      = NULL;
+        data.next = NULL;
 
         SPI_transceive_t cmd;
         cmd.tx_buffer = cmd_op;
         cmd.rx_buffer = NULL;
-        cmd.count     = sizeof(cmd_op);
+        cmd.count = sizeof(cmd_op);
         cmd.separated = false;
-        cmd.next      = &data;
+        cmd.next = &data;
 
         return sys_ioctl(hdl->spi, IOCTL_SPI__TRANSCEIVE, &cmd);
 }
@@ -1388,16 +1367,16 @@ static int enc28j60_buffer_read(ENC28J60_t *hdl, uint8_t *buffer, size_t length)
         SPI_transceive_t data;
         data.tx_buffer = NULL;
         data.rx_buffer = buffer;
-        data.count     = length;
+        data.count = length;
         data.separated = false;
-        data.next      = NULL;
+        data.next = NULL;
 
         SPI_transceive_t cmd;
         cmd.tx_buffer = cmd_op;
         cmd.rx_buffer = NULL;
-        cmd.count     = sizeof(cmd_op);
+        cmd.count = sizeof(cmd_op);
         cmd.separated = false;
-        cmd.next      = &data;
+        cmd.next = &data;
 
         return sys_ioctl(hdl->spi, IOCTL_SPI__TRANSCEIVE, &cmd);
 }
@@ -1414,7 +1393,7 @@ static int enc28j60_buffer_read(ENC28J60_t *hdl, uint8_t *buffer, size_t length)
 static int enc28j60_reset(ENC28J60_t *hdl)
 {
         size_t wrcnt;
-        int    err = sys_fwrite(&(uint8_t) {ENC28J60_SOFT_RESET}, 1, &wrcnt, hdl->spi);
+        int err = sys_fwrite(&(uint8_t) {ENC28J60_SOFT_RESET}, 1, &wrcnt, hdl->spi);
         if (not err) {
                 /*
                  * Rev. B7 Silicon Errata:
@@ -1465,7 +1444,7 @@ static inline int enc28j60_phy_wait(ENC28J60_t *hdl)
                 sys_sleep_us(14);
 
                 u8_t mistat;
-                int  err = enc28j60_read_register_byte(hdl, MISTAT, &mistat);
+                int err = enc28j60_read_register_byte(hdl, MISTAT, &mistat);
                 if (err) {
                         return err;
                 }
@@ -1642,8 +1621,7 @@ static int enc28j60_configure(ENC28J60_t *hdl)
          *       accepted
          *   0 = Filter disabled
          */
-        err = enc28j60_write_register_byte(hdl, ERXFCON,
-                (ERXFCON_UCEN | ERXFCON_CRCEN | ERXFCON_BCEN));
+        err = enc28j60_write_register_byte(hdl, ERXFCON, (ERXFCON_UCEN | ERXFCON_CRCEN | ERXFCON_BCEN));
         if (err) {
                 return err;
         }
@@ -1657,8 +1635,7 @@ static int enc28j60_configure(ENC28J60_t *hdl)
          * full duplex, most applications should also set TXPAUS and RXPAUS to allow IEEE
          * defined flow control to function.
          */
-        err = enc28j60_write_register_byte(hdl, MACON1,
-                (MACON1_MARXEN | MACON1_TXPAUS | MACON1_RXPAUS));
+        err = enc28j60_write_register_byte(hdl, MACON1, (MACON1_MARXEN | MACON1_TXPAUS | MACON1_RXPAUS));
         if (err) {
                 return err;
         }
@@ -1673,14 +1650,12 @@ static int enc28j60_configure(ENC28J60_t *hdl)
          */
         if (full_duplex) {
                 err = enc28j60_write_register_byte(hdl, MACON3,
-                        (MACON3_PADCFG0 | MACON3_TXCRCEN | MACON3_FRMLNEN |
-                                MACON3_FULDPX));
+                        (MACON3_PADCFG0 | MACON3_TXCRCEN | MACON3_FRMLNEN | MACON3_FULDPX));
                 if (err) {
                         return err;
                 }
         } else {
-                err = enc28j60_write_register_byte(hdl, MACON3,
-                        (MACON3_PADCFG0 | MACON3_TXCRCEN | MACON3_FRMLNEN));
+                err = enc28j60_write_register_byte(hdl, MACON3, (MACON3_PADCFG0 | MACON3_TXCRCEN | MACON3_FRMLNEN));
                 if (err) {
                         return err;
                 }
@@ -1816,15 +1791,13 @@ static int enc28j60_configure(ENC28J60_t *hdl)
         }
 
         err = enc28j60_clear_register_bit(hdl, EIR,
-                (EIR_DMAIF | EIR_LINKIF | EIR_TXIF | EIR_TXERIF | EIR_RXERIF |
-                        EIR_PKTIF));
+                (EIR_DMAIF | EIR_LINKIF | EIR_TXIF | EIR_TXERIF | EIR_RXERIF | EIR_PKTIF));
         if (err) {
                 return err;
         }
 
         err = enc28j60_clear_register_bit(hdl, EIE,
-                (EIE_INTIE | EIE_PKTIE | EIE_DMAIE | EIE_LINKIE | EIE_TXIE | EIE_TXERIE |
-                        EIE_RXERIE));
+                (EIE_INTIE | EIE_PKTIE | EIE_DMAIE | EIE_LINKIE | EIE_TXIE | EIE_TXERIE | EIE_RXERIE));
         if (err) {
                 return err;
         }
@@ -1938,8 +1911,7 @@ static int enc25j60_run_built_in_self_test(ENC28J60_t *hdl, u8_t mode)
                  * Address Fill mode to confirm that the BIST and DMA modules themselves
                  * are both operating as intended.
                  */
-                err = enc28j60_write_register_byte(hdl, EBSTCON,
-                        (EBSTCON_TME | EBSTCON_BISTST | mode));
+                err = enc28j60_write_register_byte(hdl, EBSTCON, (EBSTCON_TME | EBSTCON_BISTST | mode));
                 if (err) {
                         return err;
                 }
@@ -2098,23 +2070,22 @@ static int enc25j60_run_built_in_self_test(ENC28J60_t *hdl, u8_t mode)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-static int enc28j60_get_link_status(ENC28J60_t *hdl, enum ETHIF_link_status *link_status,
-        enum ETHIF_duplex *duplex)
+static int enc28j60_get_link_status(ENC28J60_t *hdl, enum ETHIF_link_status *link_status, enum ETHIF_duplex *duplex)
 {
         u16_t phstat2;
-        int   err = enc28j60_phy_read(hdl, PHSTAT2, &phstat2);
+        int err = enc28j60_phy_read(hdl, PHSTAT2, &phstat2);
         if (not err) {
                 if (not(phstat2 & PHSTAT2_LSTAT)) {
                         *link_status = ETHIF_LINK_STATUS__DISCONNECTED;
-                        *duplex      = ETHIF_DUPLEX__HALF;
+                        *duplex = ETHIF_DUPLEX__HALF;
 
                 } else if (phstat2 & PHSTAT2_DPXSTAT) {
                         *link_status = ETHIF_LINK_STATUS__CONNECTED;
-                        *duplex      = ETHIF_DUPLEX__FULL;
+                        *duplex = ETHIF_DUPLEX__FULL;
 
                 } else {
                         *link_status = ETHIF_LINK_STATUS__CONNECTED;
-                        *duplex      = ETHIF_DUPLEX__HALF;
+                        *duplex = ETHIF_DUPLEX__HALF;
                 }
         }
 
@@ -2159,8 +2130,7 @@ static int enc28j60_reset_tx_logic(ENC28J60_t *hdl)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-static size_t enc28j60_tx_packet(ENC28J60_t *hdl, const uint8_t *buffer,
-        size_t buffer_size)
+static size_t enc28j60_tx_packet(ENC28J60_t *hdl, const uint8_t *buffer, size_t buffer_size)
 {
         int err = EINVAL;
 
@@ -2339,7 +2309,7 @@ static int enc28j60_rx_packet(ENC28J60_t *hdl, void *buffer, uint16_t *buffer_si
         *buffer_size = 0;
 
         u8_t epktcnt;
-        int  err = enc28j60_read_register_byte(hdl, EPKTCNT, &epktcnt);
+        int err = enc28j60_read_register_byte(hdl, EPKTCNT, &epktcnt);
         if (err) {
                 return err;
         }
@@ -2352,8 +2322,7 @@ static int enc28j60_rx_packet(ENC28J60_t *hdl, void *buffer, uint16_t *buffer_si
          * Advance the packet pointer to the start of the next
          * packet
          */
-        err = enc28j60_write_register_word(hdl, ERXRDPT,
-                enc28j60_erxrdpt_errata(hdl->enc28j60.next_packet_pointer));
+        err = enc28j60_write_register_word(hdl, ERXRDPT, enc28j60_erxrdpt_errata(hdl->enc28j60.next_packet_pointer));
         if (err) {
                 return err;
         }

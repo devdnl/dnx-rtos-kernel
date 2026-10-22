@@ -5,7 +5,7 @@
 
 @brief   CRC driver (CRCM - CRC Module)
 
-@note    Copyright (C) 2014 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -45,20 +45,20 @@
 #undef CRC
 
 #if defined(ARCH_stm32f1)
-#define CRCP                    ((CRC_TypeDef *) CRC_BASE)
-#define AHBxENR                 AHBENR
-#define RCC_AHBxENR_CRCEN       RCC_AHBENR_CRCEN
+#define CRCP              ((CRC_TypeDef *)CRC_BASE)
+#define AHBxENR           AHBENR
+#define RCC_AHBxENR_CRCEN RCC_AHBENR_CRCEN
 #elif defined(ARCH_stm32f4)
-#define CRCP                     ((CRC_TypeDef *) CRC_BASE)
-#define AHBxENR                 AHB1ENR
-#define RCC_AHBxENR_CRCEN       RCC_AHB1ENR_CRCEN
+#define CRCP              ((CRC_TypeDef *)CRC_BASE)
+#define AHBxENR           AHB1ENR
+#define RCC_AHBxENR_CRCEN RCC_AHB1ENR_CRCEN
 #endif
 
 /*==============================================================================
   Local object types
 ==============================================================================*/
 typedef struct CRCM {
-        dev_lock_t          file_lock;
+        dev_lock_t file_lock;
 } CRCM;
 
 /*==============================================================================
@@ -127,7 +127,7 @@ API_MOD_RELEASE(CRC, void *device_handle)
         int err = sys_device_lock(&hdl->file_lock);
         if (!err) {
                 CLEAR_BIT(RCC->AHBxENR, RCC_AHBxENR_CRCEN);
-                sys_free(cast(void**, &hdl));
+                sys_free(cast(void **, &hdl));
         }
 
         return err;
@@ -189,13 +189,8 @@ API_MOD_CLOSE(CRC, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(CRC,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(CRC, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fpos, fattr);
 
@@ -206,7 +201,7 @@ API_MOD_WRITE(CRC,
                 reset_CRC();
 
                 size_t len = count / sizeof(u32_t);
-                u32_t *ptr = cast(u32_t*, src);
+                u32_t *ptr = cast(u32_t *, src);
 
                 for (size_t i = 0; i < len; i++) {
                         CRCP->DR = *ptr++;
@@ -232,13 +227,7 @@ API_MOD_WRITE(CRC,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(CRC,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(CRC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fpos, fattr);
 
@@ -249,7 +238,7 @@ API_MOD_READ(CRC,
 
                 u8_t crc[4] = {CRCP->DR, CRCP->DR >> 8, CRCP->DR >> 16, CRCP->DR >> 24};
 
-                size_t n   = 0;
+                size_t n = 0;
                 size_t pos = *fpos;
                 for (size_t i = 0; i < count && sizeof(u32_t); i++) {
                         if (pos + n < sizeof(u32_t)) {
@@ -334,7 +323,7 @@ API_MOD_STAT(CRC, void *device_handle, struct vfs_dev_stat *device_stat)
 
         device_stat->st_major = 0;
         device_stat->st_minor = 0;
-        device_stat->st_size  = 4;
+        device_stat->st_size = 4;
 
         return ESUCC;
 }

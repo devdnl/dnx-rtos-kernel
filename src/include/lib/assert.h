@@ -5,7 +5,7 @@
 
 @brief   This file provides assert macro.
 
-@note    Copyright (C) 2013 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -89,11 +89,17 @@ extern "C" {
  */
 //==============================================================================
 #if !defined(NDEBUG)
-#   ifdef DOXYGEN
-#       define assert(ignore)
-#   else
-#       define assert(ignore) do{if ((ignore)) break; printf("Assertion failed: %s, file %s, line %d\n", #ignore, __FILE__, __LINE__); abort();}while(0)
-#   endif
+#ifdef DOXYGEN
+#define assert(ignore)
+#else
+#define assert(ignore)                                                                           \
+        do {                                                                                     \
+                if ((ignore))                                                                    \
+                        break;                                                                   \
+                printf("Assertion failed: %s, file %s, line %d\n", #ignore, __FILE__, __LINE__); \
+                abort();                                                                         \
+        } while (0)
+#endif
 #endif
 
 #ifndef DOXYGEN

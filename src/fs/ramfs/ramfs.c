@@ -5,7 +5,7 @@
 
 @brief   This file support RAM file system (grows dynamically in RAM)
 
-@note    Copyright (C) 2012-2015 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -47,30 +47,30 @@
  * costs are used. Values should be calibrated against the dnx heap manager.
  */
 #ifndef RAMFS_ALLOC_ALIGN
-#define RAMFS_ALLOC_ALIGN       sizeof(size_t)          //!< heap block alignment
+#define RAMFS_ALLOC_ALIGN sizeof(size_t) //!< heap block alignment
 #endif
 
 #ifndef RAMFS_ALLOC_OVERHEAD
-#define RAMFS_ALLOC_OVERHEAD    (2 * sizeof(size_t))    //!< heap header per block
+#define RAMFS_ALLOC_OVERHEAD (2 * sizeof(size_t)) //!< heap header per block
 #endif
 
 #ifndef RAMFS_LLIST_COST
-#define RAMFS_LLIST_COST        mem_cost(8 * sizeof(void*))     //!< empty list object
+#define RAMFS_LLIST_COST mem_cost(8 * sizeof(void *)) //!< empty list object
 #endif
 
 #ifndef RAMFS_LLIST_ITEM_COST
-#define RAMFS_LLIST_ITEM_COST   mem_cost(3 * sizeof(void*))     //!< single list item
+#define RAMFS_LLIST_ITEM_COST mem_cost(3 * sizeof(void *)) //!< single list item
 #endif
 
 #ifndef RAMFS_PIPE_COST
-#define RAMFS_PIPE_COST         (mem_cost(PIPE_LENGTH) + mem_cost(16 * sizeof(void*)))
+#define RAMFS_PIPE_COST (mem_cost(PIPE_LENGTH) + mem_cost(16 * sizeof(void *)))
 #endif
 
 /** cost of single entry on list of opened files */
-#define OPENED_FILE_COST        (mem_cost(sizeof(struct opened_file_info)) + RAMFS_LLIST_ITEM_COST)
+#define OPENED_FILE_COST (mem_cost(sizeof(struct opened_file_info)) + RAMFS_LLIST_ITEM_COST)
 
 #ifndef RAMFS_AVG_NAME_LEN
-#define RAMFS_AVG_NAME_LEN      16                      //!< used to estimate f_ffree
+#define RAMFS_AVG_NAME_LEN 16 //!< used to estimate f_ffree
 #endif
 
 /*==============================================================================
@@ -84,13 +84,13 @@ typedef struct data_chain {
 
 /** node structure */
 typedef struct node {
-        char *name;   //!< file name
-        mode_t mode;  //!< protection
-        uid_t uid;    //!< user ID of owner
-        gid_t gid;    //!< group ID of owner
-        size_t size;  //!< file size
-        time_t mtime; //!< time of last modification
-        time_t ctime; //!< time of creation
+        char *name;        //!< file name
+        mode_t mode;       //!< protection
+        uid_t uid;         //!< user ID of owner
+        gid_t gid;         //!< group ID of owner
+        size_t size;       //!< file size
+        time_t mtime;      //!< time of last modification
+        time_t ctime;      //!< time of creation
         u32_t opendir_cnt; //!< number of open directory handles (dirs only)
 
         union {
@@ -128,7 +128,8 @@ static int get_node(const char *path, node_t *startnode, i32_t deep, i32_t *item
 static uint get_path_deep(const char *path);
 static int add_node_to_open_files_list(struct RAMFS *hdl, node_t *parent, node_t *child);
 static void clear_regular_file(struct RAMFS *hdl, node_t *node);
-static int write_regular_file(struct RAMFS *hdl, node_t *node, const u8_t *src, size_t count, fpos_t fpos, size_t *wrcnt);
+static int write_regular_file(struct RAMFS *hdl, node_t *node, const u8_t *src, size_t count, fpos_t fpos,
+        size_t *wrcnt);
 static int read_regular_file(node_t *node, u8_t *dst, size_t count, fpos_t fpos, size_t *rdcnt);
 static int copy_basename(struct RAMFS *hdl, const char *path, char **name);
 static int find_child_index(node_t *parent, node_t *child);
@@ -676,8 +677,8 @@ API_FS_RENAME(ramfs, void *fs_handle, const char *old_name, const char *new_name
                         int path_deep = get_path_deep(new_name);
                         for (int up = 1; up <= path_deep; up++) {
                                 node_t *ancestor;
-                                if (get_node(new_name, &hdl->root_dir, -up, NULL, &ancestor) == ESUCC
-                                   && ancestor == target) {
+                                if (get_node(new_name, &hdl->root_dir, -up, NULL, &ancestor) == ESUCC &&
+                                        ancestor == target) {
                                         err = EINVAL;
                                         goto finish;
                                 }
@@ -896,7 +897,7 @@ API_FS_STATFS(ramfs, void *fs_handle, struct statfs *statfs)
                 return err;
         }
 
-        size_t used  = hdl->used_mem;
+        size_t used = hdl->used_mem;
         size_t limit = hdl->limit;
         size_t files = hdl->file_count;
 
@@ -907,23 +908,21 @@ API_FS_STATFS(ramfs, void *fs_handle, struct statfs *statfs)
 
         if (limit) {
                 blocks = limit;
-                bfree  = min(limit - min(used, limit), free_mem);
+                bfree = min(limit - min(used, limit), free_mem);
         } else {
                 blocks = used + free_mem;
-                bfree  = free_mem;
+                bfree = free_mem;
         }
 
         /* estimated cost of a new file: node, name and parent's list item */
-        size_t file_cost = mem_cost(sizeof(node_t))
-                         + mem_cost(RAMFS_AVG_NAME_LEN + 1)
-                         + RAMFS_LLIST_ITEM_COST;
+        size_t file_cost = mem_cost(sizeof(node_t)) + mem_cost(RAMFS_AVG_NAME_LEN + 1) + RAMFS_LLIST_ITEM_COST;
 
-        statfs->f_bsize  = 1;
+        statfs->f_bsize = 1;
         statfs->f_blocks = cast(u32_t, blocks);
-        statfs->f_bfree  = cast(u32_t, bfree);
-        statfs->f_ffree  = cast(u32_t, bfree / file_cost);
-        statfs->f_files  = cast(u32_t, files);
-        statfs->f_type   = SYS_FS_TYPE__RAM;
+        statfs->f_bfree = cast(u32_t, bfree);
+        statfs->f_ffree = cast(u32_t, bfree / file_cost);
+        statfs->f_files = cast(u32_t, files);
+        statfs->f_type = SYS_FS_TYPE__RAM;
         statfs->f_fsname = "ramfs";
 
         return ESUCC;
@@ -1682,7 +1681,8 @@ static void clear_regular_file(struct RAMFS *hdl, node_t *node)
  * @retval One of errno value (errno.h)
  */
 //==============================================================================
-static int write_regular_file(struct RAMFS *hdl, node_t *node, const u8_t *src, size_t count, fpos_t fpos, size_t *wrcnt)
+static int write_regular_file(struct RAMFS *hdl, node_t *node, const u8_t *src, size_t count, fpos_t fpos,
+        size_t *wrcnt)
 {
         if (count == 0) {
                 return ESUCC;
@@ -1876,13 +1876,13 @@ static int release_tree(struct RAMFS *hdl)
 
         while (sys_llist_size(root->data.llist_t) > 0) {
                 node_t *parent = root;
-                node_t *child  = sys_llist_at(parent->data.llist_t, 0);
+                node_t *child = sys_llist_at(parent->data.llist_t, 0);
 
                 /* descend to the first leaf */
-                while (child && S_ISDIR(child->mode) && child->data.llist_t
-                      && sys_llist_size(child->data.llist_t) > 0) {
+                while (child && S_ISDIR(child->mode) && child->data.llist_t &&
+                        sys_llist_size(child->data.llist_t) > 0) {
                         parent = child;
-                        child  = sys_llist_at(parent->data.llist_t, 0);
+                        child = sys_llist_at(parent->data.llist_t, 0);
                 }
 
                 if (child == NULL) {
@@ -2057,13 +2057,15 @@ static int parse_options(const char *opts, size_t *limit)
 
                         if (p < e) {
                                 switch (*p) {
-                                case 'k': case 'K':
+                                case 'k':
+                                case 'K':
                                         if (val > SIZE_MAX / 1024) {
                                                 return EINVAL;
                                         }
                                         val *= 1024;
                                         break;
-                                case 'm': case 'M':
+                                case 'm':
+                                case 'M':
                                         if (val > SIZE_MAX / (1024 * 1024)) {
                                                 return EINVAL;
                                         }

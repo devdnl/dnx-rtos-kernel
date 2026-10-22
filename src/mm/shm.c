@@ -5,7 +5,7 @@ Author   Daniel Zorychta
 
 Brief    Shared memory management.
 
-         Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+         Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -43,30 +43,29 @@ Brief    Shared memory management.
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define foreach_region(_v, _l)\
-        for (shm_region_t *_v = _l; _v; _v = _v->next)
+#define foreach_region(_v, _l) for (shm_region_t *_v = _l; _v; _v = _v->next)
 
 /*==============================================================================
   Local object types
 ==============================================================================*/
 typedef struct pid_list {
         struct pid_list *next;
-        pid_t            pid[6];
+        pid_t pid[6];
 } pid_list_t;
 
 typedef struct shm_region {
         struct shm_region *next;
-        char               name[12];
-        size_t             size;
-        pid_list_t         attached_pids;
-        uint8_t            blk[];
+        char name[12];
+        size_t size;
+        pid_list_t attached_pids;
+        uint8_t blk[];
 } shm_region_t;
 
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static int  attach_pid(shm_region_t *region, pid_t pid);
-static int  detach_pid(shm_region_t *region, pid_t pid);
+static int attach_pid(shm_region_t *region, pid_t pid);
+static int detach_pid(shm_region_t *region, pid_t pid);
 static bool is_pid_attached(const shm_region_t *region, pid_t pid);
 static bool is_pid_list_empty(const shm_region_t *region);
 
@@ -75,7 +74,7 @@ static bool is_pid_list_empty(const shm_region_t *region);
 ==============================================================================*/
 static struct {
         shm_region_t *list;
-        kmtx_t       *mtx;
+        kmtx_t *mtx;
 } SHM;
 
 /*==============================================================================
@@ -118,7 +117,8 @@ int _shm_create(const char *key, size_t size)
         if (!isstrempty(key) && (size > 0)) {
                 err = _mutex_lock(SHM.mtx, _WAIT_FOREVER_MS);
                 if (!err) {
-                        foreach_region(region, SHM.list) {
+                        foreach_region(region, SHM.list)
+                        {
                                 if (isstreqn(region->name, key, sizeof(region->name))) {
                                         err = EEXIST;
                                         break;
@@ -127,9 +127,8 @@ int _shm_create(const char *key, size_t size)
 
                         if (!err) {
                                 shm_region_t *region = NULL;
-                                err = _kzalloc(_MM_SHM, sizeof(shm_region_t) + size,
-                                               NULL, _MM_FLAG__DMA,
-                                               _MM_FLAG__DMA, cast(void *, &region));
+                                err = _kzalloc(_MM_SHM, sizeof(shm_region_t) + size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA,
+                                        cast(void *, &region));
 
                                 if (!err) {
                                         region->size = size;
@@ -166,7 +165,8 @@ int _shm_destroy(const char *key)
 
                         shm_region_t *prev = NULL;
 
-                        foreach_region(region, SHM.list) {
+                        foreach_region(region, SHM.list)
+                        {
 
                                 if (isstreqn(region->name, key, sizeof(region->name))) {
 
@@ -177,7 +177,7 @@ int _shm_destroy(const char *key)
                                                         SHM.list = region->next;
                                                 }
 
-                                                err = _kfree(_MM_SHM, cast(void*, &region));
+                                                err = _kfree(_MM_SHM, cast(void *, &region));
 
                                         } else {
                                                 err = EADDRINUSE;
@@ -219,12 +219,13 @@ int _shm_attach(const char *key, void **mem, size_t *size, pid_t pid)
 
                         err = ENOENT;
 
-                        foreach_region(region, SHM.list) {
+                        foreach_region(region, SHM.list)
+                        {
                                 if (isstreqn(region->name, key, sizeof(region->name))) {
 
                                         err = attach_pid(region, pid);
                                         if (!err) {
-                                                *mem  = region->blk;
+                                                *mem = region->blk;
                                                 *size = region->size;
                                         }
 
@@ -260,7 +261,8 @@ int _shm_detach(const char *key, pid_t pid)
 
                         err = ENOENT;
 
-                        foreach_region(region, SHM.list) {
+                        foreach_region(region, SHM.list)
+                        {
                                 if (isstreqn(region->name, key, sizeof(region->name))) {
                                         err = detach_pid(region, pid);
                                         break;
@@ -291,7 +293,8 @@ int _shm_detach_anywhere(pid_t pid)
                 err = _mutex_lock(SHM.mtx, _WAIT_FOREVER_MS);
                 if (!err) {
 
-                        foreach_region(region, SHM.list) {
+                        foreach_region(region, SHM.list)
+                        {
                                 detach_pid(region, pid);
                         }
 
@@ -324,14 +327,13 @@ static int attach_pid(shm_region_t *region, pid_t pid)
                         for (u8_t i = 0; i < ARRAY_SIZE(lst->pid); i++) {
                                 if (lst->pid[i] == 0) {
                                         lst->pid[i] = pid;
-                                        err         = ESUCC;
+                                        err = ESUCC;
                                         goto finish;
                                 }
                         }
 
                         if (!lst->next) {
-                                err = _kzalloc(_MM_SHM, sizeof(pid_list_t),
-                                               NULL, 0, 0, cast(void*, &lst->next));
+                                err = _kzalloc(_MM_SHM, sizeof(pid_list_t), NULL, 0, 0, cast(void *, &lst->next));
                                 if (err) {
                                         break;
                                 }
@@ -341,7 +343,7 @@ static int attach_pid(shm_region_t *region, pid_t pid)
                 }
         }
 
-        finish:
+finish:
         return err;
 }
 
@@ -363,7 +365,7 @@ static int detach_pid(shm_region_t *region, pid_t pid)
 
                 pid_list_t *lst = &region->attached_pids;
                 pid_list_t *prv = NULL;
-                bool   detached = false;
+                bool detached = false;
 
                 while (!detached && lst) {
                         u8_t empty = 0;
@@ -371,18 +373,18 @@ static int detach_pid(shm_region_t *region, pid_t pid)
                         for (u8_t i = 0; i < ARRAY_SIZE(lst->pid); i++) {
                                 if (lst->pid[i] == pid) {
                                         lst->pid[i] = 0;
-                                        detached    = true;
+                                        detached = true;
                                 }
 
                                 empty += (lst->pid[i] == 0) ? 1 : 0;
                         }
 
                         if (detached) {
-                                if ( (empty == ARRAY_SIZE(lst->pid)) && (prv != NULL) ) {
+                                if ((empty == ARRAY_SIZE(lst->pid)) && (prv != NULL)) {
 
                                         prv->next = lst->next;
 
-                                        _kfree(_MM_SHM, cast(void*, &lst));
+                                        _kfree(_MM_SHM, cast(void *, &lst));
                                 }
                         } else {
                                 prv = lst;

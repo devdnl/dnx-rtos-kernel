@@ -5,7 +5,7 @@
 
 @brief   Real-Time Clock Module
 
-@note    Copyright (C) 2015 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -131,7 +131,7 @@ extern "C" {
  *  @param  [WR] @ref time_t *  UNIX timestamp.
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_RTC__SET_ALARM    _IOW(RTC, 0x00, const time_t*)
+#define IOCTL_RTC__SET_ALARM _IOW(RTC, 0x00, const time_t *)
 
 /*==============================================================================
   Exported object types

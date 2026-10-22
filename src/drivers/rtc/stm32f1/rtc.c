@@ -5,7 +5,7 @@
 
 @brief   Real-Time Clock Module
 
-@note    Copyright (C) 2015 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -38,10 +38,10 @@
   Local macros
 ==============================================================================*/
 #undef RTC
-#define RTCP                    ((RTC_t *) RTC_BASE)
+#define RTCP ((RTC_t *)RTC_BASE)
 
-#define RTC_WRITE_ATTEMPTS      10000
-#define TIMEOUT_LSE             5000
+#define RTC_WRITE_ATTEMPTS 10000
+#define TIMEOUT_LSE        5000
 
 /*==============================================================================
   Local object types
@@ -120,7 +120,8 @@ API_MOD_INIT(RTC, void **device_handle, u8_t major, u8_t minor, const void *conf
 
                         CLEAR_BIT(RTCP->CRL, RTC_CRL_CNF);
 
-                        while (!(RTCP->CRL & RTC_CRL_RTOFF) && attempts--);
+                        while (!(RTCP->CRL & RTC_CRL_RTOFF) && attempts--)
+                                ;
                 }
 
                 SET_BIT(RCC->BDCR, RCC_BDCR_RTCEN);
@@ -197,13 +198,8 @@ API_MOD_CLOSE(RTC, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(RTC,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(RTC, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG2(device_handle, fattr);
 
@@ -226,12 +222,13 @@ API_MOD_WRITE(RTC,
                 WRITE_REG(RTCP->CNTH, t >> 16);
                 WRITE_REG(RTCP->CNTL, t);
                 CLEAR_BIT(RTCP->CRL, RTC_CRL_CNF);
-                while (!(RTCP->CRL & RTC_CRL_RTOFF) && attempts--);
+                while (!(RTCP->CRL & RTC_CRL_RTOFF) && attempts--)
+                        ;
         }
         sys_critical_section_end();
 
         *wrcnt = count;
-        *fpos  = 0;
+        *fpos = 0;
 
         return ESUCC;
 }
@@ -250,13 +247,7 @@ API_MOD_WRITE(RTC,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(RTC,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(RTC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG2(device_handle, fattr);
 
@@ -269,7 +260,7 @@ API_MOD_READ(RTC,
         memcpy(dst, &cnt, count);
 
         *rdcnt = count;
-        *fpos  = 0;
+        *fpos = 0;
 
         return ESUCC;
 }
@@ -313,7 +304,8 @@ API_MOD_IOCTL(RTC, void *device_handle, int request, void *arg)
                                         WRITE_REG(RTCP->ALRH, (*time) >> 16);
                                         WRITE_REG(RTCP->ALRL, (*time));
                                         CLEAR_BIT(RTCP->CRL, RTC_CRL_CNF);
-                                        while (!(RTCP->CRL & RTC_CRL_RTOFF) && attempts--);
+                                        while (!(RTCP->CRL & RTC_CRL_RTOFF) && attempts--)
+                                                ;
                                         err = ESUCC;
                                 }
                         }
@@ -359,7 +351,7 @@ API_MOD_STAT(RTC, void *device_handle, struct vfs_dev_stat *device_stat)
 {
         UNUSED_ARG1(device_handle);
 
-        device_stat->st_size  = sizeof(time_t);
+        device_stat->st_size = sizeof(time_t);
         device_stat->st_major = 0;
         device_stat->st_minor = 0;
 

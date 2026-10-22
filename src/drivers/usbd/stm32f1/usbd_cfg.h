@@ -5,7 +5,7 @@
 
 @brief   USB-Device module.
 
-@note    Copyright (C) 2014  Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026  Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -43,17 +43,17 @@ extern "C" {
 /**
  * Port index (PA = 0, ...)
  */
-#define _USBD_CONFIG_PULLUP_PORT_IDX    __USBD_PULLUP_PORT_INDEX__
+#define _USBD_CONFIG_PULLUP_PORT_IDX __USBD_PULLUP_PORT_INDEX__
 
 /**
  * Pin index (0..15)
  */
-#define _USBD_CONFIG__PULLUP_PIN_IDX    __USBD_PULLUP_PIN_INDEX__
+#define _USBD_CONFIG__PULLUP_PIN_IDX __USBD_PULLUP_PIN_INDEX__
 
 /**
  * Pull-up pin active state
  */
-#define _USBD_CONFIG_PULLUP_NEGATIVE    __USBD_PULLUP_NEGATIVE__
+#define _USBD_CONFIG_PULLUP_NEGATIVE __USBD_PULLUP_NEGATIVE__
 
 /**
  * Endpoint 0 size
@@ -61,7 +61,7 @@ extern "C" {
  * If value is out of this range then enpoint is disabled.
  * NOTE: make sure that Device Descriptor's bMaxPacketSize0 field has the same value!
  */
-#define _USBD_ENDPOINT0_SIZE            __USBD_ENDPOINT0_SIZE__
+#define _USBD_ENDPOINT0_SIZE __USBD_ENDPOINT0_SIZE__
 
 /*==============================================================================
   Exported object types

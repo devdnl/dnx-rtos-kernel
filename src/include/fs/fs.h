@@ -5,7 +5,7 @@
 
 @brief   This function provide all required function needed to write file systems.
 
-@note    Copyright (C) 2012 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -576,10 +576,10 @@ struct vfs_fattr {
  * @see   sys_get_programs_table()
  */
 struct _prog_data {
-        const char    *name;         /*!< Program name.*/
-        const size_t  *globals_size; /*!< Size of program global variables.*/
-        const size_t  *stack_depth;  /*!< Stack depth.*/
-        process_func_t main;         /*!< Program main function.*/
+        const char *name;           /*!< Program name.*/
+        const size_t *globals_size; /*!< Size of program global variables.*/
+        const size_t *stack_depth;  /*!< Stack depth.*/
+        process_func_t main;        /*!< Program main function.*/
 };
 #endif
 
@@ -607,8 +607,7 @@ struct _prog_data {
 //==============================================================================
 static inline int sys_malloc(size_t size, void **mem)
 {
-        return _kmalloc(_MM_FS, size, _cpuctl_preferred_FS_RAM, _MM_FLAG__DMA,
-                _MM_FLAG__DMA, mem);
+        return _kmalloc(_MM_FS, size, _cpuctl_preferred_FS_RAM, _MM_FLAG__DMA, _MM_FLAG__DMA, mem);
 }
 
 //==============================================================================
@@ -624,8 +623,7 @@ static inline int sys_malloc(size_t size, void **mem)
 //==============================================================================
 static inline int sys_malloc2(size_t size, const char *prefreg[], void **mem)
 {
-        return _kmalloc(_MM_FS, size, prefreg, _MM_FLAG__DMA,
-                _MM_FLAG__DMA, mem);
+        return _kmalloc(_MM_FS, size, prefreg, _MM_FLAG__DMA, _MM_FLAG__DMA, mem);
 }
 
 //==============================================================================
@@ -640,8 +638,7 @@ static inline int sys_malloc2(size_t size, const char *prefreg[], void **mem)
 //==============================================================================
 static inline int sys_zalloc(size_t size, void **mem)
 {
-        return _kzalloc(_MM_FS, size, _cpuctl_preferred_FS_RAM, _MM_FLAG__DMA,
-                _MM_FLAG__DMA, mem);
+        return _kzalloc(_MM_FS, size, _cpuctl_preferred_FS_RAM, _MM_FLAG__DMA, _MM_FLAG__DMA, mem);
 }
 
 //==============================================================================
@@ -656,8 +653,7 @@ static inline int sys_zalloc(size_t size, void **mem)
 //==============================================================================
 static inline int sys_zalloc2(size_t size, const char *prefreg[], void **mem)
 {
-        return _kzalloc(_MM_FS, size, prefreg, _MM_FLAG__DMA,
-                _MM_FLAG__DMA, mem);
+        return _kzalloc(_MM_FS, size, prefreg, _MM_FLAG__DMA, _MM_FLAG__DMA, mem);
 }
 
 //==============================================================================
@@ -682,8 +678,7 @@ static inline int sys_free(void **mem)
  * @return One of @ref errno value.
  */
 //==============================================================================
-static inline int sys_llist_create(llist_cmp_functor_t functor, llist_obj_dtor_t obj_dtor,
-        llist_t **list)
+static inline int sys_llist_create(llist_cmp_functor_t functor, llist_obj_dtor_t obj_dtor, llist_t **list)
 {
         return _llist_create_krn(_MM_FS, functor, obj_dtor, list);
 }
@@ -753,8 +748,7 @@ static inline int sys_pipe_get_length(pipe_t *pipe, size_t *len)
  * @return One of @ref errno value.
  */
 //==============================================================================
-static inline int sys_pipe_read(pipe_t *pipe, u8_t *buf, size_t count, size_t *rdcnt,
-        bool non_blocking)
+static inline int sys_pipe_read(pipe_t *pipe, u8_t *buf, size_t count, size_t *rdcnt, bool non_blocking)
 {
         return _pipe_read(pipe, buf, count, rdcnt, non_blocking);
 }
@@ -774,8 +768,7 @@ static inline int sys_pipe_read(pipe_t *pipe, u8_t *buf, size_t count, size_t *r
  * @return One of @ref errno value.
  */
 //==============================================================================
-static inline int sys_pipe_write(pipe_t *pipe, const u8_t *buf, size_t count,
-        size_t *wrcnt, bool non_blocking)
+static inline int sys_pipe_write(pipe_t *pipe, const u8_t *buf, size_t count, size_t *wrcnt, bool non_blocking)
 {
         return _pipe_write(pipe, buf, count, wrcnt, non_blocking);
 }

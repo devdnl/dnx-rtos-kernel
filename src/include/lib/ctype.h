@@ -5,7 +5,7 @@ Author   Daniel Zorychta
 
 Brief    The library provides character classification routines.
 
-         Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+         Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -56,18 +56,18 @@ extern "C" {
  * Flags representing
  */
 enum ctype_flags {
-  _ISupper  = (1 << 0),        /*!< UPPERCASE flag.*/
-  _ISlower  = (1 << 1),        /*!< lowercase flag.*/
-  _ISalpha  = (1 << 2),        /*!< Alphabetic flag.*/
-  _ISdigit  = (1 << 3),        /*!< Numeric flag.*/
-  _ISxdigit = (1 << 4),        /*!< Hexadecimal numeric flag.*/
-  _ISspace  = (1 << 5),        /*!< Whitespace flag.*/
-  _ISprint  = (1 << 6),        /*!< Printing flag.*/
-  _ISgraph  = (1 << 7),        /*!< Graphical flag.*/
-  _ISblank  = (1 << 8),        /*!< Blank (usually SPC and TAB) flag.*/
-  _IScntrl  = (1 << 9),        /*!< Control character flag.*/
-  _ISpunct  = (1 << 10),       /*!< Punctuation flag.*/
-  _ISalnum  = (1 << 11)        /*!< Alphanumeric flag.*/
+        _ISupper = (1 << 0),  /*!< UPPERCASE flag.*/
+        _ISlower = (1 << 1),  /*!< lowercase flag.*/
+        _ISalpha = (1 << 2),  /*!< Alphabetic flag.*/
+        _ISdigit = (1 << 3),  /*!< Numeric flag.*/
+        _ISxdigit = (1 << 4), /*!< Hexadecimal numeric flag.*/
+        _ISspace = (1 << 5),  /*!< Whitespace flag.*/
+        _ISprint = (1 << 6),  /*!< Printing flag.*/
+        _ISgraph = (1 << 7),  /*!< Graphical flag.*/
+        _ISblank = (1 << 8),  /*!< Blank (usually SPC and TAB) flag.*/
+        _IScntrl = (1 << 9),  /*!< Control character flag.*/
+        _ISpunct = (1 << 10), /*!< Punctuation flag.*/
+        _ISalnum = (1 << 11)  /*!< Alphanumeric flag.*/
 };
 
 /*==============================================================================
@@ -115,7 +115,6 @@ static inline int isblank(int c)
         return c == ' ' || c == '\t' ? _ISblank : 0;
 }
 
-
 //==============================================================================
 /**
  * @brief Function checks for a control character.
@@ -147,7 +146,6 @@ static inline int isdigit(int c)
 {
         return c >= '0' && c <= '9' ? _ISdigit : 0;
 }
-
 
 //==============================================================================
 /**
@@ -228,8 +226,8 @@ static inline int isprint(int c)
 //==============================================================================
 static inline int ispunct(int c)
 {
-        return (c >= 33 && c <= 47) || (c >= 58  && c <= 64 )
-            || (c >= 91 && c <= 96) || (c >= 123 && c <= 126) ? _ISpunct : 0;
+        return (c >= 33 && c <= 47) || (c >= 58 && c <= 64) || (c >= 91 && c <= 96) || (c >= 123 && c <= 126) ? _ISpunct
+                                                                                                              : 0;
 }
 
 //==============================================================================

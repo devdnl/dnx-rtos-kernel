@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   Timer driven AB encoder
 
-        Copyright (C) 2021 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
-#define _TIMENC_CFG__EXAMPLE          __TIMENC_CFG_EXAMPLE__
+#define _TIMENC_CFG__EXAMPLE __TIMENC_CFG_EXAMPLE__
 
 /*==============================================================================
   Exported object types

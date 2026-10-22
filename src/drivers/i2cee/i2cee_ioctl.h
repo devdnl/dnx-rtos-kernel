@@ -5,7 +5,7 @@
 
 @brief   I2C EEPROM driver.
 
-@note    Copyright (C) 2016 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -127,7 +127,6 @@ Data from the driver can be read in the same way as regular file.
 @{
 */
 
-
 #ifndef _I2CEE_IOCTL_H_
 #define _I2CEE_IOCTL_H_
 
@@ -149,14 +148,14 @@ extern "C" {
  * @param  [WR] @ref I2CEE_config_t*            driver configuration.
  * @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_I2CEE__CONFIGURE          _IOW(I2CEE, 0x00, I2CEE_config_t*)
+#define IOCTL_I2CEE__CONFIGURE _IOW(I2CEE, 0x00, I2CEE_config_t *)
 
 /**
  * @brief  I2C EEPROM driver configuration by using string.
  * @param  [WR] const char*             configuration string
  * @return On success 0 is returned, otherwise -1 and @ref errno code is set.
  */
-#define IOCTL_I2CEE__CONFIGURE_STR      IOCTL_DEVICE__CONFIGURE_STR
+#define IOCTL_I2CEE__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
 /*==============================================================================
   Exported object types
@@ -165,10 +164,10 @@ extern "C" {
  * Type represent driver configuration.
  */
 typedef struct {
-        const char *i2c_path;           /*!< I2C device file*/
-        u32_t memory_size;              /*!< Memory size in bytes*/
-        u16_t page_size;                /*!< EEPROM page size in bytes*/
-        u16_t page_prog_time_ms;        /*!< Time of programming single page in milliseconds*/
+        const char *i2c_path;    /*!< I2C device file*/
+        u32_t memory_size;       /*!< Memory size in bytes*/
+        u16_t page_size;         /*!< EEPROM page size in bytes*/
+        u16_t page_prog_time_ms; /*!< Time of programming single page in milliseconds*/
 } I2CEE_config_t;
 
 /*==============================================================================

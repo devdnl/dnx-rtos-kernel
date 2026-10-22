@@ -5,7 +5,7 @@
 
 @brief   This driver support AFM.
 
-@note    Copyright (C) 2014  Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026  Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -78,41 +78,41 @@ API_MOD_INIT(AFM, void **device_handle, u8_t major, u8_t minor, const void *conf
                 SET_BIT(RCC->APB2ENR, RCC_APB2ENR_SYSCFGEN);
 
                 SYSCFG->MEMRMP |= __AFM_SWP_FMC__
-                                #ifdef SYSCFG_MEMRMP_SWP_FB_Pos
-                                | __AFM_SWP_FB__
-                                #endif
-                                | __AFM_MEM_BOOT__;
+#ifdef SYSCFG_MEMRMP_SWP_FB_Pos
+                        | __AFM_SWP_FB__
+#endif
+                        | __AFM_MEM_BOOT__;
 
                 SYSCFG->PMC |= __AFM_MII_RMII_SEL__
-                             #ifdef SYSCFG_PMC_PB9_FMP_Pos
-                             | __AFM_PB9_FMP__
-                             #endif
-                             #ifdef SYSCFG_PMC_PB8_FMP_Pos
-                             | __AFM_PB8_FMP__
-                             #endif
-                             #ifdef SYSCFG_PMC_PB7_FMP_Pos
-                             | __AFM_PB7_FMP__
-                             #endif
-                             #ifdef SYSCFG_PMC_PB6_FMP_Pos
-                             | __AFM_PB6_FMP__
-                             #endif
-                             #ifdef SYSCFG_PMC_I2C4_FMP_Pos
-                             | __AFM_I2C4_FMP__
-                             #endif
-                             #ifdef SYSCFG_PMC_I2C3_FMP_Pos
-                             | __AFM_I2C3_FMP__
-                             #endif
-                             #ifdef SYSCFG_PMC_I2C2_FMP_Pos
-                             | __AFM_I2C2_FMP__
-                             #endif
-                             #ifdef SYSCFG_PMC_I2C1_FMP_Pos
-                             | __AFM_I2C1_FMP__
-                             #endif
-                             | __AFM_ADCxDC2__;
+#ifdef SYSCFG_PMC_PB9_FMP_Pos
+                        | __AFM_PB9_FMP__
+#endif
+#ifdef SYSCFG_PMC_PB8_FMP_Pos
+                        | __AFM_PB8_FMP__
+#endif
+#ifdef SYSCFG_PMC_PB7_FMP_Pos
+                        | __AFM_PB7_FMP__
+#endif
+#ifdef SYSCFG_PMC_PB6_FMP_Pos
+                        | __AFM_PB6_FMP__
+#endif
+#ifdef SYSCFG_PMC_I2C4_FMP_Pos
+                        | __AFM_I2C4_FMP__
+#endif
+#ifdef SYSCFG_PMC_I2C3_FMP_Pos
+                        | __AFM_I2C3_FMP__
+#endif
+#ifdef SYSCFG_PMC_I2C2_FMP_Pos
+                        | __AFM_I2C2_FMP__
+#endif
+#ifdef SYSCFG_PMC_I2C1_FMP_Pos
+                        | __AFM_I2C1_FMP__
+#endif
+                        | __AFM_ADCxDC2__;
 
-                #if defined(SYSCFG_CBR_CLL) || defined(SYSCFG_CBR_PVDL)
+#if defined(SYSCFG_CBR_CLL) || defined(SYSCFG_CBR_PVDL)
                 SYSCFG->CBR = __AFM_PVDL__ | __AFM_CLL__;
-                #endif
+#endif
 
                 SYSCFG->CMPCR = __AFM_CMP_PD__;
 
@@ -190,13 +190,8 @@ API_MOD_CLOSE(AFM, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(AFM,
-              void            *device_handle,
-              const u8_t      *src,
-              size_t           count,
-              fpos_t          *fpos,
-              size_t          *wrcnt,
-              struct vfs_fattr fattr)
+API_MOD_WRITE(AFM, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, src, count, fpos, wrcnt, fattr);
 
@@ -217,13 +212,7 @@ API_MOD_WRITE(AFM,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(AFM,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(AFM, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, dst, count, fpos, rdcnt, fattr);
 

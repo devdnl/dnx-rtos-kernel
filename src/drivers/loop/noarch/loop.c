@@ -5,7 +5,7 @@
 
 @brief   Universal virtual device that allow to connect applications together
 
-@note    Copyright (C) 2014 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -36,13 +36,13 @@
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define RELEASE_TIMEOUT         1000
-#define OPERATION_TIMEOUT       60000
-#define REQUEST_TIMEOUT         20000
-#define HOST_REQUEST_TIMEOUT    _WAIT_FOREVER_MS
+#define RELEASE_TIMEOUT      1000
+#define OPERATION_TIMEOUT    60000
+#define REQUEST_TIMEOUT      20000
+#define HOST_REQUEST_TIMEOUT _WAIT_FOREVER_MS
 
-#define FLAG_REQUEST            (1<<0)
-#define FLAG_RESPONSE           (1<<1)
+#define FLAG_REQUEST  (1 << 0)
+#define FLAG_RESPONSE (1 << 1)
 
 /*==============================================================================
   Local object types
@@ -52,14 +52,14 @@ typedef struct {
 
         union {
                 struct {
-                        u8_t   *data;
-                        size_t  size;
-                        fpos_t  seek;
+                        u8_t *data;
+                        size_t size;
+                        fpos_t seek;
                 } rw;
 
                 struct {
                         void *arg;
-                        int   rq;
+                        int rq;
                 } ioctl;
 
                 struct {
@@ -70,12 +70,11 @@ typedef struct {
         int err;
 } req_t;
 
-
 typedef struct {
-        kmtx_t     *mtx;
-        kflag_t     *flag;
-        dev_lock_t  host_lock;
-        req_t       action;
+        kmtx_t *mtx;
+        kflag_t *flag;
+        dev_lock_t host_lock;
+        req_t action;
 } loop_t;
 
 /*==============================================================================
@@ -224,13 +223,8 @@ API_MOD_CLOSE(LOOP, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(LOOP,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(LOOP, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
@@ -243,7 +237,7 @@ API_MOD_WRITE(LOOP,
         int err = sys_mutex_lock(hdl->mtx, OPERATION_TIMEOUT);
         if (!err) {
 
-                hdl->action.cmd         = LOOP_CMD__TRANSMISSION_CLIENT2HOST;
+                hdl->action.cmd = LOOP_CMD__TRANSMISSION_CLIENT2HOST;
                 hdl->action.arg.rw.data = const_cast(src);
                 hdl->action.arg.rw.size = count;
                 hdl->action.arg.rw.seek = *fpos;
@@ -283,13 +277,7 @@ API_MOD_WRITE(LOOP,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(LOOP,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(LOOP, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
@@ -302,7 +290,7 @@ API_MOD_READ(LOOP,
         int err = sys_mutex_lock(hdl->mtx, OPERATION_TIMEOUT);
         if (!err) {
 
-                hdl->action.cmd         = LOOP_CMD__TRANSMISSION_HOST2CLIENT;
+                hdl->action.cmd = LOOP_CMD__TRANSMISSION_HOST2CLIENT;
                 hdl->action.arg.rw.data = dst;
                 hdl->action.arg.rw.seek = *fpos;
 
@@ -321,24 +309,20 @@ API_MOD_READ(LOOP,
 
                                 if (!err) {
 
-                                        if (  hdl->action.arg.rw.size == 0
-                                           || hdl->action.arg.rw.data == NULL) {
+                                        if (hdl->action.arg.rw.size == 0 || hdl->action.arg.rw.data == NULL) {
                                                 break;
 
                                         } else if (hdl->action.arg.rw.size > count) {
                                                 hdl->action.arg.rw.size = count;
                                         }
 
-                                        if (  hdl->action.arg.rw.size
-                                           && hdl->action.arg.rw.data) {
+                                        if (hdl->action.arg.rw.size && hdl->action.arg.rw.data) {
 
-                                                memcpy(dst,
-                                                       hdl->action.arg.rw.data,
-                                                       hdl->action.arg.rw.size);
+                                                memcpy(dst, hdl->action.arg.rw.data, hdl->action.arg.rw.size);
                                         }
 
-                                        dst    += hdl->action.arg.rw.size;
-                                        count  -= hdl->action.arg.rw.size;
+                                        dst += hdl->action.arg.rw.size;
+                                        count -= hdl->action.arg.rw.size;
                                         *rdcnt += hdl->action.arg.rw.size;
 
                                 } else {
@@ -393,11 +377,11 @@ API_MOD_IOCTL(LOOP, void *device_handle, int request, void *arg)
                 if (arg && !err) {
                         err = wait_for_request(hdl, HOST_REQUEST_TIMEOUT);
                         if (!err) {
-                                LOOP_request_t *req = cast(LOOP_request_t*, arg);
+                                LOOP_request_t *req = cast(LOOP_request_t *, arg);
 
                                 req->cmd = hdl->action.cmd;
 
-                                switch(req->cmd) {
+                                switch (req->cmd) {
                                 case LOOP_CMD__TRANSMISSION_CLIENT2HOST:
                                 case LOOP_CMD__TRANSMISSION_HOST2CLIENT:
                                         req->arg.rw.seek = hdl->action.arg.rw.seek;
@@ -406,7 +390,7 @@ API_MOD_IOCTL(LOOP, void *device_handle, int request, void *arg)
 
                                 case LOOP_CMD__IOCTL_REQUEST:
                                         req->arg.ioctl.request = hdl->action.arg.ioctl.rq;
-                                        req->arg.ioctl.arg     = hdl->action.arg.ioctl.arg;
+                                        req->arg.ioctl.arg = hdl->action.arg.ioctl.arg;
                                         break;
 
                                 default:
@@ -422,7 +406,7 @@ API_MOD_IOCTL(LOOP, void *device_handle, int request, void *arg)
         case IOCTL_LOOP__HOST_READ_DATA_FROM_CLIENT:
                 err = sys_device_get_access(&hdl->host_lock);
                 if (arg && !err) {
-                        LOOP_buffer_t *buf = cast(LOOP_buffer_t*, arg);
+                        LOOP_buffer_t *buf = cast(LOOP_buffer_t *, arg);
 
                         hdl->action.err = buf->err;
 
@@ -449,14 +433,14 @@ API_MOD_IOCTL(LOOP, void *device_handle, int request, void *arg)
         case IOCTL_LOOP__HOST_WRITE_DATA_TO_CLIENT:
                 err = sys_device_get_access(&hdl->host_lock);
                 if (arg && !err) {
-                        LOOP_buffer_t *buf = cast(LOOP_buffer_t*, arg);
+                        LOOP_buffer_t *buf = cast(LOOP_buffer_t *, arg);
 
                         hdl->action.err = buf->err;
 
                         if (!buf->err) {
                                 hdl->action.arg.rw.data = buf->data;
                                 hdl->action.arg.rw.size = min(buf->size, hdl->action.arg.rw.size);
-                                hdl->action.err         = buf->err;
+                                hdl->action.err = buf->err;
                         }
 
                         err = submit_response(hdl);
@@ -466,7 +450,7 @@ API_MOD_IOCTL(LOOP, void *device_handle, int request, void *arg)
         case IOCTL_LOOP__HOST_SET_IOCTL_STATUS:
                 err = sys_device_get_access(&hdl->host_lock);
                 if (arg && err == ESUCC) {
-                        LOOP_ioctl_response_t *res  = cast(LOOP_ioctl_response_t*, arg);
+                        LOOP_ioctl_response_t *res = cast(LOOP_ioctl_response_t *, arg);
 
                         hdl->action.err = res->err;
 
@@ -477,10 +461,10 @@ API_MOD_IOCTL(LOOP, void *device_handle, int request, void *arg)
         case IOCTL_LOOP__HOST_SET_DEVICE_STATS:
                 err = sys_device_get_access(&hdl->host_lock);
                 if (arg && err == ESUCC) {
-                        LOOP_stat_response_t *res = cast(LOOP_stat_response_t*, arg);
+                        LOOP_stat_response_t *res = cast(LOOP_stat_response_t *, arg);
 
                         hdl->action.arg.stat.size = res->size;
-                        hdl->action.err           = res->err;
+                        hdl->action.err = res->err;
 
                         err = submit_response(hdl);
                 }
@@ -489,16 +473,16 @@ API_MOD_IOCTL(LOOP, void *device_handle, int request, void *arg)
         case IOCTL_LOOP__HOST_FLUSH_DONE:
                 err = sys_device_get_access(&hdl->host_lock);
                 if (arg && err == ESUCC) {
-                        hdl->action.err = *cast(int*, arg);
+                        hdl->action.err = *cast(int *, arg);
                         err = submit_response(hdl);
                 }
                 break;
 
-        default: //IOCTL_LOOP__CLIENT_REQUEST(n)
+        default: // IOCTL_LOOP__CLIENT_REQUEST(n)
                 if (sys_device_is_locked(&hdl->host_lock)) {
-                        hdl->action.cmd           = LOOP_CMD__IOCTL_REQUEST;
+                        hdl->action.cmd = LOOP_CMD__IOCTL_REQUEST;
                         hdl->action.arg.ioctl.arg = arg;
-                        hdl->action.arg.ioctl.rq  = request;
+                        hdl->action.arg.ioctl.rq = request;
 
                         submit_request(hdl);
 
@@ -527,7 +511,7 @@ API_MOD_IOCTL(LOOP, void *device_handle, int request, void *arg)
 API_MOD_FLUSH(LOOP, void *device_handle)
 {
         loop_t *hdl = device_handle;
-        int     err = ESUCC;
+        int err = ESUCC;
 
         if (sys_device_is_locked(&hdl->host_lock)) {
 
@@ -557,8 +541,8 @@ API_MOD_FLUSH(LOOP, void *device_handle)
 //==============================================================================
 API_MOD_STAT(LOOP, void *device_handle, struct vfs_dev_stat *device_stat)
 {
-        loop_t  *hdl = device_handle;
-        int      err = ESUCC;
+        loop_t *hdl = device_handle;
+        int err = ESUCC;
 
         device_stat->st_size = 0;
 

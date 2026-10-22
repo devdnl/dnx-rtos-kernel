@@ -5,7 +5,7 @@
 
 @brief   This driver support AFM.
 
-@note    Copyright (C) 2025  Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026  Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -91,14 +91,12 @@ API_MOD_INIT(AFM, void **device_handle, u8_t major, u8_t minor, const void *conf
                 __IO uint32_t tmpreg = READ_BIT(RCC->APB4ENR, RCC_APB4ENR_SYSCFGEN);
                 UNUSED_ARG1(tmpreg);
 
-                SYSCFG->PMCR = __AFM_PC3SO__ | __AFM_PC2SO__ | __AFM_PA1SO__ | __AFM_PA0SO__ |
-                        __AFM_MII_RMII_SEL__ | __AFM_BOOSTVDDSEL__ | __AFM_BOOSTEREN__ | __AFM_PB9_FMP__ |
-                        __AFM_PB8_FMP__ | __AFM_PB7_FMP__ | __AFM_PB6_FMP__ | __AFM_I2C4_FMP__ |
-                        __AFM_I2C3_FMP__ | __AFM_I2C2_FMP__ | __AFM_I2C1_FMP__;
+                SYSCFG->PMCR = __AFM_PC3SO__ | __AFM_PC2SO__ | __AFM_PA1SO__ | __AFM_PA0SO__ | __AFM_MII_RMII_SEL__ |
+                        __AFM_BOOSTVDDSEL__ | __AFM_BOOSTEREN__ | __AFM_PB9_FMP__ | __AFM_PB8_FMP__ | __AFM_PB7_FMP__ |
+                        __AFM_PB6_FMP__ | __AFM_I2C4_FMP__ | __AFM_I2C3_FMP__ | __AFM_I2C2_FMP__ | __AFM_I2C1_FMP__;
 
-                SYSCFG->CFGR = __AFM_AXISRAML__ | __AFM_ITCML__ | __AFM_DTCML__ | __AFM_SRAM1L__ |
-                        __AFM_SRAM2L__ | __AFM_SRAM3L__ | __AFM_SRAM4L__ | __AFM_BKRAML__ | __AFM_CM7L__ |
-                        __AFM_FLASHL__ | __AFM_PVDL__;
+                SYSCFG->CFGR = __AFM_AXISRAML__ | __AFM_ITCML__ | __AFM_DTCML__ | __AFM_SRAM1L__ | __AFM_SRAM2L__ |
+                        __AFM_SRAM3L__ | __AFM_SRAM4L__ | __AFM_BKRAML__ | __AFM_CM7L__ | __AFM_FLASHL__ | __AFM_PVDL__;
 
                 SYSCFG->CCCR = (__AFM_PCC__ << SYSCFG_CCCR_PCC_Pos) | (__AFM_NCC__ << SYSCFG_CCCR_NCC_Pos);
 
@@ -215,8 +213,7 @@ API_MOD_WRITE(AFM, void *device_handle, const u8_t *src, size_t count, fpos_t *f
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(AFM, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt,
-        struct vfs_fattr fattr)
+API_MOD_READ(AFM, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, dst, count, fpos, rdcnt, fattr);
 

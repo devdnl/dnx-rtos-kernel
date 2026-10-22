@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   CAN driver
 
-        Copyright (C) 2020 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -135,51 +135,51 @@ enum CAN_COUNT {
 };
 
 typedef struct {
-        u8_t       major;
-        u8_t       minor;
-        u32_t      send_timeout;
-        u32_t      recv_timeout;
-        u32_t      txpend_ctr;
-        u32_t      rxpend_ctr;
-        kmtx_t    *config_mtx;
-        kmtx_t    *txmbox_mtx[TX_MAILBOXES];
-        kqueue_t  *txrdy_q[TX_MAILBOXES];
-        kqueue_t  *rxqueue_q;
-        u64_t      tx_frames;
-        u64_t      tx_bytes;
-        u64_t      rx_frames;
-        u64_t      rx_bytes;
-        u32_t      rx_overrun;
-        u32_t      baud;
+        u8_t major;
+        u8_t minor;
+        u32_t send_timeout;
+        u32_t recv_timeout;
+        u32_t txpend_ctr;
+        u32_t rxpend_ctr;
+        kmtx_t *config_mtx;
+        kmtx_t *txmbox_mtx[TX_MAILBOXES];
+        kqueue_t *txrdy_q[TX_MAILBOXES];
+        kqueue_t *rxqueue_q;
+        u64_t tx_frames;
+        u64_t tx_bytes;
+        u64_t rx_frames;
+        u64_t rx_bytes;
+        u32_t rx_overrun;
+        u32_t baud;
         CAN_mode_t mode;
 } CAN_t;
 
 /* CAN registers */
 typedef struct {
-        CAN_TypeDef   *CAN;
+        CAN_TypeDef *CAN;
         __IO uint32_t *APBENR;
         __IO uint32_t *APBRSTR;
-        uint32_t       APBENR_CANEN;
-        uint32_t       APBRSTR_CANRSTR;
-        IRQn_Type      TX_IRQn;
-        IRQn_Type      RX0_IRQn;
-        IRQn_Type      RX1_IRQn;
-        IRQn_Type      SCE_IRQn;
-        u8_t           FILTERS_COUNT;
+        uint32_t APBENR_CANEN;
+        uint32_t APBRSTR_CANRSTR;
+        IRQn_Type TX_IRQn;
+        IRQn_Type RX0_IRQn;
+        IRQn_Type RX1_IRQn;
+        IRQn_Type SCE_IRQn;
+        u8_t FILTERS_COUNT;
 } CAN_CFG_t;
 
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
 static void relese_resources(CAN_t *hdl);
-static int  configure(CAN_t *hdl, const CAN_config_t *cfg);
-static int  set_init_mode(CAN_t *hdl);
-static int  set_normal_mode(CAN_t *hdl);
-static int  set_sleep_mode(CAN_t *hdl);
-static int  set_filter(CAN_t *hdl, const CAN_filter_t *filter);
-static int  disable_filter(CAN_t *hdl, u32_t filter_no);
-static int  send_msg(CAN_t *hdl, const CAN_msg_t *msg, u32_t timeout_ms);
-static int  recv_msg(CAN_t *hdl, CAN_msg_t *msg, u32_t timeout_ms);
+static int configure(CAN_t *hdl, const CAN_config_t *cfg);
+static int set_init_mode(CAN_t *hdl);
+static int set_normal_mode(CAN_t *hdl);
+static int set_sleep_mode(CAN_t *hdl);
+static int set_filter(CAN_t *hdl, const CAN_filter_t *filter);
+static int disable_filter(CAN_t *hdl, u32_t filter_no);
+static int send_msg(CAN_t *hdl, const CAN_msg_t *msg, u32_t timeout_ms);
+static int recv_msg(CAN_t *hdl, CAN_msg_t *msg, u32_t timeout_ms);
 
 /*==============================================================================
   Local object
@@ -191,44 +191,44 @@ static CAN_t *CAN_HDL[_CAN_COUNT];
 static const CAN_CFG_t CANX[] = {
 #if defined(RCC_APB1ENR_CAN1EN)
         {
-                .CAN             = CAN1,
-                .APBENR          = &RCC->APB1ENR,
-                .APBRSTR         = &RCC->APB1RSTR,
-                .APBENR_CANEN    = RCC_APB1ENR_CAN1EN,
+                .CAN = CAN1,
+                .APBENR = &RCC->APB1ENR,
+                .APBRSTR = &RCC->APB1RSTR,
+                .APBENR_CANEN = RCC_APB1ENR_CAN1EN,
                 .APBRSTR_CANRSTR = RCC_APB1RSTR_CAN1RST,
-                .TX_IRQn         = CAN1_TX_IRQn,
-                .RX0_IRQn        = CAN1_RX0_IRQn,
-                .RX1_IRQn        = CAN1_RX1_IRQn,
-                .SCE_IRQn        = CAN1_SCE_IRQn,
-                .FILTERS_COUNT   = 14,
+                .TX_IRQn = CAN1_TX_IRQn,
+                .RX0_IRQn = CAN1_RX0_IRQn,
+                .RX1_IRQn = CAN1_RX1_IRQn,
+                .SCE_IRQn = CAN1_SCE_IRQn,
+                .FILTERS_COUNT = 14,
         },
 #endif
 #if defined(RCC_APB1ENR_CAN2EN)
         {
-                .CAN             = CAN2,
-                .APBENR          = &RCC->APB1ENR,
-                .APBRSTR         = &RCC->APB1RSTR,
-                .APBENR_CANEN    = RCC_APB1ENR_CAN2EN,
+                .CAN = CAN2,
+                .APBENR = &RCC->APB1ENR,
+                .APBRSTR = &RCC->APB1RSTR,
+                .APBENR_CANEN = RCC_APB1ENR_CAN2EN,
                 .APBRSTR_CANRSTR = RCC_APB1RSTR_CAN2RST,
-                .TX_IRQn         = CAN2_TX_IRQn,
-                .RX0_IRQn        = CAN2_RX0_IRQn,
-                .RX1_IRQn        = CAN2_RX1_IRQn,
-                .SCE_IRQn        = CAN2_SCE_IRQn,
-                .FILTERS_COUNT   = 14,
+                .TX_IRQn = CAN2_TX_IRQn,
+                .RX0_IRQn = CAN2_RX0_IRQn,
+                .RX1_IRQn = CAN2_RX1_IRQn,
+                .SCE_IRQn = CAN2_SCE_IRQn,
+                .FILTERS_COUNT = 14,
         },
 #endif
 #if defined(RCC_APB1ENR_CAN3EN)
         {
-                .CAN             = CAN3,
-                .APBENR          = &RCC->APB1ENR,
-                .APBRSTR         = &RCC->APB1RSTR,
-                .APBENR_CANEN    = RCC_APB1ENR_CAN3EN,
+                .CAN = CAN3,
+                .APBENR = &RCC->APB1ENR,
+                .APBRSTR = &RCC->APB1RSTR,
+                .APBENR_CANEN = RCC_APB1ENR_CAN3EN,
                 .APBRSTR_CANRSTR = RCC_APB1RSTR_CAN3RST,
-                .TX_IRQn         = CAN3_TX_IRQn,
-                .RX0_IRQn        = CAN3_RX0_IRQn,
-                .RX1_IRQn        = CAN3_RX1_IRQn,
-                .SCE_IRQn        = CAN3_SCE_IRQn,
-                .FILTERS_COUNT   = 14,
+                .TX_IRQn = CAN3_TX_IRQn,
+                .RX0_IRQn = CAN3_RX0_IRQn,
+                .RX1_IRQn = CAN3_RX1_IRQn,
+                .SCE_IRQn = CAN3_SCE_IRQn,
+                .FILTERS_COUNT = 14,
         },
 #endif
 };
@@ -264,19 +264,18 @@ API_MOD_INIT(CAN, void **device_handle, u8_t major, u8_t minor, const void *conf
 
                         CAN_t *hdl = *device_handle;
 
-                        hdl->major        = major;
-                        hdl->minor        = 0;
+                        hdl->major = major;
+                        hdl->minor = 0;
                         hdl->recv_timeout = _WAIT_FOREVER_MS;
                         hdl->send_timeout = _WAIT_FOREVER_MS;
-                        hdl->mode         = CAN_MODE__INIT;
+                        hdl->mode = CAN_MODE__INIT;
 
                         err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &hdl->config_mtx);
                         if (err) {
                                 goto finish;
                         }
 
-                        err = sys_queue_create(RX_FIFO_DEPTH, sizeof(CAN_FIFOMailBox_TypeDef),
-                                &hdl->rxqueue_q);
+                        err = sys_queue_create(RX_FIFO_DEPTH, sizeof(CAN_FIFOMailBox_TypeDef), &hdl->rxqueue_q);
                         if (err) {
                                 goto finish;
                         }
@@ -517,8 +516,7 @@ API_MOD_WRITE(CAN, void *device_handle, const u8_t *src, size_t count, fpos_t *f
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(CAN, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt,
-        struct vfs_fattr fattr)
+API_MOD_READ(CAN, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fpos);
 
@@ -596,7 +594,7 @@ API_MOD_IOCTL(CAN, void *device_handle, int request, void *arg)
         case IOCTL_CAN__GET_NUMBER_OF_FILTERS:
                 if (arg) {
                         *cast(u32_t *, arg) = CANX[hdl->major].FILTERS_COUNT;
-                        err                 = ESUCC;
+                        err = ESUCC;
                 }
                 break;
 
@@ -667,23 +665,23 @@ API_MOD_IOCTL(CAN, void *device_handle, int request, void *arg)
                         }
 
                         // CAN mode
-                        status->mode       = hdl->mode;
+                        status->mode = hdl->mode;
                         status->frame_mode = CAN_FRAME_MODE__CLASSIC;
 
                         // error countes
-                        status->rx_error_ctr   = ((CANX[hdl->major].CAN->ESR & CAN_ESR_REC) >> 24);
-                        status->tx_error_ctr   = ((CANX[hdl->major].CAN->ESR & CAN_ESR_TEC) >> 16);
+                        status->rx_error_ctr = ((CANX[hdl->major].CAN->ESR & CAN_ESR_REC) >> 24);
+                        status->tx_error_ctr = ((CANX[hdl->major].CAN->ESR & CAN_ESR_TEC) >> 16);
                         status->rx_overrun_ctr = hdl->rx_overrun;
 
                         // transfer stats
                         status->tx_frames = hdl->tx_frames;
-                        status->tx_bytes  = hdl->tx_bytes;
+                        status->tx_bytes = hdl->tx_bytes;
                         status->rx_frames = hdl->rx_frames;
-                        status->rx_bytes  = hdl->rx_bytes;
+                        status->rx_bytes = hdl->rx_bytes;
 
                         // baud
                         status->nominal_baud_bps = hdl->baud;
-                        status->data_baud_bps    = hdl->baud;
+                        status->data_baud_bps = hdl->baud;
 
                         err = ESUCC;
                 }
@@ -902,11 +900,11 @@ static int set_init_mode(CAN_t *hdl)
 
                 while (not sys_is_time_expired(tref, INIT_TIMEOUT)) {
                         if (CANX[hdl->major].CAN->MSR & CAN_MSR_INAK) {
-                                hdl->tx_bytes  = 0;
-                                hdl->rx_bytes  = 0;
+                                hdl->tx_bytes = 0;
+                                hdl->rx_bytes = 0;
                                 hdl->tx_frames = 0;
                                 hdl->rx_frames = 0;
-                                err            = ESUCC;
+                                err = ESUCC;
                                 break;
                         }
                 }
@@ -988,7 +986,7 @@ static int set_filter(CAN_t *hdl, const CAN_filter_t *filter)
 
         int err = sys_mutex_lock(hdl->config_mtx, MTX_TIMEOUT);
         if (!err) {
-                u8_t major     = hdl->major;
+                u8_t major = hdl->major;
                 u8_t filter_no = filter->number;
 
 #if defined(RCC_APB1ENR_CAN2EN)
@@ -1093,8 +1091,8 @@ static int send_msg(CAN_t *hdl, const CAN_msg_t *msg, u32_t timeout_ms)
         hdl->txpend_ctr++;
         sys_context_switch_unlock();
 
-        int   err     = ETIME;
-        bool  loop    = true;
+        int err = ETIME;
+        bool loop = true;
         u32_t timeout = max(1, timeout_ms);
 
         clock_t tref = sys_get_uptime_ms();
@@ -1121,18 +1119,18 @@ static int send_msg(CAN_t *hdl, const CAN_msg_t *msg, u32_t timeout_ms)
 
                                         mbox->TDTR = min(8, msg->data_length) & CAN_TDT0R_DLC;
 
-                                        mbox->TDLR = msg->data[0] << 0 | msg->data[1] << 8 |
-                                                msg->data[2] << 16 | msg->data[3] << 24;
+                                        mbox->TDLR = msg->data[0] << 0 | msg->data[1] << 8 | msg->data[2] << 16 |
+                                                msg->data[3] << 24;
 
-                                        mbox->TDHR = msg->data[4] << 0 | msg->data[5] << 8 |
-                                                msg->data[6] << 16 | msg->data[7] << 24;
+                                        mbox->TDHR = msg->data[4] << 0 | msg->data[5] << 8 | msg->data[6] << 16 |
+                                                msg->data[7] << 24;
 
                                         sys_queue_reset(hdl->txrdy_q[i]);
 
                                         SET_BIT(mbox->TIR, CAN_TI0R_TXRQ);
 
                                         int erri = EIO;
-                                        err      = sys_queue_receive(hdl->txrdy_q[i], &erri, timeout);
+                                        err = sys_queue_receive(hdl->txrdy_q[i], &erri, timeout);
                                         if (!err) {
                                                 err = erri;
 
@@ -1189,23 +1187,23 @@ static int recv_msg(CAN_t *hdl, CAN_msg_t *msg, u32_t timeout_ms)
         int err = sys_queue_receive(hdl->rxqueue_q, &mbox, timeout_ms);
         if (!err) {
                 if (mbox.RIR & CAN_RI0R_IDE) {
-                        msg->ID          = mbox.RIR >> 3;
+                        msg->ID = mbox.RIR >> 3;
                         msg->extended_ID = true;
                 } else {
-                        msg->ID          = mbox.RIR >> 21;
+                        msg->ID = mbox.RIR >> 21;
                         msg->extended_ID = false;
                 }
 
                 msg->remote_transmission = mbox.RIR & CAN_RI0R_RTR;
-                msg->data_length         = mbox.RDTR & CAN_RDT0R_DLC;
-                msg->data[0]             = mbox.RDLR >> 0;
-                msg->data[1]             = mbox.RDLR >> 8;
-                msg->data[2]             = mbox.RDLR >> 16;
-                msg->data[3]             = mbox.RDLR >> 24;
-                msg->data[4]             = mbox.RDHR >> 0;
-                msg->data[5]             = mbox.RDHR >> 8;
-                msg->data[6]             = mbox.RDHR >> 16;
-                msg->data[7]             = mbox.RDHR >> 24;
+                msg->data_length = mbox.RDTR & CAN_RDT0R_DLC;
+                msg->data[0] = mbox.RDLR >> 0;
+                msg->data[1] = mbox.RDLR >> 8;
+                msg->data[2] = mbox.RDLR >> 16;
+                msg->data[3] = mbox.RDLR >> 24;
+                msg->data[4] = mbox.RDHR >> 0;
+                msg->data[5] = mbox.RDHR >> 8;
+                msg->data[6] = mbox.RDHR >> 16;
+                msg->data[7] = mbox.RDHR >> 24;
         }
 
         sys_context_switch_lock();

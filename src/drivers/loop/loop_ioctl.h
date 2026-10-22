@@ -5,7 +5,7 @@
 
 @brief   Universal virtual device that allow to connect applications together
 
-@note    Copyright (C) 2014 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -438,7 +438,7 @@ extern "C" {
  *
  * @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_LOOP__HOST_OPEN                   _IO(LOOP, 0x00)
+#define IOCTL_LOOP__HOST_OPEN _IO(LOOP, 0x00)
 
 /**
  * @brief  Host request. Disconnect this program as host function.
@@ -447,7 +447,7 @@ extern "C" {
  *
  * @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_LOOP__HOST_CLOSE                  _IO(LOOP, 0x01)
+#define IOCTL_LOOP__HOST_CLOSE _IO(LOOP, 0x01)
 
 /**
  * @brief  Host request. Wait for request from Client.
@@ -458,7 +458,7 @@ extern "C" {
  * @param  [RD] @ref LOOP_request_t*             request details
  * @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_LOOP__HOST_WAIT_FOR_REQUEST       _IOR(LOOP, 0x02, LOOP_request_t*)
+#define IOCTL_LOOP__HOST_WAIT_FOR_REQUEST _IOR(LOOP, 0x02, LOOP_request_t *)
 
 /**
  * @brief  Host request. Read data from buffers shared by the Client.
@@ -471,7 +471,7 @@ extern "C" {
  * @param  [RD] @ref LOOP_buffer_t*                host buffer descriptor
  * @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_LOOP__HOST_READ_DATA_FROM_CLIENT  _IOR(LOOP, 0x03, LOOP_buffer_t*)
+#define IOCTL_LOOP__HOST_READ_DATA_FROM_CLIENT _IOR(LOOP, 0x03, LOOP_buffer_t *)
 
 /**
  * @brief  Host request. Write data to the client.
@@ -484,7 +484,7 @@ extern "C" {
  * @param  [WR] @ref LOOP_buffer_t*                host buffer descriptor
  * @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_LOOP__HOST_WRITE_DATA_TO_CLIENT   _IOW(LOOP, 0x04, LOOP_buffer_t*)
+#define IOCTL_LOOP__HOST_WRITE_DATA_TO_CLIENT _IOW(LOOP, 0x04, LOOP_buffer_t *)
 
 /**
  * @brief  Host request. Response to the captured ioctl request.
@@ -495,21 +495,21 @@ extern "C" {
  * @param  [WR] @ref LOOP_ioctl_response_t*        ioctl response data
  * @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_LOOP__HOST_SET_IOCTL_STATUS       _IOW(LOOP, 0x05, LOOP_ioctl_response_t*)
+#define IOCTL_LOOP__HOST_SET_IOCTL_STATUS _IOW(LOOP, 0x05, LOOP_ioctl_response_t *)
 
 /**
  * @brief  Host request. Response to the captured stat request.
  * @param  [WR] @ref LOOP_stat_response_t*         device statistics response
  * @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_LOOP__HOST_SET_DEVICE_STATS       _IOW(LOOP, 0x06, LOOP_ioctl_response_t*)
+#define IOCTL_LOOP__HOST_SET_DEVICE_STATS _IOW(LOOP, 0x06, LOOP_ioctl_response_t *)
 
 /**
  * @brief  Host request. Response to the captured flush request
  * @param  [WR] int*                          errno value
  * @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_LOOP__HOST_FLUSH_DONE             _IOW(LOOP, 0x07, int*)
+#define IOCTL_LOOP__HOST_FLUSH_DONE _IOW(LOOP, 0x07, int *)
 
 /**
  * @brief  Client request. General purpose RAW request. Depends on host protocol.
@@ -520,8 +520,7 @@ extern "C" {
  * @param  n                            request number (macro's argument)
  * @return Depends on host program protocol.
  */
-#define IOCTL_LOOP__CLIENT_REQUEST(n)          _IOWR(LOOP, 0x08 + n, void*)
-
+#define IOCTL_LOOP__CLIENT_REQUEST(n) _IOWR(LOOP, 0x08 + n, void *)
 
 /*==============================================================================
   Exported object types
@@ -530,61 +529,56 @@ extern "C" {
  * Type represent the command of loop device.
  */
 typedef enum {
-        LOOP_CMD__IDLE,                         //!< Idle command, no action.
-        LOOP_CMD__TRANSMISSION_CLIENT2HOST,     //!< Transmission request client to host (rw arguments are valid).
-        LOOP_CMD__TRANSMISSION_HOST2CLIENT,     //!< Transmission request host to client (rw arguments are valid).
-        LOOP_CMD__IOCTL_REQUEST,                //!< Ioctl operation request (ioctl arguments are valid).
-        LOOP_CMD__DEVICE_STAT,                  //!< Request to response by device's statistics.
-        LOOP_CMD__FLUSH_BUFFERS                 //!< Request to flush device buffers.
+        LOOP_CMD__IDLE,                     //!< Idle command, no action.
+        LOOP_CMD__TRANSMISSION_CLIENT2HOST, //!< Transmission request client to host (rw arguments are valid).
+        LOOP_CMD__TRANSMISSION_HOST2CLIENT, //!< Transmission request host to client (rw arguments are valid).
+        LOOP_CMD__IOCTL_REQUEST,            //!< Ioctl operation request (ioctl arguments are valid).
+        LOOP_CMD__DEVICE_STAT,              //!< Request to response by device's statistics.
+        LOOP_CMD__FLUSH_BUFFERS             //!< Request to flush device buffers.
 } LOOP_cmd_t;
-
 
 /**
  * Type represent buffer descriptor for I/O operations.
  */
 typedef struct {
-        u8_t    *data;                          /*!< Write/read Host buffer address.*/
-        size_t   size;                          /*!< Number of bytes to write/read.*/
-        int      err;                           /*!< Errno value if error occurred (if no error must be set to ESUCC).*/
+        u8_t *data;  /*!< Write/read Host buffer address.*/
+        size_t size; /*!< Number of bytes to write/read.*/
+        int err;     /*!< Errno value if error occurred (if no error must be set to ESUCC).*/
 } LOOP_buffer_t;
-
 
 /**
  * Type represent the response host->client for the ioctl request coming from client.
  */
 typedef struct {
-        int err;                               /*!< Errno value if error occurred (if no error must be set to ESUCC).*/
+        int err; /*!< Errno value if error occurred (if no error must be set to ESUCC).*/
 } LOOP_ioctl_response_t;
-
 
 /**
  * Type represent the response host->client for the stat() request coming from client.
  */
 typedef struct {
-        u64_t size;                             /*!< Device capacity/file size.*/
-        int   err;                              /*!< Errno value if error occurred (if no error must be set to ESUCC).*/
+        u64_t size; /*!< Device capacity/file size.*/
+        int err;    /*!< Errno value if error occurred (if no error must be set to ESUCC).*/
 } LOOP_stat_response_t;
-
 
 /**
  * Type represent the request.
  */
 typedef struct {
-        LOOP_cmd_t cmd;                         /*!< Requested action (command from Client).*/
+        LOOP_cmd_t cmd; /*!< Requested action (command from Client).*/
 
         union {
                 struct {
-                        size_t size;            /*!< Requested size of read/write operation.*/
-                        fpos_t seek;            /*!< Position in the device's file.*/
-                } rw;                           /*!< Read/write transmission arguments group.*/
+                        size_t size; /*!< Requested size of read/write operation.*/
+                        fpos_t seek; /*!< Position in the device's file.*/
+                } rw;                /*!< Read/write transmission arguments group.*/
 
                 struct {
-                        int   request;          /*!< Ioctl's request number.*/
-                        void *arg;              /*!< Ioctl's request argument.*/
-                } ioctl;                        /*!< Ioctl argument group.*/
-        } arg;                                  /*!< Command's arguments.*/
+                        int request; /*!< Ioctl's request number.*/
+                        void *arg;   /*!< Ioctl's request argument.*/
+                } ioctl;             /*!< Ioctl argument group.*/
+        } arg;                       /*!< Command's arguments.*/
 } LOOP_request_t;
-
 
 /*==============================================================================
   Exported objects

@@ -5,7 +5,7 @@
 
 @brief   DMA Driver Direct Interface.
 
-@note    Copyright (C) 2020 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -253,16 +253,16 @@ extern "C" {
 typedef bool (*_DMA_cb_t)(DMA_Stream_TypeDef *stream, u8_t SR, void *arg);
 
 typedef struct {
-        void     *user_ctx; /*! user context */
-        _DMA_cb_t cb_finish; /*! finish callback */
-        _DMA_cb_t cb_half; /*! half transfer callback */
-        _DMA_cb_t cb_next; /*! next callback */
-        u32_t     data_number; /*! data number */
-        u32_t     peripheral_address; /*! peripheral address */
-        u32_t     memory_address[2]; /*! memory address */
-        u32_t     IRQ_priority; /*! IRQ priority */
-        u32_t     channel; /*! DMA channel */
-        bool      release; /*! automatically release stream */
+        void *user_ctx;           /*! user context */
+        _DMA_cb_t cb_finish;      /*! finish callback */
+        _DMA_cb_t cb_half;        /*! half transfer callback */
+        _DMA_cb_t cb_next;        /*! next callback */
+        u32_t data_number;        /*! data number */
+        u32_t peripheral_address; /*! peripheral address */
+        u32_t memory_address[2];  /*! memory address */
+        u32_t IRQ_priority;       /*! IRQ priority */
+        u32_t channel;            /*! DMA channel */
+        bool release;             /*! automatically release stream */
 
         enum {
                 _DMA_DDI_MEMORY_BURST_SINGLE_TRANSFER,
@@ -361,24 +361,24 @@ typedef bool (*_MDMA_cb_t)(MDMA_Channel_TypeDef *stream, void *arg);
  * MDMA configuration structure
  */
 typedef struct {
-        void      *user_ctx;
+        void *user_ctx;
         _MDMA_cb_t cb_channel_transfer_completed;
         _MDMA_cb_t cb_block_transfer_completed;
         _MDMA_cb_t cb_block_transfer_repeat_completed;
         _MDMA_cb_t cb_buffer_transfer_completed;
         _MDMA_cb_t cb_transfer_error;
-        u32_t      source_address;
-        u32_t      destination_address;
-        u32_t      buffer_transfer_length;
-        u32_t      link_address;
-        u16_t      block_repeat_destination_address_update;
-        u16_t      block_repeat_source_address_update;
-        u32_t      block_repeat_count;
-        u32_t      block_size;
-        u32_t      mask_address;
-        u32_t      mask_data;
-        bool       release;
-        u8_t       trigger_selection;
+        u32_t source_address;
+        u32_t destination_address;
+        u32_t buffer_transfer_length;
+        u32_t link_address;
+        u16_t block_repeat_destination_address_update;
+        u16_t block_repeat_source_address_update;
+        u32_t block_repeat_count;
+        u32_t block_size;
+        u32_t mask_address;
+        u32_t mask_data;
+        bool release;
+        u8_t trigger_selection;
 
         enum {
                 _MDMA_DDI_SOFTWARE_REQUEST_DISABLE,
@@ -486,13 +486,13 @@ typedef struct {
         } source_data_size :2;
 
         enum {
-                _MDMA_DDI_DESTINATION_ADDRESS_POINTER_FIXED      = 0,
+                _MDMA_DDI_DESTINATION_ADDRESS_POINTER_FIXED = 0,
                 _MDMA_DDI_DESTINATION_ADDRESS_PONTER_INCREMENTED = 2,
                 _MDMA_DDI_DESTINATION_ADDRESS_PONTER_DECREMENTED = 3,
         } destination_address_pointer_mode :2;
 
         enum {
-                _MDMA_DDI_SOURCE_ADDRESS_POINTER_FIXED      = 0,
+                _MDMA_DDI_SOURCE_ADDRESS_POINTER_FIXED = 0,
                 _MDMA_DDI_SOURCE_ADDRESS_PONTER_INCREMENTED = 2,
                 _MDMA_DDI_SOURCE_ADDRESS_PONTER_DECREMENTED = 3,
         } source_address_pointer_mode :2;

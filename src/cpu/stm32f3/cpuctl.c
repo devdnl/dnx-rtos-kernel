@@ -5,7 +5,7 @@
 
 @brief   This file support CPU control
 
-@note    Copyright (C) 2025 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -45,10 +45,10 @@
   Local symbolic constants/macros
 ==============================================================================*/
 #define SRAM_HEAP_START ((void *)&__heap_start)
-#define SRAM_HEAP_SIZE  ((size_t) & __heap_size)
+#define SRAM_HEAP_SIZE  ((size_t)&__heap_size)
 
-#define CCM_START       ((void *)&__ccm_start)
-#define CCM_SIZE        ((size_t) & __ccm_size)
+#define CCM_START ((void *)&__ccm_start)
+#define CCM_SIZE  ((size_t)&__ccm_size)
 
 // Memory Management Fault Status Register
 #define NVIC_MFSR (*(volatile unsigned char *)(0xE000ED28u))

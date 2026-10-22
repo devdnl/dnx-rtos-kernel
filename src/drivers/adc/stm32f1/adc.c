@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   ADC Driver
 
-        Copyright (C) 2023 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -60,11 +60,11 @@ enum {
 };
 
 typedef struct {
-        ADC_t          *ADC;
-        __IO uint32_t  *APBENR;
-        __IO uint32_t  *APBRSTR;
-        const uint32_t  RCC_APBENR_ADCEN;
-        const uint32_t  RCC_APBRSTR_ADCRST;
+        ADC_t *ADC;
+        __IO uint32_t *APBENR;
+        __IO uint32_t *APBRSTR;
+        const uint32_t RCC_APBENR_ADCEN;
+        const uint32_t RCC_APBRSTR_ADCRST;
         const IRQn_Type IRQn;
 } ADC_regs_t;
 
@@ -83,32 +83,32 @@ MODULE_NAME(ADC);
 static const ADC_regs_t ADC_[] = {
 #if defined(RCC_APB2ENR_ADC1EN)
         {
-                .ADC                = ADC1,
-                .APBENR             = &RCC->APB2ENR,
-                .APBRSTR            = &RCC->APB2RSTR,
-                .RCC_APBENR_ADCEN   = RCC_APB2ENR_ADC1EN,
+                .ADC = ADC1,
+                .APBENR = &RCC->APB2ENR,
+                .APBRSTR = &RCC->APB2RSTR,
+                .RCC_APBENR_ADCEN = RCC_APB2ENR_ADC1EN,
                 .RCC_APBRSTR_ADCRST = RCC_APB2RSTR_ADC1RST,
-                .IRQn               = ADC1_2_IRQn,
+                .IRQn = ADC1_2_IRQn,
         },
 #endif
 #if defined(RCC_AHB2ENR_ADC2EN)
         {
-                .ADC                = ADC2,
-                .APBENR             = &RCC->APB2ENR,
-                .APBRSTR            = &RCC->APB2RSTR,
-                .RCC_APBENR_ADCEN   = RCC_APB2ENR_ADC2EN,
+                .ADC = ADC2,
+                .APBENR = &RCC->APB2ENR,
+                .APBRSTR = &RCC->APB2RSTR,
+                .RCC_APBENR_ADCEN = RCC_APB2ENR_ADC2EN,
                 .RCC_APBRSTR_ADCRST = RCC_APB2RSTR_ADC2RST,
-                .IRQn               = ADC1_2_IRQn,
+                .IRQn = ADC1_2_IRQn,
         },
 #endif
 #if defined(RCC_AHB2ENR_ADC3EN)
         {
-                .ADC                = ADC3,
-                .APBENR             = &RCC->APB2ENR,
-                .APBRSTR            = &RCC->APB2RSTR,
-                .RCC_APBENR_ADCEN   = RCC_APB2ENR_ADC3EN,
+                .ADC = ADC3,
+                .APBENR = &RCC->APB2ENR,
+                .APBRSTR = &RCC->APB2RSTR,
+                .RCC_APBENR_ADCEN = RCC_APB2ENR_ADC3EN,
                 .RCC_APBRSTR_ADCRST = RCC_APB2RSTR_ADC3RST,
-                .IRQn               = ADC3_IRQn,
+                .IRQn = ADC3_IRQn,
         },
 #endif
 };
@@ -143,8 +143,8 @@ API_MOD_INIT(ADC, void **device_handle, u8_t major, u8_t minor, const void *conf
                 err = sys_zalloc(sizeof(ADCM_t), device_handle);
                 if (!err) {
                         ADCM_t *hdl = *device_handle;
-                        hdl->major  = major;
-                        hdl->minor  = minor;
+                        hdl->major = major;
+                        hdl->minor = minor;
 
                         if (config) {
                         }
@@ -231,8 +231,8 @@ API_MOD_CLOSE(ADC, void *device_handle, bool force)
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_WRITE(ADC, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos,
-        size_t *wrctr, struct vfs_fattr fattr)
+API_MOD_WRITE(ADC, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrctr,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, src, count, fpos, wrctr, fattr);
 
@@ -253,8 +253,7 @@ API_MOD_WRITE(ADC, void *device_handle, const u8_t *src, size_t count, fpos_t *f
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(ADC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos,
-        size_t *rdctr, struct vfs_fattr fattr)
+API_MOD_READ(ADC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdctr, struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, dst, count, fpos, rdctr, fattr);
 
@@ -286,8 +285,7 @@ API_MOD_IOCTL(ADC, void *device_handle, int request, void *arg)
 
                 adc_measurement_t *measurement = arg;
                 if (measurement->channel > 17) {
-                        dev_dbg(hdl, "Channel out of range: %u of %u",
-                                measurement->channel, 17);
+                        dev_dbg(hdl, "Channel out of range: %u of %u", measurement->channel, 17);
                         break;
                 }
 
@@ -400,7 +398,7 @@ static int convert_channel(const ADCM_t *hdl, adc_measurement_t *measurement)
         SET_BIT(ADC_if->ADC->CR2, ADC_CR2_SWSTART);
 
         u32_t cycles = 100;
-        while (not (ADC_if->ADC->SR & ADC_SR_EOC)) {
+        while (not(ADC_if->ADC->SR & ADC_SR_EOC)) {
                 sys_sleep_ms(10);
                 if (--cycles == 0) {
                         err = ETIME;

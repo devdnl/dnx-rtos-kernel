@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   Quad SPI
 
-        Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -346,42 +346,42 @@ typedef enum {
  * Type represent QSPI command.
  */
 typedef struct {
-        QSPI_mode_t           instruction_mode;
-        uint8_t               instruction;
-        QSPI_mode_t           address_mode;
-        QSPI_size_t           address_size;
-        uint32_t              address;
-        QSPI_mode_t           alternate_byte_mode;
-        uint32_t              alternate_bytes;
-        QSPI_size_t           alternate_bytes_size;
-        QSPI_mode_t           data_mode;
-        uint8_t               dummy_cycles;
-        uint32_t              data_size;
-        bool                  ddr;
+        QSPI_mode_t instruction_mode;
+        uint8_t instruction;
+        QSPI_mode_t address_mode;
+        QSPI_size_t address_size;
+        uint32_t address;
+        QSPI_mode_t alternate_byte_mode;
+        uint32_t alternate_bytes;
+        QSPI_size_t alternate_bytes_size;
+        QSPI_mode_t data_mode;
+        uint8_t dummy_cycles;
+        uint32_t data_size;
+        bool ddr;
         QSPI_DDR_hold_cycle_t ddr_hold_cycle;
-        bool                  instruction_only_once;
-        QSPI_direction_t      direction;
-        void                 *data;
+        bool instruction_only_once;
+        QSPI_direction_t direction;
+        void *data;
 } QSPI_command_t;
 
 /**
  * Type represent QSPI configuation.
  */
 typedef struct {
-        uint32_t               clock_prescaller;
+        uint32_t clock_prescaller;
         QSPI_sample_shifting_t sample_shifting;
-        uint8_t                flash_size_bits;
-        uint8_t                chip_select_high_time;
-        QSPI_clock_mode_t      clock_mode;
-        bool                   dual_flash;
-        size_t                 page_size;
-        uint32_t               write_in_progress_mask;
-        uint32_t               write_in_progress_match;
-        QSPI_size_t            write_in_progress_register_size;
-        const QSPI_command_t  *read_command;
-        const QSPI_command_t  *page_program_command;
-        const QSPI_command_t  *write_enable_command;
-        const QSPI_command_t  *read_status_register_command;
+        uint8_t flash_size_bits;
+        uint8_t chip_select_high_time;
+        QSPI_clock_mode_t clock_mode;
+        bool dual_flash;
+        size_t page_size;
+        uint32_t write_in_progress_mask;
+        uint32_t write_in_progress_match;
+        QSPI_size_t write_in_progress_register_size;
+        const QSPI_command_t *read_command;
+        const QSPI_command_t *page_program_command;
+        const QSPI_command_t *write_enable_command;
+        const QSPI_command_t *read_status_register_command;
 } QSPI_config_t;
 
 /*==============================================================================

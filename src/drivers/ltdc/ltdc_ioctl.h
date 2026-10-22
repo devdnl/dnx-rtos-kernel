@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   LCD-TFT Display Controller module
 
-        Copyright (C) 2022 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -90,14 +90,14 @@ extern "C" {
  *  @param  [WR] LTDC_config_t configuration
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_LTDC__CONFIGURE           _IOW(LTDC, 0x00, const LTDC_config_t*)
+#define IOCTL_LTDC__CONFIGURE _IOW(LTDC, 0x00, const LTDC_config_t *)
 
 /**
  *  @brief  Get driver features.
  *  @param  [RD] LTDC_features_t features
  *  @return On success 0 is returned, otherwise -1.
  */
-#define IOCTL_LTDC__GET_FEATURES        _IOR(LTDC, 0x01, LTDC_features_t*)
+#define IOCTL_LTDC__GET_FEATURES _IOR(LTDC, 0x01, LTDC_features_t *)
 
 /*==============================================================================
   Exported object types
@@ -115,13 +115,13 @@ typedef enum {
 } LTDC_pixel_format_t;
 
 typedef struct {
-        const char *mem_region_name;            //!< memory region used to create framebuffer (optional)
-        void *framebuffer_addr;                 //!< framebuffer address given by user (optional)
-        uint32_t framebuffer_size;              //!< framebuffer size in bytes (optional)
-        LTDC_pixel_format_t pixel_format;       //!< pixel format
-        uint8_t background_color_R;             //!< framebuffer background color red
-        uint8_t background_color_G;             //!< framebuffer background color green
-        uint8_t background_color_B;             //!< framebuffer background color blue
+        const char *mem_region_name;      //!< memory region used to create framebuffer (optional)
+        void *framebuffer_addr;           //!< framebuffer address given by user (optional)
+        uint32_t framebuffer_size;        //!< framebuffer size in bytes (optional)
+        LTDC_pixel_format_t pixel_format; //!< pixel format
+        uint8_t background_color_R;       //!< framebuffer background color red
+        uint8_t background_color_G;       //!< framebuffer background color green
+        uint8_t background_color_B;       //!< framebuffer background color blue
 } LTDC_config_t;
 
 typedef struct {

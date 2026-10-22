@@ -5,7 +5,7 @@
 
 @brief   Kernel print support
 
-@note    Copyright (C) 2015 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -54,10 +54,10 @@ extern "C" {
   Exported functions
 ==============================================================================*/
 #if (__OS_SYSTEM_MSG_ENABLE__ > 0)
-int    _printk_init(void);
+int _printk_init(void);
 size_t _printk_read(char *, size_t, const struct timeval *, struct timeval *);
-void   _printk_clear(void);
-void   _printk(const char *, ...);
+void _printk_clear(void);
+void _printk(const char *, ...);
 #else
 #define _printk_init()
 #define _printk(...)

@@ -5,7 +5,7 @@
 
 @brief   This file provide system initialization and RTOS start.
 
-@note    Copyright (C) 2024  Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026  Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -106,10 +106,9 @@ void low_level_init_0(void)
 {
         if (reboot_address.key == REBOOT_TO_ADDRESS_KEY) {
 
-                if ((reboot_address.address ^ REBOOT_TO_ADDRESS_VALIDATOR)
-                        == reboot_address.address_validator) {
+                if ((reboot_address.address ^ REBOOT_TO_ADDRESS_VALIDATOR) == reboot_address.address_validator) {
 
-                        void (*call_address)(void) = cast(void*, reboot_address.address);
+                        void (*call_address)(void) = cast(void *, reboot_address.address);
 
                         memset(&reboot_address, 0, sizeof(reboot_address));
 

@@ -5,7 +5,7 @@
 
 @brief   This driver support I2C peripherals.
 
-@note    Copyright (C) 2014 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -473,11 +473,11 @@ extern "C" {
  * Type defines possible modes of sub-addressing sequence (used e.g. in EEPROM).
  */
 typedef enum {
-        I2C_SUB_ADDR_MODE__DISABLED = 0,        //!< Sub-addressing disabled.
-        I2C_SUB_ADDR_MODE__1_BYTE   = 1,        //!< Sub-address is 1 byte long.
-        I2C_SUB_ADDR_MODE__2_BYTES  = 2,        //!< Sub-address is 2 byte long.
-        I2C_SUB_ADDR_MODE__3_BYTES  = 3,        //!< Sub-address is 3 byte long.
-        I2C_SUB_ADDR_MODE__4_BYTES  = 4,        //!< Sub-address is 4 byte long.
+        I2C_SUB_ADDR_MODE__DISABLED = 0, //!< Sub-addressing disabled.
+        I2C_SUB_ADDR_MODE__1_BYTE = 1,   //!< Sub-address is 1 byte long.
+        I2C_SUB_ADDR_MODE__2_BYTES = 2,  //!< Sub-address is 2 byte long.
+        I2C_SUB_ADDR_MODE__3_BYTES = 3,  //!< Sub-address is 3 byte long.
+        I2C_SUB_ADDR_MODE__4_BYTES = 4,  //!< Sub-address is 4 byte long.
 } I2C_sub_addr_mode_t;
 
 /**
@@ -492,18 +492,18 @@ typedef enum {
  * Type represents I2C peripheral configuration.
  */
 typedef struct {
-        u16_t               address;            /*!< Device address 8 or 10 bit.*/
-        I2C_sub_addr_mode_t sub_addr_mode;      /*!< Number of bytes of sub-address (EEPROM, RTC).*/
-        bool                addr_10bit;         /*!< @b true: 10 bit addressing enabled.*/
-        I2C_mode_t          mode;               /*!< I2C peripheral mode*/
+        u16_t address;                     /*!< Device address 8 or 10 bit.*/
+        I2C_sub_addr_mode_t sub_addr_mode; /*!< Number of bytes of sub-address (EEPROM, RTC).*/
+        bool addr_10bit;                   /*!< @b true: 10 bit addressing enabled.*/
+        I2C_mode_t mode;                   /*!< I2C peripheral mode*/
 } I2C_config_t;
 
 /**
  * Type used to check I2C slave mode event.
  */
 typedef struct {
-        u32_t               timeout_ms;         /*!< Timeout of waiting for event.*/
-        bool                RD_addr;            /*!< ADDR+RD received.*/
+        u32_t timeout_ms; /*!< Timeout of waiting for event.*/
+        bool RD_addr;     /*!< ADDR+RD received.*/
 } I2C_selection_t;
 
 /**
@@ -531,28 +531,28 @@ typedef struct {
  * @param  [WR] @ref I2C_config_t*        device configuration
  * @return On success 0 is returned, otherwise -1 and @ref errno code is set.
  */
-#define IOCTL_I2C__CONFIGURE                    _IOW(I2C, 0, const I2C_config_t*)
+#define IOCTL_I2C__CONFIGURE _IOW(I2C, 0, const I2C_config_t *)
 
 /**
  * @brief  Wait for I2C address event.
  * @param  [WR] @ref I2C_selection_t*     I2C address event (device selection)
  * @return On success 0 is returned, otherwise -1 and @ref errno code is set.
  */
-#define IOCTL_I2C__SLAVE_WAIT_FOR_SELECTION     _IOWR(I2C, 1, I2C_selection_t*)
+#define IOCTL_I2C__SLAVE_WAIT_FOR_SELECTION _IOWR(I2C, 1, I2C_selection_t *)
 
 /**
  * @brief  Configure device by using string
  * @param  [WR] const char*             configuration string
  * @return On success 0 is returned, otherwise -1 and @ref errno code is set.
  */
-#define IOCTL_I2C__CONFIGURE_STR                IOCTL_DEVICE__CONFIGURE_STR
+#define IOCTL_I2C__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
 /**
  * @brief  Configure recovery pin
  * @param  [WR] const I2C_recovery_t*   recovery configuration
  * @return On success 0 is returned, otherwise -1 and @ref errno code is set.
  */
-#define IOCTL_I2C__CONFIGURE_RECOVERY           _IOW(I2C, 2, const I2C_recovery_t*)
+#define IOCTL_I2C__CONFIGURE_RECOVERY _IOW(I2C, 2, const I2C_recovery_t *)
 
 /*==============================================================================
   Exported objects

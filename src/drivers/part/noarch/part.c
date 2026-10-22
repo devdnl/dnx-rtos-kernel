@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   Partition driver
 
-        Copyright (C) 2021 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -41,13 +41,13 @@ Brief   Partition driver
   Local object types
 ==============================================================================*/
 typedef struct {
-        u8_t     major;
-        u8_t     minor;
+        u8_t major;
+        u8_t minor;
         kfile_t *dev;
-        kmtx_t  *mutex;
-        u32_t    block_size;
-        u64_t    offset_bytes;
-        u64_t    total_bytes;
+        kmtx_t *mutex;
+        u32_t block_size;
+        u64_t offset_bytes;
+        u64_t total_bytes;
 } PART_t;
 
 /*==============================================================================
@@ -121,7 +121,7 @@ API_MOD_RELEASE(PART, void *device_handle)
         int err = sys_mutex_lock(hdl->mutex, 0);
         if (!err) {
                 kmtx_t *mtx = hdl->mutex;
-                hdl->mutex  = NULL;
+                hdl->mutex = NULL;
                 sys_mutex_unlock(mtx);
                 sys_mutex_destroy(mtx);
 
@@ -226,8 +226,7 @@ API_MOD_WRITE(PART, void *device_handle, const u8_t *src, size_t count, fpos_t *
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(PART, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt,
-        struct vfs_fattr fattr)
+API_MOD_READ(PART, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
@@ -288,10 +287,10 @@ API_MOD_IOCTL(PART, void *device_handle, int request, void *arg)
         case IOCTL_PART__GET_CONFIGRATION:
                 if (arg) {
                         PART_config_t *cfg = arg;
-                        cfg->path          = NULL;
-                        cfg->block_size    = hdl->block_size;
+                        cfg->path = NULL;
+                        cfg->block_size = hdl->block_size;
                         cfg->offset_blocks = hdl->offset_bytes / hdl->block_size;
-                        cfg->total_blocks  = hdl->total_bytes / hdl->block_size;
+                        cfg->total_blocks = hdl->total_bytes / hdl->block_size;
 
                         err = 0;
                 }
@@ -362,8 +361,8 @@ static int configure(PART_t *hdl, const PART_config_t *conf)
                 if (!err) {
                         err = sys_fopen(conf->path, O_RDWR, 0, &hdl->dev);
                         if (!err) {
-                                hdl->block_size   = conf->block_size;
-                                hdl->total_bytes  = cast(u64_t, conf->total_blocks) * conf->block_size;
+                                hdl->block_size = conf->block_size;
+                                hdl->total_bytes = cast(u64_t, conf->total_blocks) * conf->block_size;
                                 hdl->offset_bytes = cast(u64_t, conf->offset_blocks) * conf->block_size;
                         }
                 }
@@ -388,7 +387,7 @@ static int auto_configure(PART_t *hdl)
         const size_t SECTOR_SIZE = 512;
 
         u8_t *MBR;
-        int   err = sys_zalloc(512, cast(void **, &MBR));
+        int err = sys_zalloc(512, cast(void **, &MBR));
         if (err) {
                 return err;
         }
@@ -416,16 +415,12 @@ static int auto_configure(PART_t *hdl)
 
                                         u32_t block_size = !err ? SECTOR_SIZE : 0;
 
-                                        u32_t total_blocks = !err
-                                                ? MBR_get_partition_number_of_sectors(i + 1, MBR)
-                                                : 0;
+                                        u32_t total_blocks = !err ? MBR_get_partition_number_of_sectors(i + 1, MBR) : 0;
 
-                                        u32_t offset_blocks = !err
-                                                ? MBR_get_partition_first_LBA_sector(i + 1, MBR)
-                                                : 0;
+                                        u32_t offset_blocks = !err ? MBR_get_partition_first_LBA_sector(i + 1, MBR) : 0;
 
-                                        hdl_sub->block_size   = block_size;
-                                        hdl_sub->total_bytes  = cast(u64_t, total_blocks) * block_size;
+                                        hdl_sub->block_size = block_size;
+                                        hdl_sub->total_bytes = cast(u64_t, total_blocks) * block_size;
                                         hdl_sub->offset_bytes = cast(u64_t, offset_blocks) * block_size;
 
                                         sys_mutex_unlock(hdl_sub->mutex);

@@ -5,7 +5,7 @@
 
 @brief   System functions.
 
-@note    Copyright (C) 2015 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -72,7 +72,7 @@
 int sys_opendir(const char *path, kdir_t **dir)
 {
         struct vfs_path cpath;
-        cpath.CWD  = NULL;
+        cpath.CWD = NULL;
         cpath.PATH = path;
 
         int r = _vfs_opendir(&cpath, dir);
@@ -93,8 +93,7 @@ int sys_opendir(const char *path, kdir_t **dir)
 //==============================================================================
 int sys_closedir(kdir_t *dir)
 {
-        return _process_release_resource(_kworker_proc, cast(res_header_t *, dir),
-                RES_TYPE_DIR);
+        return _process_release_resource(_kworker_proc, cast(res_header_t *, dir), RES_TYPE_DIR);
 }
 
 //==============================================================================
@@ -112,7 +111,7 @@ int sys_closedir(kdir_t *dir)
 int sys_fopen(const char *name, int flags, mode_t mode, kfile_t **file)
 {
         struct vfs_path cpath;
-        cpath.CWD  = NULL;
+        cpath.CWD = NULL;
         cpath.PATH = name;
 
         int r = _vfs_fopen(&cpath, flags, mode, file);
@@ -133,8 +132,7 @@ int sys_fopen(const char *name, int flags, mode_t mode, kfile_t **file)
 //==============================================================================
 int sys_fclose(kfile_t *file)
 {
-        return _process_release_resource(_kworker_proc, cast(res_header_t *, file),
-                RES_TYPE_FILE);
+        return _process_release_resource(_kworker_proc, cast(res_header_t *, file), RES_TYPE_FILE);
 }
 
 //==============================================================================
@@ -212,8 +210,7 @@ int sys_semaphore_create(const size_t cnt_max, const size_t cnt_init, ksem_t **s
 //==============================================================================
 int sys_semaphore_destroy(ksem_t *sem)
 {
-        return _process_release_resource(_kworker_proc, cast(res_header_t *, sem),
-                RES_TYPE_SEMAPHORE);
+        return _process_release_resource(_kworker_proc, cast(res_header_t *, sem), RES_TYPE_SEMAPHORE);
 }
 
 //==============================================================================
@@ -250,8 +247,7 @@ int sys_flag_create(kflag_t **flag)
 //==============================================================================
 int sys_flag_destroy(kflag_t *flag)
 {
-        return _process_release_resource(_kworker_proc, cast(res_header_t *, flag),
-                RES_TYPE_FLAG);
+        return _process_release_resource(_kworker_proc, cast(res_header_t *, flag), RES_TYPE_FLAG);
 }
 
 //==============================================================================
@@ -284,8 +280,7 @@ int sys_mutex_create(enum kmtx_type type, kmtx_t **mtx)
 //==============================================================================
 int sys_mutex_destroy(kmtx_t *mutex)
 {
-        return _process_release_resource(_kworker_proc, cast(res_header_t *, mutex),
-                RES_TYPE_MUTEX);
+        return _process_release_resource(_kworker_proc, cast(res_header_t *, mutex), RES_TYPE_MUTEX);
 }
 
 //==============================================================================
@@ -302,8 +297,7 @@ int sys_spinlock_create(u32_t loop_delay_ms, kspinlock_t **spinlock)
 {
         int r = _spinlock_create(loop_delay_ms, spinlock);
         if (r == ESUCC) {
-                _process_register_resource(_kworker_proc,
-                        cast(res_header_t *, *spinlock));
+                _process_register_resource(_kworker_proc, cast(res_header_t *, *spinlock));
         }
         return r;
 }
@@ -319,8 +313,7 @@ int sys_spinlock_create(u32_t loop_delay_ms, kspinlock_t **spinlock)
 //==============================================================================
 int sys_spinlock_destroy(kspinlock_t *spinlock)
 {
-        return _process_release_resource(_kworker_proc, cast(res_header_t *, spinlock),
-                RES_TYPE_SPINLOCK);
+        return _process_release_resource(_kworker_proc, cast(res_header_t *, spinlock), RES_TYPE_SPINLOCK);
 }
 
 //==============================================================================
@@ -354,8 +347,7 @@ int sys_queue_create(size_t length, size_t item_size, kqueue_t **queue)
 //==============================================================================
 int sys_queue_destroy(kqueue_t *queue)
 {
-        return _process_release_resource(_kworker_proc, cast(res_header_t *, queue),
-                RES_TYPE_QUEUE);
+        return _process_release_resource(_kworker_proc, cast(res_header_t *, queue), RES_TYPE_QUEUE);
 }
 
 //==============================================================================
@@ -374,8 +366,7 @@ int sys_queue_destroy(kqueue_t *queue)
  * @return On of errno value.
  */
 //==============================================================================
-int sys_thread_create(thread_func_t func, const _thread_attr_t *attr, void *arg,
-        tid_t *tid)
+int sys_thread_create(thread_func_t func, const _thread_attr_t *attr, void *arg, tid_t *tid)
 {
         return _process_thread_create(_kworker_proc, func, attr, arg, tid);
 }

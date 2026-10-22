@@ -5,7 +5,7 @@
 
 @brief   This file support USART peripherals
 
-@note    Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -36,10 +36,10 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define RELEASE_TIMEOUT                         100
-#define RX_WAIT_TIMEOUT                         _WAIT_FOREVER_MS
-#define TX_WAIT_TIMEOUT                         300000
-#define MTX_BLOCK_TIMEOUT                       _WAIT_FOREVER_MS
+#define RELEASE_TIMEOUT   100
+#define RX_WAIT_TIMEOUT   _WAIT_FOREVER_MS
+#define TX_WAIT_TIMEOUT   300000
+#define MTX_BLOCK_TIMEOUT _WAIT_FOREVER_MS
 
 /*==============================================================================
   Local types, enums definitions
@@ -56,14 +56,14 @@ MODULE_NAME(UART);
 
 /* UART default configuration */
 static const struct UART_rich_config UART_DEFAULT_CONFIG = {
-        .basic.parity    = __UART_DEFAULT_PARITY__,
+        .basic.parity = __UART_DEFAULT_PARITY__,
         .basic.stop_bits = __UART_DEFAULT_STOP_BITS__,
         .basic.tx_enable = __UART_DEFAULT_TX_ENABLE__,
         .basic.rx_enable = __UART_DEFAULT_RX_ENABLE__,
-        .basic.baud      = __UART_DEFAULT_BAUD__,
-        .LIN_break_bits  = UART_LIN_BREAK__10_BITS,
-        .RS485_DE_pin    = {port_idx:IOCTL_GPIO_PIN_IDX__NULL, pin_idx:IOCTL_GPIO_PIN_IDX__NULL},
-        .basic.features  = 0,
+        .basic.baud = __UART_DEFAULT_BAUD__,
+        .LIN_break_bits = UART_LIN_BREAK__10_BITS,
+        .RS485_DE_pin = {port_idx : IOCTL_GPIO_PIN_IDX__NULL, pin_idx : IOCTL_GPIO_PIN_IDX__NULL},
+        .basic.features = 0,
 };
 
 /* structure which identify USARTs data in the IRQs */
@@ -71,106 +71,106 @@ struct UART_mem *_UART_mem[_UART_COUNT];
 
 /* RX FIFO length */
 static const uint16_t RX_BUF_LEN[] = {
-        #ifdef __UART_MAJOR0_RX_BUFFER_LEN__
+#ifdef __UART_MAJOR0_RX_BUFFER_LEN__
         __UART_MAJOR0_RX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR1_RX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR1_RX_BUFFER_LEN__
         __UART_MAJOR1_RX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR2_RX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR2_RX_BUFFER_LEN__
         __UART_MAJOR2_RX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR3_RX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR3_RX_BUFFER_LEN__
         __UART_MAJOR3_RX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR4_RX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR4_RX_BUFFER_LEN__
         __UART_MAJOR4_RX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR5_RX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR5_RX_BUFFER_LEN__
         __UART_MAJOR5_RX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR6_RX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR6_RX_BUFFER_LEN__
         __UART_MAJOR6_RX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR7_RX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR7_RX_BUFFER_LEN__
         __UART_MAJOR7_RX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR8_RX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR8_RX_BUFFER_LEN__
         __UART_MAJOR8_RX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR9_RX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR9_RX_BUFFER_LEN__
         __UART_MAJOR9_RX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR10_RX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR10_RX_BUFFER_LEN__
         __UART_MAJOR10_RX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR11_RX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR11_RX_BUFFER_LEN__
         __UART_MAJOR111_RX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR12_RX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR12_RX_BUFFER_LEN__
         __UART_MAJOR12_RX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR13_RX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR13_RX_BUFFER_LEN__
         __UART_MAJOR13_RX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR14_RX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR14_RX_BUFFER_LEN__
         __UART_MAJOR14_RX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR15_RX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR15_RX_BUFFER_LEN__
         __UART_MAJOR15_RX_BUFFER_LEN__,
-        #endif
+#endif
 };
 
 /* TX FIFO length */
 static const uint16_t TX_BUF_LEN[] = {
-        #ifdef __UART_MAJOR0_TX_BUFFER_LEN__
+#ifdef __UART_MAJOR0_TX_BUFFER_LEN__
         __UART_MAJOR0_TX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR1_TX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR1_TX_BUFFER_LEN__
         __UART_MAJOR1_TX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR2_TX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR2_TX_BUFFER_LEN__
         __UART_MAJOR2_TX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR3_TX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR3_TX_BUFFER_LEN__
         __UART_MAJOR3_TX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR4_TX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR4_TX_BUFFER_LEN__
         __UART_MAJOR4_TX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR5_TX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR5_TX_BUFFER_LEN__
         __UART_MAJOR5_TX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR6_TX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR6_TX_BUFFER_LEN__
         __UART_MAJOR6_TX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR7_TX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR7_TX_BUFFER_LEN__
         __UART_MAJOR7_TX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR8_TX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR8_TX_BUFFER_LEN__
         __UART_MAJOR8_TX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR9_TX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR9_TX_BUFFER_LEN__
         __UART_MAJOR9_TX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR10_TX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR10_TX_BUFFER_LEN__
         __UART_MAJOR10_TX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR11_TX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR11_TX_BUFFER_LEN__
         __UART_MAJOR111_TX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR12_TX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR12_TX_BUFFER_LEN__
         __UART_MAJOR12_TX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR13_TX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR13_TX_BUFFER_LEN__
         __UART_MAJOR13_TX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR14_TX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR14_TX_BUFFER_LEN__
         __UART_MAJOR14_TX_BUFFER_LEN__,
-        #endif
-        #ifdef __UART_MAJOR15_TX_BUFFER_LEN__
+#endif
+#ifdef __UART_MAJOR15_TX_BUFFER_LEN__
         __UART_MAJOR15_TX_BUFFER_LEN__,
-        #endif
+#endif
 };
 
 /*==============================================================================
@@ -204,12 +204,14 @@ API_MOD_INIT(UART, void **device_handle, u8_t major, u8_t minor, const void *con
                 hdl->minor = minor;
 
                 err = sys_queue_create(RX_BUF_LEN[hdl->major], sizeof(char), &hdl->rx_queue);
-                if (err)
+                if (err) {
                         goto finish;
+                }
 
                 err = sys_queue_create(TX_BUF_LEN[hdl->major], sizeof(char), &hdl->tx_queue);
-                if (err)
+                if (err) {
                         goto finish;
+                }
 
                 err = _UART_LLD__turn_on(hdl);
                 if (!err) {
@@ -222,13 +224,15 @@ API_MOD_INIT(UART, void **device_handle, u8_t major, u8_t minor, const void *con
                         _UART_LLD__configure(hdl, &hdl->config);
                 }
 
-                finish:
+        finish:
                 if (err) {
-                        if (hdl->rx_queue)
+                        if (hdl->rx_queue) {
                                 sys_queue_destroy(hdl->rx_queue);
+                        }
 
-                        if (hdl->tx_queue)
+                        if (hdl->tx_queue) {
                                 sys_queue_destroy(hdl->tx_queue);
+                        }
 
                         sys_free(device_handle);
                         _UART_mem[major] = NULL;
@@ -310,13 +314,8 @@ API_MOD_CLOSE(UART, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(UART,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(UART, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fpos, fattr);
 
@@ -348,13 +347,7 @@ API_MOD_WRITE(UART,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(UART,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(UART, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG2(fpos, fattr);
 
@@ -400,15 +393,15 @@ API_MOD_READ(UART,
 API_MOD_IOCTL(UART, void *device_handle, int request, void *arg)
 {
         struct UART_mem *hdl = device_handle;
-        int              err = EINVAL;
+        int err = EINVAL;
 
         if (arg) {
                 switch (request) {
                 case IOCTL_UART__SET_CONFIGURATION:
-                        hdl->config.basic                 = *cast(struct UART_config *, arg);
-                        hdl->config.LIN_break_bits        = UART_LIN_BREAK__10_BITS;
+                        hdl->config.basic = *cast(struct UART_config *, arg);
+                        hdl->config.LIN_break_bits = UART_LIN_BREAK__10_BITS;
                         hdl->config.RS485_DE_pin.port_idx = IOCTL_GPIO_PIN_IDX__NULL;
-                        hdl->config.RS485_DE_pin.pin_idx  = IOCTL_GPIO_PIN_IDX__NULL;
+                        hdl->config.RS485_DE_pin.pin_idx = IOCTL_GPIO_PIN_IDX__NULL;
                         err = _UART_LLD__configure(hdl, &hdl->config);
                         break;
 
@@ -419,11 +412,13 @@ API_MOD_IOCTL(UART, void *device_handle, int request, void *arg)
 
                 case IOCTL_UART__GET_CHAR_UNBLOCKING:
                         err = sys_queue_receive(hdl->rx_queue, arg, 0);
-                        if (err == ETIME) err = EAGAIN;
+                        if (err == ETIME) {
+                                err = EAGAIN;
+                        }
                         break;
 
                 case IOCTL_UART__SET_RS485_DE_PIN:
-                        hdl->config.RS485_DE_pin = *cast(const GPIO_pin_in_port_t*, arg);
+                        hdl->config.RS485_DE_pin = *cast(const GPIO_pin_in_port_t *, arg);
                         err = ESUCC;
                         break;
 

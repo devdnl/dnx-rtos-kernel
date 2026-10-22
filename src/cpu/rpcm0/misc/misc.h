@@ -5,7 +5,7 @@
 
 @brief   Miscellaneous CPU functions.
 
-@note    Copyright (C) 2024 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -64,7 +64,7 @@ extern u32_t clocks__get_clk_sys_frequency(void);
 extern u32_t clocks__get_clk_ref_aux_frequency(void);
 extern u32_t clocks__get_clk_ref_frequency(void);
 extern u32_t clocks__get_frequency(clock_num_t clock);
-extern int   clocks__configure_internal(clock_num_t clock, uint32_t src, uint32_t auxsrc, uint32_t div);
+extern int clocks__configure_internal(clock_num_t clock, uint32_t src, uint32_t auxsrc, uint32_t div);
 
 /*==============================================================================
   Exported function prototypes

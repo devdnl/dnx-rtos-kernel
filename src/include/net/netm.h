@@ -5,7 +5,7 @@ Author   Daniel Zorychta
 
 Brief    Network management.
 
-         Copyright (C) 2021 Daniel Zorychta <daniel.zorychta@gmail.com>
+         Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -52,8 +52,7 @@ extern "C" {
   INET NETWORK FAMILY
 ------------------------------------------------------------------------------*/
 /** Macro creates IPv4 address for INET family network. */
-#define NETM_INET_IPv4(a, b, c, d) \
-        (((a & 0xFF) << 24) | ((b & 0xFF) << 16) | ((c & 0xFF) << 8) | ((d & 0xFF)))
+#define NETM_INET_IPv4(a, b, c, d) (((a & 0xFF) << 24) | ((b & 0xFF) << 16) | ((c & 0xFF) << 8) | ((d & 0xFF)))
 
 /** Macro creates ANY address for INET family network. */
 #define NETM_INET_IPv4_ANY NETM_INET_IPv4(0, 0, 0, 0)
@@ -74,7 +73,7 @@ extern "C" {
 #define NETM_INET_IPv4_c(ip) ((ip >> 8) & 0xFF)
 
 /** Macro gets part <i>d</i> of INET family network address. */
-#define NETM_INET_IPv4_d(ip)               ((ip >> 0) & 0xFF)
+#define NETM_INET_IPv4_d(ip) ((ip >> 0) & 0xFF)
 
 #define NETM_INET_PROTOCOL_HOPOPT          0
 #define NETM_INET_PROTOCOL_ICMP            1
@@ -258,18 +257,18 @@ typedef enum {
 
 /** Control flags. */
 typedef enum {
-        NETM_FLAGS__NONE    = 0,        //!< Flags not set.
-        NETM_FLAGS__NOCOPY  = (1 << 0), //!< Buffer is not internally copy.
-        NETM_FLAGS__COPY    = (1 << 1), //!< Buffer is internally copy.
-        NETM_FLAGS__MORE    = (1 << 2), //!< More transfers.
-        NETM_FLAGS__REWIND  = (1 << 3), //!< Read stream index is rewind.
+        NETM_FLAGS__NONE = 0,           //!< Flags not set.
+        NETM_FLAGS__NOCOPY = (1 << 0),  //!< Buffer is not internally copy.
+        NETM_FLAGS__COPY = (1 << 1),    //!< Buffer is internally copy.
+        NETM_FLAGS__MORE = (1 << 2),    //!< More transfers.
+        NETM_FLAGS__REWIND = (1 << 3),  //!< Read stream index is rewind.
         NETM_FLAGS__FREEBUF = (1 << 4), //!< Skip unread bytes after read and free buffer.
 } NETM_flags_t;
 
 /** Socket shutdown direction. */
 typedef enum {
-        NETM_SHUT__RD   = (1 << 0),                       //!< Shutdown read direction.
-        NETM_SHUT__WR   = (1 << 1),                       //!< Shutdown write direction.
+        NETM_SHUT__RD = (1 << 0),                         //!< Shutdown read direction.
+        NETM_SHUT__WR = (1 << 1),                         //!< Shutdown write direction.
         NETM_SHUT__RDWR = (NETM_SHUT__RD | NETM_SHUT__WR) //!< Shutdown both directions.
 } NETM_shut_t;
 
@@ -295,7 +294,7 @@ typedef uint32_t NETM_INET_IPv4_t;
 /** INET socket address. This type contains IPv4 address and port. */
 typedef struct {
         NETM_INET_IPv4_t addr; /*!< IPv4 address.*/
-        u16_t            port; /*!< Port.*/
+        u16_t port;            /*!< Port.*/
 } NETM_INET_sockaddr_t;
 
 /** INET network state. */
@@ -325,15 +324,15 @@ typedef struct {
 
 /** INET status. */
 typedef struct {
-        NETM_INET_state_t state;      /*!< Connection state.*/
-        NETM_INET_IPv4_t  address;    /*!< Connection address.*/
-        NETM_INET_IPv4_t  mask;       /*!< Connection network mask.*/
-        NETM_INET_IPv4_t  gateway;    /*!< Connection gateway.*/
-        u8_t              hw_addr[6]; /*!< MAC address.*/
-        u64_t             tx_bytes;   /*!< Number of transmitted bytes.*/
-        u64_t             rx_bytes;   /*!< Number of received bytes.*/
-        u64_t             tx_packets; /*!< Number of transmitted packets.*/
-        u64_t             rx_packets; /*!< Number of received packets.*/
+        NETM_INET_state_t state;  /*!< Connection state.*/
+        NETM_INET_IPv4_t address; /*!< Connection address.*/
+        NETM_INET_IPv4_t mask;    /*!< Connection network mask.*/
+        NETM_INET_IPv4_t gateway; /*!< Connection gateway.*/
+        u8_t hw_addr[6];          /*!< MAC address.*/
+        u64_t tx_bytes;           /*!< Number of transmitted bytes.*/
+        u64_t rx_bytes;           /*!< Number of received bytes.*/
+        u64_t tx_packets;         /*!< Number of transmitted packets.*/
+        u64_t rx_packets;         /*!< Number of received packets.*/
 } NETM_INET_status_t;
 
 /*------------------------------------------------------------------------------
@@ -352,12 +351,12 @@ typedef struct {
 
 /** SIPC status. */
 typedef struct {
-        NETM_SIPC_state_t state;      /*!< Connection state.*/
-        u16_t             MTU;        /*!< Transfer size. */
-        u64_t             tx_bytes;   /*!< Number of transmitted bytes.*/
-        u64_t             rx_bytes;   /*!< Number of received bytes.*/
-        u64_t             tx_packets; /*!< Number of transmitted packets.*/
-        u64_t             rx_packets; /*!< Number of received packets.*/
+        NETM_SIPC_state_t state; /*!< Connection state.*/
+        u16_t MTU;               /*!< Transfer size. */
+        u64_t tx_bytes;          /*!< Number of transmitted bytes.*/
+        u64_t rx_bytes;          /*!< Number of received bytes.*/
+        u64_t tx_packets;        /*!< Number of transmitted packets.*/
+        u64_t rx_packets;        /*!< Number of received packets.*/
 } NETM_SIPC_status_t;
 
 /** SIPC socket address. */
@@ -381,19 +380,19 @@ typedef struct {
 
 /** CANNET status. */
 typedef struct {
-        NETM_CANNET_state_t state;      /*!< Connection state.*/
-        u16_t               addr;       /*!< Address.*/
-        u16_t               MTU;        /*!< Transfer size. */
-        u64_t               tx_bytes;   /*!< Number of transmitted bytes.*/
-        u64_t               rx_bytes;   /*!< Number of received bytes.*/
-        u64_t               tx_packets; /*!< Number of transmitted packets.*/
-        u64_t               rx_packets; /*!< Number of received packets.*/
+        NETM_CANNET_state_t state; /*!< Connection state.*/
+        u16_t addr;                /*!< Address.*/
+        u16_t MTU;                 /*!< Transfer size. */
+        u64_t tx_bytes;            /*!< Number of transmitted bytes.*/
+        u64_t rx_bytes;            /*!< Number of received bytes.*/
+        u64_t tx_packets;          /*!< Number of transmitted packets.*/
+        u64_t rx_packets;          /*!< Number of received packets.*/
 } NETM_CANNET_status_t;
 
 /** SIPC socket address. */
 typedef struct {
         u16_t addr; /*!< Address.*/
-        u8_t  port; /*!< Port.*/
+        u8_t port;  /*!< Port.*/
 } NETM_CANNET_sockaddr_t;
 
 /*------------------------------------------------------------------------------
@@ -412,11 +411,11 @@ typedef struct {
 
 /** UDS status. */
 typedef struct {
-        NETM_UDS_state_t state;      /*!< Connection state.*/
-        u64_t            tx_bytes;   /*!< Number of transmitted bytes.*/
-        u64_t            rx_bytes;   /*!< Number of received bytes.*/
-        u64_t            tx_packets; /*!< Number of transmitted packets.*/
-        u64_t            rx_packets; /*!< Number of received packets.*/
+        NETM_UDS_state_t state; /*!< Connection state.*/
+        u64_t tx_bytes;         /*!< Number of transmitted bytes.*/
+        u64_t rx_bytes;         /*!< Number of received bytes.*/
+        u64_t tx_packets;       /*!< Number of transmitted packets.*/
+        u64_t rx_packets;       /*!< Number of received packets.*/
 } NETM_UDS_status_t;
 
 /** UDS socket address. */
@@ -447,11 +446,10 @@ extern int _net_socket_bind(ksocket_t *, const NETM_generic_sockaddr_t *, size_t
 extern int _net_socket_listen(ksocket_t *);
 extern int _net_socket_accept(ksocket_t *, ksocket_t **);
 extern int _net_socket_recv(ksocket_t *, void *, size_t, NETM_flags_t, size_t *);
-extern int _net_socket_recvfrom(ksocket_t *, void *, size_t, NETM_flags_t, NETM_generic_sockaddr_t *, size_t,
-        size_t *);
+extern int _net_socket_recvfrom(ksocket_t *, void *, size_t, NETM_flags_t, NETM_generic_sockaddr_t *, size_t, size_t *);
 extern int _net_socket_send(ksocket_t *, const void *, size_t, NETM_flags_t, size_t *);
-extern int _net_socket_sendto(ksocket_t *, const void *, size_t, NETM_flags_t,
-        const NETM_generic_sockaddr_t *, size_t, size_t *);
+extern int _net_socket_sendto(ksocket_t *, const void *, size_t, NETM_flags_t, const NETM_generic_sockaddr_t *, size_t,
+        size_t *);
 extern int _net_socket_set_recv_timeout(ksocket_t *, uint32_t);
 extern int _net_socket_set_send_timeout(ksocket_t *, uint32_t);
 extern int _net_socket_get_recv_timeout(ksocket_t *, uint32_t *);

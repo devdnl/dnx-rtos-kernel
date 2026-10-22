@@ -5,7 +5,7 @@
 
 @brief   FAT File system support.
 
-@note    Copyright (C) 2020 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -35,12 +35,12 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define MUTEX_TIMEOUT           5000
-#define ZERO_FILL_CHUNK         128
+#define MUTEX_TIMEOUT   5000
+#define ZERO_FILL_CHUNK 128
 
-#define PERM_R                  (S_IRUSR | S_IRGRP | S_IROTH)
-#define PERM_W                  (S_IWUSR | S_IWGRP | S_IWOTH)
-#define PERM_X                  (S_IXUSR | S_IXGRP | S_IXOTH)
+#define PERM_R (S_IRUSR | S_IRGRP | S_IROTH)
+#define PERM_W (S_IWUSR | S_IWGRP | S_IWOTH)
+#define PERM_X (S_IXUSR | S_IXGRP | S_IXOTH)
 
 /*==============================================================================
   Local types, enums definitions
@@ -53,23 +53,23 @@
  * before each operation under the FS mutex.
  */
 struct fatobj {
-        FIL   fil;              /* must be first member */
-        DWORD id_clu;           /* object identity: containing directory cluster */
-        DWORD id_ofs;           /* object identity: entry offset in directory */
-        int   refs;             /* number of handles */
-        bool  writable;         /* FIL opened with FA_WRITE */
+        FIL fil;       /* must be first member */
+        DWORD id_clu;  /* object identity: containing directory cluster */
+        DWORD id_ofs;  /* object identity: entry offset in directory */
+        int refs;      /* number of handles */
+        bool writable; /* FIL opened with FA_WRITE */
 };
 
 struct fatdir {
-        FDIR    dir;
-        FILINFO fno;            /* kept on heap: large with LFN/UTF-8 buffers */
-        u32_t   seek;           /* d_seek value matching current FatFs position */
+        FDIR dir;
+        FILINFO fno; /* kept on heap: large with LFN/UTF-8 buffers */
+        u32_t seek;  /* d_seek value matching current FatFs position */
 };
 
 struct fatfs {
         kfile_t *fsfile;
         FATFS fatfs;
-        llist_t *file_list;     /* list of struct fatobj */
+        llist_t *file_list; /* list of struct fatobj */
         kmtx_t *mutex;
         int opened_dirs;
         bool read_only;
@@ -232,8 +232,8 @@ API_FS_OPEN(fatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
         struct fatfs *hdl = fs_handle;
 
         const u32_t acc = flags & O_ACCMODE;
-        const bool  rd  = (acc == O_RDONLY) || (acc == O_RDWR);
-        const bool  wr  = (acc == O_WRONLY) || (acc == O_RDWR);
+        const bool rd = (acc == O_RDONLY) || (acc == O_RDWR);
+        const bool wr = (acc == O_WRONLY) || (acc == O_RDWR);
 
         bool excl = false;
 #ifdef O_EXCL
@@ -257,7 +257,7 @@ API_FS_OPEN(fatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
         bool truncate = wr && (flags & O_TRUNC);
 
         DWORD clu = 0, ofs = 0;
-        BYTE  attr = 0;
+        BYTE attr = 0;
         FRESULT fr = f_getid(&hdl->fatfs, path, &clu, &ofs, &attr);
 
         if (fr == FR_OK) {
@@ -325,7 +325,7 @@ API_FS_OPEN(fatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
                         if (!err) {
                                 obj->id_clu = clu;
                                 obj->id_ofs = ofs;
-                                obj->refs   = 1;
+                                obj->refs = 1;
 
                                 if (sys_llist_push_back(hdl->file_list, obj) != obj) {
                                         f_close(&obj->fil);
@@ -349,7 +349,7 @@ API_FS_OPEN(fatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
                         /* VFS does not close a file that failed to open */
                         f_close(&obj->fil);
 
-                        sys_llist_foreach(struct fatobj *, o, hdl->file_list) {
+                        sys_llist_foreach (struct fatobj *, o, hdl->file_list) {
                                 if (o == obj) {
                                         sys_llist_erase_by_iterator(&_iterator);
                                 }
@@ -405,7 +405,7 @@ API_FS_CLOSE(fatfs, void *fs_handle, void *fhdl)
                 }
 
                 if (!lock_err) {
-                        sys_llist_foreach(struct fatobj *, o, hdl->file_list) {
+                        sys_llist_foreach (struct fatobj *, o, hdl->file_list) {
                                 if (o == obj) {
                                         sys_llist_erase_by_iterator(&_iterator);
                                 }
@@ -678,7 +678,7 @@ API_FS_OPENDIR(fatfs, void *fs_handle, const char *path, kdir_t *dir)
         if (!err) {
                 struct fatdir *fatdir = dir->d_hdl;
 
-                dir->d_seek  = 0;
+                dir->d_seek = 0;
                 dir->d_items = 0;
 
                 err = faterr_2_errno(f_opendir(&hdl->fatfs, &fatdir->dir, dospath));
@@ -756,7 +756,7 @@ API_FS_READDIR(fatfs, void *fs_handle, kdir_t *dir)
         int err = ESUCC;
 
         if (dir->d_seek != fatdir->seek) {
-                err = faterr_2_errno(f_readdir(&fatdir->dir, NULL));    /* rewind */
+                err = faterr_2_errno(f_readdir(&fatdir->dir, NULL)); /* rewind */
                 fatdir->seek = 0;
 
                 while (!err && (fatdir->seek < dir->d_seek)) {
@@ -779,11 +779,11 @@ API_FS_READDIR(fatfs, void *fs_handle, kdir_t *dir)
                 if (fno->fname[0] != '\0') {
                         fatdir->seek = fatdir->dir.dptr;
 
-                        dir->dirent.dev    = 0;
+                        dir->dirent.dev = 0;
                         dir->dirent.d_name = fno->fname;
-                        dir->dirent.size   = fno->fsize;
-                        dir->dirent.mode   = fattrib_2_mode(fno->fattrib);
-                        dir->d_seek        = fatdir->seek;
+                        dir->dirent.size = fno->fsize;
+                        dir->dirent.mode = fattrib_2_mode(fno->fattrib);
+                        dir->d_seek = fatdir->seek;
                 } else {
                         err = ENOENT;
                 }
@@ -854,7 +854,7 @@ API_FS_RENAME(fatfs, void *fs_handle, const char *old_name, const char *new_name
          * Such operation detaches the directory tree from the volume.
          */
         DWORD clu, ofs;
-        BYTE  attr;
+        BYTE attr;
         int err = faterr_2_errno(f_getid(&hdl->fatfs, old_name, &clu, &ofs, &attr));
         if (err) {
                 return err;
@@ -998,10 +998,10 @@ API_FS_FSTAT(fatfs, void *fs_handle, void *fhdl, struct stat *stat)
         if (!err) {
                 memset(stat, 0, sizeof(*stat));
 
-                stat->st_mode  = fattrib_2_mode(obj->fil.obj.attr);
+                stat->st_mode = fattrib_2_mode(obj->fil.obj.attr);
                 stat->st_mtime = time_fat2unix(obj->fil.obj.fdate, obj->fil.obj.ftime);
                 stat->st_ctime = stat->st_mtime;
-                stat->st_size  = f_size(&obj->fil);
+                stat->st_size = f_size(&obj->fil);
 
                 sys_mutex_unlock(hdl->mutex);
         }
@@ -1035,10 +1035,10 @@ API_FS_STAT(fatfs, void *fs_handle, const char *path, struct stat *stat)
         FILINFO *fno = NULL;
         int err = fat_stat(hdl, path, &fno);
         if (!err) {
-                stat->st_mode  = fattrib_2_mode(fno->fattrib);
+                stat->st_mode = fattrib_2_mode(fno->fattrib);
                 stat->st_mtime = time_fat2unix(fno->fdate, fno->ftime);
                 stat->st_ctime = stat->st_mtime;
-                stat->st_size  = fno->fsize;
+                stat->st_size = fno->fsize;
 
                 sys_free(cast(void *, &fno));
         }
@@ -1060,7 +1060,7 @@ API_FS_STATFS(fatfs, void *fs_handle, struct statfs *statfs)
 {
         struct fatfs *hdl = fs_handle;
 
-        statfs->f_type   = SYS_FS_TYPE__SOLID;
+        statfs->f_type = SYS_FS_TYPE__SOLID;
         statfs->f_fsname = "FAT? (fatfs)";
 
         DWORD free_clusters = 0;
@@ -1068,18 +1068,27 @@ API_FS_STATFS(fatfs, void *fs_handle, struct statfs *statfs)
         if (!err) {
                 const DWORD csize = hdl->fatfs.csize;
 
-                statfs->f_bsize  = FF_MAX_SS;
+                statfs->f_bsize = FF_MAX_SS;
                 statfs->f_blocks = (hdl->fatfs.n_fatent - 2) * csize;
-                statfs->f_bfree  = free_clusters * csize;
-                statfs->f_ffree  = 0;
-                statfs->f_files  = 0;
+                statfs->f_bfree = free_clusters * csize;
+                statfs->f_ffree = 0;
+                statfs->f_files = 0;
 
                 switch (hdl->fatfs.fs_type) {
-                case FS_FAT12: statfs->f_fsname = "FAT12 (fatfs)"; break;
-                case FS_FAT16: statfs->f_fsname = "FAT16 (fatfs)"; break;
-                case FS_FAT32: statfs->f_fsname = "FAT32 (fatfs)"; break;
-                case FS_EXFAT: statfs->f_fsname = "exFAT (fatfs)"; break;
-                default: break;
+                case FS_FAT12:
+                        statfs->f_fsname = "FAT12 (fatfs)";
+                        break;
+                case FS_FAT16:
+                        statfs->f_fsname = "FAT16 (fatfs)";
+                        break;
+                case FS_FAT32:
+                        statfs->f_fsname = "FAT32 (fatfs)";
+                        break;
+                case FS_EXFAT:
+                        statfs->f_fsname = "exFAT (fatfs)";
+                        break;
+                default:
+                        break;
                 }
         }
 
@@ -1105,7 +1114,7 @@ API_FS_SYNC(fatfs, void *fs_handle)
 
         int err = sys_mutex_lock(hdl->mutex, MUTEX_TIMEOUT);
         if (!err) {
-                sys_llist_foreach(struct fatobj *, o, hdl->file_list) {
+                sys_llist_foreach (struct fatobj *, o, hdl->file_list) {
                         int serr = faterr_2_errno(f_sync(&o->fil));
                         if (!err) {
                                 err = serr;
@@ -1130,26 +1139,26 @@ API_FS_SYNC(fatfs, void *fs_handle)
 static int faterr_2_errno(FRESULT fresult)
 {
         static const int fat2errno[] = {
-                [FR_OK]                  = ESUCC,
-                [FR_DISK_ERR]            = EIO,
-                [FR_INT_ERR]             = EIO,
-                [FR_NOT_READY]           = EIO,
-                [FR_NO_FILE]             = ENOENT,
-                [FR_NO_PATH]             = ENOENT,
-                [FR_INVALID_NAME]        = EINVAL,
-                [FR_DENIED]              = EACCES,
-                [FR_EXIST]               = EEXIST,
-                [FR_INVALID_OBJECT]      = EBADF,
-                [FR_WRITE_PROTECTED]     = EROFS,
-                [FR_INVALID_DRIVE]       = EMEDIUMTYPE,
-                [FR_NOT_ENABLED]         = ENODEV,
-                [FR_NO_FILESYSTEM]       = EMEDIUMTYPE,
-                [FR_MKFS_ABORTED]        = ECANCELED,
-                [FR_TIMEOUT]             = ETIME,
-                [FR_LOCKED]              = EBUSY,
-                [FR_NOT_ENOUGH_CORE]     = ENOMEM,
+                [FR_OK] = ESUCC,
+                [FR_DISK_ERR] = EIO,
+                [FR_INT_ERR] = EIO,
+                [FR_NOT_READY] = EIO,
+                [FR_NO_FILE] = ENOENT,
+                [FR_NO_PATH] = ENOENT,
+                [FR_INVALID_NAME] = EINVAL,
+                [FR_DENIED] = EACCES,
+                [FR_EXIST] = EEXIST,
+                [FR_INVALID_OBJECT] = EBADF,
+                [FR_WRITE_PROTECTED] = EROFS,
+                [FR_INVALID_DRIVE] = EMEDIUMTYPE,
+                [FR_NOT_ENABLED] = ENODEV,
+                [FR_NO_FILESYSTEM] = EMEDIUMTYPE,
+                [FR_MKFS_ABORTED] = ECANCELED,
+                [FR_TIMEOUT] = ETIME,
+                [FR_LOCKED] = EBUSY,
+                [FR_NOT_ENOUGH_CORE] = ENOMEM,
                 [FR_TOO_MANY_OPEN_FILES] = EMFILE,
-                [FR_INVALID_PARAMETER]   = EINVAL,
+                [FR_INVALID_PARAMETER] = EINVAL,
         };
 
         return (cast(size_t, fresult) >= ARRAY_SIZE(fat2errno) ? ENOTSUP : fat2errno[fresult]);
@@ -1171,23 +1180,23 @@ static int faterr_2_errno(FRESULT fresult)
 //==============================================================================
 static time_t time_fat2unix(WORD fdate, WORD ftime)
 {
-        const int year  = 1980 + ((fdate >> 9) & 0x7F);
+        const int year = 1980 + ((fdate >> 9) & 0x7F);
         const int month = (fdate >> 5) & 0x0F;
-        const int mday  = fdate & 0x1F;
-        const int hour  = (ftime >> 11) & 0x1F;
-        const int min   = (ftime >> 5) & 0x3F;
-        const int sec   = (ftime & 0x1F) * 2;
+        const int mday = fdate & 0x1F;
+        const int hour = (ftime >> 11) & 0x1F;
+        const int min = (ftime >> 5) & 0x3F;
+        const int sec = (ftime & 0x1F) * 2;
 
         if ((month < 1) || (month > 12) || (mday < 1)) {
                 return 0;
         }
 
         /* days from 1970-01-01 (H. Hinnant's days_from_civil, year >= 1980) */
-        const int  y   = year - (month <= 2);
-        const int  era = y / 400;
-        const int  yoe = y - era * 400;
-        const int  doy = (153 * (month > 2 ? month - 3 : month + 9) + 2) / 5 + mday - 1;
-        const int  doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+        const int y = year - (month <= 2);
+        const int era = y / 400;
+        const int yoe = y - era * 400;
+        const int doy = (153 * (month > 2 ? month - 3 : month + 9) + 2) / 5 + mday - 1;
+        const int doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
         const long days = (long)era * 146097L + doe - 719468L;
 
         return cast(time_t, days) * 86400 + hour * 3600 + min * 60 + sec;
@@ -1271,7 +1280,7 @@ static int fat_stat(struct fatfs *hdl, const char *path, FILINFO **fno)
 //==============================================================================
 static struct fatobj *find_obj(struct fatfs *hdl, DWORD clu, DWORD ofs)
 {
-        sys_llist_foreach(struct fatobj *, o, hdl->file_list) {
+        sys_llist_foreach (struct fatobj *, o, hdl->file_list) {
                 if ((o->id_clu == clu) && (o->id_ofs == ofs)) {
                         return o;
                 }
@@ -1305,8 +1314,8 @@ static FRESULT obj_open(struct fatfs *hdl, struct fatobj *obj, const char *path,
                 obj->writable = (fr == FR_OK);
         }
 
-        if (!need_wr && ((fr == FR_DENIED) || (fr == FR_WRITE_PROTECTED))
-           && ((method == FA_OPEN_EXISTING) || (method == FA_OPEN_ALWAYS))) {
+        if (!need_wr && ((fr == FR_DENIED) || (fr == FR_WRITE_PROTECTED)) &&
+                ((method == FA_OPEN_EXISTING) || (method == FA_OPEN_ALWAYS))) {
 
                 /* read-only file: open for read */
                 FRESULT rfr = f_open(&hdl->fatfs, &obj->fil, path, FA_READ | FA_OPEN_EXISTING);
@@ -1353,7 +1362,7 @@ static int is_inside(struct fatfs *hdl, const char *path, DWORD clu, DWORD ofs, 
                         DWORD pclu, pofs;
                         FRESULT fr = f_getid(&hdl->fatfs, p, &pclu, &pofs, NULL);
                         if (fr != FR_OK) {
-                                break;  /* parent does not exist, rename will fail */
+                                break; /* parent does not exist, rename will fail */
                         }
 
                         *inside = (pclu == clu) && (pofs == ofs);

@@ -5,7 +5,7 @@
 
 @brief   This file support CPU control
 
-@note    Copyright (C) 2025 Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@
   Local symbolic constants/macros
 ==============================================================================*/
 #define SRAM_HEAP_START ((void *)&__heap_start)
-#define SRAM_HEAP_SIZE  ((size_t) & __heap_size)
+#define SRAM_HEAP_SIZE  ((size_t)&__heap_size)
 
 // Memory Management Fault Status Register
 #define NVIC_MFSR (*(volatile unsigned char *)(0xE000ED28u))
@@ -150,8 +150,7 @@ static void set_safe_clock_configuration(void)
                 CLOCKS_CLK_USB_CTRL_AUXSRC_VALUE_ROSC_CLKSRC_PH << CLOCKS_CLK_USB_CTRL_AUXSRC_LSB, (1 << 8));
 
         clocks__configure_internal(clk_peri, 0,
-                CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_ROSC_CLKSRC_PH << CLOCKS_CLK_PERI_CTRL_AUXSRC_LSB,
-                (1 << 8));
+                CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_ROSC_CLKSRC_PH << CLOCKS_CLK_PERI_CTRL_AUXSRC_LSB, (1 << 8));
 
         clocks__configure_internal(clk_sys, CLOCKS_CLK_SYS_CTRL_SRC_VALUE_CLK_REF, 0, (1 << 8));
 }
@@ -219,8 +218,7 @@ void _cpuctl_restart_system(void)
         SET_BIT(psm_hw->wdsel, PSM_WDSEL_BITS);
 
         CLEAR_BIT(watchdog_hw->ctrl,
-                WATCHDOG_CTRL_PAUSE_DBG0_BITS | WATCHDOG_CTRL_PAUSE_DBG1_BITS |
-                        WATCHDOG_CTRL_PAUSE_JTAG_BITS);
+                WATCHDOG_CTRL_PAUSE_DBG0_BITS | WATCHDOG_CTRL_PAUSE_DBG1_BITS | WATCHDOG_CTRL_PAUSE_JTAG_BITS);
 
         SET_BIT(watchdog_hw->ctrl, WATCHDOG_CTRL_TRIGGER_BITS);
 

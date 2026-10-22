@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   NVM driver
 
-        Copyright (C) 2018 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -185,7 +185,7 @@ extern "C" {
         // ...
     @endcode
  */
-#define IOCTL_NVM__CONFIGURE            _IOW(NVM, 0, const NVM_config_t*)
+#define IOCTL_NVM__CONFIGURE _IOW(NVM, 0, const NVM_config_t *)
 
 /**
  *  Request erase selected sector. Sector number is relative to start sector in
@@ -214,8 +214,7 @@ extern "C" {
         // ...
     @endcode
  */
-#define IOCTL_NVM__SECTOR_ERASE         _IOW(NVM, 1, const size_t*)
-
+#define IOCTL_NVM__SECTOR_ERASE _IOW(NVM, 1, const size_t *)
 
 /**
  *  Request erase entire memory block.
@@ -238,8 +237,7 @@ extern "C" {
         // ...
     @endcode
  */
-#define IOCTL_NVM__MASS_ERASE           _IO(NVM, 2)
-
+#define IOCTL_NVM__MASS_ERASE _IO(NVM, 2)
 
 /**
  *  Request return size of selected sector. Sector sizes can be different.
@@ -269,8 +267,7 @@ extern "C" {
         // ...
     @endcode
  */
-#define IOCTL_NVM__GET_SECTOR_SIZE      _IOWR(NVM, 3, NVM_sector_size_t*)
-
+#define IOCTL_NVM__GET_SECTOR_SIZE _IOWR(NVM, 3, NVM_sector_size_t *)
 
 /**
  *  Request return number of sectors in block.
@@ -297,7 +294,7 @@ extern "C" {
         // ...
     @endcode
  */
-#define IOCTL_NVM__GET_SECTOR_COUNT     _IOR(NVM, 4, size_t*)
+#define IOCTL_NVM__GET_SECTOR_COUNT _IOR(NVM, 4, size_t *)
 
 /*==============================================================================
   Exported object types
@@ -306,16 +303,16 @@ extern "C" {
  * This type represent NVM device memory operation range.
  */
 typedef struct {
-        uint32_t start_sector;          /*!< Start sector (first sector). */
-        uint32_t number_of_sectors;     /*!< Number of handled sectors. */
+        uint32_t start_sector;      /*!< Start sector (first sector). */
+        uint32_t number_of_sectors; /*!< Number of handled sectors. */
 } NVM_config_t;
 
 /**
  * This type represent sector size.
  */
 typedef struct {
-        size_t sector;                  /*!< Requested sector number (relative). */
-        size_t size;                    /*!< Sector size (return value). */
+        size_t sector; /*!< Requested sector number (relative). */
+        size_t size;   /*!< Sector size (return value). */
 } NVM_sector_size_t;
 
 /*==============================================================================

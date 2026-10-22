@@ -5,7 +5,7 @@
 
 @brief   This driver support AFM.
 
-@note    Copyright (C) 2014  Daniel Zorychta <daniel.zorychta@gmail.com>
+@note    Copyright (C) 2026  Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -51,109 +51,95 @@
 ==============================================================================*/
 // MODULE_NAME(AFIO); not necessary because module does not allocate memory
 
-static const uint32_t EVCR    = (_AFM_EVO_EN * AFIO_EVCR_EVOE) | (_AFM_EVO_PORT << 4) | (_AFM_EVO_PIN  << 0);
+static const uint32_t EVCR = (_AFM_EVO_EN * AFIO_EVCR_EVOE) | (_AFM_EVO_PORT << 4) | (_AFM_EVO_PIN << 0);
 
-static const uint32_t MAPR    = (_AFM_REMAP_SPI1         * AFIO_MAPR_SPI1_REMAP        )
-                              | (_AFM_REMAP_I2C1         * AFIO_MAPR_I2C1_REMAP        )
-                              | (_AFM_REMAP_USART1       * AFIO_MAPR_USART1_REMAP      )
-                              | (_AFM_REMAP_USART2       * AFIO_MAPR_USART2_REMAP      )
-                              | (_AFM_REMAP_TIM4         * AFIO_MAPR_TIM4_REMAP        )
-                              | (_AFM_REMAP_PD01         * AFIO_MAPR_PD01_REMAP        )
-                              | (_AFM_REMAP_TIM5CH4      * AFIO_MAPR_TIM5CH4_IREMAP    )
-                              | (_AFM_REMAP_ADC1_ETRGINJ * AFIO_MAPR_ADC1_ETRGINJ_REMAP)
-                              | (_AFM_REMAP_ADC1_ETRGREG * AFIO_MAPR_ADC1_ETRGREG_REMAP)
-                              | (_AFM_REMAP_ADC2_ETRGINJ * AFIO_MAPR_ADC2_ETRGINJ_REMAP)
-                              | (_AFM_REMAP_ADC2_ETRGREG * AFIO_MAPR_ADC2_ETRGREG_REMAP)
+static const uint32_t MAPR = (_AFM_REMAP_SPI1 * AFIO_MAPR_SPI1_REMAP) | (_AFM_REMAP_I2C1 * AFIO_MAPR_I2C1_REMAP) |
+        (_AFM_REMAP_USART1 * AFIO_MAPR_USART1_REMAP) | (_AFM_REMAP_USART2 * AFIO_MAPR_USART2_REMAP) |
+        (_AFM_REMAP_TIM4 * AFIO_MAPR_TIM4_REMAP) | (_AFM_REMAP_PD01 * AFIO_MAPR_PD01_REMAP) |
+        (_AFM_REMAP_TIM5CH4 * AFIO_MAPR_TIM5CH4_IREMAP) | (_AFM_REMAP_ADC1_ETRGINJ * AFIO_MAPR_ADC1_ETRGINJ_REMAP) |
+        (_AFM_REMAP_ADC1_ETRGREG * AFIO_MAPR_ADC1_ETRGREG_REMAP) |
+        (_AFM_REMAP_ADC2_ETRGINJ * AFIO_MAPR_ADC2_ETRGINJ_REMAP) |
+        (_AFM_REMAP_ADC2_ETRGREG * AFIO_MAPR_ADC2_ETRGREG_REMAP)
 
-                              #if   (_AFM_REMAP_USART3 == 0)
-                              | (AFIO_MAPR_USART3_REMAP_NOREMAP)
-                              #elif (_AFM_REMAP_USART3 == 1)
-                              | (AFIO_MAPR_USART3_REMAP_PARTIALREMAP)
-                              #elif (_AFM_REMAP_USART3 == 2)
-                              | (AFIO_MAPR_USART3_REMAP_FULLREMAP)
-                              #endif
+#if (_AFM_REMAP_USART3 == 0)
+        | (AFIO_MAPR_USART3_REMAP_NOREMAP)
+#elif (_AFM_REMAP_USART3 == 1)
+        | (AFIO_MAPR_USART3_REMAP_PARTIALREMAP)
+#elif (_AFM_REMAP_USART3 == 2)
+        | (AFIO_MAPR_USART3_REMAP_FULLREMAP)
+#endif
 
-                              #if   (_AFM_REMAP_TIM1 == 0)
-                              | (AFIO_MAPR_TIM1_REMAP_NOREMAP)
-                              #elif (_AFM_REMAP_TIM1 == 1)
-                              | (AFIO_MAPR_TIM1_REMAP_PARTIALREMAP)
-                              #elif (_AFM_REMAP_TIM1 == 2)
-                              | (AFIO_MAPR_TIM1_REMAP_FULLREMAP)
-                              #endif
+#if (_AFM_REMAP_TIM1 == 0)
+        | (AFIO_MAPR_TIM1_REMAP_NOREMAP)
+#elif (_AFM_REMAP_TIM1 == 1)
+        | (AFIO_MAPR_TIM1_REMAP_PARTIALREMAP)
+#elif (_AFM_REMAP_TIM1 == 2)
+        | (AFIO_MAPR_TIM1_REMAP_FULLREMAP)
+#endif
 
-                              #if   (_AFM_REMAP_TIM2 == 0)
-                              | (AFIO_MAPR_TIM2_REMAP_NOREMAP)
-                              #elif (_AFM_REMAP_TIM2 == 1)
-                              | (AFIO_MAPR_TIM2_REMAP_PARTIALREMAP1)
-                              #elif (_AFM_REMAP_TIM2 == 2)
-                              | (AFIO_MAPR_TIM2_REMAP_PARTIALREMAP2)
-                              #elif (_AFM_REMAP_TIM2 == 3)
-                              | (AFIO_MAPR_TIM2_REMAP_FULLREMAP)
-                              #endif
+#if (_AFM_REMAP_TIM2 == 0)
+        | (AFIO_MAPR_TIM2_REMAP_NOREMAP)
+#elif (_AFM_REMAP_TIM2 == 1)
+        | (AFIO_MAPR_TIM2_REMAP_PARTIALREMAP1)
+#elif (_AFM_REMAP_TIM2 == 2)
+        | (AFIO_MAPR_TIM2_REMAP_PARTIALREMAP2)
+#elif (_AFM_REMAP_TIM2 == 3)
+        | (AFIO_MAPR_TIM2_REMAP_FULLREMAP)
+#endif
 
-                              #if   (_AFM_REMAP_TIM3 == 0)
-                              | (AFIO_MAPR_TIM3_REMAP_NOREMAP)
-                              #elif (_AFM_REMAP_TIM3 == 1)
-                              | (AFIO_MAPR_TIM3_REMAP_PARTIALREMAP)
-                              #elif (_AFM_REMAP_TIM3 == 2)
-                              | (AFIO_MAPR_TIM3_REMAP_FULLREMAP)
-                              #endif
+#if (_AFM_REMAP_TIM3 == 0)
+        | (AFIO_MAPR_TIM3_REMAP_NOREMAP)
+#elif (_AFM_REMAP_TIM3 == 1)
+        | (AFIO_MAPR_TIM3_REMAP_PARTIALREMAP)
+#elif (_AFM_REMAP_TIM3 == 2)
+        | (AFIO_MAPR_TIM3_REMAP_FULLREMAP)
+#endif
 
-                              #if   (_AFM_REMAP_CAN == 0)
-                              | (AFIO_MAPR_CAN_REMAP_REMAP1)
-                              #elif (_AFM_REMAP_CAN == 1)
-                              | (AFIO_MAPR_CAN_REMAP_REMAP2)
-                              #elif (_AFM_REMAP_CAN == 2)
-                              | (AFIO_MAPR_CAN_REMAP_REMAP3)
-                              #endif
+#if (_AFM_REMAP_CAN == 0)
+        | (AFIO_MAPR_CAN_REMAP_REMAP1)
+#elif (_AFM_REMAP_CAN == 1)
+        | (AFIO_MAPR_CAN_REMAP_REMAP2)
+#elif (_AFM_REMAP_CAN == 2)
+        | (AFIO_MAPR_CAN_REMAP_REMAP3)
+#endif
 
-                              #if   (_AFM_REMAP_SWJ_CFG == 0)
-                              | (AFIO_MAPR_SWJ_CFG_RESET)
-                              #elif (_AFM_REMAP_SWJ_CFG == 1)
-                              | (AFIO_MAPR_SWJ_CFG_NOJNTRST)
-                              #elif (_AFM_REMAP_SWJ_CFG == 2)
-                              | (AFIO_MAPR_SWJ_CFG_JTAGDISABLE)
-                              #elif (_AFM_REMAP_SWJ_CFG == 3)
-                              | (AFIO_MAPR_SWJ_CFG_DISABLE)
-                              #endif
+#if (_AFM_REMAP_SWJ_CFG == 0)
+        | (AFIO_MAPR_SWJ_CFG_RESET)
+#elif (_AFM_REMAP_SWJ_CFG == 1)
+        | (AFIO_MAPR_SWJ_CFG_NOJNTRST)
+#elif (_AFM_REMAP_SWJ_CFG == 2)
+        | (AFIO_MAPR_SWJ_CFG_JTAGDISABLE)
+#elif (_AFM_REMAP_SWJ_CFG == 3)
+        | (AFIO_MAPR_SWJ_CFG_DISABLE)
+#endif
 
-                              #ifdef STM32F10X_CL
-                              | (_AFM_REMAP_ETH          * AFIO_MAPR_ETH_REMAP      )
-                              | (_AFM_REMAP_CAN2         * AFIO_MAPR_CAN2_REMAP     )
-                              | (_AFM_REMAP_MII_RMII_SEL * AFIO_MAPR_MII_RMII_SEL   )
-                              | (_AFM_REMAP_SPI3         * AFIO_MAPR_SPI3_REMAP     )
-                              | (_AFM_REMAP_TIM2ITR1     * AFIO_MAPR_TIM2ITR1_IREMAP)
-                              | (_AFM_REMAP_PTP_PPS      * AFIO_MAPR_PTP_PPS_REMAP  )
-                              #endif
-                              ;
+#ifdef STM32F10X_CL
+        | (_AFM_REMAP_ETH * AFIO_MAPR_ETH_REMAP) | (_AFM_REMAP_CAN2 * AFIO_MAPR_CAN2_REMAP) |
+        (_AFM_REMAP_MII_RMII_SEL * AFIO_MAPR_MII_RMII_SEL) | (_AFM_REMAP_SPI3 * AFIO_MAPR_SPI3_REMAP) |
+        (_AFM_REMAP_TIM2ITR1 * AFIO_MAPR_TIM2ITR1_IREMAP) | (_AFM_REMAP_PTP_PPS * AFIO_MAPR_PTP_PPS_REMAP)
+#endif
+        ;
 
-static const uint32_t MAPR2   = 0
-                              #if defined(STM32F10X_LD_VL) || defined(STM32F10X_MD_VL) || defined(STM32F10X_HD_VL)
-                              | (_AFM_REMAP_TIM15    * AFIO_MAPR2_TIM15_REMAP   )
-                              | (_AFM_REMAP_TIM16    * AFIO_MAPR2_TIM16_REMAP   )
-                              | (_AFM_REMAP_TIM17    * AFIO_MAPR2_TIM17_REMAP   )
-                              | (_AFM_REMAP_CEC      * AFIO_MAPR2_CEC_REMAP     )
-                              | (_AFM_REMAP_TIM1_DMA * AFIO_MAPR2_TIM1_DMA_REMAP)
-                              #endif
+static const uint32_t MAPR2 = 0
+#if defined(STM32F10X_LD_VL) || defined(STM32F10X_MD_VL) || defined(STM32F10X_HD_VL)
+        | (_AFM_REMAP_TIM15 * AFIO_MAPR2_TIM15_REMAP) | (_AFM_REMAP_TIM16 * AFIO_MAPR2_TIM16_REMAP) |
+        (_AFM_REMAP_TIM17 * AFIO_MAPR2_TIM17_REMAP) | (_AFM_REMAP_CEC * AFIO_MAPR2_CEC_REMAP) |
+        (_AFM_REMAP_TIM1_DMA * AFIO_MAPR2_TIM1_DMA_REMAP)
+#endif
 
-                              #ifdef STM32F10X_HD_VL
-                              | (_AFM_REMAP_TIM13         * AFIO_MAPR2_TIM13_REMAP        )
-                              | (_AFM_REMAP_TIM14         * AFIO_MAPR2_TIM14_REMAP        )
-                              | (_AFM_REMAP_FSMC_NADV     * AFIO_MAPR2_FSMC_NADV_REMAP    )
-                              | (_AFM_REMAP_TIM76_DAC_DMA * AFIO_MAPR2_TIM67_DAC_DMA_REMAP)
-                              | (_AFM_REMAP_TIM12         * AFIO_MAPR2_TIM12_REMAP        )
-                              | (_AFM_REMAP_MISC          * AFIO_MAPR2_MISC_REMAP         )
-                              #endif
+#ifdef STM32F10X_HD_VL
+        | (_AFM_REMAP_TIM13 * AFIO_MAPR2_TIM13_REMAP) | (_AFM_REMAP_TIM14 * AFIO_MAPR2_TIM14_REMAP) |
+        (_AFM_REMAP_FSMC_NADV * AFIO_MAPR2_FSMC_NADV_REMAP) |
+        (_AFM_REMAP_TIM76_DAC_DMA * AFIO_MAPR2_TIM67_DAC_DMA_REMAP) | (_AFM_REMAP_TIM12 * AFIO_MAPR2_TIM12_REMAP) |
+        (_AFM_REMAP_MISC * AFIO_MAPR2_MISC_REMAP)
+#endif
 
-                              #ifdef STM32F10X_XL
-                              | (_AFM_REMAP_TIM9      * AFIO_MAPR2_TIM9_REMAP     )
-                              | (_AFM_REMAP_TIM10     * AFIO_MAPR2_TIM10_REMAP    )
-                              | (_AFM_REMAP_TIM11     * AFIO_MAPR2_TIM11_REMAP    )
-                              | (_AFM_REMAP_TIM13     * AFIO_MAPR2_TIM13_REMAP    )
-                              | (_AFM_REMAP_TIM14     * AFIO_MAPR2_TIM14_REMAP    )
-                              | (_AFM_REMAP_FSMC_NADV * AFIO_MAPR2_FSMC_NADV_REMAP)
-                              #endif
-                              ;
+#ifdef STM32F10X_XL
+        | (_AFM_REMAP_TIM9 * AFIO_MAPR2_TIM9_REMAP) | (_AFM_REMAP_TIM10 * AFIO_MAPR2_TIM10_REMAP) |
+        (_AFM_REMAP_TIM11 * AFIO_MAPR2_TIM11_REMAP) | (_AFM_REMAP_TIM13 * AFIO_MAPR2_TIM13_REMAP) |
+        (_AFM_REMAP_TIM14 * AFIO_MAPR2_TIM14_REMAP) | (_AFM_REMAP_FSMC_NADV * AFIO_MAPR2_FSMC_NADV_REMAP)
+#endif
+        ;
 
 /*==============================================================================
   Exported object definitions
@@ -182,8 +168,8 @@ API_MOD_INIT(AFM, void **device_handle, u8_t major, u8_t minor, const void *conf
         if (major == 0 && minor == 0) {
                 SET_BIT(RCC->APB2ENR, RCC_APB2ENR_AFIOEN);
 
-                AFIO->EVCR  = EVCR;
-                AFIO->MAPR  = MAPR;
+                AFIO->EVCR = EVCR;
+                AFIO->MAPR = MAPR;
                 AFIO->MAPR2 = MAPR2;
 
                 return ESUCC;
@@ -260,13 +246,8 @@ API_MOD_CLOSE(AFM, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(AFM,
-              void            *device_handle,
-              const u8_t      *src,
-              size_t           count,
-              fpos_t          *fpos,
-              size_t          *wrcnt,
-              struct vfs_fattr fattr)
+API_MOD_WRITE(AFM, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, src, count, fpos, wrcnt, fattr);
 
@@ -287,13 +268,7 @@ API_MOD_WRITE(AFM,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(AFM,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(AFM, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, dst, count, fpos, rdcnt, fattr);
 
@@ -351,7 +326,7 @@ API_MOD_STAT(AFM, void *device_handle, struct vfs_dev_stat *device_stat)
 {
         UNUSED_ARG1(device_handle);
 
-        device_stat->st_size  = 0;
+        device_stat->st_size = 0;
         device_stat->st_major = 0;
         device_stat->st_minor = 0;
 

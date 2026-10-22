@@ -5,7 +5,7 @@ Author  Daniel Zorychta
 
 Brief   NVM driver
 
-        Copyright (C) 2018 Daniel Zorychta <daniel.zorychta@gmail.com>
+        Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -38,12 +38,12 @@ Brief   NVM driver
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define TIMEOUT_MS              100
-#define RDP_KEY                 0x00A5
-#define FLASH_KEY1              0x45670123
-#define FLASH_KEY2              0xCDEF89AB
-#define FLASH_OPT_KEY1          0x08192A3B
-#define FLASH_OPT_KEY2          0x4C5D6E7F
+#define TIMEOUT_MS     100
+#define RDP_KEY        0x00A5
+#define FLASH_KEY1     0x45670123
+#define FLASH_KEY2     0xCDEF89AB
+#define FLASH_OPT_KEY1 0x08192A3B
+#define FLASH_OPT_KEY2 0x4C5D6E7F
 
 #define FLASH_CR_PSIZE_BYTE     ((0 * FLASH_CR_PSIZE_1) | (0 * FLASH_CR_PSIZE_0))
 #define FLASH_CR_PSIZE_HALFWORD ((0 * FLASH_CR_PSIZE_1) | (1 * FLASH_CR_PSIZE_0))
@@ -54,7 +54,7 @@ Brief   NVM driver
   Local object types
 ==============================================================================*/
 typedef struct {
-        kmtx_t  *mtx;
+        kmtx_t *mtx;
         uint32_t start_sector;
         uint32_t sector_count;
         uint32_t total_size;
@@ -70,10 +70,10 @@ typedef struct {
 ==============================================================================*/
 static void FLASH_unlock(void);
 static void FLASH_lock(void);
-static int  FLASH_erase_sector(uint32_t sector);
-static int  FLASH_program_byte(uint32_t address, uint8_t data);
-static int  FLASH_wait_for_operation_finish(void);
-static int  configure(NVM_t *hdl, const NVM_config_t *conf);
+static int FLASH_erase_sector(uint32_t sector);
+static int FLASH_program_byte(uint32_t address, uint8_t data);
+static int FLASH_wait_for_operation_finish(void);
+static int configure(NVM_t *hdl, const NVM_config_t *conf);
 
 /*==============================================================================
   Local object
@@ -82,11 +82,11 @@ MODULE_NAME(NVM);
 
 static const sector_info_t SECTOR_INFO[] = {
         /* BANK 0 */
-        /*00:*/ {.addr = 0x08000000, .size =  16384},
-        /*01:*/ {.addr = 0x08004000, .size =  16384},
-        /*02:*/ {.addr = 0x08008000, .size =  16384},
-        /*03:*/ {.addr = 0x0800C000, .size =  16384},
-        /*04:*/ {.addr = 0x08010000, .size =  65536},
+        /*00:*/ {.addr = 0x08000000, .size = 16384},
+        /*01:*/ {.addr = 0x08004000, .size = 16384},
+        /*02:*/ {.addr = 0x08008000, .size = 16384},
+        /*03:*/ {.addr = 0x0800C000, .size = 16384},
+        /*04:*/ {.addr = 0x08010000, .size = 65536},
         /*05:*/ {.addr = 0x08020000, .size = 131072},
         /*06:*/ {.addr = 0x08040000, .size = 131072},
         /*07:*/ {.addr = 0x08060000, .size = 131072},
@@ -101,11 +101,11 @@ static const sector_info_t SECTOR_INFO[] = {
         /*15:*/ {.addr = 0x08160000, .size = 131072},
 #else
         /* BANK 1 */
-        /*12:*/ {.addr = 0x08100000, .size =  16384},
-        /*13:*/ {.addr = 0x08102000, .size =  16384},
-        /*14:*/ {.addr = 0x08104000, .size =  16384},
-        /*15:*/ {.addr = 0x08106000, .size =  16384},
-        /*16:*/ {.addr = 0x08108000, .size =  65536},
+        /*12:*/ {.addr = 0x08100000, .size = 16384},
+        /*13:*/ {.addr = 0x08102000, .size = 16384},
+        /*14:*/ {.addr = 0x08104000, .size = 16384},
+        /*15:*/ {.addr = 0x08106000, .size = 16384},
+        /*16:*/ {.addr = 0x08108000, .size = 65536},
         /*17:*/ {.addr = 0x0810A000, .size = 131072},
         /*18:*/ {.addr = 0x0810C000, .size = 131072},
         /*19:*/ {.addr = 0x08110000, .size = 131072},
@@ -242,13 +242,8 @@ API_MOD_CLOSE(NVM, void *device_handle, bool force)
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_WRITE(NVM,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(NVM, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
@@ -267,8 +262,7 @@ API_MOD_WRITE(NVM,
         int err = sys_mutex_lock(hdl->mtx, TIMEOUT_MS);
         if (!err) {
 
-                uint32_t dst = SECTOR_INFO[hdl->start_sector].addr
-                             + cast(uint32_t, *fpos);
+                uint32_t dst = SECTOR_INFO[hdl->start_sector].addr + cast(uint32_t, *fpos);
 
                 count = min(count, (hdl->total_size - *fpos));
 
@@ -305,13 +299,7 @@ API_MOD_WRITE(NVM,
  * @return One of errno value (errno.h).
  */
 //==============================================================================
-API_MOD_READ(NVM,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(NVM, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG1(fattr);
 
@@ -330,12 +318,11 @@ API_MOD_READ(NVM,
         int err = sys_mutex_lock(hdl->mtx, TIMEOUT_MS);
         if (!err) {
 
-                uint32_t src = SECTOR_INFO[hdl->start_sector].addr
-                             + cast(uint32_t, *fpos);
+                uint32_t src = SECTOR_INFO[hdl->start_sector].addr + cast(uint32_t, *fpos);
 
                 count = min(count, (hdl->total_size - *fpos));
 
-                memcpy(dst, cast(uint8_t*, src), count);
+                memcpy(dst, cast(uint8_t *, src), count);
 
                 *rdcnt = count;
 
@@ -375,7 +362,7 @@ API_MOD_IOCTL(NVM, void *device_handle, int request, void *arg)
                         if (!err) {
                                 FLASH_unlock();
 
-                                size_t sector = *cast(size_t*, arg);
+                                size_t sector = *cast(size_t *, arg);
 
                                 if (sector < hdl->sector_count) {
                                         err = FLASH_erase_sector(sector + hdl->start_sector);
@@ -395,9 +382,8 @@ API_MOD_IOCTL(NVM, void *device_handle, int request, void *arg)
                 if (!err) {
                         FLASH_unlock();
 
-                        for (size_t sector = hdl->start_sector;
-                             sector < (hdl->start_sector + hdl->sector_count);
-                             sector++) {
+                        for (size_t sector = hdl->start_sector; sector < (hdl->start_sector + hdl->sector_count);
+                                sector++) {
 
                                 err = FLASH_erase_sector(sector);
 
@@ -427,7 +413,7 @@ API_MOD_IOCTL(NVM, void *device_handle, int request, void *arg)
 
         case IOCTL_NVM__GET_SECTOR_COUNT:
                 if (arg) {
-                        *cast(size_t*, arg) = hdl->sector_count;
+                        *cast(size_t *, arg) = hdl->sector_count;
                         err = ESUCC;
                 }
                 break;
@@ -487,10 +473,8 @@ API_MOD_STAT(NVM, void *device_handle, struct vfs_dev_stat *device_stat)
 //==============================================================================
 static int configure(NVM_t *hdl, const NVM_config_t *conf)
 {
-        if (  (conf->number_of_sectors == 0)
-           || (conf->start_sector >= ARRAY_SIZE(SECTOR_INFO))
-           || ((conf->start_sector + conf->number_of_sectors - 1)
-              >= ARRAY_SIZE(SECTOR_INFO)) ) {
+        if ((conf->number_of_sectors == 0) || (conf->start_sector >= ARRAY_SIZE(SECTOR_INFO)) ||
+                ((conf->start_sector + conf->number_of_sectors - 1) >= ARRAY_SIZE(SECTOR_INFO))) {
 
                 return EINVAL;
         }
@@ -501,8 +485,8 @@ static int configure(NVM_t *hdl, const NVM_config_t *conf)
                 hdl->start_sector = conf->start_sector;
 
                 hdl->total_size = 0;
-                size_t sector   = hdl->start_sector;
-                size_t count    = hdl->sector_count;
+                size_t sector = hdl->start_sector;
+                size_t count = hdl->sector_count;
 
                 while (count--) {
                         hdl->total_size += SECTOR_INFO[sector].size;
@@ -552,11 +536,11 @@ static int FLASH_erase_sector(uint32_t sector)
         int err = FLASH_wait_for_operation_finish();
 
         if (!err) {
-                #ifdef FLASH_OPTCR_DB1M
+#ifdef FLASH_OPTCR_DB1M
                 if (sector >= 12) {
                         sector += 4;
                 }
-                #endif
+#endif
 
                 FLASH->CR &= FLASH_CR_PSIZE_Msk;
                 FLASH->CR |= FLASH_CR_PSIZE_BYTE;
@@ -594,15 +578,16 @@ static int FLASH_program_byte(uint32_t address, uint8_t data)
                 FLASH->CR |= FLASH_CR_PG;
 
                 sys_ISR_disable();
-                *cast(__IO uint8_t*, address) = data;
-                while (FLASH->SR & FLASH_SR_BSY) {}
+                *cast(__IO uint8_t *, address) = data;
+                while (FLASH->SR & FLASH_SR_BSY) {
+                }
                 sys_ISR_enable();
 
                 err = FLASH_wait_for_operation_finish();
 
                 FLASH->CR &= (~FLASH_CR_PG);
 
-                if (*cast(__IO uint8_t*, address) != data) {
+                if (*cast(__IO uint8_t *, address) != data) {
                         printk("%s: cell mismatch @ 0x%X", GET_MODULE_NAME(), address);
                         err = EIO;
                 }
@@ -622,14 +607,14 @@ static int FLASH_wait_for_operation_finish(void)
 {
         int err;
 
-        while (FLASH->SR & FLASH_SR_BSY) {}
+        while (FLASH->SR & FLASH_SR_BSY) {
+        }
 
         if (FLASH->SR & FLASH_SR_WRPERR) {
                 printk("%s: write protection error", GET_MODULE_NAME());
                 err = EIO;
 
-        } else if (FLASH->SR & ( FLASH_SR_PGSERR | FLASH_SR_PGPERR
-                               | FLASH_SR_PGAERR)) {
+        } else if (FLASH->SR & (FLASH_SR_PGSERR | FLASH_SR_PGPERR | FLASH_SR_PGAERR)) {
                 printk("%s: program error", GET_MODULE_NAME());
                 err = EIO;
 
@@ -640,8 +625,7 @@ static int FLASH_wait_for_operation_finish(void)
                 err = ESUCC;
         }
 
-        SET_BIT(FLASH->SR, FLASH_SR_WRPERR | FLASH_SR_PGSERR | FLASH_SR_PGPERR
-                         | FLASH_SR_PGAERR | FLASH_SR_SOP);
+        SET_BIT(FLASH->SR, FLASH_SR_WRPERR | FLASH_SR_PGSERR | FLASH_SR_PGPERR | FLASH_SR_PGAERR | FLASH_SR_SOP);
 
         return err;
 }

@@ -5,7 +5,7 @@ Author   Daniel Zorychta
 
 Brief    Watchdog driver.
 
-         Copyright (C) 2017 Daniel Zorychta <daniel.zorychta@gmail.com>
+         Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
          it under the terms of the GNU General Public License as published by
@@ -32,21 +32,21 @@ Brief    Watchdog driver.
 
 #if defined(ARCH_stm32f1)
 #include "stm32f1/stm32f10x.h"
-#define DBGMCU_IWDG_STOP        DBGMCU_CR_DBG_IWDG_STOP
+#define DBGMCU_IWDG_STOP DBGMCU_CR_DBG_IWDG_STOP
 #elif defined(ARCH_stm32f4)
 #include "stm32f4/stm32f4xx.h"
-#define DBGMCU_IWDG_STOP        DBGMCU_APB1_FZ_DBG_IWDG_STOP
+#define DBGMCU_IWDG_STOP DBGMCU_APB1_FZ_DBG_IWDG_STOP
 #elif defined(ARCH_stm32f7)
 #include "stm32f7/stm32f7xx.h"
-#define DBGMCU_IWDG_STOP        DBGMCU_APB1_FZ_DBG_IWDG_STOP
+#define DBGMCU_IWDG_STOP DBGMCU_APB1_FZ_DBG_IWDG_STOP
 #endif
 
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define KEY_START               0xCCCC
-#define KEY_RELOAD              0xAAAA
-#define KEY_UNLOCK              0x5555
+#define KEY_START  0xCCCC
+#define KEY_RELOAD 0xAAAA
+#define KEY_UNLOCK 0x5555
 
 /*==============================================================================
   Local object types
@@ -181,13 +181,8 @@ API_MOD_CLOSE(WDG, void *device_handle, bool force)
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_WRITE(WDG,
-              void             *device_handle,
-              const u8_t       *src,
-              size_t            count,
-              fpos_t           *fpos,
-              size_t           *wrcnt,
-              struct vfs_fattr  fattr)
+API_MOD_WRITE(WDG, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
+        struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, src, count, fpos, wrcnt, fattr);
         return ENOTSUP;
@@ -207,13 +202,7 @@ API_MOD_WRITE(WDG,
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-API_MOD_READ(WDG,
-             void            *device_handle,
-             u8_t            *dst,
-             size_t           count,
-             fpos_t          *fpos,
-             size_t          *rdcnt,
-             struct vfs_fattr fattr)
+API_MOD_READ(WDG, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         UNUSED_ARG6(device_handle, dst, count, fpos, rdcnt, fattr);
         return ENOTSUP;
@@ -288,7 +277,7 @@ API_MOD_STAT(WDG, void *device_handle, struct vfs_dev_stat *device_stat)
 
         device_stat->st_major = 0;
         device_stat->st_minor = 0;
-        device_stat->st_size  = 0;
+        device_stat->st_size = 0;
 
         return ESUCC;
 }
@@ -303,13 +292,27 @@ static inline void configure_wdg(void)
         /* default LSI / 4 */
         u8_t divider;
         switch (__WDG_CLK_DIVIDER__) {
-        case 8  : divider = IWDG_PR_PR_0; break;
-        case 16 : divider = IWDG_PR_PR_1; break;
-        case 32 : divider = IWDG_PR_PR_1 | IWDG_PR_PR_0; break;
-        case 64 : divider = IWDG_PR_PR_2; break;
-        case 128: divider = IWDG_PR_PR_2 | IWDG_PR_PR_0; break;
-        case 256: divider = IWDG_PR_PR_2 | IWDG_PR_PR_1; break;
-        default : divider = 0; break;
+        case 8:
+                divider = IWDG_PR_PR_0;
+                break;
+        case 16:
+                divider = IWDG_PR_PR_1;
+                break;
+        case 32:
+                divider = IWDG_PR_PR_1 | IWDG_PR_PR_0;
+                break;
+        case 64:
+                divider = IWDG_PR_PR_2;
+                break;
+        case 128:
+                divider = IWDG_PR_PR_2 | IWDG_PR_PR_0;
+                break;
+        case 256:
+                divider = IWDG_PR_PR_2 | IWDG_PR_PR_1;
+                break;
+        default:
+                divider = 0;
+                break;
         }
 
         /* reload value */
@@ -318,10 +321,12 @@ static inline void configure_wdg(void)
         /* enable IWDG */
         IWDG->KR = KEY_UNLOCK;
 
-        while (IWDG->SR & IWDG_SR_PVU);
+        while (IWDG->SR & IWDG_SR_PVU)
+                ;
         IWDG->PR = divider;
 
-        while (IWDG->SR & IWDG_SR_RVU);
+        while (IWDG->SR & IWDG_SR_RVU)
+                ;
         IWDG->RLR = reload;
 
         if (__WDG_DISABLE_ON_DEBUG__) {
