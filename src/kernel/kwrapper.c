@@ -1066,17 +1066,30 @@ int _flag_destroy(kflag_t *flag)
 //==============================================================================
 int _flag_wait(kflag_t *flag, u32_t bits, u32_t blocktime_ms)
 {
-        if (is_flag_valid(flag)) {
-                if (xEventGroupWaitBits(flag->object, bits, true, true, blocktime_ms)) {
-                        return ESUCC;
-                } else {
-                        return ETIME;
+        do {
+                if (not is_flag_valid(flag)) {
+                        printk("Invalid flag object @ %p", flag);
+                        return EINVAL;
                 }
 
-        } else {
-                printk("Invalid flag object @ %p", flag);
-                return EINVAL;
-        }
+                TickType_t wait = min(BLOCK_TIME_MS, blocktime_ms);
+
+                EventBits_t value = xEventGroupWaitBits(flag->object, bits, true, true, MS2TICK(wait));
+                if ((value & bits) == bits) {
+                        return ESUCC;
+                }
+
+                if (_process_is_kill_requested()) {
+                        return ECANCELED;
+                }
+
+                if (blocktime_ms < _WAIT_FOREVER_MS) {
+                        blocktime_ms -= wait;
+                }
+
+        } while (blocktime_ms > 0);
+
+        return ETIME;
 }
 
 //==============================================================================

@@ -1002,7 +1002,7 @@ int UDS_socket_send(void *ctx, UDS_socket_t *socket, const void *buf, size_t len
         }
 
         if (socket->shutdown & NETM_SHUT__WR) {
-                return EPERM;
+                return EPIPE;
         }
 
         UDS_socket_t *dst = NULL;
@@ -1019,8 +1019,7 @@ int UDS_socket_send(void *ctx, UDS_socket_t *socket, const void *buf, size_t len
                 socket->refs++;
 
         } else {
-                // peer closed connection or socket was never connected
-                err = socket->eof ? ECONNRESET : ECONNREFUSED;
+                err = socket->eof ? EPIPE : ECONNREFUSED;
         }
 
         sys_critical_section_end();
@@ -1079,7 +1078,7 @@ int UDS_socket_sendto(void *ctx, UDS_socket_t *socket, const void *buf, size_t l
         }
 
         if (socket->shutdown & NETM_SHUT__WR) {
-                return EPERM;
+                return EPIPE;
         }
 
         UDS_socket_t *dst = NULL;
@@ -2100,7 +2099,8 @@ static int buffer_stream_receive(uds_t *uds, UDS_socket_t *socket, void *buf, si
  *
  * Send timeout applies to the whole operation. When timeout expires or
  * connection is closed after part of data was sent, number of sent bytes
- * is returned without error.
+ * is returned without error. When connection is closed by peer before any
+ * byte was sent, EPIPE is returned.
  *
  * @param  uds          instance
  * @param  socket       socket
@@ -2145,6 +2145,9 @@ static int buffer_stream_send(uds_t *uds, UDS_socket_t *socket, UDS_socket_t *ds
                 if (space == 0) {
                         err = stream_wait(uds, stream->tx_sem, &dl, &cond);
                         if (err) {
+                                if ((err == ECONNRESET) and not socket->closing) {
+                                        err = EPIPE;
+                                }
                                 break;
                         }
                         continue;

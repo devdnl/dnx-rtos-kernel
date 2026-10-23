@@ -231,7 +231,7 @@ int _pipe_read(pipe_t *pipe, u8_t *buf, size_t count, size_t *rdcnt, bool non_bl
  * @param wrcnt         a number of written bytes
  * @param non_blocking  a non-blocking access mode
  *
- * @return One of errno value (errno.h)
+ * @return One of errno value (errno.h). EPIPE when pipe is closed.
  */
 //==============================================================================
 int _pipe_write(pipe_t *pipe, const u8_t *buf, size_t count, size_t *wrcnt, bool non_blocking)
@@ -242,10 +242,7 @@ int _pipe_write(pipe_t *pipe, const u8_t *buf, size_t count, size_t *wrcnt, bool
                 size_t n = 0;
                 for (; n < count; n++) {
 
-                        size_t noitm = 0;
-                        _queue_get_number_of_items(pipe->queue, &noitm);
-
-                        if ((pipe->flag & CLOSED) && noitm == 0) {
+                        if (pipe->flag & CLOSED) {
                                 break;
                         }
 
@@ -256,6 +253,11 @@ int _pipe_write(pipe_t *pipe, const u8_t *buf, size_t count, size_t *wrcnt, bool
                 }
 
                 *wrcnt = n;
+
+                if ((n == 0) && (pipe->flag & CLOSED)) {
+                        return EPIPE;
+                }
+
                 return ESUCC;
         } else {
                 return EINVAL;
