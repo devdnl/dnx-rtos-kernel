@@ -54,16 +54,30 @@ extern "C" {
 /*==============================================================================
   Exported object types
 ==============================================================================*/
+/*
+ * NOTE: fields connecting and conn_err are protected by the UDS stack mutex.
+ *       Fields refs, closing, eof, connected and conn_sock are used by fast
+ *       paths (send/recv) in critical section: refs is accessed only in
+ *       critical section, the other fields are modified with the stack mutex
+ *       locked and in critical section.
+ */
 typedef struct UDS_socket {
         char *path;
-        kqueue_t *buf;
+        kqueue_t *buf;             //!< datagram buffer
+        struct UDS_stream *stream; //!< stream buffer
         kqueue_t *conn_req;
+        ksem_t *conn_sem; //!< client: signaled when connection request is handled
         struct UDS_socket *conn_sock;
         NETM_socket_type_t type;
         u32_t recv_timeout;
         u32_t send_timeout;
         NETM_shut_t shutdown;
-        bool connected;
+        int conn_err;    //!< client: error set by server when request is rejected
+        u16_t refs;      //!< number of pending operations that use this socket
+        bool connected;  //!< connection established
+        bool connecting; //!< client: request is waiting in server accept queue
+        bool closing;    //!< socket is being destroyed
+        bool eof;        //!< stream: peer closed connection or shut down write direction
 } UDS_socket_t;
 
 /*==============================================================================

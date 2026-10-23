@@ -54,6 +54,14 @@ Brief    Unix Domain Socket Network management.
 #define STREAM_BUF_SIZE      __NETWORK_UDS_BUF_SIZE__
 #define MAX_DATAGRAM_BUFFERS __NETWORK_UDS_DATAGRAM_BUFFERS_SIZE__
 #define MAX_DATAGRAM_SIZE    __NETWORK_UDS_DATAGRAM_MAX_SIZE__
+#define CONN_REQ_QUEUE_LEN   8
+
+/*
+ * Blocking operations wait in slices. After each slice the state of sockets
+ * is checked, so destroy, disconnect, shutdown and interface down interrupt
+ * waiting threads. Slice does not delay data transfer.
+ */
+#define WAIT_SLICE_MS 50
 
 /*==============================================================================
   Local object types
@@ -80,23 +88,69 @@ typedef struct {
         NETM_UDS_state_t state;
 } uds_t;
 
+/**
+ * Stream buffer (ring buffer). Data is copied outside critical section, only
+ * indexes and wait flags are accessed in critical section. Buffer has single
+ * writer (peer socket) and single reader (owner socket), because operations
+ * of single socket are serialized by network manager.
+ */
+typedef struct UDS_stream {
+        ksem_t *rx_sem; //!< signaled when data is available for waiting reader
+        ksem_t *tx_sem; //!< signaled when space is available for waiting writer
+        size_t size;    //!< buffer size
+        size_t rd;      //!< read index
+        size_t cnt;     //!< number of bytes in buffer
+        bool rx_wait;   //!< reader waits for data
+        bool tx_wait;   //!< writer waits for space
+        u8_t data[];
+} stream_t;
+
+/** Operation deadline. */
+typedef struct {
+        clock_t tref;
+        u32_t timeout;
+} deadline_t;
+
+/** Conditions that abort waiting operation. */
+typedef struct {
+        UDS_socket_t *self; //!< socket that performs operation (aborts when closing)
+        UDS_socket_t *peer; //!< destination socket (aborts when closing), can be NULL
+        bool link;          //!< aborts when self is not connected to peer anymore
+        bool eof;           //!< aborts when self->eof is set
+} wait_cond_t;
+
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-
-/*==============================================================================
-  External function prototypes
-==============================================================================*/
+static int stack_lock(uds_t *uds);
+static void stack_unlock(uds_t *uds);
+static bool path_is_valid(const char *path, size_t size);
+static bool socket_is_registered(uds_t *uds, UDS_socket_t *socket);
+static int socket_ref_get(uds_t *uds, UDS_socket_t *socket);
+static void socket_ref_put(uds_t *uds, UDS_socket_t *socket);
+static void socket_peer_detach(UDS_socket_t *socket);
+static void socket_conn_req_finish(uds_t *uds, UDS_socket_t *req, int err);
+static void deadline_start(deadline_t *dl, u32_t timeout);
+static u32_t deadline_slice(const deadline_t *dl);
+static int wait_check(uds_t *uds, const wait_cond_t *cond);
+static int queue_wait(uds_t *uds, kqueue_t *queue, void *item, bool send, const deadline_t *dl,
+        const wait_cond_t *cond);
+static void operation_finish(uds_t *uds, UDS_socket_t *socket, UDS_socket_t *dst, bool rx, size_t bytes);
 static int socket_register(uds_t *uds, UDS_socket_t *socket);
 static int socket_unregister(uds_t *uds, UDS_socket_t *socket);
 static int buffer_create(uds_t *uds, UDS_socket_t *socket);
 static int buffer_reset(uds_t *uds, UDS_socket_t *socket);
 static int buffer_datagram_receive(uds_t *uds, UDS_socket_t *socket, void *buf, size_t len, NETM_UDS_sockaddr_t *addr,
         size_t *recved);
-static int buffer_datagram_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buffer, const void *data, size_t len,
+static int buffer_datagram_send(uds_t *uds, UDS_socket_t *socket, UDS_socket_t *dst, const void *data, size_t len,
         size_t *sent);
+static int stream_create(UDS_socket_t *socket);
+static void stream_destroy(UDS_socket_t *socket);
+static void stream_reset(UDS_socket_t *socket);
+static void stream_wake(UDS_socket_t *socket);
+static int stream_wait(uds_t *uds, ksem_t *sem, const deadline_t *dl, const wait_cond_t *cond);
 static int buffer_stream_receive(uds_t *uds, UDS_socket_t *socket, void *buf, size_t len, size_t *recved);
-static int buffer_stream_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buffer, const void *buf, size_t len,
+static int buffer_stream_send(uds_t *uds, UDS_socket_t *socket, UDS_socket_t *dst, const void *buf, size_t len,
         size_t *sent);
 
 /*==============================================================================
@@ -135,15 +189,14 @@ int UDS_ifinit(void **ctx, const char *if_path)
         uds_t *uds = *ctx;
 
         err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &uds->socket.mutex);
-        if (err) {
-                UDS_ifdeinit(*ctx);
-                return err;
+
+        if (not err) {
+                err = _llist_create_krn(_MM_NET, sys_llist_functor_cmp_pointers, NULL, &uds->socket.list);
         }
 
-        err = _llist_create_krn(_MM_NET, sys_llist_functor_cmp_pointers, NULL, &uds->socket.list);
         if (err) {
-                UDS_ifdeinit(*ctx);
-                return err;
+                UDS_ifdeinit(uds);
+                *ctx = NULL;
         }
 
         return err;
@@ -160,8 +213,12 @@ int UDS_ifdeinit(void *ctx)
 {
         uds_t *uds = ctx;
 
-        if (sys_llist_size(uds->socket.list) > 0) {
-                DEBUG("%s: stack in use.");
+        if (not uds) {
+                return EINVAL;
+        }
+
+        if (uds->socket.list and (sys_llist_size(uds->socket.list) > 0)) {
+                DEBUG("stack in use\n");
                 return EBUSY;
         }
 
@@ -189,21 +246,38 @@ int UDS_ifup(void *ctx, const NETM_UDS_config_t *cfg, size_t cfg_size)
         UNUSED_ARG2(cfg, cfg_size);
 
         uds_t *uds = ctx;
-        uds->state = NETM_UDS_STATE__UP;
-        return 0;
+
+        int err = stack_lock(uds);
+        if (not err) {
+                sys_critical_section_begin();
+                uds->state = NETM_UDS_STATE__UP;
+                sys_critical_section_end();
+                stack_unlock(uds);
+        }
+
+        return err;
 }
 
 //==============================================================================
 /**
  * @brief  Function turn down interface with static configuration.
+ *         Blocked operations are interrupted with ENONET error.
  * @return One of @ref errno value.
  */
 //==============================================================================
 int UDS_ifdown(void *ctx)
 {
         uds_t *uds = ctx;
-        uds->state = NETM_UDS_STATE__DOWN;
-        return 0;
+
+        int err = stack_lock(uds);
+        if (not err) {
+                sys_critical_section_begin();
+                uds->state = NETM_UDS_STATE__DOWN;
+                sys_critical_section_end();
+                stack_unlock(uds);
+        }
+
+        return err;
 }
 
 //==============================================================================
@@ -222,17 +296,21 @@ int UDS_ifstatus(void *ctx, NETM_UDS_status_t *status, size_t status_size)
                 return EINVAL;
         }
 
-        if (uds) {
+        if (not uds) {
+                return ENONET;
+        }
+
+        sys_critical_section_begin();
+        {
                 status->rx_packets = uds->stats.rx_packets;
                 status->rx_bytes = uds->stats.rx_bytes;
                 status->tx_packets = uds->stats.tx_packets;
                 status->tx_bytes = uds->stats.tx_bytes;
                 status->state = uds->state;
-
-                return ESUCC;
-        } else {
-                return ENONET;
         }
+        sys_critical_section_end();
+
+        return ESUCC;
 }
 
 //==============================================================================
@@ -250,15 +328,26 @@ int UDS_socket_create(void *ctx, NETM_socket_type_t type, u8_t prot, UDS_socket_
 
         uds_t *uds = ctx;
 
+        if ((type != NETM_SOCKET_TYPE__STREAM) and (type != NETM_SOCKET_TYPE__DATAGRAM)) {
+                return ENOTSUP;
+        }
+
         socket->path = NULL;
+        socket->buf = NULL;
+        socket->stream = NULL;
+        socket->conn_req = NULL;
+        socket->conn_sem = NULL;
+        socket->conn_sock = NULL;
         socket->type = type;
         socket->recv_timeout = _WAIT_FOREVER_MS;
         socket->send_timeout = _WAIT_FOREVER_MS;
-        socket->buf = NULL;
         socket->shutdown = 0;
-        socket->conn_req = NULL;
-        socket->conn_sock = NULL;
+        socket->conn_err = 0;
+        socket->refs = 0;
         socket->connected = false;
+        socket->connecting = false;
+        socket->closing = false;
+        socket->eof = false;
 
         return socket_register(uds, socket);
 }
@@ -266,6 +355,11 @@ int UDS_socket_create(void *ctx, NETM_socket_type_t type, u8_t prot, UDS_socket_
 //==============================================================================
 /**
  * @brief  Function destroy created socket.
+ *
+ * Connected peer is detached, clients waiting in accept queue are refused and
+ * all threads blocked on the socket are woken up. Function waits until all
+ * pending operations that use the socket are finished.
+ *
  * @param  socket    uds socket to destroy
  * @return One of @ref errno value.
  */
@@ -274,11 +368,63 @@ int UDS_socket_destroy(void *ctx, UDS_socket_t *socket)
 {
         uds_t *uds = ctx;
 
-        int err = socket_unregister(uds, socket);
+        int err = stack_lock(uds);
         if (err) {
                 return err;
         }
 
+        err = socket_unregister(uds, socket);
+        if (not err) {
+                UDS_socket_t *peer = NULL;
+
+                sys_critical_section_begin();
+                {
+                        socket->closing = true;
+                        socket->connecting = false;
+
+                        if (socket->conn_sock and (socket->conn_sock->conn_sock == socket)) {
+                                peer = socket->conn_sock;
+                                peer->eof = true;
+                        }
+
+                        socket_peer_detach(socket);
+                }
+                sys_critical_section_end();
+
+                // wake up threads waiting for data or space
+                stream_wake(socket);
+                if (peer) {
+                        stream_wake(peer);
+                }
+
+                if (socket->conn_req) {
+                        UDS_socket_t *req;
+                        while (sys_queue_receive(socket->conn_req, &req, 0) == ESUCC) {
+                                socket_conn_req_finish(uds, req, ECONNREFUSED);
+                        }
+                }
+        }
+
+        stack_unlock(uds);
+
+        if (err) {
+                return err;
+        }
+
+        // wait for operations in progress (blocked operations exit within one wait slice)
+        for (;;) {
+                sys_critical_section_begin();
+                u16_t refs = socket->refs;
+                sys_critical_section_end();
+
+                if (refs == 0) {
+                        break;
+                }
+
+                sys_sleep_ms(1);
+        }
+
+        // socket is not registered, so it cannot be found by path anymore
         if (socket->path) {
                 zfree(cast(void **, &socket->path));
         }
@@ -286,13 +432,22 @@ int UDS_socket_destroy(void *ctx, UDS_socket_t *socket)
         if (socket->buf) {
                 buffer_reset(uds, socket);
                 sys_queue_destroy(socket->buf);
+                socket->buf = NULL;
         }
+
+        stream_destroy(socket);
 
         if (socket->conn_req) {
                 sys_queue_destroy(socket->conn_req);
+                socket->conn_req = NULL;
         }
 
-        return err;
+        if (socket->conn_sem) {
+                sys_semaphore_destroy(socket->conn_sem);
+                socket->conn_sem = NULL;
+        }
+
+        return ESUCC;
 }
 
 //==============================================================================
@@ -312,44 +467,122 @@ int UDS_socket_connect(void *ctx, UDS_socket_t *socket, const NETM_UDS_sockaddr_
                 return ENONET;
         }
 
-        if (addr_size != sizeof(*addr)) {
+        if ((addr_size != sizeof(*addr)) or not path_is_valid(addr->path, sizeof(addr->path))) {
                 return EINVAL;
         }
 
-        int err = buffer_create(uds, socket);
+        int err = socket_ref_get(uds, socket);
         if (err) {
                 return err;
         }
 
-        err = sys_mutex_lock(uds->socket.mutex, _WAIT_FOREVER_MS);
+        if ((err = stack_lock(uds)) != ESUCC) {
+                socket_ref_put(uds, socket);
+                return err;
+        }
+
+        if (socket->connected or socket->conn_sock or socket->connecting) {
+                err = EISCONN;
+        }
+
         if (not err) {
+                err = buffer_create(uds, socket);
+        }
+
+        if (not err and not socket->conn_sem) {
+                err = sys_semaphore_create(1, 0, &socket->conn_sem);
+        }
+
+        if (not err) {
+                // drop data of previous connection
+                buffer_reset(uds, socket);
+
                 err = ENOENT;
 
                 sys_llist_foreach (UDS_socket_t *, s, uds->socket.list) {
                         if (s->path and s->conn_req and isstreq(s->path, addr->path)) {
-                                err = sys_queue_send(s->conn_req, &socket, socket->recv_timeout);
+
+                                if (s->type != socket->type) {
+                                        err = ECONNREFUSED;
+
+                                } else {
+                                        socket->conn_err = 0;
+                                        socket->connecting = true;
+
+                                        sys_critical_section_begin();
+                                        socket->eof = false;
+                                        sys_critical_section_end();
+
+                                        // never block here, the stack mutex is locked
+                                        err = sys_queue_send(s->conn_req, &socket, 0);
+                                        if (err) {
+                                                socket->connecting = false;
+                                                err = ECONNREFUSED;
+                                        }
+                                }
+
                                 break;
                         }
                 }
-
-                sys_mutex_unlock(uds->socket.mutex);
         }
 
-        clock_t tref = sys_get_uptime_ms();
+        stack_unlock(uds);
 
-        while (not err) {
-                if (socket->conn_sock) {
-                        socket->connected = true;
-                        break;
+        if (not err) {
+                deadline_t dl;
+                deadline_start(&dl, socket->recv_timeout);
 
-                } else if (sys_get_uptime_ms() - tref >= socket->recv_timeout) {
-                        err = ETIME;
-                        break;
+                for (;;) {
+                        u32_t slice = deadline_slice(&dl);
 
-                } else {
-                        sys_sleep_ms(100);
+                        int werr = ETIME;
+                        if (slice > 0) {
+                                werr = sys_semaphore_wait(socket->conn_sem, slice);
+                        }
+
+                        stack_lock(uds);
+
+                        bool done = true;
+
+                        if (socket->conn_sock) {
+                                // accepted (connected flag is set by server)
+                                socket->connecting = false;
+                                err = ESUCC;
+
+                        } else if (not socket->connecting) {
+                                // refused by server or server destroyed
+                                err = socket->conn_err ? socket->conn_err : ECONNREFUSED;
+
+                        } else if (socket->closing) {
+                                err = ECONNRESET;
+
+                        } else if (uds->state == NETM_UDS_STATE__DOWN) {
+                                err = ENONET;
+
+                        } else if (werr == ECANCELED) {
+                                err = ECANCELED;
+
+                        } else if (slice == 0) {
+                                err = ETIME;
+
+                        } else {
+                                done = false;
+                        }
+
+                        if (done and err) {
+                                // accept() ignores request that is not connecting anymore
+                                socket->connecting = false;
+                        }
+
+                        stack_unlock(uds);
+
+                        if (done) {
+                                break;
+                        }
                 }
         }
+
+        socket_ref_put(uds, socket);
 
         return err;
 }
@@ -369,19 +602,37 @@ int UDS_socket_disconnect(void *ctx, UDS_socket_t *socket)
                 return ENONET;
         }
 
-        if (not socket->conn_sock) {
-                return ENOENT;
+        int err = stack_lock(uds);
+        if (not err) {
+                if (socket->conn_sock) {
+                        UDS_socket_t *peer = socket->conn_sock;
+
+                        sys_critical_section_begin();
+                        {
+                                if (peer->conn_sock == socket) {
+                                        peer->eof = true;
+                                }
+
+                                socket_peer_detach(socket);
+                        }
+                        sys_critical_section_end();
+
+                        stream_wake(socket);
+                        stream_wake(peer);
+                } else {
+                        err = ENOENT;
+                }
+
+                stack_unlock(uds);
         }
 
-        socket->conn_sock->connected = false;
-        socket->connected = false;
-
-        return 0;
+        return err;
 }
 
 //==============================================================================
 /**
  * @brief  Function shutdown selected socket direction.
+ *         Write shutdown of stream socket signals end of data to the peer.
  * @param  socket       socket
  * @param  how          shutdown direction
  * @return One of @ref errno value.
@@ -389,11 +640,28 @@ int UDS_socket_disconnect(void *ctx, UDS_socket_t *socket)
 //==============================================================================
 int UDS_socket_shutdown(void *ctx, UDS_socket_t *socket, NETM_shut_t how)
 {
-        UNUSED_ARG1(ctx);
+        uds_t *uds = ctx;
 
-        socket->shutdown = how;
+        if (how & ~NETM_SHUT__RDWR) {
+                return EINVAL;
+        }
 
-        return 0;
+        int err = stack_lock(uds);
+        if (not err) {
+                socket->shutdown = cast(NETM_shut_t, socket->shutdown | how);
+
+                if ((how & NETM_SHUT__WR) and (socket->type == NETM_SOCKET_TYPE__STREAM) and socket->conn_sock) {
+                        sys_critical_section_begin();
+                        socket->conn_sock->eof = true;
+                        sys_critical_section_end();
+
+                        stream_wake(socket->conn_sock);
+                }
+
+                stack_unlock(uds);
+        }
+
+        return err;
 }
 
 //==============================================================================
@@ -413,43 +681,44 @@ int UDS_socket_bind(void *ctx, UDS_socket_t *socket, const NETM_UDS_sockaddr_t *
                 return ENONET;
         }
 
-        if (addr_size != sizeof(*addr)) {
+        if ((addr_size != sizeof(*addr)) or not path_is_valid(addr->path, sizeof(addr->path))) {
                 return EINVAL;
         }
 
         size_t path_len = strnlen(addr->path, sizeof(addr->path));
-        if (path_len == sizeof(addr->path)) {
-                return EINVAL;
+
+        int err = stack_lock(uds);
+        if (err) {
+                return err;
         }
 
-        int err = sys_mutex_lock(uds->socket.mutex, _WAIT_FOREVER_MS);
-        if (not err) {
-                sys_llist_foreach (UDS_socket_t *, s, uds->socket.list) {
-                        if (s->path and isstreq(s->path, addr->path)) {
-                                err = EADDRINUSE;
-                                break;
-                        }
+        sys_llist_foreach (UDS_socket_t *, s, uds->socket.list) {
+                if ((s != socket) and s->path and isstreq(s->path, addr->path)) {
+                        err = EADDRINUSE;
+                        break;
                 }
-
-                if (not err) {
-                        if (socket->path) {
-                                zfree(cast(void **, &socket->path));
-                        }
-
-                        err = kalloc(path_len + 1, cast(void **, &socket->path));
-                        if (err) {
-                                return err;
-                        }
-
-                        sys_strlcpy(socket->path, addr->path, path_len + 1);
-                }
-
-                sys_mutex_unlock(uds->socket.mutex);
         }
 
         if (not err and (socket->type == NETM_SOCKET_TYPE__DATAGRAM)) {
                 err = buffer_create(uds, socket);
         }
+
+        if (not err) {
+                char *new_path = NULL;
+
+                err = kalloc(path_len + 1, cast(void **, &new_path));
+                if (not err) {
+                        sys_strlcpy(new_path, addr->path, path_len + 1);
+
+                        if (socket->path) {
+                                zfree(cast(void **, &socket->path));
+                        }
+
+                        socket->path = new_path;
+                }
+        }
+
+        stack_unlock(uds);
 
         return err;
 }
@@ -469,10 +738,16 @@ int UDS_socket_listen(void *ctx, UDS_socket_t *socket)
                 return ENONET;
         }
 
-        int err = 0;
+        int err = stack_lock(uds);
+        if (not err) {
+                if (not socket->path) {
+                        err = EINVAL;
 
-        if (not socket->conn_req) {
-                err = sys_queue_create(8, sizeof(UDS_socket_t *), &socket->conn_req);
+                } else if (not socket->conn_req) {
+                        err = sys_queue_create(CONN_REQ_QUEUE_LEN, sizeof(UDS_socket_t *), &socket->conn_req);
+                }
+
+                stack_unlock(uds);
         }
 
         return err;
@@ -494,40 +769,88 @@ int UDS_socket_accept(void *ctx, UDS_socket_t *socket, UDS_socket_t *new_socket)
                 return ENONET;
         }
 
-        UDS_socket_t *req_socket;
-        int err = sys_queue_receive(socket->conn_req, &req_socket, socket->recv_timeout);
+        if (not socket->conn_req) {
+                return EINVAL;
+        }
+
+        int err = socket_ref_get(uds, socket);
         if (err) {
                 return err;
         }
 
-        if (req_socket == NULL) {
-                return EAGAIN;
+        deadline_t dl;
+        deadline_start(&dl, socket->recv_timeout);
+
+        const wait_cond_t cond = {.self = socket};
+
+        for (bool done = false; not done;) {
+
+                UDS_socket_t *req = NULL;
+
+                err = queue_wait(uds, socket->conn_req, &req, false, &dl, &cond);
+                if (err) {
+                        break;
+                }
+
+                if ((err = stack_lock(uds)) != ESUCC) {
+                        break;
+                }
+
+                done = true;
+
+                if (socket->closing) {
+                        socket_conn_req_finish(uds, req, ECONNREFUSED);
+                        err = ECONNABORTED;
+
+                } else if (not req or not socket_is_registered(uds, req) or not req->connecting) {
+                        // client gave up (timeout) or was destroyed, wait for next request
+                        done = false;
+
+                } else if (req->type != socket->type) {
+                        socket_conn_req_finish(uds, req, ECONNREFUSED);
+                        done = false;
+
+                } else {
+                        err = UDS_socket_create(uds, socket->type, 0, new_socket);
+                        if (not err) {
+                                err = buffer_create(uds, new_socket);
+                                if (err) {
+                                        UDS_socket_destroy(uds, new_socket);
+                                }
+                        }
+
+                        if (err) {
+                                socket_conn_req_finish(uds, req, err);
+
+                        } else {
+                                sys_critical_section_begin();
+                                {
+                                        new_socket->conn_sock = req;
+                                        new_socket->connected = true;
+                                        req->conn_sock = new_socket;
+                                }
+                                sys_critical_section_end();
+
+                                socket_conn_req_finish(uds, req, ESUCC);
+                        }
+                }
+
+                stack_unlock(uds);
         }
 
-        if (req_socket->type != socket->type) {
-                return ECONNABORTED;
-        }
+        socket_ref_put(uds, socket);
 
-        err = UDS_socket_create(uds, socket->type, 0, new_socket);
-        if (err) {
-                return err;
-        }
-
-        err = buffer_create(uds, new_socket);
-        if (err) {
-                return err;
-        }
-
-        new_socket->conn_sock = req_socket;
-        req_socket->conn_sock = new_socket;
-        new_socket->connected = true;
-
-        return 0;
+        return err;
 }
 
 //==============================================================================
 /**
  * @brief  Function receive incoming data.
+ *
+ * Stream socket: when peer closed connection (or shut down write direction)
+ * remaining data can be still received, after that ECONNRESET is returned.
+ * Timeout without data is not an error (0 bytes received).
+ *
  * @param  socket       socket
  * @param  buf          buffer for data
  * @param  len          number of data to receive
@@ -540,6 +863,8 @@ int UDS_socket_recv(void *ctx, UDS_socket_t *socket, void *buf, size_t len, NETM
 {
         uds_t *uds = ctx;
 
+        *recved = 0;
+
         if (uds->state == NETM_UDS_STATE__DOWN) {
                 return ENONET;
         }
@@ -548,25 +873,52 @@ int UDS_socket_recv(void *ctx, UDS_socket_t *socket, void *buf, size_t len, NETM
                 return EPERM;
         }
 
-        if (not socket->conn_sock or not socket->connected) {
-                return ECONNREFUSED;
+        int err = ESUCC;
+
+        sys_critical_section_begin();
+
+        if (socket->closing) {
+                err = EBADF;
+
+        } else if (socket->type == NETM_SOCKET_TYPE__STREAM) {
+                // remaining data can be received after peer closed connection
+                if (not socket->stream or not((socket->conn_sock and socket->connected) or socket->eof)) {
+                        err = ECONNREFUSED;
+                }
+
+        } else if (socket->type == NETM_SOCKET_TYPE__DATAGRAM) {
+                // datagram socket can receive when bound or connected
+                if (not socket->buf) {
+                        err = ECONNREFUSED;
+                }
+
+        } else {
+                err = EINVAL;
         }
 
-        int err = EINVAL;
+        if (not err) {
+                socket->refs++;
+        }
+
+        sys_critical_section_end();
+
+        if (err) {
+                return err;
+        }
 
         if (socket->type == NETM_SOCKET_TYPE__STREAM) {
                 err = buffer_stream_receive(uds, socket, buf, len, recved);
 
-        } else if (socket->type == NETM_SOCKET_TYPE__DATAGRAM) {
+                if (flags & NETM_FLAGS__FREEBUF) {
+                        buffer_reset(uds, socket);
+                }
+
+        } else {
+                // NETM_FLAGS__FREEBUF: rest of datagram is always dropped
                 err = buffer_datagram_receive(uds, socket, buf, len, NULL, recved);
         }
 
-        if (flags & NETM_FLAGS__FREEBUF) {
-                buffer_reset(uds, socket);
-        }
-
-        uds->stats.rx_bytes += *recved;
-        uds->stats.rx_packets++;
+        operation_finish(uds, socket, NULL, true, err ? 0 : *recved);
 
         return err;
 }
@@ -587,7 +939,11 @@ int UDS_socket_recv(void *ctx, UDS_socket_t *socket, void *buf, size_t len, NETM
 int UDS_socket_recvfrom(void *ctx, UDS_socket_t *socket, void *buf, size_t len, NETM_flags_t flags,
         NETM_UDS_sockaddr_t *addr, size_t addr_size, size_t *recved)
 {
+        UNUSED_ARG1(flags);
+
         uds_t *uds = ctx;
+
+        *recved = 0;
 
         if (addr_size != sizeof(*addr)) {
                 return EINVAL;
@@ -597,7 +953,7 @@ int UDS_socket_recvfrom(void *ctx, UDS_socket_t *socket, void *buf, size_t len, 
                 return ENONET;
         }
 
-        if (socket->type == NETM_SOCKET_TYPE__STREAM) {
+        if (socket->type != NETM_SOCKET_TYPE__DATAGRAM) {
                 return ECANCELED;
         }
 
@@ -605,14 +961,19 @@ int UDS_socket_recvfrom(void *ctx, UDS_socket_t *socket, void *buf, size_t len, 
                 return EPERM;
         }
 
-        int err = buffer_datagram_receive(uds, socket, buf, len, addr, recved);
-
-        if (flags & NETM_FLAGS__FREEBUF) {
-                buffer_reset(uds, socket);
+        if (not socket->buf) {
+                return ECONNREFUSED;
         }
 
-        uds->stats.rx_bytes += *recved;
-        uds->stats.rx_packets++;
+        int err = socket_ref_get(uds, socket);
+        if (err) {
+                return err;
+        }
+
+        // NETM_FLAGS__FREEBUF: rest of datagram is always dropped
+        err = buffer_datagram_receive(uds, socket, buf, len, addr, recved);
+
+        operation_finish(uds, socket, NULL, true, err ? 0 : *recved);
 
         return err;
 }
@@ -634,6 +995,8 @@ int UDS_socket_send(void *ctx, UDS_socket_t *socket, const void *buf, size_t len
 
         uds_t *uds = ctx;
 
+        *sent = 0;
+
         if (uds->state == NETM_UDS_STATE__DOWN) {
                 return ENONET;
         }
@@ -642,21 +1005,41 @@ int UDS_socket_send(void *ctx, UDS_socket_t *socket, const void *buf, size_t len
                 return EPERM;
         }
 
-        if (not socket->conn_sock or not socket->connected) {
-                return ECONNREFUSED;
+        UDS_socket_t *dst = NULL;
+        int err = ESUCC;
+
+        sys_critical_section_begin();
+
+        if (socket->closing) {
+                err = EBADF;
+
+        } else if (socket->conn_sock and socket->connected and (socket->conn_sock->buf or socket->conn_sock->stream)) {
+                dst = socket->conn_sock;
+                dst->refs++;
+                socket->refs++;
+
+        } else {
+                // peer closed connection or socket was never connected
+                err = socket->eof ? ECONNRESET : ECONNREFUSED;
         }
 
-        int err = EINVAL;
+        sys_critical_section_end();
+
+        if (err) {
+                return err;
+        }
 
         if (socket->type == NETM_SOCKET_TYPE__STREAM) {
-                err = buffer_stream_send(uds, socket, socket->conn_sock->buf, buf, len, sent);
+                err = buffer_stream_send(uds, socket, dst, buf, len, sent);
 
         } else if (socket->type == NETM_SOCKET_TYPE__DATAGRAM) {
-                err = buffer_datagram_send(uds, socket, socket->conn_sock->buf, buf, len, sent);
+                err = buffer_datagram_send(uds, socket, dst, buf, len, sent);
+
+        } else {
+                err = EINVAL;
         }
 
-        uds->stats.tx_bytes += *sent;
-        uds->stats.tx_packets++;
+        operation_finish(uds, socket, dst, false, err ? 0 : *sent);
 
         return err;
 }
@@ -681,15 +1064,17 @@ int UDS_socket_sendto(void *ctx, UDS_socket_t *socket, const void *buf, size_t l
 
         uds_t *uds = ctx;
 
+        *sent = 0;
+
         if (uds->state == NETM_UDS_STATE__DOWN) {
                 return ENONET;
         }
 
-        if (to_addr_size != sizeof(*to_addr)) {
+        if ((to_addr_size != sizeof(*to_addr)) or not path_is_valid(to_addr->path, sizeof(to_addr->path))) {
                 return EINVAL;
         }
 
-        if (socket->type == NETM_SOCKET_TYPE__STREAM) {
+        if (socket->type != NETM_SOCKET_TYPE__DATAGRAM) {
                 return ECANCELED;
         }
 
@@ -697,35 +1082,52 @@ int UDS_socket_sendto(void *ctx, UDS_socket_t *socket, const void *buf, size_t l
                 return EPERM;
         }
 
-        UDS_socket_t *to_socket = NULL;
+        UDS_socket_t *dst = NULL;
 
-        int err = sys_mutex_lock(uds->socket.mutex, _WAIT_FOREVER_MS);
-        if (not err) {
+        int err = stack_lock(uds);
+        if (err) {
+                return err;
+        }
+
+        if (socket->closing) {
+                err = EBADF;
+
+        } else {
                 err = ENOENT;
 
                 sys_llist_foreach (UDS_socket_t *, s, uds->socket.list) {
                         if (s->path and isstreq(s->path, to_addr->path)) {
-                                to_socket = s;
-                                err = 0;
+                                if (s->type != socket->type) {
+                                        err = ECONNABORTED;
+                                } else if (not s->buf) {
+                                        err = ECONNREFUSED;
+                                } else {
+                                        dst = s;
+
+                                        sys_critical_section_begin();
+                                        if (socket->closing) {
+                                                err = EBADF;
+                                        } else {
+                                                dst->refs++;
+                                                socket->refs++;
+                                                err = ESUCC;
+                                        }
+                                        sys_critical_section_end();
+                                }
                                 break;
                         }
                 }
-
-                sys_mutex_unlock(uds->socket.mutex);
         }
+
+        stack_unlock(uds);
 
         if (err) {
                 return err;
         }
 
-        if (to_socket->type != socket->type) {
-                return ECONNABORTED;
-        }
+        err = buffer_datagram_send(uds, socket, dst, buf, len, sent);
 
-        err = buffer_datagram_send(uds, socket, to_socket->buf, buf, len, sent);
-
-        uds->stats.tx_bytes += *sent;
-        uds->stats.tx_packets++;
+        operation_finish(uds, socket, dst, false, err ? 0 : *sent);
 
         return err;
 }
@@ -825,24 +1227,27 @@ int UDS_socket_get_send_timeout(void *ctx, UDS_socket_t *socket, uint32_t *timeo
 //==============================================================================
 int UDS_socket_getaddress(void *ctx, UDS_socket_t *socket, NETM_UDS_sockaddr_t *addr, size_t addr_size)
 {
-        UNUSED_ARG1(ctx);
+        uds_t *uds = ctx;
 
         if (addr_size != sizeof(*addr)) {
                 return EINVAL;
         }
 
-        if (socket->conn_sock and socket->connected) {
-                sys_strlcpy(addr->path, socket->conn_sock->path, sizeof(addr->path));
-                return 0;
+        int err = stack_lock(uds);
+        if (not err) {
+                const char *path = socket->path;
 
-        } else if (socket->path) {
-                sys_strlcpy(addr->path, socket->path, sizeof(addr->path));
-                return 0;
+                if (socket->conn_sock and socket->connected) {
+                        path = socket->conn_sock->path;
+                }
 
-        } else {
-                sys_strlcpy(addr->path, "", sizeof(addr->path));
-                return 0;
+                // accepted and not bound sockets have no path
+                sys_strlcpy(addr->path, path ? path : "", sizeof(addr->path));
+
+                stack_unlock(uds);
         }
+
+        return err;
 }
 
 //==============================================================================
@@ -883,6 +1288,345 @@ u64_t UDS_hton_u64(u64_t value)
 
 //==============================================================================
 /**
+ * @brief  Lock stack mutex.
+ *
+ * Lock is retried when thread kill is requested, because bookkeeping
+ * (e.g. socket references) must be always finished.
+ *
+ * @param  uds          UDS instance
+ *
+ * @return One of @ref errno value.
+ */
+//==============================================================================
+static int stack_lock(uds_t *uds)
+{
+        int err;
+
+        do {
+                err = sys_mutex_lock(uds->socket.mutex, _WAIT_FOREVER_MS);
+        } while ((err == ECANCELED) or (err == ETIME));
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Unlock stack mutex.
+ *
+ * @param  uds          UDS instance
+ */
+//==============================================================================
+static void stack_unlock(uds_t *uds)
+{
+        sys_mutex_unlock(uds->socket.mutex);
+}
+
+//==============================================================================
+/**
+ * @brief  Check if socket path is NUL terminated within buffer and not empty.
+ *
+ * @param  path         path buffer
+ * @param  size         path buffer size
+ *
+ * @return True if path is valid.
+ */
+//==============================================================================
+static bool path_is_valid(const char *path, size_t size)
+{
+        size_t len = strnlen(path, size);
+        return (len > 0) and (len < size);
+}
+
+//==============================================================================
+/**
+ * @brief  Check if socket is registered in stack. Socket object is not
+ *         dereferenced, so the function is safe for already destroyed sockets.
+ *         Stack mutex must be locked.
+ *
+ * @param  uds          UDS instance
+ * @param  socket       socket
+ *
+ * @return True if socket is registered.
+ */
+//==============================================================================
+static bool socket_is_registered(uds_t *uds, UDS_socket_t *socket)
+{
+        return sys_llist_find_begin(uds->socket.list, socket) >= 0;
+}
+
+//==============================================================================
+/**
+ * @brief  Mark socket as used by pending operation. Socket is not released by
+ *         destroy function until reference is put back. Function can be called
+ *         without stack mutex (critical section is used).
+ *
+ * @param  uds          UDS instance
+ * @param  socket       socket
+ *
+ * @return One of @ref errno value (EBADF when socket is being destroyed).
+ */
+//==============================================================================
+static int socket_ref_get(uds_t *uds, UDS_socket_t *socket)
+{
+        UNUSED_ARG1(uds);
+
+        int err = ESUCC;
+
+        sys_critical_section_begin();
+
+        if (socket->closing) {
+                err = EBADF;
+        } else {
+                socket->refs++;
+        }
+
+        sys_critical_section_end();
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Release socket reference.
+ *
+ * @param  uds          UDS instance
+ * @param  socket       socket
+ */
+//==============================================================================
+static void socket_ref_put(uds_t *uds, UDS_socket_t *socket)
+{
+        UNUSED_ARG1(uds);
+
+        sys_critical_section_begin();
+
+        if (socket->refs > 0) {
+                socket->refs--;
+        }
+
+        sys_critical_section_end();
+}
+
+//==============================================================================
+/**
+ * @brief  Unlink socket and its peer. Stack mutex must be locked and function
+ *         must be called in critical section.
+ *
+ * @param  socket       socket
+ */
+//==============================================================================
+static void socket_peer_detach(UDS_socket_t *socket)
+{
+        UDS_socket_t *peer = socket->conn_sock;
+
+        if (peer and (peer->conn_sock == socket)) {
+                peer->conn_sock = NULL;
+                peer->connected = false;
+        }
+
+        socket->conn_sock = NULL;
+        socket->connected = false;
+}
+
+//==============================================================================
+/**
+ * @brief  Finish client connection request (accepted or rejected) and wake up
+ *         client. Stack mutex must be locked. Request of client that gave up
+ *         or does not exist anymore is ignored.
+ *
+ * @param  uds          UDS instance
+ * @param  req          requesting (client) socket
+ * @param  err          ESUCC: accepted (conn_sock is already set), otherwise error
+ */
+//==============================================================================
+static void socket_conn_req_finish(uds_t *uds, UDS_socket_t *req, int err)
+{
+        if (req and socket_is_registered(uds, req) and req->connecting) {
+                req->conn_err = err;
+                req->connecting = false;
+
+                sys_critical_section_begin();
+                req->connected = (err == ESUCC);
+                sys_critical_section_end();
+
+                if (req->conn_sem) {
+                        sys_semaphore_signal(req->conn_sem);
+                }
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Start operation deadline.
+ *
+ * @param  dl           deadline
+ * @param  timeout      timeout in milliseconds
+ */
+//==============================================================================
+static void deadline_start(deadline_t *dl, u32_t timeout)
+{
+        dl->timeout = timeout;
+        dl->tref = (timeout < _WAIT_FOREVER_MS) ? sys_get_uptime_ms() : 0;
+}
+
+//==============================================================================
+/**
+ * @brief  Return next wait slice.
+ *
+ * @param  dl           deadline
+ *
+ * @return Wait time in milliseconds, 0 when deadline expired.
+ */
+//==============================================================================
+static u32_t deadline_slice(const deadline_t *dl)
+{
+        if (dl->timeout >= _WAIT_FOREVER_MS) {
+                return WAIT_SLICE_MS;
+        }
+
+        clock_t elapsed = sys_get_uptime_ms() - dl->tref;
+
+        if (elapsed >= cast(clock_t, dl->timeout)) {
+                return 0;
+        }
+
+        clock_t left = cast(clock_t, dl->timeout) - elapsed;
+
+        return (left < WAIT_SLICE_MS) ? cast(u32_t, left) : WAIT_SLICE_MS;
+}
+
+//==============================================================================
+/**
+ * @brief  Check if waiting operation should be aborted.
+ *
+ * @param  uds          UDS instance
+ * @param  cond         abort conditions
+ *
+ * @return ESUCC when operation can wait further, otherwise error.
+ */
+//==============================================================================
+static int wait_check(uds_t *uds, const wait_cond_t *cond)
+{
+        int err = ESUCC;
+
+        sys_critical_section_begin();
+        {
+                if (uds->state == NETM_UDS_STATE__DOWN) {
+                        err = ENONET;
+
+                } else if (cond->self and cond->self->closing) {
+                        err = ECONNRESET;
+
+                } else if (cond->peer and cond->peer->closing) {
+                        err = ECONNRESET;
+
+                } else if (cond->link and (cond->self->conn_sock != cond->peer)) {
+                        err = ECONNRESET;
+
+                } else if (cond->eof and cond->self->eof) {
+                        err = ECONNRESET;
+                }
+        }
+        sys_critical_section_end();
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Send item to queue or receive item from queue with deadline.
+ *
+ * Send: first attempt does not block (queue is usually not full).
+ * Receive: abort conditions are checked first and then function waits
+ * (failed non-blocking attempt is avoided when receiver waits for data).
+ * Waiting is divided into slices and abort conditions are checked between
+ * slices.
+ *
+ * @param  uds          UDS instance
+ * @param  queue        queue
+ * @param  item         item
+ * @param  send         true: send, false: receive
+ * @param  dl           deadline
+ * @param  cond         abort conditions
+ *
+ * @return One of @ref errno value (ETIME when deadline expired).
+ */
+//==============================================================================
+static int queue_wait(uds_t *uds, kqueue_t *queue, void *item, bool send, const deadline_t *dl, const wait_cond_t *cond)
+{
+        u32_t slice = 0;
+
+        if (not send) {
+                int err = wait_check(uds, cond);
+                if (err) {
+                        // data could be sent just before abort condition was set
+                        return (sys_queue_receive(queue, item, 0) == ESUCC) ? ESUCC : err;
+                }
+
+                slice = deadline_slice(dl);
+        }
+
+        for (;;) {
+                int err = send ? sys_queue_send(queue, item, slice) : sys_queue_receive(queue, item, slice);
+                if (err != ETIME) {
+                        return err;
+                }
+
+                err = wait_check(uds, cond);
+                if (err) {
+                        // peer could send last data just before it closed connection
+                        if (not send and (sys_queue_receive(queue, item, 0) == ESUCC)) {
+                                return ESUCC;
+                        }
+
+                        return err;
+                }
+
+                slice = deadline_slice(dl);
+                if (slice == 0) {
+                        return ETIME;
+                }
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Finish socket operation: release references of socket and
+ *         destination socket and update interface statistics.
+ *
+ * @param  uds          UDS instance
+ * @param  socket       socket that performed operation (referenced)
+ * @param  dst          destination socket (referenced), can be NULL
+ * @param  rx           true: RX direction, false: TX direction
+ * @param  bytes        number of transferred bytes
+ */
+//==============================================================================
+static void operation_finish(uds_t *uds, UDS_socket_t *socket, UDS_socket_t *dst, bool rx, size_t bytes)
+{
+        sys_critical_section_begin();
+        {
+                if (socket->refs > 0) {
+                        socket->refs--;
+                }
+
+                if (dst and (dst->refs > 0)) {
+                        dst->refs--;
+                }
+
+                if (bytes > 0) {
+                        if (rx) {
+                                uds->stats.rx_bytes += bytes;
+                                uds->stats.rx_packets++;
+                        } else {
+                                uds->stats.tx_bytes += bytes;
+                                uds->stats.tx_packets++;
+                        }
+                }
+        }
+        sys_critical_section_end();
+}
+
+//==============================================================================
+/**
  * @brief  Register socket.
  *
  * @param  uds          UDS instance
@@ -893,14 +1637,14 @@ u64_t UDS_hton_u64(u64_t value)
 //==============================================================================
 static int socket_register(uds_t *uds, UDS_socket_t *socket)
 {
-        int err = sys_mutex_lock(uds->socket.mutex, _WAIT_FOREVER_MS);
+        int err = stack_lock(uds);
         if (not err) {
 
                 if (sys_llist_push_back(uds->socket.list, socket) != socket) {
                         err = ENOMEM;
                 }
 
-                sys_mutex_unlock(uds->socket.mutex);
+                stack_unlock(uds);
         }
 
         return err;
@@ -918,7 +1662,7 @@ static int socket_register(uds_t *uds, UDS_socket_t *socket)
 //==============================================================================
 static int socket_unregister(uds_t *uds, UDS_socket_t *socket)
 {
-        int err = sys_mutex_lock(uds->socket.mutex, _WAIT_FOREVER_MS);
+        int err = stack_lock(uds);
         if (not err) {
                 err = ENOENT;
 
@@ -929,7 +1673,7 @@ static int socket_unregister(uds_t *uds, UDS_socket_t *socket)
                         }
                 }
 
-                sys_mutex_unlock(uds->socket.mutex);
+                stack_unlock(uds);
         }
 
         return err;
@@ -951,12 +1695,13 @@ static int buffer_create(uds_t *uds, UDS_socket_t *socket)
 
         int err = 0;
 
-        if (not socket->buf) {
-                bool stream = (socket->type == NETM_SOCKET_TYPE__STREAM);
-                size_t items = stream ? STREAM_BUF_SIZE : MAX_DATAGRAM_BUFFERS;
-                size_t item_size = stream ? 1 : sizeof(datagram_t);
+        if (socket->type == NETM_SOCKET_TYPE__STREAM) {
+                if (not socket->stream) {
+                        err = stream_create(socket);
+                }
 
-                err = sys_queue_create(items, item_size, &socket->buf);
+        } else if (not socket->buf) {
+                err = sys_queue_create(MAX_DATAGRAM_BUFFERS, sizeof(datagram_t), &socket->buf);
         }
 
         return err;
@@ -976,14 +1721,10 @@ static int buffer_reset(uds_t *uds, UDS_socket_t *socket)
 {
         UNUSED_ARG1(uds);
 
-        if (not socket->buf) {
-                return 0;
-        }
-
         if (socket->type == NETM_SOCKET_TYPE__STREAM) {
-                sys_queue_reset(socket->buf);
+                stream_reset(socket);
 
-        } else if (socket->type == NETM_SOCKET_TYPE__DATAGRAM) {
+        } else if (socket->buf) {
                 datagram_t datagram;
                 while (sys_queue_receive(socket->buf, &datagram, 0) == 0) {
 
@@ -991,7 +1732,9 @@ static int buffer_reset(uds_t *uds, UDS_socket_t *socket)
                                 zfree(cast(void **, &datagram.from));
                         }
 
-                        zfree(cast(void **, &datagram.data));
+                        if (datagram.data) {
+                                zfree(cast(void **, &datagram.data));
+                        }
                 }
         }
 
@@ -1015,17 +1758,24 @@ static int buffer_reset(uds_t *uds, UDS_socket_t *socket)
 static int buffer_datagram_receive(uds_t *uds, UDS_socket_t *socket, void *buf, size_t len, NETM_UDS_sockaddr_t *addr,
         size_t *recved)
 {
-        UNUSED_ARG1(uds);
-
         *recved = 0;
 
         if (socket->type != NETM_SOCKET_TYPE__DATAGRAM) {
                 return EINVAL;
         }
 
+        if (addr) {
+                addr->path[0] = '\0';
+        }
+
+        deadline_t dl;
+        deadline_start(&dl, socket->recv_timeout);
+
+        const wait_cond_t cond = {.self = socket};
+
         datagram_t datagram;
 
-        int err = sys_queue_receive(socket->buf, &datagram, socket->recv_timeout);
+        int err = queue_wait(uds, socket->buf, &datagram, false, &dl, &cond);
         if (err) {
                 if (err == ETIME) {
                         err = 0;
@@ -1042,9 +1792,13 @@ static int buffer_datagram_receive(uds_t *uds, UDS_socket_t *socket, void *buf, 
 
                 size_t n = min(datagram.len, len);
 
-                memcpy(buf, datagram.data, n);
+                if (n > 0) {
+                        memcpy(buf, datagram.data, n);
+                }
 
-                zfree(cast(void **, &datagram.data));
+                if (datagram.data) {
+                        zfree(cast(void **, &datagram.data));
+                }
 
                 *recved = n;
         }
@@ -1058,7 +1812,7 @@ static int buffer_datagram_receive(uds_t *uds, UDS_socket_t *socket, void *buf, 
  *
  * @param  uds          instance
  * @param  socket       socket
- * @param  buffer       destination socket buffer
+ * @param  dst          destination socket (referenced)
  * @param  data         data to send
  * @param  len          data length
  * @param  sent         number of sent bytes
@@ -1066,26 +1820,29 @@ static int buffer_datagram_receive(uds_t *uds, UDS_socket_t *socket, void *buf, 
  * @return On success 0 is returned.
  */
 //==============================================================================
-static int buffer_datagram_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buffer, const void *data, size_t len,
+static int buffer_datagram_send(uds_t *uds, UDS_socket_t *socket, UDS_socket_t *dst, const void *data, size_t len,
         size_t *sent)
 {
-        UNUSED_ARG1(uds);
-
         *sent = 0;
 
         if (socket->type != NETM_SOCKET_TYPE__DATAGRAM) {
                 return EINVAL;
         }
 
+        if (len > MAX_DATAGRAM_SIZE) {
+                return EINVAL;
+        }
+
         datagram_t datagram;
 
-        datagram.len = min(len, MAX_DATAGRAM_SIZE);
+        datagram.len = len;
         datagram.data = NULL;
         datagram.from = NULL;
 
-        int err = kalloc(datagram.len, cast(void **, &datagram.data));
-        if (not err) {
-                memcpy(datagram.data, data, datagram.len);
+        // allocate at least 1 byte to support zero-length datagrams
+        int err = kalloc(len ? len : 1, cast(void **, &datagram.data));
+        if (not err and (len > 0)) {
+                memcpy(datagram.data, data, len);
         }
 
         if (not err and socket->path) {
@@ -1097,7 +1854,12 @@ static int buffer_datagram_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buff
         }
 
         if (not err) {
-                err = sys_queue_send(buffer, &datagram, socket->send_timeout);
+                deadline_t dl;
+                deadline_start(&dl, socket->send_timeout);
+
+                const wait_cond_t cond = {.self = socket, .peer = dst};
+
+                err = queue_wait(uds, dst->buf, &datagram, true, &dl, &cond);
         }
 
         if (err) {
@@ -1117,7 +1879,143 @@ static int buffer_datagram_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buff
 
 //==============================================================================
 /**
+ * @brief  Create stream buffer.
+ *
+ * @param  socket       socket
+ *
+ * @return One of @ref errno value.
+ */
+//==============================================================================
+static int stream_create(UDS_socket_t *socket)
+{
+        stream_t *stream = NULL;
+
+        int err = zalloc(sizeof(stream_t) + STREAM_BUF_SIZE, cast(void **, &stream));
+        if (err) {
+                return err;
+        }
+
+        stream->size = STREAM_BUF_SIZE;
+
+        err = sys_semaphore_create(1, 0, &stream->rx_sem);
+
+        if (not err) {
+                err = sys_semaphore_create(1, 0, &stream->tx_sem);
+        }
+
+        if (err) {
+                if (stream->rx_sem) {
+                        sys_semaphore_destroy(stream->rx_sem);
+                }
+
+                zfree(cast(void **, &stream));
+                return err;
+        }
+
+        socket->stream = stream;
+
+        return ESUCC;
+}
+
+//==============================================================================
+/**
+ * @brief  Destroy stream buffer.
+ *
+ * @param  socket       socket
+ */
+//==============================================================================
+static void stream_destroy(UDS_socket_t *socket)
+{
+        stream_t *stream = socket->stream;
+
+        if (stream) {
+                socket->stream = NULL;
+                sys_semaphore_destroy(stream->rx_sem);
+                sys_semaphore_destroy(stream->tx_sem);
+                zfree(cast(void **, &stream));
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Drop all data of stream buffer.
+ *
+ * Read index is moved to the write position, so data that is just copied by
+ * writer (not committed yet) stays consistent.
+ *
+ * @param  socket       socket
+ */
+//==============================================================================
+static void stream_reset(UDS_socket_t *socket)
+{
+        stream_t *stream = socket->stream;
+
+        if (stream) {
+                sys_critical_section_begin();
+                stream->rd = (stream->rd + stream->cnt) % stream->size;
+                stream->cnt = 0;
+                bool wake = stream->tx_wait;
+                stream->tx_wait = false;
+                sys_critical_section_end();
+
+                if (wake) {
+                        sys_semaphore_signal(stream->tx_sem);
+                }
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Wake up threads that wait for data or space of stream buffer
+ *         (state of sockets was changed). Stack mutex must be locked.
+ *
+ * @param  socket       socket (registered or destroyed by caller)
+ */
+//==============================================================================
+static void stream_wake(UDS_socket_t *socket)
+{
+        if (socket and socket->stream) {
+                sys_semaphore_signal(socket->stream->rx_sem);
+                sys_semaphore_signal(socket->stream->tx_sem);
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Wait for stream buffer event (data or space).
+ *
+ * @param  uds          UDS instance
+ * @param  sem          event semaphore
+ * @param  dl           deadline
+ * @param  cond         abort conditions
+ *
+ * @return ESUCC when caller should check the buffer again, ETIME when deadline
+ *         expired, otherwise error.
+ */
+//==============================================================================
+static int stream_wait(uds_t *uds, ksem_t *sem, const deadline_t *dl, const wait_cond_t *cond)
+{
+        int err = wait_check(uds, cond);
+        if (err) {
+                return err;
+        }
+
+        u32_t slice = deadline_slice(dl);
+        if (slice == 0) {
+                return ETIME;
+        }
+
+        err = sys_semaphore_wait(sem, slice);
+
+        return (err == ETIME) ? ESUCC : err;
+}
+
+//==============================================================================
+/**
  * @brief  Receive data from stream buffer.
+ *
+ * Function waits for data and then takes all available bytes (up to len).
+ * When peer closed connection, remaining data is received first.
  *
  * @param  uds          instance
  * @param  socket       socket
@@ -1125,95 +2023,158 @@ static int buffer_datagram_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buff
  * @param  len          number of bytes to receive
  * @param  recved       number of received bytes
  *
- * @return On success 0 is returned.
+ * @return On success 0 is returned (also on timeout without data).
  */
 //==============================================================================
 static int buffer_stream_receive(uds_t *uds, UDS_socket_t *socket, void *buf, size_t len, size_t *recved)
 {
-        UNUSED_ARG1(uds);
-
         *recved = 0;
 
-        if (socket->type != NETM_SOCKET_TYPE__STREAM) {
+        stream_t *stream = socket->stream;
+
+        if ((socket->type != NETM_SOCKET_TYPE__STREAM) or not stream) {
                 return EINVAL;
         }
 
-        size_t n = 0;
-        int err = EINVAL;
+        if (len == 0) {
+                return 0;
+        }
 
-        while (len > 0) {
-                err = sys_queue_receive(socket->buf, buf, socket->recv_timeout);
-                if (err) {
-                        if (err == ETIME) {
-                                err = 0;
+        deadline_t dl;
+        deadline_start(&dl, socket->recv_timeout);
+
+        const wait_cond_t cond = {.self = socket, .eof = true};
+
+        for (;;) {
+                sys_critical_section_begin();
+                size_t rd = stream->rd;
+                size_t cnt = stream->cnt;
+                if (cnt == 0) {
+                        stream->rx_wait = true;
+                }
+                sys_critical_section_end();
+
+                if (cnt > 0) {
+                        u8_t *dst = buf;
+                        size_t n = min(cnt, len);
+                        size_t part = min(n, stream->size - rd);
+
+                        memcpy(dst, &stream->data[rd], part);
+                        if (n > part) {
+                                memcpy(&dst[part], &stream->data[0], n - part);
                         }
-                        break;
-                } else {
-                        len--;
-                        buf++;
-                        n++;
 
-                        size_t available;
-                        if (sys_queue_get_number_of_items(socket->buf, &available) == 0) {
-                                if (available == 0) {
-                                        break;
-                                }
+                        sys_critical_section_begin();
+                        stream->rd = (rd + n) % stream->size;
+                        stream->cnt -= n;
+                        bool wake = stream->tx_wait;
+                        stream->tx_wait = false;
+                        sys_critical_section_end();
+
+                        if (wake) {
+                                sys_semaphore_signal(stream->tx_sem);
+                        }
+
+                        *recved = n;
+                        return 0;
+                }
+
+                int err = stream_wait(uds, stream->rx_sem, &dl, &cond);
+                if (err) {
+                        // data could be sent just before abort condition was set
+                        sys_critical_section_begin();
+                        cnt = stream->cnt;
+                        sys_critical_section_end();
+
+                        if (cnt == 0) {
+                                // timeout without data is not an error
+                                return (err == ETIME) ? 0 : err;
                         }
                 }
         }
-
-        if (not err) {
-                *recved = n;
-        }
-
-        return err;
 }
 
 //==============================================================================
 /**
  * @brief  Send stream.
  *
+ * Send timeout applies to the whole operation. When timeout expires or
+ * connection is closed after part of data was sent, number of sent bytes
+ * is returned without error.
+ *
  * @param  uds          instance
  * @param  socket       socket
- * @param  buffer       destination socket buffer
- * @param  data         data to send
+ * @param  dst          destination socket (referenced)
+ * @param  buf          data to send
  * @param  len          data length
  * @param  sent         number of sent bytes
  *
  * @return On success 0 is returned.
  */
 //==============================================================================
-static int buffer_stream_send(uds_t *uds, UDS_socket_t *socket, kqueue_t *buffer, const void *buf, size_t len,
+static int buffer_stream_send(uds_t *uds, UDS_socket_t *socket, UDS_socket_t *dst, const void *buf, size_t len,
         size_t *sent)
 {
-        UNUSED_ARG1(uds);
-
         *sent = 0;
 
-        if (socket->type != NETM_SOCKET_TYPE__STREAM) {
+        stream_t *stream = dst->stream;
+
+        if ((socket->type != NETM_SOCKET_TYPE__STREAM) or not stream) {
                 return EINVAL;
         }
 
-        int err = EINVAL;
+        const u8_t *src = buf;
         size_t n = 0;
+        int err = 0;
 
-        while (len > 0) {
-                err = sys_queue_send(buffer, buf, socket->send_timeout);
-                if (err) {
-                        break;
+        deadline_t dl;
+        deadline_start(&dl, socket->send_timeout);
 
-                } else {
-                        buf++;
-                        len--;
-                        n++;
+        const wait_cond_t cond = {.self = socket, .peer = dst, .link = true};
+
+        while (n < len) {
+                sys_critical_section_begin();
+                size_t cnt = stream->cnt;
+                size_t wr = (stream->rd + cnt) % stream->size;
+                size_t space = stream->size - cnt;
+                if (space == 0) {
+                        stream->tx_wait = true;
                 }
+                sys_critical_section_end();
+
+                if (space == 0) {
+                        err = stream_wait(uds, stream->tx_sem, &dl, &cond);
+                        if (err) {
+                                break;
+                        }
+                        continue;
+                }
+
+                size_t chunk = min(space, len - n);
+                size_t part = min(chunk, stream->size - wr);
+
+                memcpy(&stream->data[wr], &src[n], part);
+                if (chunk > part) {
+                        memcpy(&stream->data[0], &src[n + part], chunk - part);
+                }
+
+                sys_critical_section_begin();
+                stream->cnt += chunk;
+                bool wake = stream->rx_wait;
+                stream->rx_wait = false;
+                sys_critical_section_end();
+
+                if (wake) {
+                        sys_semaphore_signal(stream->rx_sem);
+                }
+
+                n += chunk;
         }
 
-        if (not err) {
-                *sent = n;
-        }
+        // bytes already queued must be reported, otherwise caller duplicates them
+        *sent = n;
 
-        return err;
+        return (n > 0) ? 0 : err;
 }
 
 /*==============================================================================
