@@ -102,6 +102,7 @@ typedef struct {
         tid_t id;                         //!< thread id
         u8_t curr_syscall;                //!< current syscall
         bool running;                     //!< thread is running
+        bool kill;                        //!< thread kill requested
 } task_data_t;
 
 struct _process {

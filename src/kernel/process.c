@@ -115,6 +115,7 @@ static void process_get_stat(_process_t *proc, _process_stat_t *stat);
 static bool process_move_list(_process_t *proc, _process_t **list_from, _process_t **list_to);
 static void process_remove_from_list(_process_t *proc, _process_t **list);
 static void process_release(_process_t *proc);
+static tid_t get_own_tid(_process_t *proc);
 static int get_pid(pid_t *pid);
 static void destroy_all_tasks(_process_t *proc, bool with_zero);
 
@@ -308,6 +309,7 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
                 proc->taskdata[0].id = 0;
                 proc->taskdata[0].syscalls_per_sec = 0;
                 proc->taskdata[0].curr_syscall = NO_SYSCALL;
+                proc->taskdata[0].kill = false;
 
                 task_args->func = proc->pdata->main;
                 task_args->proc = proc;
@@ -378,8 +380,12 @@ void _process_clean_up_killed_processes(void)
 
                                 u8_t threads = __OS_PROCESS_MAX_THREADS__;
 
-                                _kernel_scheduler_lock();
-
+                                /*
+                                 * NOTE: thread state is protected by process mutex
+                                 *       (also changed at kernel space boundary).
+                                 *       Scheduler lock is not used, because it
+                                 *       does not stop the other CPU core.
+                                 */
                                 for (u8_t tid = 0; (tid < threads) and not running; tid++) {
                                         if (not proc->taskdata[tid].task) {
                                                 continue;
@@ -413,8 +419,6 @@ void _process_clean_up_killed_processes(void)
                                                 proc->taskdata[tid].running = false;
                                         }
                                 }
-
-                                _kernel_scheduler_unlock();
 
                                 if (not running) {
                                         _printk("PID %u: terminated.", proc->pid);
@@ -544,9 +548,19 @@ void _process_suicide(void)
 //==============================================================================
 bool _process_is_kill_requested(void)
 {
-        _process_t *proc;
-        _task_get_process_container_unprotected(_THIS_TASK, &proc);
-        return (not proc) or (proc->flag & PROC_FLAG_KILL);
+        task_t *self = _task_get_handle();
+        _process_t *proc = _task_get_storage_pointer(self, STORAGE_IDX_PROC);
+        task_data_t *task_data = _task_get_storage_pointer(self, STORAGE_IDX_TASK_DATA);
+
+        /*
+         * NOTE: task without process (e.g. kernel helper task) is never killed,
+         *       otherwise its waits would be canceled.
+         */
+        if (not proc) {
+                return false;
+        }
+
+        return (proc->flag & PROC_FLAG_KILL) or (task_data and task_data->kill);
 }
 
 //==============================================================================
@@ -624,7 +638,19 @@ void _process_exit(_process_t *proc, int status)
                 do {
                         running = false;
 
-                        _kernel_scheduler_lock();
+                        /*
+                         * NOTE: process mutex is locked, because thread state is
+                         *       changed with this mutex at kernel space boundary.
+                         *       Scheduler lock is not used, because it does not
+                         *       stop the other CPU core. Without mutex the thread
+                         *       could be suspended just when it enters kernel
+                         *       space (with locked process mutex).
+                         */
+                        if (_mutex_lock(process_mtx, _WAIT_FOREVER_MS) != ESUCC) {
+                                running = true;
+                                _sleep_ms(10);
+                                continue;
+                        }
 
                         for (u8_t tid = 0; (tid < threads) and not running; tid++) {
                                 if (self_tid == tid) {
@@ -652,7 +678,7 @@ void _process_exit(_process_t *proc, int status)
                                 }
                         }
 
-                        _kernel_scheduler_unlock();
+                        _mutex_unlock(process_mtx);
 
                         if (running) {
                                 _sleep_ms(100);
@@ -1437,31 +1463,99 @@ int _process_thread_kill(_process_t *proc, tid_t tid)
 {
         int err = EINVAL;
 
-        if (is_proc_valid(proc) && (tid > 0) && is_tid_in_range(proc, tid)) {
-                task_t *task = NULL;
+        if (not(is_proc_valid(proc) && (tid > 0) && is_tid_in_range(proc, tid))) {
+                return err;
+        }
 
-                ATOMIC (process_mtx) {
-                        task = proc->taskdata[tid].task;
+        task_t *self = _task_get_handle();
+        task_t *task = NULL;
+
+        /*
+         * NOTE: threads of kworker are kernel threads that do not use syscalls
+         *       (do not cross kernel space boundary), so they are destroyed
+         *       immediately as before. Thread that kills itself is destroyed
+         *       immediately too, because it cannot wait for itself.
+         */
+        bool wait = not(proc->flag & PROC_FLAG_KWORKER);
+
+        ATOMIC (process_mtx) {
+                task = proc->taskdata[tid].task;
+                err = ESUCC;
+
+                if (task and (task != self) and wait) {
+                        // thread mutex/semaphore/queue waits are canceled from now on
+                        proc->taskdata[tid].kill = true;
+                } else {
+                        wait = false;
                         proc->taskdata[tid].task = NULL;
 
                         if (proc->event) {
                                 _flag_set(proc->event, _PROCESS_EXIT_FLAG(tid));
                         }
-
-                        err = ESUCC;
-                }
-
-                /*
-                 * NOTE: task is destroyed outside the process mutex, because
-                 *       the thread can kill itself and mutex would never be
-                 *       released.
-                 */
-                if (task) {
-                        _task_destroy(task);
                 }
         }
 
-        return err;
+        if (err or not task) {
+                return err;
+        }
+
+        /*
+         * NOTE: thread is destroyed when it is out of the syscall. Thread that
+         *       is in the syscall leaves it (waits are canceled) and parks
+         *       itself at kernel space boundary. Thread state is checked with
+         *       locked process mutex, because the same mutex is used when
+         *       thread crosses kernel space boundary (also on other CPU core).
+         */
+        while (wait) {
+                bool parked = false;
+
+                if (_mutex_lock(process_mtx, _WAIT_FOREVER_MS) == ESUCC) {
+
+                        if (proc->taskdata[tid].task != task) {
+                                // thread was destroyed in the meantime
+                                _mutex_unlock(process_mtx);
+                                return ESUCC;
+                        }
+
+                        if (proc->taskdata[tid].curr_syscall == NO_SYSCALL) {
+                                _task_suspend(task);
+                                proc->taskdata[tid].running = false;
+                                proc->taskdata[tid].task = NULL;
+
+                                if (proc->event) {
+                                        _flag_set(proc->event, _PROCESS_EXIT_FLAG(tid));
+                                }
+
+                                parked = true;
+                        }
+
+                        _mutex_unlock(process_mtx);
+                }
+
+                if (parked) {
+                        break;
+                }
+
+                if (_process_is_kill_requested()) {
+                        /*
+                         * NOTE: caller is killed, so it cannot wait. Thread has
+                         *       kill request and parks itself at kernel space
+                         *       boundary. It is destroyed with the process.
+                         */
+                        return ECANCELED;
+                }
+
+                _sleep_ms(10);
+        }
+
+        /*
+         * NOTE: task is destroyed outside the process mutex, because
+         *       the thread can kill itself and mutex would never be
+         *       released.
+         */
+        _task_destroy(task);
+
+        return ESUCC;
 }
 
 //==============================================================================
@@ -1670,7 +1764,18 @@ int _process_thread_exit(int exit)
                         _process_exit(proc, exit);
 
                 } else {
-                        proc->taskdata[tid].status = exit;
+                        ATOMIC (process_mtx) {
+                                proc->taskdata[tid].status = exit;
+
+                                /*
+                                 * NOTE: thread waits here only for destroy and
+                                 *       does not use any resources, so it is not
+                                 *       visible as being in the syscall. Otherwise
+                                 *       kill helper would wait for it forever.
+                                 */
+                                proc->taskdata[tid].kernelspace = false;
+                                proc->taskdata[tid].curr_syscall = NO_SYSCALL;
+                        }
 
                         while (true) {
                                 int err = _task_create(_kill_thread_helper, "", _STACK_DEPTH_MINIMAL,
@@ -2186,14 +2291,20 @@ void _process_enter_kernelspace(_process_t *proc, u8_t syscall)
 
                 bool kill_request = false;
 
+                /*
+                 * NOTE: own thread is used instead of active thread of the process,
+                 *       because on multi-core CPU the other thread of the process
+                 *       can be the last switched in thread.
+                 */
+                tid_t i = get_own_tid(proc);
+
                 ATOMIC (process_mtx) {
-                        tid_t i = _process_get_active_thread(proc, false);
                         proc->taskdata[i].kernelspace = true;
                         proc->taskdata[i].curr_syscall = syscall;
                         proc->taskdata[i].syscalls_ctr++;
                         _kworker_proc->taskdata[0].syscalls_ctr++;
 
-                        kill_request = proc->flag & PROC_FLAG_KILL;
+                        kill_request = (proc->flag & PROC_FLAG_KILL) or proc->taskdata[i].kill;
                         proc->taskdata[i].running = !kill_request;
 
                         if (kill_request) {
@@ -2230,12 +2341,13 @@ void _process_exit_kernelspace(_process_t *proc)
         if (is_proc_valid(proc)) {
                 bool kill_request = false;
 
+                tid_t i = get_own_tid(proc);
+
                 ATOMIC (process_mtx) {
-                        tid_t i = _process_get_active_thread(proc, false);
                         proc->taskdata[i].kernelspace = false;
                         proc->taskdata[i].curr_syscall = NO_SYSCALL;
 
-                        kill_request = proc->flag & PROC_FLAG_KILL;
+                        kill_request = (proc->flag & PROC_FLAG_KILL) or proc->taskdata[i].kill;
                         proc->taskdata[i].running = !kill_request;
                 }
 
@@ -2611,6 +2723,26 @@ static bool process_move_list(_process_t *proc, _process_t **list_from, _process
         }
 
         return moved;
+}
+
+//==============================================================================
+/**
+ * @brief  Function return thread ID of the calling thread.
+ *
+ * @param  proc         process of the calling thread
+ *
+ * @return Thread ID.
+ */
+//==============================================================================
+static tid_t get_own_tid(_process_t *proc)
+{
+        task_data_t *task_data = _task_get_storage_pointer(_task_get_handle(), STORAGE_IDX_TASK_DATA);
+
+        if (task_data and is_tid_in_range(proc, task_data->id)) {
+                return task_data->id;
+        }
+
+        return _process_get_active_thread(proc, false);
 }
 
 //==============================================================================
