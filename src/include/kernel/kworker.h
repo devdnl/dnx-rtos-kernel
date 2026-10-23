@@ -56,6 +56,7 @@ extern struct _process *_kworker_proc;
 ==============================================================================*/
 extern int _kworker_init();
 extern int _kworker_process(int, char **);
+extern void _kworker_wake(void);
 
 /*==============================================================================
   Exported inline functions

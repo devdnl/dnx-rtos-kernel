@@ -53,6 +53,9 @@
 ==============================================================================*/
 #define FS_CACHE_SYNC_PERIOD_MS (1000 * __OS_SYSTEM_CACHE_SYNC_PERIOD__)
 
+/* Kworker loop period if not woken up */
+#define KWORKER_PERIOD_MS 1000
+
 /* Stack size declared by linker script */
 #define STACK_SIZE ((size_t)&__stack_size - 512)
 
@@ -71,6 +74,7 @@
   Local objects
 ==============================================================================*/
 static _mm_region_t stack_region;
+static ksem_t *wake_sem;
 
 static const _process_attr_t kworker_attr = {
         .at_init = NULL,
@@ -112,12 +116,29 @@ extern void *__stack_start;
 //==============================================================================
 int _kworker_init(void)
 {
-        int err = _process_create("kworker", &kworker_attr, NULL);
+        int err = _semaphore_create(1, 0, &wake_sem);
+        if (!err) {
+                err = _process_create("kworker", &kworker_attr, NULL);
+        }
+
         if (!err) {
                 err = _process_create(__OS_INIT_PROG__, &kworker_attr, NULL);
         }
 
         return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Wake up kworker to do its job immediately (e.g. release resources
+ *         of killed process). Can be called from any task.
+ */
+//==============================================================================
+void _kworker_wake(void)
+{
+        if (wake_sem) {
+                _semaphore_signal(wake_sem);
+        }
 }
 
 //==============================================================================
@@ -142,7 +163,15 @@ int _kworker_process(int argc, char *argv[])
         clock_t sync_period_ref = _kernel_get_uptime_ms();
 
         for (;;) {
-                _sleep_ms(1000);
+                /*
+                 * NOTE: semaphore is signaled when kworker job is requested,
+                 *       e.g. when process is killed. Timeout is a normal case.
+                 */
+                if (wake_sem) {
+                        _semaphore_wait(wake_sem, KWORKER_PERIOD_MS);
+                } else {
+                        _sleep_ms(KWORKER_PERIOD_MS);
+                }
 
                 if ((_kernel_get_uptime_ms() - sync_period_ref) >= FS_CACHE_SYNC_PERIOD_MS) {
                         _vfs_sync();

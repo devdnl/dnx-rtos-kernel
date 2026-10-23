@@ -112,7 +112,9 @@ static int find_program(const char *name, const _program_entry_t **prog);
 static int allocate_process_globals(_process_t *proc, size_t app_ctx_size, const _program_entry_t *usrprog);
 static int process_apply_attributes(_process_t *proc, const _process_attr_t *attr);
 static void process_get_stat(_process_t *proc, _process_stat_t *stat);
-static void process_move_list(_process_t *proc, _process_t **list_from, _process_t **list_to);
+static bool process_move_list(_process_t *proc, _process_t **list_from, _process_t **list_to);
+static void process_remove_from_list(_process_t *proc, _process_t **list);
+static void process_release(_process_t *proc);
 static int get_pid(pid_t *pid);
 static void destroy_all_tasks(_process_t *proc, bool with_zero);
 
@@ -128,10 +130,10 @@ static pid_t PID_cnt;
 static _process_t *active_process_list;
 static _process_t *terminate_process_list;
 static _process_t *destroy_process_list;
+static _process_t *release_process_list;
 static _process_t *zombie_process_list;
 static _process_t *active_process[_CPUCTL_CORE_NUM];
 static kmtx_t *process_mtx;
-static bool process_mtx_locked;
 static kmtx_t *kworker_mtx;
 static dchain_t shared_desctab;
 static appset_table_t appset_base;
@@ -368,6 +370,7 @@ void _process_clean_up_killed_processes(void)
 
                 int err = _mutex_lock(process_mtx, 5000);
                 if (not err) {
+                        task_t *self = _task_get_handle();
 
                         foreach_process (proc, terminate_process_list) {
 
@@ -378,15 +381,27 @@ void _process_clean_up_killed_processes(void)
                                 _kernel_scheduler_lock();
 
                                 for (u8_t tid = 0; (tid < threads) and not running; tid++) {
-                                        if (proc->curr_task == tid) {
-                                                continue;
-                                        }
-
                                         if (not proc->taskdata[tid].task) {
                                                 continue;
                                         }
 
-                                        if (proc->taskdata[tid].running) {
+                                        /*
+                                         * NOTE: the calling thread belongs to the killed
+                                         *       process (clean up is called on syscall
+                                         *       entry). It cannot be suspended or destroyed
+                                         *       here, it parks itself at kernel space
+                                         *       entry. Process is destroyed later.
+                                         */
+                                        if (proc->taskdata[tid].task == self) {
+                                                running = true;
+                                                break;
+                                        }
+
+                                        /*
+                                         * NOTE: not running thread is already parked
+                                         *       (suspended at kernel space boundary).
+                                         */
+                                        if (not proc->taskdata[tid].running) {
                                                 continue;
                                         }
 
@@ -405,46 +420,55 @@ void _process_clean_up_killed_processes(void)
                                         _printk("PID %u: terminated.", proc->pid);
 
                                         process_move_list(proc, &terminate_process_list, &destroy_process_list);
+
+                                        // resources are released by kworker
+                                        _kworker_wake();
                                 }
                         }
 
                         _mutex_unlock(process_mtx);
 
                 } else {
-                        printk("permamently locked process mutex - unlocking");
-                        process_mtx_locked = true;
+                        /*
+                         * NOTE: process mutex is busy (e.g. other clean up is in
+                         *       progress). Clean up is retried at next syscall.
+                         */
                 }
         }
 
+        /*
+         * NOTE: resources (files, dirs, sockets, ...) of killed processes are
+         *       released only by kworker and without process mutex. Closing
+         *       of a file can block for a long time (e.g. file system mutex or
+         *       slow device). If it was done in a syscall of other process,
+         *       then that process would be blocked (e.g. top or shell), and if
+         *       it was done with process mutex locked then the whole system
+         *       would be blocked.
+         */
         if (destroy_process_list) {
-                int err = _mutex_lock(process_mtx, 5000);
-                if (not err) {
+                _process_t *self_proc = NULL;
+                _task_get_process_container_unprotected(_THIS_TASK, &self_proc);
+
+                if (self_proc and (self_proc->flag & PROC_FLAG_KWORKER)) {
                         while (destroy_process_list) {
-                                _process_t *proc = destroy_process_list;
+                                _process_t *proc = NULL;
 
-                                process_destroy_all_resources(proc);
+                                if (_mutex_lock(process_mtx, 5000) != ESUCC) {
+                                        // process mutex is busy, clean up is retried later
+                                        break;
+                                }
 
-                                if (not(proc->flag & PROC_FLAG_DETACHED)) {
-                                        process_move_list(proc, &destroy_process_list, &zombie_process_list);
+                                proc = destroy_process_list;
+                                if (proc) {
+                                        process_move_list(proc, &destroy_process_list, &release_process_list);
+                                }
 
-                                        // waiting process can remove zombie from now on
-                                        if (proc->event) {
-                                                _flag_set(proc->event, _PROCESS_EXIT_FLAG(0));
-                                        }
-                                } else {
-                                        destroy_process_list = cast(_process_t *, proc->header.next);
-                                        _flag_destroy(proc->event);
-                                        proc->event = NULL;
-                                        proc->header.self = NULL;
-                                        proc->header.type = RES_TYPE_UNKNOWN;
-                                        _kfree(_MM_KRN, cast(void *, &proc));
+                                _mutex_unlock(process_mtx);
+
+                                if (proc) {
+                                        process_release(proc);
                                 }
                         }
-
-                        _mutex_unlock(process_mtx);
-                } else {
-                        printk("permamently locked process mutex - unlocking");
-                        process_mtx_locked = true;
                 }
         }
 }
@@ -477,6 +501,11 @@ int _process_kill(pid_t pid)
                 }
         }
 
+        if (not err) {
+                // kworker finishes and releases killed process
+                _kworker_wake();
+        }
+
         return err;
 }
 
@@ -501,6 +530,9 @@ void _process_suicide(void)
 
                 process_move_list(proc, &active_process_list, &terminate_process_list);
         }
+
+        // kworker finishes and releases killed process
+        _kworker_wake();
 }
 
 //==============================================================================
@@ -574,13 +606,28 @@ void _process_exit(_process_t *proc, int status)
                 bool running = false;
                 u8_t threads = __OS_PROCESS_MAX_THREADS__;
 
+                /*
+                 * NOTE: own thread is found by task handle, because curr_task
+                 *       is the last switched in thread of the process and it
+                 *       can be other thread (e.g. running on other CPU core).
+                 */
+                bool release = false;
+                tid_t self_tid = proc->curr_task;
+                task_t *self = _task_get_handle();
+                for (tid_t tid = 0; tid < threads; tid++) {
+                        if (proc->taskdata[tid].task == self) {
+                                self_tid = tid;
+                                break;
+                        }
+                }
+
                 do {
                         running = false;
 
                         _kernel_scheduler_lock();
 
                         for (u8_t tid = 0; (tid < threads) and not running; tid++) {
-                                if (proc->curr_task == tid) {
+                                if (self_tid == tid) {
                                         continue;
                                 }
 
@@ -588,7 +635,11 @@ void _process_exit(_process_t *proc, int status)
                                         continue;
                                 }
 
-                                if (proc->taskdata[tid].running) {
+                                /*
+                                 * NOTE: not running thread is already parked
+                                 *       (suspended at kernel space boundary).
+                                 */
+                                if (not proc->taskdata[tid].running) {
                                         continue;
                                 }
 
@@ -633,7 +684,7 @@ void _process_exit(_process_t *proc, int status)
 
                 ATOMIC (process_mtx) {
                         for (tid_t tid = 0; tid < threads; tid++) {
-                                if (proc->curr_task == tid) {
+                                if (self_tid == tid) {
                                         continue;
                                 }
 
@@ -643,17 +694,39 @@ void _process_exit(_process_t *proc, int status)
                                 }
                         }
 
-                        process_move_list(proc, &active_process_list, &destroy_process_list);
-
-                        proc->taskdata[proc->curr_task].task = NULL;
-
                         /*
-                         * NOTE: exit flag is set by clean up function when process
-                         *       is moved to the zombie list. Detached process object
-                         *       is released by clean up function and must not be
-                         *       accessed after this call.
+                         * NOTE: if process was killed in the meantime then it
+                         *       is not in the active list and is released by
+                         *       clean up function (kworker).
                          */
-                        _process_clean_up_killed_processes();
+                        release = process_move_list(proc, &active_process_list, &release_process_list);
+
+                        if (release) {
+                                /*
+                                 * NOTE: all other threads are destroyed, so the
+                                 *       kill flag is cleared. Otherwise the lock of
+                                 *       busy objects would be canceled when process
+                                 *       resources are released (e.g. file close).
+                                 */
+                                proc->flag &= ~PROC_FLAG_KILL;
+                        }
+
+                        proc->taskdata[self_tid].task = NULL;
+                }
+
+                /*
+                 * NOTE: process resources are released in context of exiting
+                 *       thread without process mutex, because closing of
+                 *       process files can block for a long time. Exit flag is
+                 *       set when process is moved to the zombie list. Detached
+                 *       process object is released and must not be accessed
+                 *       after this call.
+                 */
+                if (release) {
+                        process_release(proc);
+                } else {
+                        // process was killed in the meantime, kworker finishes it
+                        _kworker_wake();
                 }
 
                 _task_exit();
@@ -1063,6 +1136,20 @@ int _process_get_container(pid_t pid, _process_t **process)
 
                 if (err) {
                         foreach_process (proc, destroy_process_list) {
+                                if (proc->pid == pid) {
+                                        *process = proc;
+                                        err = ESUCC;
+                                        break;
+                                }
+                        }
+                }
+
+                if (err) {
+                        /*
+                         * NOTE: process in release list has released resources
+                         *       in progress. It can be used only to wait for exit.
+                         */
+                        foreach_process (proc, release_process_list) {
                                 if (proc->pid == pid) {
                                         *process = proc;
                                         err = ESUCC;
@@ -2121,6 +2208,8 @@ void _process_enter_kernelspace(_process_t *proc, u8_t syscall)
                 }
 
                 if (kill_request) {
+                        // thread is parked, kworker can finish the killed process
+                        _kworker_wake();
                         _task_suspend(NULL);
                         while (true) {
                                 ;
@@ -2151,6 +2240,8 @@ void _process_exit_kernelspace(_process_t *proc)
                 }
 
                 if (kill_request) {
+                        // thread is parked, kworker can finish the killed process
+                        _kworker_wake();
                         _task_suspend(NULL);
                         while (true) {
                                 ;
@@ -2456,6 +2547,35 @@ static void thread_code(void *arg)
 
 //==============================================================================
 /**
+ * Function remove process from selected list.
+ *
+ * @param  proc         process to remove
+ * @param  list         list
+ */
+//==============================================================================
+static void process_remove_from_list(_process_t *proc, _process_t **list)
+{
+        ATOMIC (process_mtx) {
+                _process_t *prev = NULL;
+                foreach_process (p, *list) {
+                        if (p == proc) {
+                                if (prev) {
+                                        prev->header.next = proc->header.next;
+                                } else {
+                                        *list = cast(_process_t *, proc->header.next);
+                                }
+
+                                proc->header.next = NULL;
+                                break;
+                        } else {
+                                prev = p;
+                        }
+                }
+        }
+}
+
+//==============================================================================
+/**
  * Function move process from selected list to another.
  *
  * @param  proc         process to move
@@ -2463,8 +2583,10 @@ static void thread_code(void *arg)
  * @param  list_to      destination list
  */
 //==============================================================================
-static void process_move_list(_process_t *proc, _process_t **list_from, _process_t **list_to)
+static bool process_move_list(_process_t *proc, _process_t **list_from, _process_t **list_to)
 {
+        bool moved = false;
+
         ATOMIC (process_mtx) {
                 _process_t *prev = NULL;
                 foreach_process (p, *list_from) {
@@ -2480,12 +2602,56 @@ static void process_move_list(_process_t *proc, _process_t **list_from, _process
 
                                 *list_to = proc;
 
+                                moved = true;
                                 break;
                         } else {
                                 prev = p;
                         }
                 }
         }
+
+        return moved;
+}
+
+//==============================================================================
+/**
+ * @brief  Function release resources of process that is in the release list.
+ *         Resources are released without process mutex. When resources are
+ *         released then process is moved to the zombie list (exit flag is set)
+ *         or detached process object is freed.
+ *
+ * @param  proc         process in the release list
+ */
+//==============================================================================
+static void process_release(_process_t *proc)
+{
+        process_destroy_all_resources(proc);
+
+        /*
+         * NOTE: mutex must be locked to not leave process in the release
+         *       list. Lock can be canceled if calling process is killed.
+         */
+        while (_mutex_lock(process_mtx, _WAIT_FOREVER_MS) != ESUCC) {
+                ;
+        }
+
+        if (not(proc->flag & PROC_FLAG_DETACHED)) {
+                process_move_list(proc, &release_process_list, &zombie_process_list);
+
+                // waiting process can remove zombie from now on
+                if (proc->event) {
+                        _flag_set(proc->event, _PROCESS_EXIT_FLAG(0));
+                }
+        } else {
+                process_remove_from_list(proc, &release_process_list);
+                _flag_destroy(proc->event);
+                proc->event = NULL;
+                proc->header.self = NULL;
+                proc->header.type = RES_TYPE_UNKNOWN;
+                _kfree(_MM_KRN, cast(void *, &proc));
+        }
+
+        _mutex_unlock(process_mtx);
 }
 
 //==============================================================================
@@ -2837,6 +3003,7 @@ static int get_pid(pid_t *pid)
                                 active_process_list,
                                 terminate_process_list,
                                 destroy_process_list,
+                                release_process_list,
                                 zombie_process_list,
                         };
 
@@ -3355,11 +3522,6 @@ void _task_switched_in(void *task, void *proc, void *task_data)
                 _global[cpuid] = NULL;
                 _app_ctx[cpuid] = NULL;
                 _errno[cpuid] = 0;
-        }
-
-        if (process_mtx_locked) {
-                _mutex_unlock_from_ISR(process_mtx, NULL);
-                process_mtx_locked = false;
         }
 }
 

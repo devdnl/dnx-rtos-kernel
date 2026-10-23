@@ -867,7 +867,7 @@ int _mutex_unlock(kmtx_t *mutex)
 //==============================================================================
 int _mutex_unlock_from_ISR(kmtx_t *mutex, bool *task_woken)
 {
-        if (task_woken && is_mutex_valid(mutex)) {
+        if (is_mutex_valid(mutex)) {
                 BaseType_t woken = 0;
                 bool ret = xSemaphoreGiveFromISR(mutex->object, &woken);
 
