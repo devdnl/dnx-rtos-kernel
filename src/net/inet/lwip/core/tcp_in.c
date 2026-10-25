@@ -1884,7 +1884,12 @@ tcp_receive(struct tcp_pcb *pcb)
   } else {
     /* Segments with length 0 is taken care of here. Segments that
        fall out of the window are ACKed. */
-    if (!TCP_SEQ_BETWEEN(seqno, pcb->rcv_nxt, pcb->rcv_nxt + pcb->rcv_wnd - 1)) {
+    /* dnx RTOS: with zero receive window the segment is acceptable if
+       SEG.SEQ == RCV.NXT (RFC 793). Without this exception an empty ACK
+       is answered by an empty ACK, so two lwIP stacks with zero windows
+       (e.g. loopback connection) exchange ACKs forever (ACK storm). */
+    if (((pcb->rcv_wnd == 0) && (seqno != pcb->rcv_nxt)) ||
+        ((pcb->rcv_wnd != 0) && !TCP_SEQ_BETWEEN(seqno, pcb->rcv_nxt, pcb->rcv_nxt + pcb->rcv_wnd - 1))) {
       tcp_ack_now(pcb);
     }
   }

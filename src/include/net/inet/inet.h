@@ -40,6 +40,7 @@ Detailed Doxygen description.
   Include files
 ==============================================================================*/
 #include "lib/sys/types.h"
+#include "kernel/ktypes.h"
 #include "net/netm.h"
 
 #ifdef __cplusplus
@@ -55,9 +56,16 @@ extern "C" {
 ==============================================================================*/
 typedef struct {
         struct netconn *netconn;
-        struct netbuf *netbuf_recv;
-        struct netbuf *netbuf_send;
-        uint16_t seek;
+        struct netbuf *netbuf_recv; //!< partially read buffer (receiving side)
+        struct netbuf *netbuf_send; //!< datagram buffer (sending side)
+        ksem_t *tx_event;           //!< signaled when send space is available or connection error occurs
+        uint32_t recv_timeout;      //!< receive timeout [ms]
+        uint32_t send_timeout;      //!< send timeout [ms]
+        uint16_t seek;              //!< read position in netbuf_recv
+        uint8_t rx_active;          //!< number of threads in receiving lwIP calls
+        uint8_t tx_active;          //!< number of threads in other lwIP calls
+        bool closing;               //!< socket is being destroyed
+        bool rd_shut;               //!< receive direction is shut down
 } INET_socket_t;
 
 /*==============================================================================

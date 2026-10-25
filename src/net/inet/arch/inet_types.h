@@ -57,6 +57,7 @@ extern "C" {
 ==============================================================================*/
 typedef struct {
         kmtx_t *access;
+        ksem_t *thread_exit;
         kfile_t *if_file;
         tid_t if_thread;
         struct netif netif;
@@ -68,6 +69,7 @@ typedef struct {
         bool disconnected;
         bool configured;
         bool thread_run;
+        bool netif_added;
         u8_t frame[1524];
 } inet_t;
 

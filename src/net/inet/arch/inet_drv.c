@@ -151,18 +151,44 @@ err_t _inetdrv_handle_output(struct netif *netif, struct pbuf *p)
 
         LWIP_DEBUGF(INET_DEBUG, ("_inetdrv_handle_output: packet size %d\n", p->tot_len));
 
+        if (p->tot_len > IOCTL_ETHIF_MAX_PACKET_SIZE) {
+                LWIP_DEBUGF(LWIP_DBG_LEVEL_SERIOUS, ("_inetdrv_handle_output: packet too big\n"));
+                return ERR_BUF;
+        }
+
+        /*
+         * Interface driver accepts only a continuous buffer. Packet can be
+         * a chain of pbufs (e.g. separate header and NOCOPY payload), so in
+         * this case the chain is copied to the single buffer.
+         */
+        struct pbuf *frame = p;
+        if (p->next) {
+                frame = pbuf_clone(PBUF_RAW, PBUF_RAM, p);
+                if (frame == NULL) {
+                        LWIP_DEBUGF(LWIP_DBG_LEVEL_SERIOUS, ("_inetdrv_handle_output: no memory for frame\n"));
+                        return ERR_MEM;
+                }
+        }
+
         ETHIF_packet_t pkt;
-        pkt.payload = p->payload;
-        pkt.length = p->len;
+        pkt.payload = frame->payload;
+        pkt.length = frame->len;
+
+        err_t err = ERR_OK;
 
         if (sys_ioctl(inet->if_file, IOCTL_ETHIF__SEND_PACKET, &pkt) == 0) {
                 inet->tx_packets++;
                 inet->tx_bytes += pkt.length;
-                return ERR_OK;
         } else {
                 LWIP_DEBUGF(LWIP_DBG_LEVEL_SERIOUS, ("_inetdrv_handle_output: packet send error\n"));
-                return ERR_IF;
+                err = ERR_IF;
         }
+
+        if (frame != p) {
+                pbuf_free(frame);
+        }
+
+        return err;
 }
 
 //==============================================================================

@@ -272,7 +272,13 @@ void lwip_sys_mutex_lock(sys_mutex_t *mutex)
         LWIP_ASSERT("sys_arch.c: wrong mutex object!", (mutex != NULL));
 
         if (mutex && *mutex) {
-                sys_mutex_lock(*mutex, _WAIT_FOREVER_MS);
+                /*
+                 * NOTE: kernel cancels waiting when process is killed, but lwIP
+                 *       requires the lock (e.g. TCPIP core lock), so waiting
+                 *       continues until mutex is locked.
+                 */
+                while (sys_mutex_lock(*mutex, _WAIT_FOREVER_MS) == ECANCELED) {
+                }
         }
 }
 
@@ -430,10 +436,29 @@ u32_t lwip_sys_arch_sem_wait(sys_sem_t *sem, u32_t timeout)
                 clock_t start_time = sys_get_uptime_ms();
                 int sem_status = 0;
 
-                if (timeout) {
-                        sem_status = sys_semaphore_wait(*sem, timeout);
-                } else {
-                        sem_status = sys_semaphore_wait(*sem, _WAIT_FOREVER_MS);
+                /*
+                 * NOTE: kernel cancels waiting when process is killed. lwIP waits
+                 *       on semaphore for completion of operation executed by
+                 *       TCPIP thread (the message is on the waiting thread
+                 *       stack), so waiting is continued until timeout.
+                 */
+                for (;;) {
+                        u32_t wait = _WAIT_FOREVER_MS;
+
+                        if (timeout) {
+                                clock_t elapsed = sys_get_uptime_ms() - start_time;
+                                if (elapsed >= timeout) {
+                                        sem_status = ETIME;
+                                        break;
+                                }
+
+                                wait = timeout - elapsed;
+                        }
+
+                        sem_status = sys_semaphore_wait(*sem, wait);
+                        if (sem_status != ECANCELED) {
+                                break;
+                        }
                 }
 
                 if (sem_status == ESUCC) {
@@ -541,7 +566,9 @@ void lwip_sys_mbox_post(sys_mbox_t *mbox, void *msg)
         LWIP_ASSERT("sys_arch.c: wrong mbox object!", (mbox != NULL));
 
         if (mbox && *mbox) {
-                sys_queue_send(*mbox, &msg, _WAIT_FOREVER_MS);
+                // NOTE: message cannot be lost when process is killed
+                while (sys_queue_send(*mbox, &msg, _WAIT_FOREVER_MS) == ECANCELED) {
+                }
         }
 }
 

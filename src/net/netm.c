@@ -78,21 +78,34 @@ Brief    Network management.
 #define call_proxy_function(family, ...)        (proxy[family] ? proxy[family](__VA_ARGS__) : ENOTSUP)
 // clang-format on
 
+/**
+ * Family flag: the stack supports concurrent operations on a single socket.
+ * Receiving operations (recv, recvfrom, accept) can be executed in parallel
+ * with sending and control operations, and socket destroy aborts operations
+ * that wait for data (destroy can be called while other thread is blocked
+ * on the socket). Families without this flag use a single socket lock.
+ */
+#define FAMILY_FLAG__CONCURRENT (1 << 0)
+
 /*==============================================================================
   Local object types
 ==============================================================================*/
+struct netname {
+        char *netname;
+        void *stack_ctx;
+        NETM_family_t family;
+        size_t refs;
+};
+
 struct ksocket {
         res_header_t header;
         NETM_family_t family;
-        kmtx_t *mutex;
-        const char *netname;
-        void *ctx;
-};
-
-struct netname {
-        const char *netname;
-        void *stack_ctx;
-        NETM_family_t family;
+        kmtx_t *rx_mutex;    //!< serializes receiving operations (recv, recvfrom, accept)
+        kmtx_t *tx_mutex;    //!< serializes sending and control operations (equal to rx_mutex if not concurrent)
+        struct netname *net; //!< network interface
+        void *ctx;           //!< stack socket object
+        u16_t ops;           //!< number of operations in progress
+        bool closing;        //!< socket is being destroyed
 };
 
 typedef int (*proxy_func_t)();
@@ -109,6 +122,15 @@ typedef u64_t (*proxy_func_u64_t)();
 ==============================================================================*/
 static struct netname net_list[16];
 static kmtx_t *netm_mutex;
+
+static const u8_t family_flags[_NETM_FAMILY__COUNT] = {
+#if __ENABLE_TCPIP_STACK__ > 0
+        [NETM_FAMILY__INET] = FAMILY_FLAG__CONCURRENT,
+#endif
+#if __ENABLE_UDS_STACK__ > 0
+        [NETM_FAMILY__UDS] = FAMILY_FLAG__CONCURRENT,
+#endif
+};
 
 /*==============================================================================
   Exported objects
@@ -127,11 +149,11 @@ static kmtx_t *netm_mutex;
  * @brief Function allocate socket.
  * @param socket        socket pointer
  * @param family        network family
- * @param netname       network name
+ * @param net           network interface entry
  * @return One of @ref errno value.
  */
 //==============================================================================
-static int socket_alloc(ksocket_t **socket, NETM_family_t family, const char *netname)
+static int socket_alloc(ksocket_t **socket, NETM_family_t family, struct netname *net)
 {
         static const uint8_t net_socket_size[_NETM_FAMILY__COUNT] = {
 #if __ENABLE_TCPIP_STACK__ > 0
@@ -152,16 +174,29 @@ static int socket_alloc(ksocket_t **socket, NETM_family_t family, const char *ne
                 cast(void **, socket));
 
         if (!err) {
-                kmtx_t *mutex;
-                err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &mutex);
+                ksocket_t *sock = *socket;
+
+                err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &sock->rx_mutex);
+
                 if (!err) {
-                        (*socket)->mutex = mutex;
-                        (*socket)->header.self = *socket;
-                        (*socket)->header.type = RES_TYPE_SOCKET;
-                        (*socket)->netname = netname;
-                        (*socket)->family = family;
-                        (*socket)->ctx = cast(void *, cast(size_t, *socket) + _mm_align(sizeof(ksocket_t)));
+                        if (family_flags[family] & FAMILY_FLAG__CONCURRENT) {
+                                err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &sock->tx_mutex);
+                        } else {
+                                sock->tx_mutex = sock->rx_mutex;
+                        }
+                }
+
+                if (!err) {
+                        sock->header.self = sock;
+                        sock->header.type = RES_TYPE_SOCKET;
+                        sock->net = net;
+                        sock->family = family;
+                        sock->ctx = cast(void *, cast(size_t, sock) + _mm_align(sizeof(ksocket_t)));
                 } else {
+                        if (sock->rx_mutex) {
+                                sys_mutex_destroy(sock->rx_mutex);
+                        }
+
                         _kfree(_MM_NET, cast(void **, socket));
                 }
         }
@@ -180,8 +215,14 @@ static void socket_free(ksocket_t **socket)
         (*socket)->header.self = NULL;
         (*socket)->header.type = RES_TYPE_UNKNOWN;
 
-        sys_mutex_destroy((*socket)->mutex);
-        (*socket)->mutex = NULL;
+        if ((*socket)->tx_mutex != (*socket)->rx_mutex) {
+                sys_mutex_destroy((*socket)->tx_mutex);
+        }
+
+        sys_mutex_destroy((*socket)->rx_mutex);
+
+        (*socket)->rx_mutex = NULL;
+        (*socket)->tx_mutex = NULL;
 
         _kfree(_MM_NET, cast(void **, socket));
         *socket = NULL;
@@ -197,71 +238,141 @@ static void socket_free(ksocket_t **socket)
 static bool is_socket_valid(ksocket_t *socket)
 {
         return _mm_is_object_in_heap(socket) && (socket->header.type == RES_TYPE_SOCKET) &&
-                (socket->header.self == socket) && (socket->family < _NETM_FAMILY__COUNT) &&
-                (socket->netname != NULL) && (socket->mutex) &&
+                (socket->header.self == socket) && (socket->family < _NETM_FAMILY__COUNT) && (socket->net != NULL) &&
+                (socket->rx_mutex) && (socket->tx_mutex) &&
                 (socket->ctx == cast(void *, cast(size_t, socket) + _mm_align(sizeof(ksocket_t))));
 }
 
 //==============================================================================
 /**
- * @brief Function return stack context.
- * @param netname       network name
- * @param idx           context index
- * @return Stack context.
+ * @brief Function starts socket operation. Operation is counted (socket is
+ *        not released until operation ends) and selected socket lock is taken.
+ * @param socket        socket
+ * @param mutex         lock of operation (rx_mutex or tx_mutex)
+ * @return One of @ref errno value. EBADF if socket is being destroyed.
  */
 //==============================================================================
-static void *get_stack_context(const char *netname, size_t *idx)
+static int socket_op_begin(ksocket_t *socket, kmtx_t *mutex)
 {
-        void *ctx = NULL;
+        int err = EBADF;
 
-        if (sys_mutex_lock(netm_mutex, _WAIT_FOREVER_MS) == 0) {
+        sys_critical_section_begin();
+        {
+                if (not socket->closing) {
+                        socket->ops++;
+                        err = ESUCC;
+                }
+        }
+        sys_critical_section_end();
 
-                for (size_t n = 0; n < ARRAY_SIZE(net_list); n++) {
+        if (!err) {
+                err = sys_mutex_lock(mutex, _WAIT_FOREVER_MS);
 
-                        if ((net_list[n].netname == netname) || isstreq(net_list[n].netname, netname)) {
-
-                                ctx = net_list[n].stack_ctx;
-                                if (idx) {
-                                        *idx = n;
-                                }
-
-                                break;
-                        }
+                // socket could be destroyed when operation waited for lock
+                if (!err and socket->closing) {
+                        sys_mutex_unlock(mutex);
+                        err = EBADF;
                 }
 
-                sys_mutex_unlock(netm_mutex);
+                if (err) {
+                        sys_critical_section_begin();
+                        socket->ops--;
+                        sys_critical_section_end();
+                }
         }
 
-        return ctx;
+        return err;
 }
 
 //==============================================================================
 /**
- * @brief Function return stack context.
- * @param netname       network name
- * @param idx           context index
- * @return Network family.
+ * @brief Function finishes socket operation started by socket_op_begin().
+ * @param socket        socket
+ * @param mutex         lock of operation (rx_mutex or tx_mutex)
  */
 //==============================================================================
-static NETM_family_t get_net_family_by_name(const char *netname)
+static void socket_op_end(ksocket_t *socket, kmtx_t *mutex)
 {
-        NETM_family_t family = _NETM_FAMILY__COUNT;
+        sys_mutex_unlock(mutex);
 
-        if (sys_mutex_lock(netm_mutex, _WAIT_FOREVER_MS) == 0) {
+        sys_critical_section_begin();
+        socket->ops--;
+        sys_critical_section_end();
+}
 
-                for (size_t n = 0; n < ARRAY_SIZE(net_list); n++) {
+//==============================================================================
+/**
+ * @brief Function find network interface entry. Must be called with netm_mutex
+ *        locked.
+ * @param netname       network name
+ * @return Interface entry or NULL if not found.
+ */
+//==============================================================================
+static struct netname *find_net(const char *netname)
+{
+        for (size_t n = 0; n < ARRAY_SIZE(net_list); n++) {
+                if (net_list[n].netname && isstreq(net_list[n].netname, netname)) {
+                        return &net_list[n];
+                }
+        }
 
-                        if ((net_list[n].netname == netname) || isstreq(net_list[n].netname, netname)) {
+        return NULL;
+}
 
-                                family = net_list[n].family;
-                                break;
-                        }
+//==============================================================================
+/**
+ * @brief Function find network interface entry and take a reference to it.
+ *        Interface with references cannot be removed.
+ * @param netname       network name
+ * @param net           found interface entry
+ * @return One of @ref errno value.
+ */
+//==============================================================================
+static int net_get(const char *netname, struct netname **net)
+{
+        int err = sys_mutex_lock(netm_mutex, _WAIT_FOREVER_MS);
+        if (!err) {
+                *net = find_net(netname);
+                if (*net) {
+                        (*net)->refs++;
+                } else {
+                        err = ENODEV;
                 }
 
                 sys_mutex_unlock(netm_mutex);
         }
 
-        return family;
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief Function take a next reference to the interface entry.
+ * @param net           interface entry
+ */
+//==============================================================================
+static void net_ref(struct netname *net)
+{
+        if (sys_mutex_lock(netm_mutex, _WAIT_FOREVER_MS) == 0) {
+                net->refs++;
+                sys_mutex_unlock(netm_mutex);
+        }
+}
+
+//==============================================================================
+/**
+ * @brief Function release reference of interface entry.
+ * @param net           interface entry
+ */
+//==============================================================================
+static void net_put(struct netname *net)
+{
+        if (sys_mutex_lock(netm_mutex, _WAIT_FOREVER_MS) == 0) {
+                if (net->refs > 0) {
+                        net->refs--;
+                }
+                sys_mutex_unlock(netm_mutex);
+        }
 }
 
 //==============================================================================
@@ -302,42 +413,57 @@ int _net_ifadd(const char *netname, NETM_family_t family, const char *if_path)
 #endif
         };
 
-        int err = EINVAL;
+        if (not netname or isstrempty(netname) or (family >= _NETM_FAMILY__COUNT)) {
+                return EINVAL;
+        }
 
-        if (netname && (family < _NETM_FAMILY__COUNT)) {
-                if (not netm_mutex) {
-                        err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &netm_mutex);
+        int err = ESUCC;
+
+        if (not netm_mutex) {
+                err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &netm_mutex);
+                if (err) {
+                        return err;
                 }
+        }
 
-                err = sys_mutex_lock(netm_mutex, _WAIT_FOREVER_MS);
-                if (!err) {
+        err = sys_mutex_lock(netm_mutex, _WAIT_FOREVER_MS);
+        if (!err) {
 
-                        void *ctx = get_stack_context(netname, NULL);
-                        if (!ctx) {
+                if (find_net(netname) == NULL) {
 
-                                size_t n = 0;
-                                for (; n < ARRAY_SIZE(net_list); n++) {
-                                        if (net_list[n].netname == NULL) {
-                                                break;
-                                        }
+                        size_t n = 0;
+                        for (; n < ARRAY_SIZE(net_list); n++) {
+                                if (net_list[n].netname == NULL) {
+                                        break;
                                 }
-
-                                if (n < ARRAY_SIZE(net_list)) {
-                                        err = call_proxy_function(family, &net_list[n].stack_ctx, if_path);
-                                        if (!err) {
-                                                net_list[n].netname = netname;
-                                                net_list[n].family = family;
-                                        }
-                                } else {
-                                        err = ENOSPC;
-                                }
-
-                        } else {
-                                err = EADDRINUSE;
                         }
 
-                        sys_mutex_unlock(netm_mutex);
+                        if (n < ARRAY_SIZE(net_list)) {
+                                // network name is copied because caller's string can be released
+                                char *name = NULL;
+                                err = _kmalloc(_MM_NET, strlen(netname) + 1, NULL, 0, 0, cast(void **, &name));
+                                if (!err) {
+                                        strcpy(name, netname);
+
+                                        err = call_proxy_function(family, &net_list[n].stack_ctx, if_path);
+                                        if (!err) {
+                                                net_list[n].netname = name;
+                                                net_list[n].family = family;
+                                                net_list[n].refs = 0;
+                                        } else {
+                                                net_list[n].stack_ctx = NULL;
+                                                _kfree(_MM_NET, cast(void **, &name));
+                                        }
+                                }
+                        } else {
+                                err = ENOSPC;
+                        }
+
+                } else {
+                        err = EADDRINUSE;
                 }
+
+                sys_mutex_unlock(netm_mutex);
         }
 
         return err;
@@ -345,9 +471,9 @@ int _net_ifadd(const char *netname, NETM_family_t family, const char *if_path)
 
 //==============================================================================
 /**
- * @brief Function return stack context.
+ * @brief Function remove network interface.
  * @param netname       network name
- * @return Stack context.
+ * @return One of @ref errno value.
  */
 //==============================================================================
 int _net_ifrm(const char *netname)
@@ -373,18 +499,21 @@ int _net_ifrm(const char *netname)
                 err = sys_mutex_lock(netm_mutex, _WAIT_FOREVER_MS);
                 if (!err) {
 
-                        size_t n = 0;
-                        void *ctx = get_stack_context(netname, &n);
-                        if (!ctx) {
+                        struct netname *net = find_net(netname);
+                        if (net == NULL) {
+                                err = ENODEV;
 
-                                err = call_proxy_function(net_list[n].family, &net_list[n].stack_ctx);
-                                if (!err) {
-                                        net_list[n].netname = NULL;
-                                        net_list[n].stack_ctx = NULL;
-                                }
+                        } else if (net->refs > 0) {
+                                // interface is used by sockets or other operations
+                                err = EBUSY;
 
                         } else {
-                                err = EADDRINUSE;
+                                err = call_proxy_function(net->family, net->stack_ctx);
+                                if (!err) {
+                                        _kfree(_MM_NET, cast(void **, &net->netname));
+                                        net->netname = NULL;
+                                        net->stack_ctx = NULL;
+                                }
                         }
 
                         sys_mutex_unlock(netm_mutex);
@@ -418,7 +547,7 @@ int _net_iflist(char *netname[], size_t netname_len, size_t *count)
                         size_t idx = 0;
                         for (size_t i = 0; i < ARRAY_SIZE(net_list); i++) {
                                 if (net_list[i].netname && (idx < netname_len)) {
-                                        netname[idx++] = (char *)net_list[i].netname;
+                                        netname[idx++] = net_list[i].netname;
                                         n++;
                                 }
                         }
@@ -461,9 +590,12 @@ int _net_ifup(const char *netname, const NETM_generic_config_t *config, size_t c
         int err = EINVAL;
 
         if (netname) {
-                size_t n = 0;
-                void *ctx = get_stack_context(netname, &n);
-                err = call_proxy_function(net_list[n].family, ctx, config, config_size);
+                struct netname *net;
+                err = net_get(netname, &net);
+                if (!err) {
+                        err = call_proxy_function(net->family, net->stack_ctx, config, config_size);
+                        net_put(net);
+                }
         }
 
         return err;
@@ -496,9 +628,12 @@ int _net_ifdown(const char *netname)
         int err = EINVAL;
 
         if (netname) {
-                size_t n = 0;
-                void *ctx = get_stack_context(netname, &n);
-                err = call_proxy_function(net_list[n].family, ctx);
+                struct netname *net;
+                err = net_get(netname, &net);
+                if (!err) {
+                        err = call_proxy_function(net->family, net->stack_ctx);
+                        net_put(net);
+                }
         }
 
         return err;
@@ -534,14 +669,16 @@ int _net_ifstatus(const char *netname, NETM_family_t *family, NETM_generic_statu
         int err = EINVAL;
 
         if (netname && family) {
-                size_t n = 0;
-                void *ctx = get_stack_context(netname, &n);
-                *family = net_list[n].family;
+                struct netname *net;
+                err = net_get(netname, &net);
+                if (!err) {
+                        *family = net->family;
 
-                if (status && status_size) {
-                        err = call_proxy_function(net_list[n].family, ctx, status, status_size);
-                } else {
-                        err = 0;
+                        if (status && status_size) {
+                                err = call_proxy_function(net->family, net->stack_ctx, status, status_size);
+                        }
+
+                        net_put(net);
                 }
         }
 
@@ -579,20 +716,23 @@ int _net_socket_create(const char *netname, NETM_socket_type_t type, u8_t protoc
 
         if (netname && (type < NETM_SOCKET_TYPE_COUNT) && socket) {
 
-                NETM_family_t family = get_net_family_by_name(netname);
-                if (family < _NETM_FAMILY__COUNT) {
+                struct netname *net;
+                err = net_get(netname, &net);
+                if (!err) {
 
-                        err = socket_alloc(socket, family, netname);
+                        err = socket_alloc(socket, net->family, net);
 
                         if (!err) {
-                                size_t n = 0;
-                                void *ctx = get_stack_context(netname, &n);
-
-                                err = call_proxy_function(family, ctx, type, protocol, (*socket)->ctx);
+                                err = call_proxy_function(net->family, net->stack_ctx, type, protocol, (*socket)->ctx);
 
                                 if (err) {
                                         socket_free(socket);
                                 }
+                        }
+
+                        // on success the reference is kept by socket
+                        if (err) {
+                                net_put(net);
                         }
                 }
         }
@@ -624,17 +764,69 @@ int _net_socket_destroy(ksocket_t *socket)
 #endif
         };
 
-        int err = EINVAL;
+        if (not is_socket_valid(socket)) {
+                return EINVAL;
+        }
 
-        if (is_socket_valid(socket)) {
-                void *ctx = get_stack_context(socket->netname, NULL);
-                err = call_proxy_function(socket->family, ctx, socket->ctx);
-                if (!err) {
-                        socket_free(&socket);
+        bool closing;
+        sys_critical_section_begin();
+        {
+                closing = socket->closing;
+                socket->closing = true;
+        }
+        sys_critical_section_end();
+
+        if (closing) {
+                // socket is already destroyed by other thread
+                return EBADF;
+        }
+
+        bool concurrent = family_flags[socket->family] & FAMILY_FLAG__CONCURRENT;
+
+        int err = ESUCC;
+
+        /*
+         * Concurrent stack aborts operations that are in progress, so destroy
+         * is called without lock. Other stacks are destroyed when operation in
+         * progress is finished.
+         */
+        if (not concurrent) {
+                err = sys_mutex_lock(socket->rx_mutex, _WAIT_FOREVER_MS);
+        }
+
+        if (!err) {
+                err = call_proxy_function(socket->family, socket->net->stack_ctx, socket->ctx);
+
+                if (not concurrent) {
+                        sys_mutex_unlock(socket->rx_mutex);
                 }
         }
 
-        return err;
+        if (err) {
+                sys_critical_section_begin();
+                socket->closing = false;
+                sys_critical_section_end();
+                return err;
+        }
+
+        // wait for operations that exit (other threads can still use socket object)
+        for (;;) {
+                sys_critical_section_begin();
+                u16_t ops = socket->ops;
+                sys_critical_section_end();
+
+                if (ops == 0) {
+                        break;
+                }
+
+                sys_sleep_ms(1);
+        }
+
+        struct netname *net = socket->net;
+        socket_free(&socket);
+        net_put(net);
+
+        return ESUCC;
 }
 
 //==============================================================================
@@ -666,10 +858,9 @@ int _net_socket_bind(ksocket_t *socket, const NETM_generic_sockaddr_t *addr, siz
         int err = EINVAL;
 
         if (is_socket_valid(socket) && addr && addr_size) {
-                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
-                        void *ctx = get_stack_context(socket->netname, NULL);
-                        err = call_proxy_function(socket->family, ctx, socket->ctx, addr, addr_size);
-                        sys_mutex_unlock(socket->mutex);
+                if ((err = socket_op_begin(socket, socket->tx_mutex)) == 0) {
+                        err = call_proxy_function(socket->family, socket->net->stack_ctx, socket->ctx, addr, addr_size);
+                        socket_op_end(socket, socket->tx_mutex);
                 }
         }
 
@@ -703,10 +894,9 @@ int _net_socket_listen(ksocket_t *socket)
         int err = EINVAL;
 
         if (is_socket_valid(socket)) {
-                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
-                        void *ctx = get_stack_context(socket->netname, NULL);
-                        err = call_proxy_function(socket->family, ctx, socket->ctx);
-                        sys_mutex_unlock(socket->mutex);
+                if ((err = socket_op_begin(socket, socket->tx_mutex)) == 0) {
+                        err = call_proxy_function(socket->family, socket->net->stack_ctx, socket->ctx);
+                        socket_op_end(socket, socket->tx_mutex);
                 }
         }
 
@@ -740,18 +930,22 @@ int _net_socket_accept(ksocket_t *socket, ksocket_t **new_socket)
 
         int err = EINVAL;
 
-        if (is_socket_valid(socket) && new_socket) {
+        if (is_socket_valid(socket) && new_socket && ((err = socket_op_begin(socket, socket->rx_mutex)) == 0)) {
 
-                err = socket_alloc(new_socket, socket->family, socket->netname);
+                err = socket_alloc(new_socket, socket->family, socket->net);
 
                 if (!err) {
-                        void *ctx = get_stack_context(socket->netname, NULL);
-                        err = call_proxy_function(socket->family, ctx, socket->ctx, (*new_socket)->ctx);
+                        err = call_proxy_function(socket->family, socket->net->stack_ctx, socket->ctx,
+                                (*new_socket)->ctx);
 
                         if (err) {
                                 socket_free(new_socket);
+                        } else {
+                                net_ref(socket->net);
                         }
                 }
+
+                socket_op_end(socket, socket->rx_mutex);
         }
 
         return err;
@@ -788,10 +982,10 @@ int _net_socket_recv(ksocket_t *socket, void *buf, size_t len, NETM_flags_t flag
         int err = EINVAL;
 
         if (is_socket_valid(socket) && buf && len && recved) {
-                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
-                        void *ctx = get_stack_context(socket->netname, NULL);
+                if ((err = socket_op_begin(socket, socket->rx_mutex)) == 0) {
+                        void *ctx = socket->net->stack_ctx;
                         err = call_proxy_function(socket->family, ctx, socket->ctx, buf, len, flags, recved);
-                        sys_mutex_unlock(socket->mutex);
+                        socket_op_end(socket, socket->rx_mutex);
                 }
         }
 
@@ -832,11 +1026,11 @@ int _net_socket_recvfrom(ksocket_t *socket, void *buf, size_t len, NETM_flags_t 
         int err = EINVAL;
 
         if (is_socket_valid(socket) && buf && len && sockaddr && sockaddr_size && recved) {
-                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
-                        void *ctx = get_stack_context(socket->netname, NULL);
+                if ((err = socket_op_begin(socket, socket->rx_mutex)) == 0) {
+                        void *ctx = socket->net->stack_ctx;
                         err = call_proxy_function(socket->family, ctx, socket->ctx, buf, len, flags, sockaddr,
                                 sockaddr_size, recved);
-                        sys_mutex_unlock(socket->mutex);
+                        socket_op_end(socket, socket->rx_mutex);
                 }
         }
 
@@ -874,10 +1068,10 @@ int _net_socket_send(ksocket_t *socket, const void *buf, size_t len, NETM_flags_
         int err = EINVAL;
 
         if (is_socket_valid(socket) && buf && len && sent) {
-                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
-                        void *ctx = get_stack_context(socket->netname, NULL);
+                if ((err = socket_op_begin(socket, socket->tx_mutex)) == 0) {
+                        void *ctx = socket->net->stack_ctx;
                         err = call_proxy_function(socket->family, ctx, socket->ctx, buf, len, flags, sent);
-                        sys_mutex_unlock(socket->mutex);
+                        socket_op_end(socket, socket->tx_mutex);
                 }
         }
 
@@ -917,11 +1111,11 @@ int _net_socket_sendto(ksocket_t *socket, const void *buf, size_t len, NETM_flag
         int err = EINVAL;
 
         if (is_socket_valid(socket) && buf && len && to_addr && to_addr_size && sent) {
-                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
-                        void *ctx = get_stack_context(socket->netname, NULL);
+                if ((err = socket_op_begin(socket, socket->tx_mutex)) == 0) {
+                        void *ctx = socket->net->stack_ctx;
                         err = call_proxy_function(socket->family, ctx, socket->ctx, buf, len, flags, to_addr,
                                 to_addr_size, sent);
-                        sys_mutex_unlock(socket->mutex);
+                        socket_op_end(socket, socket->tx_mutex);
                 }
         }
 
@@ -956,10 +1150,10 @@ int _net_socket_set_recv_timeout(ksocket_t *socket, uint32_t timeout)
         int err = EINVAL;
 
         if (is_socket_valid(socket)) {
-                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
-                        void *ctx = get_stack_context(socket->netname, NULL);
+                if ((err = socket_op_begin(socket, socket->tx_mutex)) == 0) {
+                        void *ctx = socket->net->stack_ctx;
                         err = call_proxy_function(socket->family, ctx, socket->ctx, timeout);
-                        sys_mutex_unlock(socket->mutex);
+                        socket_op_end(socket, socket->tx_mutex);
                 }
         }
 
@@ -994,10 +1188,10 @@ int _net_socket_set_send_timeout(ksocket_t *socket, uint32_t timeout)
         int err = EINVAL;
 
         if (is_socket_valid(socket)) {
-                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
-                        void *ctx = get_stack_context(socket->netname, NULL);
+                if ((err = socket_op_begin(socket, socket->tx_mutex)) == 0) {
+                        void *ctx = socket->net->stack_ctx;
                         err = call_proxy_function(socket->family, ctx, socket->ctx, timeout);
-                        sys_mutex_unlock(socket->mutex);
+                        socket_op_end(socket, socket->tx_mutex);
                 }
         }
 
@@ -1032,10 +1226,10 @@ int _net_socket_get_recv_timeout(ksocket_t *socket, uint32_t *timeout)
         int err = EINVAL;
 
         if (is_socket_valid(socket) && timeout) {
-                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
-                        void *ctx = get_stack_context(socket->netname, NULL);
+                if ((err = socket_op_begin(socket, socket->tx_mutex)) == 0) {
+                        void *ctx = socket->net->stack_ctx;
                         err = call_proxy_function(socket->family, ctx, socket->ctx, timeout);
-                        sys_mutex_unlock(socket->mutex);
+                        socket_op_end(socket, socket->tx_mutex);
                 }
         }
 
@@ -1070,10 +1264,10 @@ int _net_socket_get_send_timeout(ksocket_t *socket, uint32_t *timeout)
         int err = EINVAL;
 
         if (is_socket_valid(socket) && timeout) {
-                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
-                        void *ctx = get_stack_context(socket->netname, NULL);
+                if ((err = socket_op_begin(socket, socket->tx_mutex)) == 0) {
+                        void *ctx = socket->net->stack_ctx;
                         err = call_proxy_function(socket->family, ctx, socket->ctx, timeout);
-                        sys_mutex_unlock(socket->mutex);
+                        socket_op_end(socket, socket->tx_mutex);
                 }
         }
 
@@ -1109,10 +1303,10 @@ int _net_socket_connect(ksocket_t *socket, const NETM_generic_sockaddr_t *addr, 
         int err = EINVAL;
 
         if (is_socket_valid(socket) && addr && addr_size) {
-                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
-                        void *ctx = get_stack_context(socket->netname, NULL);
+                if ((err = socket_op_begin(socket, socket->tx_mutex)) == 0) {
+                        void *ctx = socket->net->stack_ctx;
                         err = call_proxy_function(socket->family, ctx, socket->ctx, addr, addr_size);
-                        sys_mutex_unlock(socket->mutex);
+                        socket_op_end(socket, socket->tx_mutex);
                 }
         }
 
@@ -1146,10 +1340,10 @@ int _net_socket_disconnect(ksocket_t *socket)
         int err = EINVAL;
 
         if (is_socket_valid(socket)) {
-                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
-                        void *ctx = get_stack_context(socket->netname, NULL);
+                if ((err = socket_op_begin(socket, socket->tx_mutex)) == 0) {
+                        void *ctx = socket->net->stack_ctx;
                         err = call_proxy_function(socket->family, ctx, socket->ctx);
-                        sys_mutex_unlock(socket->mutex);
+                        socket_op_end(socket, socket->tx_mutex);
                 }
         }
 
@@ -1184,10 +1378,10 @@ int _net_socket_shutdown(ksocket_t *socket, NETM_shut_t how)
         int err = EINVAL;
 
         if (is_socket_valid(socket)) {
-                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
-                        void *ctx = get_stack_context(socket->netname, NULL);
+                if ((err = socket_op_begin(socket, socket->tx_mutex)) == 0) {
+                        void *ctx = socket->net->stack_ctx;
                         err = call_proxy_function(socket->family, ctx, socket->ctx, how);
-                        sys_mutex_unlock(socket->mutex);
+                        socket_op_end(socket, socket->tx_mutex);
                 }
         }
 
@@ -1223,10 +1417,10 @@ int _net_socket_getaddress(ksocket_t *socket, NETM_generic_sockaddr_t *sockaddr,
         int err = EINVAL;
 
         if (is_socket_valid(socket) && sockaddr && sockaddr_size) {
-                if ((err = sys_mutex_lock(socket->mutex, _WAIT_FOREVER_MS)) == 0) {
-                        void *ctx = get_stack_context(socket->netname, NULL);
+                if ((err = socket_op_begin(socket, socket->tx_mutex)) == 0) {
+                        void *ctx = socket->net->stack_ctx;
                         err = call_proxy_function(socket->family, ctx, socket->ctx, sockaddr, sockaddr_size);
-                        sys_mutex_unlock(socket->mutex);
+                        socket_op_end(socket, socket->tx_mutex);
                 }
         }
 
@@ -1263,11 +1457,11 @@ int _net_gethostbyname(const char *netname, const char *name, NETM_generic_socka
         int err = EINVAL;
 
         if (netname && name && addr) {
-
-                NETM_family_t family = get_net_family_by_name(netname);
-                if (family < _NETM_FAMILY__COUNT) {
-                        void *ctx = get_stack_context(netname, NULL);
-                        err = call_proxy_function(family, ctx, name, addr, addr_size);
+                struct netname *net;
+                err = net_get(netname, &net);
+                if (!err) {
+                        err = call_proxy_function(net->family, net->stack_ctx, name, addr, addr_size);
+                        net_put(net);
                 }
         }
 
@@ -1299,8 +1493,8 @@ u16_t _net_hton_u16(NETM_family_t family, u16_t value)
 #endif
         };
 
-        if (family < _NETM_FAMILY__COUNT) {
-                return call_proxy_function(family, value);
+        if ((family < _NETM_FAMILY__COUNT) && proxy[family]) {
+                return proxy[family](value);
         } else {
                 return value;
         }
@@ -1331,8 +1525,8 @@ u32_t _net_hton_u32(NETM_family_t family, u32_t value)
 #endif
         };
 
-        if (family < _NETM_FAMILY__COUNT) {
-                return call_proxy_function(family, value);
+        if ((family < _NETM_FAMILY__COUNT) && proxy[family]) {
+                return proxy[family](value);
         } else {
                 return value;
         }
@@ -1363,8 +1557,8 @@ u64_t _net_hton_u64(NETM_family_t family, u64_t value)
 #endif
         };
 
-        if (family < _NETM_FAMILY__COUNT) {
-                return call_proxy_function(family, value);
+        if ((family < _NETM_FAMILY__COUNT) && proxy[family]) {
+                return proxy[family](value);
         } else {
                 return value;
         }
