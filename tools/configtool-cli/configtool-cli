@@ -15,7 +15,7 @@ ver=$(lua -v 2>&1 | grep -oE '[0-9]+\.[0-9]+')
 major=${ver%%.*}
 minor=${ver##*.}
 
-if (( major > 5 || (major == 5 && minor >= 4) )); then
+if (( major > 5 || (major == 5 && minor >= 3) )); then
 
     if ! lua -l lfs -e "os.exit(0)" 2>/dev/null; then
         echo "The LFS package is not installed."
@@ -27,6 +27,6 @@ if (( major > 5 || (major == 5 && minor >= 4) )); then
 
     lua "${SCRIPT_DIR}/configtool-cli.lua" "$@"
 else
-    echo "Lua must be version 5.4 or newer."
+    echo "Lua must be version 5.3 or newer."
     exit 1
 fi
