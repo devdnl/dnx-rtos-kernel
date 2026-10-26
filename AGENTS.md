@@ -197,6 +197,14 @@ repositories, so the interface between them must stay consistent:
   programs.
 - **Appset table format** (`_program_table_desc_t`, magic value in
   `process.c`) is shared with the appset build.
+- **TTY raw mode** (`IOCTL_TTY__RAW_MODE_ON/OFF`) is used by the workspace
+  `libtui` library (nano, mc, dialog). In raw mode input bytes go directly to
+  the reader and output bypasses the screen buffer; `dsh` switches the
+  terminal back to line mode before each prompt.
+- **Command line parsing** (`argument_parse()`/`argtab_create()` in
+  `process.c`) follows shell quoting rules and is relied on by `dsh`,
+  `system()`, Lua `io.popen()` and configtool's dialog calls. `argc` is
+  limited to 65535 arguments.
 - When a change requires a matching change in the workspace (libc, programs,
   configuration), point it out to the user. This repository cannot be
   verified alone.

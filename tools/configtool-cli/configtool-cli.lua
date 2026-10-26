@@ -25,7 +25,9 @@
 ==============================================================================]]
 
 os.setlocale("C")
-local tool_dir = os.getenv("CONFIGTOOL_DIR")
+-- tool directory: environment variable (set by configtool-cli script) or script
+-- location (systems without environment variables, e.g. dnx RTOS)
+local tool_dir = os.getenv("CONFIGTOOL_DIR") or (arg and arg[0] and arg[0]:match("^(.*)/[^/]*$")) or "."
 package.path = tool_dir .. "/?.lua;" .. package.path
 
 --==============================================================================

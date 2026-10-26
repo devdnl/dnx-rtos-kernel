@@ -116,7 +116,7 @@ struct _process {
         char *cwd;                                        //!< current working path
         const _program_entry_t *pdata;                    //!< program data
         char **argv;                                      //!< program arguments
-        u8_t argc;                                        //!< number of arguments
+        u16_t argc;                                       //!< number of arguments
         pid_t pid;                                        //!< process ID
         u8_t flag;                                        //!< control flags
         u8_t curr_task;                                   //!< current working task (thread)

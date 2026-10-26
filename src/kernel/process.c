@@ -106,7 +106,8 @@ static void process_code(void *mainfn);
 static void thread_code(void *args);
 static void process_destroy_all_resources(_process_t *proc);
 static int resource_destroy(res_header_t *resource);
-static int argtab_create(const char *str, u8_t *argc, char **argv[]);
+static size_t argument_parse(const char **str, char *dst);
+static int argtab_create(const char *str, u16_t *argc, char **argv[]);
 static void argtab_destroy(char **argv);
 static int find_program(const char *name, const _program_entry_t **prog);
 static int allocate_process_globals(_process_t *proc, size_t app_ctx_size, const _program_entry_t *usrprog);
@@ -3380,16 +3381,90 @@ finish:
 
 //==============================================================================
 /**
+ * @brief Function parse one argument (shell quoting rules).
+ *
+ * Arguments are separated by spaces or tabs. Parts of argument can be quoted:
+ * nothing is interpreted inside single quotes, inside double quotes backslash
+ * escapes only $ ` " \ and new line, outside quotes backslash escapes any
+ * character. Quoted and not quoted parts are joined, e.g. 'a'b"c" is "abc".
+ * Not finished quote ends at end of string.
+ *
+ * @param[in,out] str          argument string (moved to the end of argument)
+ * @param[out]    dst          destination buffer (NULL: only length is calculated)
+ *
+ * @return Argument length (without nul character).
+ */
+//==============================================================================
+static size_t argument_parse(const char **str, char *dst)
+{
+        const char *s = *str;
+        size_t n = 0;
+        char quote = '\0';
+
+        for (; *s != '\0'; s++) {
+                char c = *s;
+
+                if (quote == '\'') {
+                        if (c == '\'') {
+                                quote = '\0';
+                                continue;
+                        }
+
+                } else if (quote == '"') {
+                        if (c == '"') {
+                                quote = '\0';
+                                continue;
+                        }
+
+                        if ((c == '\\') && (s[1] != '\0') && strchr("$`\"\\\n", s[1])) {
+                                c = *++s;
+                                if (c == '\n') {
+                                        continue;
+                                }
+                        }
+
+                } else {
+                        if ((c == ' ') || (c == '\t')) {
+                                break;
+                        }
+
+                        if ((c == '\'') || (c == '"')) {
+                                quote = c;
+                                continue;
+                        }
+
+                        if ((c == '\\') && (s[1] != '\0')) {
+                                c = *++s;
+                                if (c == '\n') {
+                                        continue;
+                                }
+                        }
+                }
+
+                if (dst) {
+                        dst[n] = c;
+                }
+
+                n++;
+        }
+
+        *str = s;
+
+        return n;
+}
+
+//==============================================================================
+/**
  * @brief Function create new table with argument pointers.
  *
- * @param[in]  str              argument string
+ * @param[in]  str              argument string (see argument_parse())
  * @param[out] argc             number of argument
  * @param[out] argv             pointer to pointer of argument array
  *
  * @return One of errno value.
  */
 //==============================================================================
-static int argtab_create(const char *str, u8_t *argc, char **argv[])
+static int argtab_create(const char *str, u16_t *argc, char **argv[])
 {
         int err = EINVAL;
 
@@ -3400,60 +3475,54 @@ static int argtab_create(const char *str, u8_t *argc, char **argv[])
 
                 if (!err) {
                         // parse arguments
-                        while (*str != '\0') {
+                        for (;;) {
                                 // skip spaces
-                                str += strspn(str, " ");
+                                str += strspn(str, " \t");
 
-                                // select character to find as end of argument
-                                bool quo = false;
-                                char find = ' ';
-                                if (*str == '\'' || *str == '"') {
-                                        quo = true;
-                                        find = *str;
-                                        str++;
-                                }
-
-                                // find selected character
-                                const char *start = str;
-                                const char *end = strchr(str, find);
-
-                                // check if string end is reached
-                                if (!end) {
-                                        end = strchr(str, '\0');
-                                } else {
-                                        end++;
-                                }
-
-                                // calculate argument length (without nul character)
-                                int str_len = end - start;
-                                if (str_len == 0) {
+                                if (*str == '\0') {
                                         break;
                                 }
 
-                                if (quo || *(end - 1) == ' ') {
-                                        str_len--;
+                                // calculate argument length
+                                const char *start = str;
+                                size_t str_len = argument_parse(&str, NULL);
+
+                                // only escaped new lines (line continuation) is not an argument
+                                if ((str_len == 0) && !memchr(start, '\'', str - start) &&
+                                        !memchr(start, '"', str - start)) {
+                                        continue;
                                 }
 
                                 // add argument to list
                                 char *arg;
                                 err = _kmalloc(_MM_KRN, str_len + 1, NULL, 0, 0, cast(void **, &arg));
                                 if (!err) {
-                                        _strlcpy(arg, start, str_len + 1);
+                                        str = start;
+                                        argument_parse(&str, arg);
+                                        arg[str_len] = '\0';
 
                                         if (sys_llist_push_back(largs, arg) == NULL) {
                                                 _kfree(_MM_KRN, cast(void *, &arg));
+                                                err = ENOMEM;
                                                 goto finish;
                                         }
                                 } else {
                                         goto finish;
                                 }
-
-                                // next token
-                                str = end;
                         }
 
                         // create table with arguments
                         int no_of_args = sys_llist_size(largs);
+                        if (no_of_args == 0) {
+                                err = EINVAL;
+                                goto finish;
+                        }
+
+                        if (no_of_args > UINT16_MAX) {
+                                err = E2BIG;
+                                goto finish;
+                        }
+
                         *argc = no_of_args;
 
                         char **arg = NULL;

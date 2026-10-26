@@ -41,6 +41,7 @@
 #define UNICODE_UTF8_4            0x1fffff
 #define RELEASE_LOCK_TIMEOUT_MS   2000
 #define NEW_LINE_QUEUE_TIMEOUT_MS 1000
+#define RAW_QUEUE_TIMEOUT_MS      100
 
 /*==============================================================================
   Local types, enums definitions
@@ -55,6 +56,7 @@ typedef struct {
         ttyedit_t *editline;
         ttycmd_t *vtcmd;
         bool flushed;
+        bool raw_mode;
         u8_t major;
         u8_t minor;
 } tty_t;
@@ -74,6 +76,11 @@ typedef struct tty_io {
  *   2. tty->secure_mtx
  * No code path takes io_mtx while holding a secure_mtx without already
  * holding io_mtx (both mutexes are recursive).
+ *
+ * The raw_mode flag is changed only when both mutexes are locked (see
+ * set_raw_mode()), so it can be read when any of them is locked. The read
+ * path checks it without lock, a stale value affects only the read in
+ * progress.
  */
 
 /*==============================================================================
@@ -90,6 +97,7 @@ static int show_fresh_line(tty_t *tty);
 static int clear_tty(tty_t *tty);
 static int refresh_last_line(tty_t *tty);
 static int dump_tty_buffer(tty_t *tty, char *dst, size_t *size);
+static int set_raw_mode(tty_t *tty, bool enable);
 static void io_destroy(tty_io_t **io);
 
 /*==============================================================================
@@ -361,11 +369,22 @@ API_MOD_WRITE(TTY, void *device_handle, const u8_t *src, size_t count, fpos_t *f
 
         int err = sys_mutex_lock(tty->secure_mtx, _WAIT_FOREVER_MS);
         if (!err) {
-                ttybfr_put(tty->screen, cast(const char *, src), count);
-                err = show_fresh_line(tty);
-                sys_mutex_unlock(tty->secure_mtx);
+                if (tty->raw_mode) {
+                        /* output of terminal that is not displayed is dropped */
+                        *wrcnt = count;
 
-                *wrcnt = count;
+                        kfile_t *outfile = tty->io->outfile;
+                        if ((tty->minor == tty->io->current_tty) && outfile) {
+                                err = sys_fwrite(src, count, wrcnt, outfile);
+                        }
+                } else {
+                        ttybfr_put(tty->screen, cast(const char *, src), count);
+                        err = show_fresh_line(tty);
+
+                        *wrcnt = count;
+                }
+
+                sys_mutex_unlock(tty->secure_mtx);
         }
 
         return err;
@@ -392,6 +411,23 @@ API_MOD_READ(TTY, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, si
         *rdcnt = 0;
 
         u32_t timeout_ms = fattr.non_blocking_rd ? 0 : _WAIT_FOREVER_MS;
+
+        if (tty->raw_mode) {
+                /*
+                 * Wait for the first byte only, then return all bytes that
+                 * are already available (as POSIX raw mode: VMIN=1, VTIME=0).
+                 */
+                while (count && (sys_queue_receive(tty->queue_out, dst, timeout_ms) == ESUCC)) {
+                        (*rdcnt)++;
+                        dst++;
+                        count--;
+                        timeout_ms = 0;
+                }
+
+                *fpos = 0;
+
+                return ESUCC;
+        }
 
         if (fattr.non_blocking_rd && (count > 0)) {
                 /*
@@ -536,6 +572,14 @@ API_MOD_IOCTL(TTY, void *device_handle, int request, void *arg)
                 break;
         }
 
+        case IOCTL_TTY__RAW_MODE_ON:
+                err = set_raw_mode(tty, true);
+                break;
+
+        case IOCTL_TTY__RAW_MODE_OFF:
+                err = set_raw_mode(tty, false);
+                break;
+
         default:
                 err = EBADRQC;
                 break;
@@ -559,8 +603,12 @@ API_MOD_FLUSH(TTY, void *device_handle)
 
         int err = sys_mutex_lock(tty->secure_mtx, _WAIT_FOREVER_MS);
         if (!err) {
-                ttybfr_flush(tty->screen);
-                err = refresh_last_line(tty);
+                /* raw mode output is not buffered, refresh would damage the screen */
+                if (!tty->raw_mode) {
+                        ttybfr_flush(tty->screen);
+                        err = refresh_last_line(tty);
+                }
+
                 sys_mutex_unlock(tty->secure_mtx);
         }
 
@@ -780,7 +828,15 @@ static void vt100_analyze(tty_io_t *io, char c)
 
         tty_t *tty = io->tty[io->current_tty];
 
-        if (tty && (sys_mutex_lock(tty->secure_mtx, _WAIT_FOREVER_MS) == ESUCC)) {
+        if (tty && tty->raw_mode) {
+                /*
+                 * Raw mode: byte is passed to the reader as it is. Only io_mtx
+                 * is held (terminal cannot be released), so a full queue does
+                 * not block writing to the terminal.
+                 */
+                sys_queue_send(tty->queue_out, &c, RAW_QUEUE_TIMEOUT_MS);
+
+        } else if (tty && (sys_mutex_lock(tty->secure_mtx, _WAIT_FOREVER_MS) == ESUCC)) {
 
                 ttycmd_resp_t resp = ttycmd_analyze(tty->vtcmd, c);
                 switch (resp) {
@@ -942,7 +998,12 @@ static int switch_terminal(tty_io_t *io, int term_no)
                         tty = io->tty[io->current_tty];
 
                         err = sys_mutex_lock(tty->secure_mtx, _WAIT_FOREVER_MS);
-                        if (!err) {
+                        if (!err && tty->raw_mode) {
+                                /* screen of raw terminal is not buffered, program should redraw it */
+                                vt100_init(io, true);
+                                sys_mutex_unlock(tty->secure_mtx);
+
+                        } else if (!err) {
                                 vt100_init(io, true);
 
                                 size_t wrcnt;
@@ -1179,6 +1240,57 @@ static int dump_tty_buffer(tty_t *tty, char *dst, size_t *size)
 
                 sys_mutex_unlock(tty->secure_mtx);
         }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Enable or disable raw mode.
+ *
+ * Entering raw mode shows pending output and discards not finished edit line.
+ * Leaving raw mode discards not read input and clears the screen buffer,
+ * because the screen was managed by the program.
+ *
+ * @param  tty          TTY instance
+ * @param  enable       true: raw mode, false: line mode
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int set_raw_mode(tty_t *tty, bool enable)
+{
+        int err = sys_mutex_lock(tty->io->io_mtx, _WAIT_FOREVER_MS);
+        if (err) {
+                return err;
+        }
+
+        err = sys_mutex_lock(tty->secure_mtx, _WAIT_FOREVER_MS);
+        if (!err) {
+                if (enable && !tty->raw_mode) {
+                        ttybfr_flush(tty->screen);
+                        err = refresh_last_line(tty);
+                        ttyedit_clear(tty->editline);
+                        tty->flushed = false;
+                        tty->raw_mode = true;
+
+                } else if (!enable && tty->raw_mode) {
+                        tty->raw_mode = false;
+
+                        char c;
+                        while (sys_queue_receive(tty->queue_out, &c, 0) == ESUCC) {
+                                /* discard not read input */
+                        }
+
+                        ttybfr_clear(tty->screen);
+                        ttyedit_clear(tty->editline);
+                        tty->flushed = false;
+                }
+
+                sys_mutex_unlock(tty->secure_mtx);
+        }
+
+        sys_mutex_unlock(tty->io->io_mtx);
 
         return err;
 }

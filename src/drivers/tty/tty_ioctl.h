@@ -188,6 +188,26 @@ extern "C" {
  */
 #define IOCTL_TTY__READ_BUFFER _IOWR(TTY, 0x0B, TTY_buffer_t *)
 
+/**
+ *  @brief  Enable raw mode. Input bytes are passed to the reader without any
+ *          processing: no line editing, no echo, VT100 key sequences and
+ *          function keys (no terminal switching) are delivered as they are
+ *          received. Read returns as soon as at least one byte is available.
+ *          Output is written directly to the terminal, bypassing the screen
+ *          buffer (no LF to CR LF conversion, output of a terminal that is
+ *          not displayed is dropped). The screen content of a raw terminal is
+ *          not restored after terminal switch, the program should redraw it.
+ *  @return On success 0 is returned, otherwise -1.
+ */
+#define IOCTL_TTY__RAW_MODE_ON _IO(TTY, 0x0C)
+
+/**
+ *  @brief  Disable raw mode (restore line mode). Screen buffer is cleared,
+ *          the program should clear the screen if needed.
+ *  @return On success 0 is returned, otherwise -1.
+ */
+#define IOCTL_TTY__RAW_MODE_OFF _IO(TTY, 0x0D)
+
 /*==============================================================================
   Exported object types
 ==============================================================================*/
