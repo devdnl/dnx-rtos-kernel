@@ -601,7 +601,7 @@ void get_registers_from_stack(uint32_t *stack_address, int cause)
         reg_dump.AFSR = NVIC_AFSR;
         reg_dump.MFAR = NVIC_MFAR;
 
-        _kernel_panic_report_from_ISR(cause);
+        _kernel_panic_report_from_exception(cause, stack_address[7] & 0x1FF);
 }
 
 /*==============================================================================

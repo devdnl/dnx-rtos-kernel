@@ -150,6 +150,7 @@ extern void _process_init(void);
 extern void _process_clean_up_killed_processes(void);
 extern int _process_create(const char *, const _process_attr_t *, pid_t *);
 extern int _process_kill(pid_t);
+extern int _process_kill_timeout(pid_t, u32_t);
 extern void _process_suicide(void);
 extern void _process_remove_zombie(_process_t *, int *);
 extern void _process_exit(_process_t *, int);

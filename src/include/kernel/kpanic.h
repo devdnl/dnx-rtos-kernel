@@ -85,6 +85,7 @@ extern int _kernel_panic_init(void);
 extern bool _kernel_panic_info(struct _kernel_panic_info *);
 extern void _kernel_panic_report(enum _kernel_panic_desc_cause);
 extern void _kernel_panic_report_from_ISR(enum _kernel_panic_desc_cause);
+extern void _kernel_panic_report_from_exception(enum _kernel_panic_desc_cause, u32_t);
 
 /*==============================================================================
   Exported inline functions

@@ -489,21 +489,42 @@ void _process_clean_up_killed_processes(void)
 //==============================================================================
 int _process_kill(pid_t pid)
 {
-        int err = ESRCH;
+        int err = _process_kill_timeout(pid, _WAIT_FOREVER_MS);
+        return (err == ESUCC) ? ESUCC : ESRCH;
+}
 
-        ATOMIC (process_mtx) {
+//==============================================================================
+/**
+ * Kill selected process with process list lock timeout. Kill moves process to
+ * the process destroy list. There are releases resources used by process.
+ *
+ * @param  pid          process ID
+ * @param  timeout_ms   process list lock timeout
+ *
+ * @return One of errno value (ETIME if process list cannot be locked in time).
+ */
+//==============================================================================
+int _process_kill_timeout(pid_t pid, u32_t timeout_ms)
+{
+        int err = _mutex_lock(process_mtx, timeout_ms);
+        if (err) {
+                return err;
+        }
 
-                foreach_process (proc, active_process_list) {
+        err = ESRCH;
 
-                        if (proc->pid == pid) {
-                                proc->flag |= PROC_FLAG_KILL;
+        foreach_process (proc, active_process_list) {
 
-                                process_move_list(proc, &active_process_list, &terminate_process_list);
-                                err = ESUCC;
-                                break;
-                        }
+                if (proc->pid == pid) {
+                        proc->flag |= PROC_FLAG_KILL;
+
+                        process_move_list(proc, &active_process_list, &terminate_process_list);
+                        err = ESUCC;
+                        break;
                 }
         }
+
+        _mutex_unlock(process_mtx);
 
         if (not err) {
                 // kworker finishes and releases killed process

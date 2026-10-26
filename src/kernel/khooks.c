@@ -70,7 +70,6 @@ static StackType_t uxIdleTaskStack[_CPUCTL_CORE_NUM][_STACK_DEPTH_MINIMAL];
 ==============================================================================*/
 u32_t _uptime_counter_sec = 0;
 u64_t _tick_counter = 0;
-extern _process_t *_kernel_panic_trap_proc;
 extern CPU_load_t CPU_load[_CPUCTL_CORE_NUM];
 
 /*==============================================================================
