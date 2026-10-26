@@ -43,6 +43,18 @@
 #define NEW_LINE_QUEUE_TIMEOUT_MS 1000
 #define RAW_QUEUE_TIMEOUT_MS      100
 
+/*
+ * Terminal state set by full-screen program can be left when program was not
+ * finished correctly (e.g. CPU reset): normal screen buffer (not alternate),
+ * whole screen scroll region (cursor position kept) and visible cursor.
+ */
+#define VT100_TERMINAL_RESTORE \
+        "\033[?1047l"          \
+        "\0337"                \
+        "\033[r"               \
+        "\0338"                \
+        "\033[?25h"
+
 /*==============================================================================
   Local types, enums definitions
 ==============================================================================*/
@@ -720,6 +732,11 @@ static int configure(tty_t *tty, const TTY_config_t *conf)
 
                 tty->io->infile = in;
                 tty->io->outfile = out;
+
+                if (out) {
+                        size_t wrcnt;
+                        sys_fwrite(VT100_TERMINAL_RESTORE, strlen(VT100_TERMINAL_RESTORE), &wrcnt, out);
+                }
 
                 vt100_init(tty->io, false);
 
