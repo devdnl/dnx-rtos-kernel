@@ -118,6 +118,7 @@ struct _process {
         char **argv;                                      //!< program arguments
         u16_t argc;                                       //!< number of arguments
         pid_t pid;                                        //!< process ID
+        pid_t ppid;                                       //!< parent process ID (0: no parent)
         u8_t flag;                                        //!< control flags
         u8_t curr_task;                                   //!< current working task (thread)
         task_data_t taskdata[__OS_PROCESS_MAX_THREADS__]; //!< array of tasks data

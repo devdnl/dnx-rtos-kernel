@@ -116,6 +116,7 @@ static void process_get_stat(_process_t *proc, _process_stat_t *stat);
 static bool process_move_list(_process_t *proc, _process_t **list_from, _process_t **list_to);
 static void process_remove_from_list(_process_t *proc, _process_t **list);
 static void process_release(_process_t *proc);
+static void process_orphan_children(_process_t *parent);
 static tid_t get_own_tid(_process_t *proc);
 static int get_pid(pid_t *pid);
 static void destroy_all_tasks(_process_t *proc, bool with_zero);
@@ -285,6 +286,17 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
         err = get_pid(&proc->pid);
         if (err) {
                 goto finish;
+        }
+
+        /*
+         * NOTE: process created by the other process has a parent. Only parent
+         *       waits for the process, so orphans are not left in the zombie list.
+         */
+        if (_task_get_handle()) {
+                _process_t *parent = _task_get_storage_pointer(_task_get_handle(), STORAGE_IDX_PROC);
+                if (is_proc_valid(parent)) {
+                        proc->ppid = parent->pid;
+                }
         }
 
         if (proc->pdata->main != _kworker_process) {
@@ -2769,6 +2781,49 @@ static tid_t get_own_tid(_process_t *proc)
 
 //==============================================================================
 /**
+ * @brief  Function handles children of finished process. Nobody waits for
+ *         them: finished children are removed from the zombie list and running
+ *         children become detached (released when finished).
+ *
+ * @note   Process mutex must be locked.
+ *
+ * @param  parent       finished process
+ */
+//==============================================================================
+static void process_orphan_children(_process_t *parent)
+{
+        _process_t *const lists[] = {
+                active_process_list,
+                terminate_process_list,
+                destroy_process_list,
+                release_process_list,
+        };
+
+        for (size_t l = 0; l < ARRAY_SIZE(lists); l++) {
+                foreach_process (proc, lists[l]) {
+                        if ((proc != parent) and (proc->ppid == parent->pid)) {
+                                proc->ppid = 0;
+                                proc->flag |= PROC_FLAG_DETACHED;
+                        }
+                }
+        }
+
+        bool found;
+        do {
+                found = false;
+
+                foreach_process (proc, zombie_process_list) {
+                        if (proc->ppid == parent->pid) {
+                                _process_remove_zombie(proc, NULL);
+                                found = true;
+                                break;
+                        }
+                }
+        } while (found);
+}
+
+//==============================================================================
+/**
  * @brief  Function release resources of process that is in the release list.
  *         Resources are released without process mutex. When resources are
  *         released then process is moved to the zombie list (exit flag is set)
@@ -2788,6 +2843,8 @@ static void process_release(_process_t *proc)
         while (_mutex_lock(process_mtx, _WAIT_FOREVER_MS) != ESUCC) {
                 ;
         }
+
+        process_orphan_children(proc);
 
         if (not(proc->flag & PROC_FLAG_DETACHED)) {
                 process_move_list(proc, &release_process_list, &zombie_process_list);
