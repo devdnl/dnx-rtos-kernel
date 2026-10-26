@@ -22,5 +22,7 @@ ifeq ($(__ENABLE_USBH__), _YES_)
       CSRC_ARCH   += drivers/usbh/$(TARGET)/STM32_USB_Host_Library/Class/MSC/Src/usbh_msc_scsi.c
       
       CXXSRC_ARCH +=
+   else
+      UNSUPPORTED_MODULES += USBH
    endif
 endif

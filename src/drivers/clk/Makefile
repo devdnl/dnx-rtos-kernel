@@ -5,25 +5,22 @@ ifeq ($(__ENABLE_CLK__), _YES_)
    ifeq ($(TARGET), stm32f1)
       CSRC_ARCH   += drivers/clk/$(TARGET)/clk.c
       CXXSRC_ARCH +=
-   endif 
-   ifeq ($(TARGET), stm32f3)
+   else ifeq ($(TARGET), stm32f3)
       CSRC_ARCH   += drivers/clk/$(TARGET)/clk.c
       CXXSRC_ARCH +=
-   endif 
-   ifeq ($(TARGET), stm32f4)
+   else ifeq ($(TARGET), stm32f4)
       CSRC_ARCH   += drivers/clk/$(TARGET)/clk.c
       CXXSRC_ARCH +=
-   endif 
-   ifeq ($(TARGET), stm32f7)
+   else ifeq ($(TARGET), stm32f7)
       CSRC_ARCH   += drivers/clk/$(TARGET)/clk.c
       CXXSRC_ARCH +=
-   endif 
-   ifeq ($(TARGET), stm32h7)
+   else ifeq ($(TARGET), stm32h7)
       CSRC_ARCH   += drivers/clk/$(TARGET)/clk.c
       CXXSRC_ARCH +=
-   endif 
-   ifeq ($(TARGET), rpcm0)
+   else ifeq ($(TARGET), rpcm0)
       CSRC_ARCH   += drivers/clk/$(TARGET)/clk.c
       CXXSRC_ARCH +=
-   endif 
+   else
+      UNSUPPORTED_MODULES += CLK
+   endif
 endif

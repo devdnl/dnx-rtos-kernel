@@ -3,7 +3,7 @@
 		["__ENABLE_AFM__"]="_YES_";
 		["__ENABLE_CAN__"]="_YES_";
 		["__ENABLE_CLK__"]="_YES_";
-		["__ENABLE_CRC__"]="_YES_";
+		["__ENABLE_CRC__"]="_NO_";
 		["__ENABLE_DCI__"]="_NO_";
 		["__ENABLE_DHT11__"]="_YES_";
 		["__ENABLE_DMA__"]="_YES_";

@@ -263,6 +263,11 @@ OBJECTS_CSRC           = $(OBJECTS_CSRC_PROGRAMS) $(OBJECTS_CSRC_LIB) $(OBJECTS_
 OBJECTS_CXXSRC         = $(OBJECTS_CXXSRC_PROGRAMS) $(OBJECTS_CXXSRC_LIB) $(OBJECTS_CXXSRC_CORE) $(OBJECTS_CXXSRC_NOARCH) $(OBJECTS_CXXSRC_ARCH)
 OBJECTS_ALL            = $(OBJECTS_ASRC) $(OBJECTS_CSRC) $(OBJECTS_CXXSRC)
 
+# architecture dependent sources that do not exist (module not supported by selected CPU),
+# modules not supported by selected CPU are also added to UNSUPPORTED_MODULES by module Makefile
+ARCH_SRC               = $(_CSRC_ARCH) $(_CXXSRC_ARCH) $(ASRC)
+MISSING_ARCH_SRC       = $(filter-out $(wildcard $(ARCH_SRC)),$(ARCH_SRC))
+
 .DELETE_ON_ERROR:
 
 ####################################################################################################
@@ -411,12 +416,27 @@ linkobjects : $(TARGET_PATH)/objects.list
 ####################################################################################################
 # build objects
 ####################################################################################################
-.PHONY : buildobjects buildobjects_$(TARGET)
-buildobjects :
+.PHONY : buildobjects buildobjects_$(TARGET) checkarchsources
+buildobjects : checkarchsources
 	@$(ECHO) "Starting building objects up to $(THREAD) threads..."
 	@$(MAKE) -s -j$(THREAD) -f$(THIS_MAKEFILE) buildobjects_$(TARGET)
 
 buildobjects_$(TARGET) : $(OBJECTS_ALL)
+
+####################################################################################################
+# check if all architecture dependent sources exist
+####################################################################################################
+checkarchsources :
+ifneq ($(strip $(UNSUPPORTED_MODULES) $(MISSING_ARCH_SRC)),)
+ifneq ($(strip $(UNSUPPORTED_MODULES)),)
+	@$(ECHO) "Error: module(s) not supported by the '$(TARGET)' CPU architecture: $(strip $(UNSUPPORTED_MODULES))"
+endif
+ifneq ($(strip $(MISSING_ARCH_SRC)),)
+	@$(foreach f,$(MISSING_ARCH_SRC),$(ECHO) "Error: file '$(f)' does not exist (module not supported by the '$(TARGET)' CPU architecture?).";)
+endif
+	@$(ECHO) "Disable the module(s) in the project configuration or select other CPU."
+	@exit 1
+endif
 
 ####################################################################################################
 # rule used to compile object files from c sources

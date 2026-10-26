@@ -5,5 +5,7 @@ ifeq ($(__ENABLE_DCI__), _YES_)
    ifeq ($(TARGET), stm32f4)
       CSRC_ARCH   += drivers/dci/$(TARGET)/dci.c
       CXXSRC_ARCH +=
+   else
+      UNSUPPORTED_MODULES += DCI
    endif
 endif

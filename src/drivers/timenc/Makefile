@@ -5,5 +5,7 @@ ifeq ($(__ENABLE_TIMENC__), _YES_)
    ifeq ($(TARGET), stm32f7)
       CSRC_ARCH   += drivers/timenc/$(TARGET)/timenc.c
       CXXSRC_ARCH +=
+   else
+      UNSUPPORTED_MODULES += TIMENC
    endif
 endif

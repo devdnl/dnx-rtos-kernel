@@ -5,17 +5,16 @@ ifeq ($(__ENABLE_NVM__), _YES_)
    ifeq ($(TARGET), stm32f1)
       CSRC_ARCH   += drivers/nvm/stm32f1/nvm.c
       CXXSRC_ARCH +=
-   endif
-   ifeq ($(TARGET), stm32f4)
+   else ifeq ($(TARGET), stm32f4)
       CSRC_ARCH   += drivers/nvm/stm32f4/nvm.c
       CXXSRC_ARCH +=
-   endif
-   ifeq ($(TARGET), stm32f7)
+   else ifeq ($(TARGET), stm32f7)
       CSRC_ARCH   += drivers/nvm/stm32f7/nvm.c
       CXXSRC_ARCH +=
-   endif
-   ifeq ($(TARGET), stm32h7)
+   else ifeq ($(TARGET), stm32h7)
       CSRC_ARCH   += drivers/nvm/stm32h7/nvm.c
       CXXSRC_ARCH +=
+   else
+      UNSUPPORTED_MODULES += NVM
    endif
 endif
