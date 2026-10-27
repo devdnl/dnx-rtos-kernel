@@ -37,6 +37,7 @@ directly by protocol stack.
 \li stm32f1
 \li stm32f4
 \li stm32f7
+\li posix
 
 \section drv-eth-ddesc Details
 \subsection drv-eth-ddesc-num Meaning of major and minor numbers

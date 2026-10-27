@@ -19,6 +19,9 @@ ifeq ($(__ENABLE_ETH__), _YES_)
       CSRC_ARCH   += drivers/eth/stm32h7/stm32h7xx_hal_eth.c
       CSRC_ARCH   += drivers/eth/stm32h7/stm32h7xx_hal_eth_ex.c
       CXXSRC_ARCH += 
+	else ifeq ($(TARGET), posix)
+      CSRC_ARCH   += drivers/eth/posix/eth.c
+      CXXSRC_ARCH += 
 	else
       UNSUPPORTED_MODULES += ETH
 	endif

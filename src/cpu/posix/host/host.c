@@ -44,6 +44,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <linux/if_tun.h>
+#include <net/if.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/ucontext.h>
@@ -115,6 +119,8 @@ static struct {
         uart_t uart[_HOST_UART_COUNT];
         char fault_info[128];
         char *fs_root;
+        const char *tap_name;
+        int tap_fd;
 } host;
 
 /*==============================================================================
@@ -390,6 +396,8 @@ static void show_usage(const char *name)
         printf("                           (optional symbolic link to the terminal is created)\n");
         printf("                           or to the host serial port; UART0 is connected to\n");
         printf("                           the simulator terminal by default\n");
+        printf("      --tap <name>         connect Ethernet interface (ETH driver) to the host\n");
+        printf("                           TAP interface (e.g. tap0)\n");
         printf("  -h, --help               show this help\n\n");
         printf("Press Ctrl+\\ to terminate simulator.\n");
 }
@@ -602,6 +610,44 @@ static bool uarts_open(void)
 
 //==============================================================================
 /**
+ * @brief  Open TAP interface selected by program arguments. Interface should
+ *         be created by user (ip tuntap add <name> mode tap user <user>),
+ *         otherwise only root can create it (interface is removed at exit).
+ *
+ * @return On success true is returned.
+ */
+//==============================================================================
+static bool tap_open(void)
+{
+        if (!host.tap_name) {
+                return true;
+        }
+
+        host.tap_fd = open("/dev/net/tun", O_RDWR | O_NONBLOCK | O_CLOEXEC);
+        if (host.tap_fd < 0) {
+                fprintf(stderr, "TAP: /dev/net/tun: %s\n", strerror(errno));
+                return false;
+        }
+
+        struct ifreq ifr;
+        memset(&ifr, 0, sizeof(ifr));
+        ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
+        strncpy(ifr.ifr_name, host.tap_name, IFNAMSIZ - 1);
+
+        if (ioctl(host.tap_fd, TUNSETIFF, &ifr) != 0) {
+                fprintf(stderr, "TAP: %s: %s\n", host.tap_name, strerror(errno));
+                close(host.tap_fd);
+                host.tap_fd = -1;
+                return false;
+        }
+
+        fprintf(stderr, "ETH: %s\n", host.tap_name);
+
+        return true;
+}
+
+//==============================================================================
+/**
  * @brief  Function restore host state at simulator exit (terminal
  *         configuration, PTY links). Function is called from signal handlers.
  */
@@ -661,6 +707,14 @@ static bool parse_args(int argc, char *argv[])
                         }
                         i++;
 
+                } else if (strcmp(opt, "--tap") == 0) {
+                        if (!val || (*val == '\0') || (strlen(val) >= IFNAMSIZ)) {
+                                fprintf(stderr, "Invalid TAP interface name: %s\n", val ? val : "");
+                                return false;
+                        }
+                        host.tap_name = val;
+                        i++;
+
                 } else if (strcmp(opt, "--hostfs") == 0) {
                         char *root = val ? realpath(val, NULL) : NULL;
                         struct stat st;
@@ -711,6 +765,7 @@ int main(int argc, char *argv[])
         }
 
         host.ram_size = (size_t)DEFAULT_RAM_SIZE_MIB * 1024 * 1024;
+        host.tap_fd = -1;
 
         for (int i = 0; i < _HOST_DISK_COUNT; i++) {
                 host.disk[i].fd = -1;
@@ -736,7 +791,7 @@ int main(int argc, char *argv[])
 
         signals_configure();
 
-        if (!uarts_open()) {
+        if (!uarts_open() || !tap_open()) {
                 host_cleanup();
                 return EXIT_FAILURE;
         }
@@ -1088,6 +1143,106 @@ int _host_uart_write(int port, const void *buf, size_t len)
                 break;
         }
 
+        unlock();
+
+        return n;
+}
+
+//==============================================================================
+/**
+ * @brief  Check if Ethernet interface (TAP) is available.
+ *
+ * @return If interface is available true is returned.
+ */
+//==============================================================================
+bool _host_eth_is_available(void)
+{
+        return host.tap_fd >= 0;
+}
+
+//==============================================================================
+/**
+ * @brief  Check if Ethernet link is connected (TAP interface is up on the host).
+ *
+ * @return If link is connected true is returned.
+ */
+//==============================================================================
+bool _host_eth_is_link_up(void)
+{
+        if (host.tap_fd < 0) {
+                return false;
+        }
+
+        bool up = false;
+
+        lock();
+
+        int sock = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+        if (sock >= 0) {
+                struct ifreq ifr;
+                memset(&ifr, 0, sizeof(ifr));
+                strncpy(ifr.ifr_name, host.tap_name, IFNAMSIZ - 1);
+
+                if (ioctl(sock, SIOCGIFFLAGS, &ifr) == 0) {
+                        up = (ifr.ifr_flags & IFF_UP) != 0;
+                }
+
+                close(sock);
+        }
+
+        unlock();
+
+        return up;
+}
+
+//==============================================================================
+/**
+ * @brief  Receive Ethernet frame (non-blocking).
+ *
+ * @param  buf          buffer
+ * @param  len          buffer length
+ *
+ * @return Frame size, 0 if there is no frame, -1 on error.
+ */
+//==============================================================================
+int _host_eth_read(void *buf, size_t len)
+{
+        if (host.tap_fd < 0) {
+                return -1;
+        }
+
+        lock();
+        int n = (int)read(host.tap_fd, buf, len);
+        if ((n < 0) && ((errno == EAGAIN) || (errno == EINTR))) {
+                n = 0;
+        }
+        unlock();
+
+        return n;
+}
+
+//==============================================================================
+/**
+ * @brief  Send Ethernet frame.
+ *
+ * @param  buf          frame
+ * @param  len          frame length
+ *
+ * @return Number of sent bytes, 0 if interface is busy, -1 on error (e.g.
+ *         interface is down).
+ */
+//==============================================================================
+int _host_eth_write(const void *buf, size_t len)
+{
+        if (host.tap_fd < 0) {
+                return -1;
+        }
+
+        lock();
+        int n = (int)write(host.tap_fd, buf, len);
+        if ((n < 0) && ((errno == EAGAIN) || (errno == EINTR))) {
+                n = 0;
+        }
         unlock();
 
         return n;

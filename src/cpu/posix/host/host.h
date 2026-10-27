@@ -156,6 +156,12 @@ extern int _host_uart_configure(int port, uint32_t baud, int parity, int stop_bi
 extern int _host_uart_read(int port, void *buf, size_t len);
 extern int _host_uart_write(int port, const void *buf, size_t len);
 
+/* Ethernet (TAP) */
+extern bool _host_eth_is_available(void);
+extern bool _host_eth_is_link_up(void);
+extern int _host_eth_read(void *buf, size_t len);
+extern int _host_eth_write(const void *buf, size_t len);
+
 /* disks */
 extern int _host_disk_open(int disk, uint64_t *size, bool *read_only);
 extern void _host_disk_close(int disk);
