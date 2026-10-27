@@ -51,6 +51,8 @@ extern "C" {
 #include "stm32h7/cpuctl.h"
 #elif defined(ARCH_rpcm0)
 #include "rpcm0/cpuctl.h"
+#elif defined(ARCH_posix)
+#include "posix/cpuctl.h"
 #else
 #error CPU architecture not defined!
 #endif

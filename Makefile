@@ -44,6 +44,15 @@ PROJECT = $(__PROJECT_NAME__)
 TOOLCHAIN = $(__PROJECT_TOOLCHAIN__)
 CC_WRAPPER = 
 
+# microcontroller specific flags (not used by the POSIX simulator)
+ifeq ($(__CPU_ARCH__), posix)
+MCU_CFLAGS =
+MCU_LFLAGS =
+else
+MCU_CFLAGS = -mno-unaligned-access
+MCU_LFLAGS = -mno-unaligned-access -Wl,-u,vectors -specs=nano.specs -specs=rdimon.specs -Wl,--print-memory-usage
+endif
+
 AFLAGS   = -c -MMD -MP \
            -g \
            -ggdb3 \
@@ -59,7 +68,7 @@ CFLAGS   = -c -MMD -MP \
            -Wextra \
            -Wparentheses \
            -nostdlib\
-           -mno-unaligned-access \
+           $(MCU_CFLAGS) \
            -Werror=implicit-function-declaration \
            -Werror=int-conversion \
            -Werror=incompatible-pointer-types \
@@ -90,7 +99,7 @@ CXXFLAGS = -c -MMD -MP \
            -fno-rtti \
            -fno-exceptions \
            -fno-unwind-tables \
-           -mno-unaligned-access \
+           $(MCU_CFLAGS) \
            -Wall \
            -Wextra \
            -nostdlib\
@@ -112,13 +121,13 @@ CXXFLAGS = -c -MMD -MP \
 LFLAGS   = -g \
            $(CPUCONFIG_LDFLAGS) \
            -Wl,--gc-sections \
-           -mno-unaligned-access \
-           -Wl,-u,vectors \
            -Wl,-Map=$(TARGET_PATH)/$(PROJECT).map,--cref,--no-warn-mismatch \
            -Wall \
-           -specs=nano.specs -specs=rdimon.specs \
-           -Wl,--print-memory-usage \
+           $(MCU_LFLAGS) \
            -lm
+
+# flags of files that use host (POSIX simulator) headers and libraries
+CFLAGS_HOST = $(CFLAGS) -D_DNX_HOST_ -D_GNU_SOURCE
 
 #---------------------------------------------------------------------------------------------------
 # FILE EXTENSIONS CONFIGURATION
@@ -207,6 +216,7 @@ SEARCHPATH_LIB      = $(foreach var, $(_HDRLOC_LIB),-I$(var))
 SEARCHPATH_CORE     = $(foreach var, $(_HDRLOC_CORE),-I$(var))
 SEARCHPATH_NOARCH   = $(foreach var, $(_HDRLOC_NOARCH),-I$(var))
 SEARCHPATH_ARCH     = $(foreach var, $(_HDRLOC_ARCH),-I$(var))
+SEARCHPATH_HOST     = -Isrc/ $(foreach var, $(_HDRLOC_HOST),-I$(var))
 
 # main target without defined prefixes
 TARGET = $(__CPU_ARCH__)
@@ -224,12 +234,14 @@ include $(SYS_LOC)/Makefile
 _HDRLOC_CORE     = $(foreach file, $(HDRLOC_CORE),$(SYS_LOC)/$(file))
 _HDRLOC_NOARCH   = $(foreach file, $(HDRLOC_NOARCH),$(SYS_LOC)/$(file))
 _HDRLOC_ARCH     = $(foreach file, $(HDRLOC_ARCH),$(SYS_LOC)/$(file))
+_HDRLOC_HOST     = $(foreach file, $(HDRLOC_HOST),$(SYS_LOC)/$(file))
 HDRLOC           = src/ $(_HDRLOC_PROGRAMS) $(_HDRLOC_LIB) $(_HDRLOC_CORE) $(_HDRLOC_NOARCH) $(_HDRLOC_ARCH)
 
 # defines all C sources
 _CSRC_CORE       = $(foreach file, $(CSRC_CORE),$(SYS_LOC)/$(file))
 _CSRC_NOARCH     = $(foreach file, $(CSRC_NOARCH),$(SYS_LOC)/$(file))
 _CSRC_ARCH       = $(foreach file, $(CSRC_ARCH),$(SYS_LOC)/$(file))
+_CSRC_HOST       = $(foreach file, $(CSRC_HOST),$(SYS_LOC)/$(file))
 CSRC             = $(_CSRC_PROGRAMS) $(_CSRC_LIB) $(_CSRC_CORE) $(_CSRC_NOARCH) $(_CSRC_ARCH)
 
 # defines all C++ sources
@@ -244,6 +256,7 @@ ASRC             = $(foreach file, $(ASRC_ARCH),$(SYS_LOC)/$(file))
 CSRCCOREOBJ            = $(_CSRC_CORE:.$(C_EXT)=.$(OBJ_EXT))
 CSRCNOARCHOBJ          = $(_CSRC_NOARCH:.$(C_EXT)=.$(OBJ_EXT))
 CSRCARCHOBJ            = $(_CSRC_ARCH:.$(C_EXT)=.$(OBJ_EXT))
+CSRCHOSTOBJ            = $(_CSRC_HOST:.$(C_EXT)=.$(OBJ_EXT))
 CSRCOBJ                = $(CSRC:.$(C_EXT)=.$(OBJ_EXT))
 CXXSRCCOREOBJ          = $(_CXXSRC_CORE:.$(CXX_EXT)=.$(OBJ_EXT))
 CXXSRCNOARCHOBJ        = $(_CXXSRC_NOARCH:.$(CXX_EXT)=.$(OBJ_EXT))
@@ -255,17 +268,18 @@ ASRCOBJ                = $(ASRC:.$(AS_EXT)=.$(OBJ_EXT))
 OBJECTS_CSRC_CORE      = $(foreach var,$(CSRCCOREOBJ),$(OBJ_PATH)/$(var))
 OBJECTS_CSRC_NOARCH    = $(foreach var,$(CSRCNOARCHOBJ),$(OBJ_PATH)/$(var))
 OBJECTS_CSRC_ARCH      = $(foreach var,$(CSRCARCHOBJ),$(OBJ_PATH)/$(var))
+OBJECTS_CSRC_HOST      = $(foreach var,$(CSRCHOSTOBJ),$(OBJ_PATH)/$(var))
 OBJECTS_CXXSRC_CORE    = $(foreach var,$(CXXSRCCOREOBJ),$(OBJ_PATH)/$(var))
 OBJECTS_CXXSRC_NOARCH  = $(foreach var,$(CXXSRCNOARCHOBJ),$(OBJ_PATH)/$(var))
 OBJECTS_CXXSRC_ARCH    = $(foreach var,$(CXXSRCARCHOBJ),$(OBJ_PATH)/$(var))
 OBJECTS_ASRC           = $(foreach var,$(ASRCOBJ),$(OBJ_PATH)/$(var))
 OBJECTS_CSRC           = $(OBJECTS_CSRC_PROGRAMS) $(OBJECTS_CSRC_LIB) $(OBJECTS_CSRC_CORE) $(OBJECTS_CSRC_NOARCH) $(OBJECTS_CSRC_ARCH)
 OBJECTS_CXXSRC         = $(OBJECTS_CXXSRC_PROGRAMS) $(OBJECTS_CXXSRC_LIB) $(OBJECTS_CXXSRC_CORE) $(OBJECTS_CXXSRC_NOARCH) $(OBJECTS_CXXSRC_ARCH)
-OBJECTS_ALL            = $(OBJECTS_ASRC) $(OBJECTS_CSRC) $(OBJECTS_CXXSRC)
+OBJECTS_ALL            = $(OBJECTS_ASRC) $(OBJECTS_CSRC) $(OBJECTS_CXXSRC) $(OBJECTS_CSRC_HOST)
 
 # architecture dependent sources that do not exist (module not supported by selected CPU),
 # modules not supported by selected CPU are also added to UNSUPPORTED_MODULES by module Makefile
-ARCH_SRC               = $(_CSRC_ARCH) $(_CXXSRC_ARCH) $(ASRC)
+ARCH_SRC               = $(_CSRC_ARCH) $(_CXXSRC_ARCH) $(ASRC) $(_CSRC_HOST)
 MISSING_ARCH_SRC       = $(filter-out $(wildcard $(ARCH_SRC)),$(ARCH_SRC))
 
 .DELETE_ON_ERROR:
@@ -330,6 +344,9 @@ quickcheck :
 ####################################################################################################
 .PHONY : hex
 hex :
+ifeq ($(TARGET), posix)
+	@$(ECHO) 'Kernel archive is ready to link with appset (POSIX simulator).'
+else
 	@$(ECHO) 'Creating IHEX image...'
 	@$(OBJCOPY) $(TARGET_PATH)/$(PROJECT).elf -O ihex $(TARGET_PATH)/$(PROJECT).hex
 
@@ -344,6 +361,7 @@ hex :
 
 	#@$(ECHO) 'Creating objects size list...'
 	#@$(SIZE) -B -t --common $(TARGET_PATH)/$(PROJECT).a > $(TARGET_PATH)/$(PROJECT).size
+endif
 
 ####################################################################################################
 # show compile status
@@ -410,8 +428,38 @@ $(TARGET_PATH)/objects.list : $(OBJECTS_ALL)
 
 .PHONY : linkobjects
 linkobjects : $(TARGET_PATH)/objects.list
+ifeq ($(TARGET), posix)
+	@$(ECHO) "Creating kernel archive..."
+	@$(RM) $(TARGET_PATH)/$(PROJECT).a
+	@$(AR) rcs $(TARGET_PATH)/$(PROJECT).a @$(TARGET_PATH)/objects.list
+else
 	@$(ECHO) "Linking..."
 	@$(LD) @$(TARGET_PATH)/objects.list $(LFLAGS) -o $(TARGET_PATH)/$(PROJECT).elf
+endif
+
+####################################################################################################
+# POSIX simulator: link kernel archive with appset object
+# usage: make link-sim APPSET_OBJ=<appset.o> OUTPUT=<executable> CONFIG_DIR=<dir>
+####################################################################################################
+POSIX_LD_SYMBOLS = -Wl,--defsym=__text_start=__executable_start \
+                   -Wl,--defsym=__text_end=etext \
+                   -Wl,--defsym=__ram_start=_posix_boot_stack \
+                   -Wl,--defsym=__stack_start=_posix_boot_stack \
+                   -Wl,--defsym=__stack_size=$(POSIX_BOOT_STACK_SIZE) \
+                   -Wl,--defsym=_appset_data_init_start=0 \
+                   -Wl,--defsym=_appset_data_start=0 \
+                   -Wl,--defsym=_appset_data_size=0 \
+                   -Wl,--defsym=_appset_bss_start=0 \
+                   -Wl,--defsym=_appset_bss_size=0
+
+# must be the same as size of _posix_boot_stack (cpu/posix/cpuctl.c) + 512
+POSIX_BOOT_STACK_SIZE = 0x10200
+
+.PHONY : link-sim
+link-sim :
+	@$(ECHO) "Linking POSIX simulator..."
+	@$(LD) -Wl,--whole-archive $(TARGET_PATH)/$(PROJECT).a -Wl,--no-whole-archive $(APPSET_OBJ) \
+	       $(LFLAGS) $(POSIX_LD_SYMBOLS) $(CPUCONFIG_HOST_LIBS) -o $(OUTPUT)
 
 ####################################################################################################
 # build objects
@@ -445,6 +493,14 @@ $(OBJ_PATH)/%.$(OBJ_EXT) : %.$(C_EXT) $(THIS_MAKEFILE)
 	@$(ECHO) "Compiling: $<"
 	@$(MKDIR) $(dir $@)
 	@$(CC) $(CFLAGS) $(SEARCHPATH) $< -o $@
+
+####################################################################################################
+# rule used to compile object files that use host headers (POSIX simulator)
+####################################################################################################
+$(OBJECTS_CSRC_HOST) : $(OBJ_PATH)/%.$(OBJ_EXT) : %.$(C_EXT) $(THIS_MAKEFILE)
+	@$(ECHO) "Compiling (host): $<"
+	@$(MKDIR) $(dir $@)
+	@$(CC) $(CFLAGS_HOST) $(SEARCHPATH_HOST) $< -o $@
 
 ####################################################################################################
 # rule used to compile object files from C++ sources

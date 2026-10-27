@@ -175,12 +175,18 @@ void _process_init(void)
         /*
          * Register main program table
          */
+#if defined(ARCH_posix)
+        /* in the POSIX simulator appset is linked with kernel */
+        extern const _program_table_desc_t _program_table_desc;
+        appset_base.table = &_program_table_desc;
+#else
         if (__PROJ_APPSET_TABLE_ADDRESS__ == UINT32_MAX) {
                 extern void *__text_end;
                 appset_base.table = cast(const _program_table_desc_t *const, &__text_end);
         } else {
                 appset_base.table = cast(const _program_table_desc_t *const, __PROJ_APPSET_TABLE_ADDRESS__);
         }
+#endif
 
         appset_table_t *at = &appset_base;
 

@@ -69,8 +69,13 @@
 
 #include <stdbool.h>
 #include "config.h"     /* general configuration  */
+#if defined(_DNX_HOST_)
+/* files compiled with host headers (POSIX simulator) cannot use dnx headers */
+#define _CPUCTL_CORE_NUM 1
+#else
 #include "cpu/cpuctl.h" /* CPU vector definitions */
 #include "mm/mm.h"      /* memory management      */
+#endif
 
 /*-------------------------------------------------------------
  * Used prototypes from external modules
@@ -115,6 +120,10 @@ extern void _task_switched_in(void *, void *, void *);
 
 #if configNUMBER_OF_CORES > 1
 #define configUSE_CORE_AFFINITY                   1
+#endif
+
+#if defined(ARCH_posix)
+#define configSTACK_DEPTH_TYPE                    uint32_t
 #endif
 
 /* Hook function related definitions. */

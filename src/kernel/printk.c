@@ -232,18 +232,18 @@ size_t _printk_read(char *str, size_t len, const struct timeval *from_time, stru
                         char c = get_char(&tail);
                         if (c == SOH) {
                                 u64_t timestamp = 0;
-                                timestamp |= cast(u64_t, get_char(&tail)) << 0;
-                                timestamp |= cast(u64_t, get_char(&tail)) << 8;
-                                timestamp |= cast(u64_t, get_char(&tail)) << 16;
-                                timestamp |= cast(u64_t, get_char(&tail)) << 24;
-                                timestamp |= cast(u64_t, get_char(&tail)) << 32;
-                                timestamp |= cast(u64_t, get_char(&tail)) << 40;
-                                timestamp |= cast(u64_t, get_char(&tail)) << 48;
-                                timestamp |= cast(u64_t, get_char(&tail)) << 56;
+                                timestamp |= cast(u64_t, cast(u8_t, get_char(&tail))) << 0;
+                                timestamp |= cast(u64_t, cast(u8_t, get_char(&tail))) << 8;
+                                timestamp |= cast(u64_t, cast(u8_t, get_char(&tail))) << 16;
+                                timestamp |= cast(u64_t, cast(u8_t, get_char(&tail))) << 24;
+                                timestamp |= cast(u64_t, cast(u8_t, get_char(&tail))) << 32;
+                                timestamp |= cast(u64_t, cast(u8_t, get_char(&tail))) << 40;
+                                timestamp |= cast(u64_t, cast(u8_t, get_char(&tail))) << 48;
+                                timestamp |= cast(u64_t, cast(u8_t, get_char(&tail))) << 56;
 
                                 u16_t msg_len = 0;
-                                msg_len |= get_char(&tail) << 0;
-                                msg_len |= get_char(&tail) << 8;
+                                msg_len |= cast(u8_t, get_char(&tail)) << 0;
+                                msg_len |= cast(u8_t, get_char(&tail)) << 8;
 
                                 if (timestamp > from_us) {
                                         msg_time->tv_sec = timestamp / 1000000ULL;

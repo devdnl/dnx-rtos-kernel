@@ -60,6 +60,8 @@
 #include "hardware/regs/addressmap.h"
 #include "hardware/structs/uart.h"
 #include "hardware/structs/resets.h"
+#elif defined(ARCH_posix)
+#include "posix/host/host.h"
 #endif
 
 #ifdef __cplusplus
@@ -227,6 +229,14 @@ enum {
 enum {
         _UART0,
         _UART1,
+        _UART_COUNT
+};
+#elif defined(ARCH_posix)
+enum {
+        _UART0,
+        _UART1,
+        _UART2,
+        _UART3,
         _UART_COUNT
 };
 #endif

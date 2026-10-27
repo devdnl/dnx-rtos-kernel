@@ -21,6 +21,9 @@ ifeq ($(__ENABLE_UART__), _YES_)
    else ifeq ($(TARGET), rpcm0)
       CSRC_ARCH   += drivers/uart/rpcm0/uart_lld.c
       CXXSRC_ARCH +=
+   else ifeq ($(TARGET), posix)
+      CSRC_ARCH   += drivers/uart/posix/uart_lld.c
+      CXXSRC_ARCH +=
    else
       UNSUPPORTED_MODULES += UART
    endif

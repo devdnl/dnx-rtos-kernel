@@ -697,6 +697,8 @@ typedef enum {
         GPIO_pin_mux__USB_VBUS_DET = 9,
         GPIO_pin_mux__USB_VBUS_EN = 9,
         GPIO_pin_mux__disable = 31,
+#elif defined(ARCH_posix)
+        GPIO_pin_mux__disable,
 #endif
         GPIO_pin_mux_amount,
 } GPIO_pin_mux_t;

@@ -520,7 +520,14 @@ int _syscall_init(void)
  * @return Operation status (errno value).
  */
 //==============================================================================
-__attribute__((section(".syscall"))) int syscall(syscall_t syscall, va_list args)
+#if defined(ARCH_posix)
+/* in the POSIX simulator the syscall() name is used by the host library */
+#define syscall_entry _dnx_syscall
+#else
+#define syscall_entry syscall
+#endif
+
+__attribute__((section(".syscall"))) int syscall_entry(syscall_t syscall, va_list args)
 {
         int err = ENOSYS;
         u8_t cpuid = _cpuctl_get_cpu_id();

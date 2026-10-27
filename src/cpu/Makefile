@@ -72,3 +72,10 @@ HDRLOC_ARCH += cpu/lib/CMSIS
 GENERATOR   += $(SYS_CPU_LOC)/rpcm0/prepare.sh
 endif
 
+ifeq ($(TARGET), posix)
+CSRC_ARCH   += cpu/posix/cpuctl.c
+CSRC_HOST   += cpu/posix/host/host.c
+HDRLOC_ARCH += cpu/posix
+HDRLOC_ARCH += cpu/posix/compat
+HDRLOC_HOST += cpu/posix/host
+endif

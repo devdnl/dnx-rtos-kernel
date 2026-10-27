@@ -66,6 +66,11 @@
   Function definitions
 ==============================================================================*/
 
+#if defined(ARCH_posix)
+/* in the POSIX simulator the main() function is a host program entry */
+#define main _dnx_main
+#endif
+
 //==============================================================================
 /**
  * @brief Main function

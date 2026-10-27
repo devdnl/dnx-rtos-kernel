@@ -62,6 +62,8 @@
 #include "stm32h7/gpio_cfg.h"
 #elif defined(ARCH_rpcm0)
 #include "rpcm0/gpio_cfg.h"
+#elif defined(ARCH_posix)
+#include "posix/gpio_cfg.h"
 #endif
 
 #ifdef __cplusplus
