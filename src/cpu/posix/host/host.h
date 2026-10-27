@@ -176,6 +176,7 @@ extern int _host_fs_close(int fd);
 extern int _host_fs_read(int fd, uint64_t offset, void *buf, size_t len, size_t *rdcnt);
 extern int _host_fs_write(int fd, uint64_t offset, const void *buf, size_t len, size_t *wrcnt);
 extern int _host_fs_sync(int fd);
+extern int _host_fs_syncfs(void);
 extern int _host_fs_fstat(int fd, struct _host_stat *stat);
 extern int _host_fs_stat(const char *path, struct _host_stat *stat);
 extern int _host_fs_mkdir(const char *path, uint32_t perm);

@@ -118,7 +118,19 @@ int _kworker_init(void)
 {
         int err = _semaphore_create(1, 0, &wake_sem);
         if (!err) {
-                err = _process_create("kworker", &kworker_attr, NULL);
+                pid_t pid = 0;
+                err = _process_create("kworker", &kworker_attr, &pid);
+
+                /*
+                 * NOTE: kworker container must be known before the init program
+                 *       is started, because drivers initialized by init program
+                 *       create threads and resources in the kworker process
+                 *       (sys_thread_create()). Init program can be started
+                 *       before kworker task (both have the same priority).
+                 */
+                if (!err) {
+                        err = _process_get_container(pid, &_kworker_proc);
+                }
         }
 
         if (!err) {

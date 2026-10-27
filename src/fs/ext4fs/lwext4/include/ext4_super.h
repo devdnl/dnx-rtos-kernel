@@ -192,6 +192,12 @@ uint32_t ext4_blocks_in_group_cnt(struct ext4_sblock *s, uint32_t bgid);
  * @return  inodes count*/
 uint32_t ext4_inodes_in_group_cnt(struct ext4_sblock *s, uint32_t bgid);
 
+/**@brief   Returns seed of metadata checksums: crc32c(uuid) or seed stored
+ *          in superblock (csum_seed feature).
+ * @param   s superblock descriptor
+ * @return  checksum seed*/
+uint32_t ext4_sb_csum_seed(struct ext4_sblock *s);
+
 /***************************Read/write/check superblock**********************/
 
 /**@brief   Superblock write.

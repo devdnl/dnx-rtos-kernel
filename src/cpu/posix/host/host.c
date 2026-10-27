@@ -1735,6 +1735,38 @@ int _host_fs_sync(int fd)
 
 //==============================================================================
 /**
+ * @brief  Synchronize host file system of the shared directory. Some file
+ *         systems (e.g. btrfs) update free space statistics after commit only.
+ *
+ * @return Host error code.
+ */
+//==============================================================================
+int _host_fs_syncfs(void)
+{
+        if (!host.fs_root) {
+                return _HOST_ENOENT;
+        }
+
+        lock();
+
+        int err = _HOST_ESUCC;
+        int fd = open(host.fs_root, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+        if (fd >= 0) {
+                if (syncfs(fd) != 0) {
+                        err = fs_err(errno);
+                }
+                close(fd);
+        } else {
+                err = fs_err(errno);
+        }
+
+        unlock();
+
+        return err;
+}
+
+//==============================================================================
+/**
  * @brief  Return information about opened file.
  *
  * @param  fd           file descriptor

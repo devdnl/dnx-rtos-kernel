@@ -174,7 +174,9 @@ struct ext4_sblock {
 	uint8_t  encrypt_algos[4];	/* Encryption algorithms in use  */
 	uint8_t  encrypt_pw_salt[16];	/* Salt used for string2key algorithm */
 	uint32_t lpf_ino;		/* Location of the lost+found inode */
-	uint32_t padding[100];	/* Padding to the end of the block */
+	uint32_t prj_quota_inum;	/* inode for tracking project quota */
+	uint32_t checksum_seed;	/* crc32c(uuid) if csum_seed set */
+	uint32_t padding[98];	/* Padding to the end of the block */
 	uint32_t checksum;		/* crc32c(superblock) */
 };
 
@@ -246,7 +248,7 @@ struct ext4_sblock {
 #define EXT4_FINCOM_FLEX_BG 0x0200
 #define EXT4_FINCOM_EA_INODE 0x0400	 /* EA in inode */
 #define EXT4_FINCOM_DIRDATA 0x1000	  /* data in dirent */
-#define EXT4_FINCOM_BG_USE_META_CSUM 0x2000 /* use crc32c for bg */
+#define EXT4_FINCOM_CSUM_SEED 0x2000 /* metadata checksum seed in superblock */
 #define EXT4_FINCOM_LARGEDIR 0x4000	 /* >2GB or 3-lvl htree */
 #define EXT4_FINCOM_INLINE_DATA 0x8000      /* data in inode */
 
@@ -281,7 +283,7 @@ struct ext4_sblock {
 #define EXT4_SUPPORTED_FINCOM                              \
 	(EXT4_FINCOM_FILETYPE | EXT4_FINCOM_META_BG |      \
 	 EXT4_FINCOM_EXTENTS | EXT4_FINCOM_FLEX_BG |       \
-	 EXT4_FINCOM_64BIT)
+	 EXT4_FINCOM_64BIT | EXT4_FINCOM_CSUM_SEED)
 
 #define EXT4_SUPPORTED_FRO_COM                             \
 	(EXT4_FRO_COM_SPARSE_SUPER |                       \

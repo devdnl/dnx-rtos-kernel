@@ -1175,7 +1175,7 @@ int _process_get_container(pid_t pid, _process_t **process)
 
                 _process_t *active_proc = active_process[_cpuctl_get_cpu_id()];
 
-                if (active_proc->pid == pid) {
+                if (active_proc && (active_proc->pid == pid)) {
                         *process = active_proc;
                         err = ESUCC;
                 }

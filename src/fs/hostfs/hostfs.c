@@ -793,8 +793,11 @@ API_FS_SYNC(hostfs, void *fs_handle)
 {
         UNUSED_ARG1(fs_handle);
 
-        /* data is written directly to the host (host cache) */
-        return ESUCC;
+        /*
+         * Data is written directly to the host (host cache). Host file system
+         * is synchronized to update e.g. free space statistics (btrfs).
+         */
+        return host_errno(_host_fs_syncfs());
 }
 
 //==============================================================================

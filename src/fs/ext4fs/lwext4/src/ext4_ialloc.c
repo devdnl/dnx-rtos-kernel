@@ -100,7 +100,7 @@ static uint32_t ext4_ialloc_bitmap_csum(struct ext4_sblock *sb,	void *bitmap)
 			ext4_get32(sb, inodes_per_group);
 
 		/* First calculate crc32 checksum against fs uuid */
-		csum = ext4_crc32c(EXT4_CRC32_INIT, sb->uuid, sizeof(sb->uuid));
+		csum = ext4_sb_csum_seed(sb);
 		/* Then calculate crc32 checksum against inode bitmap */
 		csum = ext4_crc32c(csum, bitmap, (inodes_per_group + 7) / 8);
 	}

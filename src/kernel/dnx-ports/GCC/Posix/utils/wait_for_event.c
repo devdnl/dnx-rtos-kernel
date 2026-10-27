@@ -56,9 +56,21 @@ void event_delete( struct event * ev )
     free( ev );
 }
 
+/*
+ * dnx RTOS: waiting thread can be cancelled (vPortCancelThread()). Cancelled
+ * pthread_cond_wait() re-acquires the mutex before thread exit, so the mutex
+ * must be released by the cleanup handler, otherwise event_signal() called
+ * after pthread_cancel() is blocked forever (system deadlock).
+ */
+static void prvEventUnlock( void * pvMutex )
+{
+    pthread_mutex_unlock( ( pthread_mutex_t * ) pvMutex );
+}
+
 bool event_wait( struct event * ev )
 {
     pthread_mutex_lock( &ev->mutex );
+    pthread_cleanup_push( prvEventUnlock, &ev->mutex );
 
     while( ev->event_triggered == false )
     {
@@ -66,7 +78,8 @@ bool event_wait( struct event * ev )
     }
 
     ev->event_triggered = false;
-    pthread_mutex_unlock( &ev->mutex );
+
+    pthread_cleanup_pop( 1 );
     return true;
 }
 bool event_wait_timed( struct event * ev,
@@ -74,25 +87,32 @@ bool event_wait_timed( struct event * ev,
 {
     struct timespec ts;
     int ret = 0;
+    bool triggered;
 
     clock_gettime( CLOCK_REALTIME, &ts );
     ts.tv_sec += ms / 1000;
     ts.tv_nsec += ( ( ms % 1000 ) * 1000000 );
+
+    if( ts.tv_nsec >= 1000000000L )
+    {
+        ts.tv_sec++;
+        ts.tv_nsec -= 1000000000L;
+    }
+
     pthread_mutex_lock( &ev->mutex );
+    pthread_cleanup_push( prvEventUnlock, &ev->mutex );
 
     while( ( ev->event_triggered == false ) && ( ret == 0 ) )
     {
         ret = pthread_cond_timedwait( &ev->cond, &ev->mutex, &ts );
-
-        if( ( ret == -1 ) && ( errno == ETIMEDOUT ) )
-        {
-            return false;
-        }
     }
 
+    /* dnx RTOS: mutex is released also on timeout */
+    triggered = ev->event_triggered;
     ev->event_triggered = false;
-    pthread_mutex_unlock( &ev->mutex );
-    return true;
+
+    pthread_cleanup_pop( 1 );
+    return triggered;
 }
 
 void event_signal( struct event * ev )

@@ -160,8 +160,8 @@ static void ext4_fs_debug_features_inc(uint32_t features_incompatible)
 		ext4_dbg(DEBUG_FS, DBG_NONE "ea_inode\n");
 	if (features_incompatible & EXT4_FINCOM_DIRDATA)
 		ext4_dbg(DEBUG_FS, DBG_NONE "dirdata\n");
-	if (features_incompatible & EXT4_FINCOM_BG_USE_META_CSUM)
-		ext4_dbg(DEBUG_FS, DBG_NONE "meta_csum\n");
+	if (features_incompatible & EXT4_FINCOM_CSUM_SEED)
+		ext4_dbg(DEBUG_FS, DBG_NONE "csum_seed\n");
 	if (features_incompatible & EXT4_FINCOM_LARGEDIR)
 		ext4_dbg(DEBUG_FS, DBG_NONE "largedir\n");
 	if (features_incompatible & EXT4_FINCOM_INLINE_DATA)
@@ -507,8 +507,7 @@ static uint16_t ext4_fs_bg_checksum(struct ext4_sblock *sb, uint32_t bgid,
 		bg->checksum = 0;
 
 		/* First calculate crc32 checksum against fs uuid */
-		checksum = ext4_crc32c(EXT4_CRC32_INIT, sb->uuid,
-				sizeof(sb->uuid));
+		checksum = ext4_sb_csum_seed(sb);
 		/* Then calculate crc32 checksum against bgid */
 		checksum = ext4_crc32c(checksum, &le32_bgid, sizeof(bgid));
 		/* Finally calculate crc32 checksum against block_group_desc */
@@ -669,8 +668,7 @@ static uint32_t ext4_fs_inode_checksum(struct ext4_inode_ref *inode_ref)
 		ext4_inode_set_csum(sb, inode_ref->inode, 0);
 
 		/* First calculate crc32 checksum against fs uuid */
-		checksum = ext4_crc32c(EXT4_CRC32_INIT, sb->uuid,
-				       sizeof(sb->uuid));
+		checksum = ext4_sb_csum_seed(sb);
 		/* Then calculate crc32 checksum against inode number
 		 * and inode generation */
 		checksum = ext4_crc32c(checksum, &ino_index, sizeof(ino_index));

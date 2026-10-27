@@ -190,7 +190,7 @@ static uint32_t ext4_xattr_block_checksum(struct ext4_inode_ref *inode_ref,
 		header->h_checksum = 0;
 		/* First calculate crc32 checksum against fs uuid */
 		checksum =
-		    ext4_crc32c(EXT4_CRC32_INIT, sb->uuid, sizeof(sb->uuid));
+		    ext4_sb_csum_seed(sb);
 		/* Then calculate crc32 checksum block number */
 		checksum =
 		    ext4_crc32c(checksum, &le64_blocknr, sizeof(le64_blocknr));
