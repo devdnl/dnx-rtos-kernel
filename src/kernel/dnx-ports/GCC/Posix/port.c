@@ -244,7 +244,7 @@ BaseType_t xPortStartScheduler( void )
     sigset_t xSignals;
 
     hMainThread = pthread_self();
-    prvPortSetCurrentThreadName("Scheduler");
+    prvPortSetCurrentThreadName("dnx RTOS");
 
     /* Start the timer that generates the tick ISR(SIGALRM).
      * Interrupts are disabled here already. */
@@ -282,7 +282,7 @@ BaseType_t xPortStartScheduler( void )
     #else /* Linux PTHREAD library*/
         hSigSetupThread = PTHREAD_ONCE_INIT;
     #endif /* __APPLE__*/
-    
+
     /* Restore original signal mask. */
     ( void ) pthread_sigmask( SIG_SETMASK, &xSchedulerOriginalSignalMask, NULL );
 
@@ -400,7 +400,7 @@ static uint64_t prvGetTimeNs( void )
 static void * prvTimerTickHandler( void * arg )
 {
     ( void ) arg;
-    
+
     prvPortSetCurrentThreadName("Scheduler timer");
 
     while( xTimerTickThreadShouldRun )

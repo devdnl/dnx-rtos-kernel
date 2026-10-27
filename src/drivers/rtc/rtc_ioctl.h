@@ -37,6 +37,7 @@ Driver handles real time clock peripheral.
 \li stm32f4
 \li stm32f7
 \li stm32h7
+\li posix
 
 \section drv-rtc-ddesc Details
 \subsection drv-rtc-ddesc-num Meaning of major and minor numbers

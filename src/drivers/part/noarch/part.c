@@ -359,7 +359,7 @@ static int configure(PART_t *hdl, const PART_config_t *conf)
                 }
 
                 if (!err) {
-                        err = sys_fopen(conf->path, O_RDWR, 0, &hdl->dev);
+                        err = sys_fopen(conf->path, O_RDONLY, 0, &hdl->dev);
                         if (!err) {
                                 hdl->block_size = conf->block_size;
                                 hdl->total_bytes = cast(u64_t, conf->total_blocks) * conf->block_size;

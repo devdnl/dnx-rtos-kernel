@@ -141,11 +141,7 @@ API_MOD_RELEASE(HOSTDISK, void *device_handle)
 //==============================================================================
 API_MOD_OPEN(HOSTDISK, void *device_handle, u32_t flags)
 {
-        HOSTDISK_t *hdl = device_handle;
-
-        if (hdl->read_only && (flags & (O_WRONLY | O_RDWR))) {
-                return EROFS;
-        }
+        UNUSED_ARG2(device_handle, flags);
 
         return ESUCC;
 }

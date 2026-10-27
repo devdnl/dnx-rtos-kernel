@@ -14,6 +14,9 @@ ifeq ($(__ENABLE_RTC__), _YES_)
    else ifeq ($(TARGET), stm32h7)
       CSRC_ARCH   += drivers/rtc/$(TARGET)/rtc.c
       CXXSRC_ARCH += 
+   else ifeq ($(TARGET), posix)
+      CSRC_ARCH   += drivers/rtc/$(TARGET)/rtc.c
+      CXXSRC_ARCH += 
    else
       UNSUPPORTED_MODULES += RTC
    endif
