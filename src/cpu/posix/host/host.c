@@ -34,8 +34,10 @@
 /*==============================================================================
   Include files
 ==============================================================================*/
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <poll.h>
 #include <pthread.h>
 #include <signal.h>
@@ -43,6 +45,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <sys/ucontext.h>
 #include <termios.h>
 #include <time.h>
@@ -95,6 +98,7 @@ static struct {
         struct termios terminal_attr;
         disk_t disk[_HOST_DISK_COUNT];
         char fault_info[128];
+        char *fs_root;
 } host;
 
 /*==============================================================================
@@ -364,6 +368,8 @@ static void show_usage(const char *name)
         printf("  -d, --disk <n>=<file>[:ro]\n");
         printf("                           connect file to the host disk <n> (0-%d),\n", _HOST_DISK_COUNT - 1);
         printf("                           disk is available by the HOSTDISK driver\n");
+        printf("      --hostfs <dir>       host directory available by the hostfs file system,\n");
+        printf("                           the siminit mounts it in /host\n");
         printf("  -h, --help               show this help\n\n");
         printf("Press Ctrl+\\ to terminate simulator.\n");
 }
@@ -457,6 +463,18 @@ static bool parse_args(int argc, char *argv[])
                                 fprintf(stderr, "Invalid disk argument: %s\n", val ? val : "");
                                 return false;
                         }
+                        i++;
+
+                } else if (strcmp(opt, "--hostfs") == 0) {
+                        char *root = val ? realpath(val, NULL) : NULL;
+                        struct stat st;
+                        if (!root || (stat(root, &st) != 0) || !S_ISDIR(st.st_mode)) {
+                                fprintf(stderr, "Invalid hostfs directory: %s\n", val ? val : "");
+                                free(root);
+                                return false;
+                        }
+                        free(host.fs_root);
+                        host.fs_root = root;
                         i++;
 
                 } else {
@@ -877,6 +895,651 @@ int _host_disk_sync(int disk)
         unlock();
 
         return r;
+}
+
+//==============================================================================
+/**
+ * @brief  Convert host errno value to the host error code.
+ *
+ * @param  err          host errno value
+ *
+ * @return Host error code.
+ */
+//==============================================================================
+static int fs_err(int err)
+{
+        switch (err) {
+        case 0:
+                return _HOST_ESUCC;
+        case EPERM:
+                return _HOST_EPERM;
+        case ENOENT:
+                return _HOST_ENOENT;
+        case EIO:
+                return _HOST_EIO;
+        case EBADF:
+                return _HOST_EBADF;
+        case ENOMEM:
+                return _HOST_ENOMEM;
+        case EACCES:
+                return _HOST_EACCES;
+        case EBUSY:
+                return _HOST_EBUSY;
+        case EEXIST:
+                return _HOST_EEXIST;
+        case EXDEV:
+                return _HOST_EXDEV;
+        case ENOTDIR:
+                return _HOST_ENOTDIR;
+        case EISDIR:
+                return _HOST_EISDIR;
+        case EINVAL:
+                return _HOST_EINVAL;
+        case EMFILE:
+        case ENFILE:
+                return _HOST_EMFILE;
+        case EFBIG:
+                return _HOST_EFBIG;
+        case ENOSPC:
+        case EDQUOT:
+                return _HOST_ENOSPC;
+        case EROFS:
+                return _HOST_EROFS;
+        case ENAMETOOLONG:
+                return _HOST_ENAMETOOLONG;
+        case ENOTEMPTY:
+                return _HOST_ENOTEMPTY;
+        case ENOTSUP:
+                return _HOST_ENOTSUP;
+        default:
+                return _HOST_EOTHER;
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Create host path from dnx path. The dnx path must be absolute and
+ *         cannot contain ".." elements (path cannot leave the root directory).
+ *
+ * @param  path         dnx path (relative to hostfs root)
+ * @param  buf          host path buffer (_HOST_FS_PATH_MAX)
+ *
+ * @return Host error code.
+ */
+//==============================================================================
+static int fs_path(const char *path, char *buf)
+{
+        if (!host.fs_root || !path) {
+                return _HOST_ENOENT;
+        }
+
+        if ((path[0] != '/') && (path[0] != '\0')) {
+                return _HOST_EINVAL;
+        }
+
+        /* reject ".." elements */
+        for (const char *p = path; *p; p++) {
+                if ((p[0] == '.') && (p[1] == '.') && ((p == path) || (p[-1] == '/')) &&
+                        ((p[2] == '/') || (p[2] == '\0'))) {
+                        return _HOST_EACCES;
+                }
+        }
+
+        int len = snprintf(buf, _HOST_FS_PATH_MAX, "%s%s", host.fs_root, path);
+        if ((len < 0) || (len >= _HOST_FS_PATH_MAX)) {
+                return _HOST_ENAMETOOLONG;
+        }
+
+        /* remove trailing slashes */
+        size_t rootlen = strlen(host.fs_root);
+        while (((size_t)len > rootlen) && (buf[len - 1] == '/')) {
+                buf[--len] = '\0';
+        }
+
+        return _HOST_ESUCC;
+}
+
+//==============================================================================
+/**
+ * @brief  Convert host stat to host file information.
+ *
+ * @param  st           host stat
+ * @param  stat         file information
+ */
+//==============================================================================
+static void fs_stat_convert(const struct stat *st, struct _host_stat *stat)
+{
+        stat->size = (uint64_t)st->st_size;
+        stat->mtime = (int64_t)st->st_mtime;
+        stat->ctime = (int64_t)st->st_ctime;
+        stat->perm = (uint32_t)(st->st_mode & 0777);
+
+        if (S_ISREG(st->st_mode)) {
+                stat->type = _HOST_FTYPE_FILE;
+        } else if (S_ISDIR(st->st_mode)) {
+                stat->type = _HOST_FTYPE_DIR;
+        } else {
+                stat->type = _HOST_FTYPE_OTHER;
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Check if host file system is available (--hostfs option).
+ *
+ * @return If available true is returned.
+ */
+//==============================================================================
+bool _host_fs_is_available(void)
+{
+        return host.fs_root != NULL;
+}
+
+//==============================================================================
+/**
+ * @brief  Open file.
+ *
+ * @param  path         file path
+ * @param  flags        _HOST_FS_O_* flags
+ * @param  perm         permission of created file
+ * @param  fd           file descriptor
+ *
+ * @return Host error code.
+ */
+//==============================================================================
+int _host_fs_open(const char *path, uint32_t flags, uint32_t perm, int *fd)
+{
+        char hpath[_HOST_FS_PATH_MAX];
+        int err = fs_path(path, hpath);
+        if (err) {
+                return err;
+        }
+
+        int oflags = O_CLOEXEC | O_NOCTTY;
+
+        switch (flags & 0x03) {
+        case _HOST_FS_O_WRONLY:
+                oflags |= O_WRONLY;
+                break;
+        case _HOST_FS_O_RDWR:
+                oflags |= O_RDWR;
+                break;
+        default:
+                oflags |= O_RDONLY;
+                break;
+        }
+
+        oflags |= (flags & _HOST_FS_O_CREAT) ? O_CREAT : 0;
+        oflags |= (flags & _HOST_FS_O_EXCL) ? O_EXCL : 0;
+        oflags |= (flags & _HOST_FS_O_TRUNC) ? O_TRUNC : 0;
+
+        lock();
+
+        int f;
+        do {
+                f = open(hpath, oflags, (mode_t)(perm & 0777));
+        } while ((f < 0) && (errno == EINTR));
+
+        err = (f < 0) ? fs_err(errno) : _HOST_ESUCC;
+
+        if (!err) {
+                struct stat st;
+                if ((fstat(f, &st) == 0) && S_ISDIR(st.st_mode)) {
+                        close(f);
+                        err = _HOST_EISDIR;
+                } else {
+                        *fd = f;
+                }
+        }
+
+        unlock();
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Close file.
+ *
+ * @param  fd           file descriptor
+ *
+ * @return Host error code.
+ */
+//==============================================================================
+int _host_fs_close(int fd)
+{
+        lock();
+        int err = (close(fd) == 0) ? _HOST_ESUCC : fs_err(errno);
+        unlock();
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Read data from file.
+ *
+ * @param  fd           file descriptor
+ * @param  offset       file offset
+ * @param  buf          buffer
+ * @param  len          number of bytes to read
+ * @param  rdcnt        number of read bytes
+ *
+ * @return Host error code.
+ */
+//==============================================================================
+int _host_fs_read(int fd, uint64_t offset, void *buf, size_t len, size_t *rdcnt)
+{
+        int err = _HOST_ESUCC;
+        *rdcnt = 0;
+
+        lock();
+
+        while (*rdcnt < len) {
+                ssize_t n = pread(fd, (char *)buf + *rdcnt, len - *rdcnt, (off_t)(offset + *rdcnt));
+                if (n < 0) {
+                        if (errno == EINTR) {
+                                continue;
+                        }
+                        err = fs_err(errno);
+                        break;
+                } else if (n == 0) {
+                        break;
+                }
+
+                *rdcnt += (size_t)n;
+        }
+
+        unlock();
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Write data to file.
+ *
+ * @param  fd           file descriptor
+ * @param  offset       file offset
+ * @param  buf          buffer
+ * @param  len          number of bytes to write
+ * @param  wrcnt        number of written bytes
+ *
+ * @return Host error code.
+ */
+//==============================================================================
+int _host_fs_write(int fd, uint64_t offset, const void *buf, size_t len, size_t *wrcnt)
+{
+        int err = _HOST_ESUCC;
+        *wrcnt = 0;
+
+        lock();
+
+        while (*wrcnt < len) {
+                ssize_t n = pwrite(fd, (const char *)buf + *wrcnt, len - *wrcnt, (off_t)(offset + *wrcnt));
+                if (n < 0) {
+                        if (errno == EINTR) {
+                                continue;
+                        }
+                        err = fs_err(errno);
+                        break;
+                } else if (n == 0) {
+                        err = _HOST_ENOSPC;
+                        break;
+                }
+
+                *wrcnt += (size_t)n;
+        }
+
+        unlock();
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Synchronize file.
+ *
+ * @param  fd           file descriptor
+ *
+ * @return Host error code.
+ */
+//==============================================================================
+int _host_fs_sync(int fd)
+{
+        lock();
+        int err = (fsync(fd) == 0) ? _HOST_ESUCC : fs_err(errno);
+        unlock();
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Return information about opened file.
+ *
+ * @param  fd           file descriptor
+ * @param  stat         file information
+ *
+ * @return Host error code.
+ */
+//==============================================================================
+int _host_fs_fstat(int fd, struct _host_stat *stat)
+{
+        struct stat st;
+
+        lock();
+        int err = (fstat(fd, &st) == 0) ? _HOST_ESUCC : fs_err(errno);
+        unlock();
+
+        if (!err) {
+                fs_stat_convert(&st, stat);
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Return information about file.
+ *
+ * @param  path         file path
+ * @param  info         file information
+ *
+ * @return Host error code.
+ */
+//==============================================================================
+int _host_fs_stat(const char *path, struct _host_stat *info)
+{
+        char hpath[_HOST_FS_PATH_MAX];
+        int err = fs_path(path, hpath);
+        if (err) {
+                return err;
+        }
+
+        struct stat st;
+
+        lock();
+        err = (stat(hpath, &st) == 0) ? _HOST_ESUCC : fs_err(errno);
+        unlock();
+
+        if (!err) {
+                fs_stat_convert(&st, info);
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Create directory.
+ *
+ * @param  path         directory path
+ * @param  perm         permission
+ *
+ * @return Host error code.
+ */
+//==============================================================================
+int _host_fs_mkdir(const char *path, uint32_t perm)
+{
+        char hpath[_HOST_FS_PATH_MAX];
+        int err = fs_path(path, hpath);
+        if (err) {
+                return err;
+        }
+
+        /*
+         * dnx RTOS does not use execute (search) permission of directories:
+         * search permission is added when read permission is set.
+         */
+        perm &= 0777;
+        perm |= (perm & 0444) >> 2;
+
+        lock();
+        err = (mkdir(hpath, (mode_t)perm) == 0) ? _HOST_ESUCC : fs_err(errno);
+        unlock();
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Remove file or empty directory.
+ *
+ * @param  path         path
+ *
+ * @return Host error code.
+ */
+//==============================================================================
+int _host_fs_remove(const char *path)
+{
+        char hpath[_HOST_FS_PATH_MAX];
+        int err = fs_path(path, hpath);
+        if (err) {
+                return err;
+        }
+
+        if (strcmp(hpath, host.fs_root) == 0) {
+                return _HOST_EBUSY;
+        }
+
+        lock();
+
+        struct stat st;
+        if (lstat(hpath, &st) != 0) {
+                err = fs_err(errno);
+        } else if (S_ISDIR(st.st_mode)) {
+                err = (rmdir(hpath) == 0) ? _HOST_ESUCC : fs_err(errno);
+                if (err == _HOST_EEXIST) {
+                        err = _HOST_ENOTEMPTY;
+                }
+        } else {
+                err = (unlink(hpath) == 0) ? _HOST_ESUCC : fs_err(errno);
+        }
+
+        unlock();
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Rename file or directory.
+ *
+ * @param  old_path     old path
+ * @param  new_path     new path
+ *
+ * @return Host error code.
+ */
+//==============================================================================
+int _host_fs_rename(const char *old_path, const char *new_path)
+{
+        char hold[_HOST_FS_PATH_MAX];
+        char hnew[_HOST_FS_PATH_MAX];
+
+        int err = fs_path(old_path, hold);
+        if (!err) {
+                err = fs_path(new_path, hnew);
+        }
+
+        if (!err) {
+                lock();
+                err = (rename(hold, hnew) == 0) ? _HOST_ESUCC : fs_err(errno);
+                unlock();
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Change file permission.
+ *
+ * @param  path         path
+ * @param  perm         permission
+ *
+ * @return Host error code.
+ */
+//==============================================================================
+int _host_fs_chmod(const char *path, uint32_t perm)
+{
+        char hpath[_HOST_FS_PATH_MAX];
+        int err = fs_path(path, hpath);
+        if (err) {
+                return err;
+        }
+
+        lock();
+        err = (chmod(hpath, (mode_t)(perm & 0777)) == 0) ? _HOST_ESUCC : fs_err(errno);
+        unlock();
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Open directory.
+ *
+ * @param  path         directory path
+ * @param  dir          directory handle
+ *
+ * @return Host error code.
+ */
+//==============================================================================
+int _host_fs_opendir(const char *path, void **dir)
+{
+        char hpath[_HOST_FS_PATH_MAX];
+        int err = fs_path(path, hpath);
+        if (err) {
+                return err;
+        }
+
+        lock();
+
+        DIR *d = opendir(hpath);
+        if (d) {
+                *dir = d;
+        } else {
+                err = fs_err(errno);
+        }
+
+        unlock();
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Read next directory entry ("." and ".." entries are skipped).
+ *
+ * @param  dir          directory handle
+ * @param  name         entry name buffer
+ * @param  name_len     name buffer length
+ * @param  stat         entry information
+ *
+ * @return Host error code. _HOST_ENOENT if there is no more entries.
+ */
+//==============================================================================
+int _host_fs_readdir(void *dir, char *name, size_t name_len, struct _host_stat *stat)
+{
+        DIR *d = dir;
+        int err = _HOST_ENOENT;
+
+        lock();
+
+        for (;;) {
+                errno = 0;
+                struct dirent *e = readdir(d);
+                if (!e) {
+                        err = (errno == 0) ? _HOST_ENOENT : fs_err(errno);
+                        break;
+                }
+
+                if ((strcmp(e->d_name, ".") == 0) || (strcmp(e->d_name, "..") == 0)) {
+                        continue;
+                }
+
+                struct stat st;
+                if (fstatat(dirfd(d), e->d_name, &st, 0) != 0) {
+                        /* broken link or file removed in the meantime */
+                        if (fstatat(dirfd(d), e->d_name, &st, AT_SYMLINK_NOFOLLOW) != 0) {
+                                continue;
+                        }
+                }
+
+                snprintf(name, name_len, "%s", e->d_name);
+                fs_stat_convert(&st, stat);
+                err = _HOST_ESUCC;
+                break;
+        }
+
+        unlock();
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Rewind directory.
+ *
+ * @param  dir          directory handle
+ */
+//==============================================================================
+void _host_fs_rewinddir(void *dir)
+{
+        lock();
+        rewinddir(dir);
+        unlock();
+}
+
+//==============================================================================
+/**
+ * @brief  Close directory.
+ *
+ * @param  dir          directory handle
+ *
+ * @return Host error code.
+ */
+//==============================================================================
+int _host_fs_closedir(void *dir)
+{
+        lock();
+        int err = (closedir(dir) == 0) ? _HOST_ESUCC : fs_err(errno);
+        unlock();
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Return host file system information.
+ *
+ * @param  statfs       file system information
+ *
+ * @return Host error code.
+ */
+//==============================================================================
+int _host_fs_statfs(struct _host_statfs *statfs)
+{
+        if (!host.fs_root) {
+                return _HOST_ENOENT;
+        }
+
+        struct statvfs st;
+
+        lock();
+        int err = (statvfs(host.fs_root, &st) == 0) ? _HOST_ESUCC : fs_err(errno);
+        unlock();
+
+        if (!err) {
+                statfs->bsize = st.f_frsize ? st.f_frsize : st.f_bsize;
+                statfs->blocks = st.f_blocks;
+                statfs->bfree = st.f_bavail;
+                statfs->files = st.f_files;
+                statfs->ffree = st.f_ffree;
+        }
+
+        return err;
 }
 
 /*==============================================================================
