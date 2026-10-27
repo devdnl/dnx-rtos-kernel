@@ -140,48 +140,51 @@ int _mm_register_region(_mm_region_t *region, void *start, size_t size, u32_t fl
 {
         int err = EINVAL;
 
-        if (region && start && size && name) {
-                if (regions == NULL) {
-                        regions = region;
-                        err = _heap_init(&region->heap, start, size);
-                        if (!err) {
-                                region->flags = flags;
-                                region->name_ref = name;
-                                region->next = NULL;
-                                region->size = size;
+        if (region && start && size && name && ((uintptr_t)start + size > (uintptr_t)start)) {
+                const uintptr_t new_start = (uintptr_t)start;
+                const uintptr_t new_end = new_start + size;
+
+                // check if memory region is already used (overlapped)
+                for (_mm_region_t *r = regions; r; r = r->next) {
+                        const uintptr_t r_start = (uintptr_t)r->heap.ram;
+                        const uintptr_t r_end = r_start + r->size;
+
+                        if ((r == region) || ((new_start < r_end) && (r_start < new_end))) {
+                                err = EADDRINUSE;
+                                goto finish;
                         }
+                }
+
+                // initialize region before it becomes visible on the list
+                if (flags & _MM_FLAG__NOHEAP) {
+                        memset(&region->heap, 0, sizeof(region->heap));
+                        region->heap.ram = start;
+                        region->heap.ram_end = cast(void *, cast(u8_t *, start) + size);
+                        err = ESUCC;
                 } else {
-                        // check if memory region is already used
-                        for (_mm_region_t *r = regions; r; r = r->next) {
-                                if (r->heap.ram == start) {
-                                        err = EADDRINUSE;
-                                        goto finish;
+                        err = _heap_init(&region->heap, start, size);
+                }
+
+                if (!err) {
+                        region->flags = flags;
+                        region->name_ref = name;
+                        region->size = size;
+                        region->next = NULL;
+
+                        // add region to the end of list
+                        _kernel_scheduler_lock();
+                        {
+                                if (regions == NULL) {
+                                        regions = region;
+                                } else {
+                                        _mm_region_t *r = regions;
+                                        while (r->next) {
+                                                r = r->next;
+                                        }
+                                        r->next = region;
                                 }
                         }
-
-                        // add region to list
-                        for (_mm_region_t *r = regions; r; r = r->next) {
-                                if (r->next == NULL) {
-                                        region->next = NULL;
-
-                                        if (flags & _MM_FLAG__NOHEAP) {
-                                                memset(&region->heap, 0, sizeof(region->heap));
-                                                region->heap.ram = start;
-                                                region->heap.ram_end = start + size - 1;
-                                                err = 0;
-                                        } else {
-                                                err = _heap_init(&region->heap, start, size);
-                                        }
-
-                                        if (!err) {
-                                                region->flags = flags;
-                                                region->name_ref = name;
-                                                r->next = region;
-                                                region->size = size;
-                                        }
-                                        break;
-                                }
-                        }
+                        _kernel_scheduler_unlock();
                 }
 
         finish:
@@ -305,14 +308,11 @@ int _kfree(enum _mm_mem mpur, void **mem, ...)
                         break;
 
                 default:
+                        _kernel_panic_report(_KERNEL_PANIC_DESC_CAUSE_INTERNAL_4);
                         break;
                 }
 
-                if (!usage) {
-                        _kernel_panic_report(_KERNEL_PANIC_DESC_CAUSE_INTERNAL_4);
-                }
-
-                if (!err) {
+                if (!err && usage) {
                         size_t blksize = 0;
 
                         for (_mm_region_t *r = regions; r; r = r->next) {
@@ -322,9 +322,14 @@ int _kfree(enum _mm_mem mpur, void **mem, ...)
                                 }
                         }
 
-                        _kernel_scheduler_lock();
-                        *usage -= blksize;
-                        _kernel_scheduler_unlock();
+                        if (blksize > 0) {
+                                _kernel_scheduler_lock();
+                                *usage -= blksize;
+                                _kernel_scheduler_unlock();
+                        } else {
+                                // block not found in any heap or freed already
+                                err = EFAULT;
+                        }
 
                         *mem = NULL;
                 }
@@ -500,7 +505,7 @@ bool _mm_is_object_in_heap(const void *ptr)
 //==============================================================================
 bool _mm_is_rom_address(const void *ptr)
 {
-        return (ptr != NULL) && (ptr >= TEXT_START) && (ptr <= TEXT_END);
+        return (ptr != NULL) && (ptr >= TEXT_START) && (ptr < TEXT_END);
 }
 
 //==============================================================================
@@ -700,9 +705,8 @@ int _mm_get_region_info(size_t idx, _mm_region_info_t *info)
  *      Function use arg argument to pass module number. Argument is directly
  *      interpreted as int type.
  *
- * prefreg argument selects preferred memory region. To force region
- * use ! character at beginning of name, e.g.: !RAM1. After this other regions
- * will not be taken in the account in search.
+ * prefreg argument selects preferred memory regions (NULL terminated list
+ * of region names). Regions are searched in the list order.
  *
  * @param[in]      mpur             memory purpose
  * @param[in]      size             object size
@@ -727,8 +731,8 @@ static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefre
 
                 switch (mpur) {
                 case _MM_MOD: {
-                        i32_t modid = cast(i32_t, arg);
-                        if ((modid < 0) || (modid > cast(i32_t, _drvreg_number_of_modules))) {
+                        size_t modid = cast(size_t, arg);
+                        if (modid >= _drvreg_number_of_modules) {
                                 return EINVAL;
 
                         } else {
@@ -738,6 +742,10 @@ static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefre
                 }
 
                 case _MM_PROG:
+                        if (size > (SIZE_MAX - sizeof(res_header_t))) {
+                                return ENOMEM;
+                        }
+
                         size += sizeof(res_header_t);
                         usage = &memory_usage[mpur];
                         break;
@@ -766,6 +774,11 @@ static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefre
 
                 if (!usage) {
                         _kernel_panic_report(_KERNEL_PANIC_DESC_CAUSE_INTERNAL_4);
+                        return EFAULT;
+                }
+
+                if (size > (SIZE_MAX - (_HEAP_ALIGN_ - 1))) {
+                        return ENOMEM;
                 }
 
                 size = MEM_ALIGN_SIZE(size);

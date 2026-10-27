@@ -82,7 +82,7 @@ typedef struct {
         /** pointer to the heap (ram_heap): for alignment, ram is now a pointer instead of an array */
         u8_t *ram;
 
-        /** the last entry, always unused! */
+        /** the last entry (end marker), always used! */
         struct mem *ram_end;
 
         /** pointer to the lowest free block, this is used for faster search */

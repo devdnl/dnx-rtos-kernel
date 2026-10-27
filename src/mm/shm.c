@@ -68,6 +68,7 @@ static int attach_pid(shm_region_t *region, pid_t pid);
 static int detach_pid(shm_region_t *region, pid_t pid);
 static bool is_pid_attached(const shm_region_t *region, pid_t pid);
 static bool is_pid_list_empty(const shm_region_t *region);
+static bool is_key_valid(const char *key);
 
 /*==============================================================================
   Local objects
@@ -114,7 +115,7 @@ int _shm_create(const char *key, size_t size)
 {
         int err = EINVAL;
 
-        if (!isstrempty(key) && (size > 0)) {
+        if (is_key_valid(key) && (size > 0)) {
                 err = _mutex_lock(SHM.mtx, _WAIT_FOREVER_MS);
                 if (!err) {
                         foreach_region(region, SHM.list)
@@ -158,7 +159,7 @@ int _shm_destroy(const char *key)
 {
         int err = EINVAL;
 
-        if (!isstrempty(key)) {
+        if (is_key_valid(key)) {
                 err = _mutex_lock(SHM.mtx, _WAIT_FOREVER_MS);
                 if (!err) {
                         err = ENOENT;
@@ -212,7 +213,7 @@ int _shm_attach(const char *key, void **mem, size_t *size, pid_t pid)
 {
         int err = EINVAL;
 
-        if (!isstrempty(key) && mem && size && pid) {
+        if (is_key_valid(key) && mem && size && pid) {
 
                 err = _mutex_lock(SHM.mtx, _WAIT_FOREVER_MS);
                 if (!err) {
@@ -254,7 +255,7 @@ int _shm_detach(const char *key, pid_t pid)
 {
         int err = EINVAL;
 
-        if (!isstrempty(key) && pid) {
+        if (is_key_valid(key) && pid) {
 
                 err = _mutex_lock(SHM.mtx, _WAIT_FOREVER_MS);
                 if (!err) {
@@ -380,6 +381,8 @@ static int detach_pid(shm_region_t *region, pid_t pid)
                         }
 
                         if (detached) {
+                                err = ESUCC;
+
                                 if ((empty == ARRAY_SIZE(lst->pid)) && (prv != NULL)) {
 
                                         prv->next = lst->next;
@@ -449,6 +452,24 @@ static bool is_pid_list_empty(const shm_region_t *region)
         }
 
         return true;
+}
+
+//==============================================================================
+/**
+ * @brief  Function check if shared memory key is valid. Key must not be empty
+ *         and must fit in region name buffer, otherwise keys longer than name
+ *         buffer would be truncated and different keys could point to the
+ *         same region.
+ *
+ * @param  key          key to examine
+ *
+ * @return Return true if key is valid, otherwise false.
+ */
+//==============================================================================
+static bool is_key_valid(const char *key)
+{
+        return !isstrempty(key) && (strnlen(key, sizeof(((shm_region_t *)0)->name) + 1)
+                                    <= sizeof(((shm_region_t *)0)->name));
 }
 
 #endif

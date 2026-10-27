@@ -283,8 +283,7 @@ static bool sanity(_heap_t *heap)
                 return false;
         }
 
-        HEAP_ASSERT(MEM_ALIGN_SIZE(ptr_to_mem(heap, mem->next) == ptr_to_mem(heap, mem->next)),
-                "HEAP: element next ptr unaligned", fail);
+        HEAP_ASSERT(MEM_ALIGN_SIZE(mem->next) == mem->next, "HEAP: element next ptr unaligned", fail);
         if (fail) {
                 return false;
         }
@@ -310,14 +309,12 @@ static bool sanity(_heap_t *heap)
                         return false;
                 }
 
-                HEAP_ASSERT(MEM_ALIGN_SIZE(ptr_to_mem(heap, mem->prev) == ptr_to_mem(heap, mem->prev)),
-                        "HEAP: element prev ptr unaligned", fail);
+                HEAP_ASSERT(MEM_ALIGN_SIZE(mem->prev) == mem->prev, "HEAP: element prev ptr unaligned", fail);
                 if (fail) {
                         return false;
                 }
 
-                HEAP_ASSERT(MEM_ALIGN_SIZE(ptr_to_mem(heap, mem->next) == ptr_to_mem(heap, mem->next)),
-                        "HEAP: element next ptr unaligned", fail);
+                HEAP_ASSERT(MEM_ALIGN_SIZE(mem->next) == mem->next, "HEAP: element next ptr unaligned", fail);
                 if (fail) {
                         return false;
                 }
@@ -471,14 +468,29 @@ int _heap_init(_heap_t *heap, void *start, size_t size)
         int err = EINVAL;
 
         if (heap && start && size) {
+                /* align the heap start address */
+                uintptr_t start_addr = (uintptr_t)start;
+                size_t pad = MEM_ALIGN_SIZE(start_addr) - start_addr;
+
+                /*
+                 * The region must contain at least: the first block header,
+                 * the minimal block with sanity regions and the end marker.
+                 */
+                if (size < pad + (2 * SIZEOF_STRUCT_MEM) + BLOCK_MIN_SIZE_ALIGNED + MEM_SANITY_OVERHEAD) {
+                        return EINVAL;
+                }
+
                 heap->used = 0;
                 heap->used_max = 0;
 
-                /* align the heap */
-                heap->ram = start;
+                heap->ram = (u8_t *)start + pad;
 
-                /* aligned memory size */
-                heap->size = MEM_ALIGN_SIZE(size - SIZEOF_STRUCT_MEM - MEM_SANITY_OFFSET);
+                /*
+                 * Aligned memory size (rounded down): the end marker
+                 * (struct mem) is placed at ram[size], so it must fit in
+                 * the region too.
+                 */
+                heap->size = (size - pad - SIZEOF_STRUCT_MEM) & ~(size_t)(_HEAP_ALIGN_ - 1);
 
                 /* initialize the start of the heap */
                 struct mem *mem = (struct mem *)heap->ram;
@@ -536,8 +548,6 @@ void _heap_free(_heap_t *heap, void *rmem, size_t *freed)
                 return;
         }
 
-        overflow_check_element(mem);
-
         if (mem->used > 1) {
                 _printk("HEAP: free: invalid usage indicator");
                 UNPROTECT();
@@ -555,6 +565,9 @@ void _heap_free(_heap_t *heap, void *rmem, size_t *freed)
                 UNPROTECT();
                 return;
         }
+
+        /* block is validated, so stored user size can be trusted */
+        overflow_check_element(mem);
 
         mem->used = 0;
 
