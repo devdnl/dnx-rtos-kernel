@@ -152,6 +152,7 @@ extern void _host_sleep_us(uint32_t us);
 
 /* UART */
 extern bool _host_uart_is_available(int port);
+extern int _host_uart_configure(int port, uint32_t baud, int parity, int stop_bits);
 extern int _host_uart_read(int port, void *buf, size_t len);
 extern int _host_uart_write(int port, const void *buf, size_t len);
 

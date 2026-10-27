@@ -76,12 +76,27 @@ typedef struct {
         bool read_only;
 } disk_t;
 
+typedef enum {
+        UART_TYPE__NONE,   /* not connected (data is dropped) */
+        UART_TYPE__STDIO,  /* simulator terminal */
+        UART_TYPE__PTY,    /* pseudo terminal */
+        UART_TYPE__DEVICE, /* host serial port */
+} uart_type_t;
+
+typedef struct {
+        uart_type_t type;
+        const char *path; /* device path or PTY link path */
+        int fd;
+        bool link_created;
+} uart_t;
+
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
 static void lock(void);
 static void unlock(void);
 static void terminal_restore(void);
+static void host_cleanup(void);
 
 /* kernel function (kernel/kpanic.h) */
 extern void _kernel_panic_report_from_exception(int suggested_cause, uint32_t exc_num);
@@ -97,6 +112,7 @@ static struct {
         bool terminal_configured;
         struct termios terminal_attr;
         disk_t disk[_HOST_DISK_COUNT];
+        uart_t uart[_HOST_UART_COUNT];
         char fault_info[128];
         char *fs_root;
 } host;
@@ -227,7 +243,7 @@ static void terminal_configure(void)
 //==============================================================================
 static void signal_terminate(int sig)
 {
-        terminal_restore();
+        host_cleanup();
 
         static const char msg[] = "\r\n*** dnx RTOS simulator terminated ***\r\n";
         if (write(STDERR_FILENO, msg, sizeof(msg) - 1)) {
@@ -309,7 +325,7 @@ static void signal_fatal(int sig, siginfo_t *info, void *ctx)
                 _kernel_panic_report_from_exception(cause, 0);
 
         } else {
-                terminal_restore();
+                host_cleanup();
 
                 len = snprintf(msg, sizeof(msg), "\r\n*** dnx RTOS simulator: signal %d (%s) at address %p ***\r\n",
                         sig, strsignal(sig), info->si_addr);
@@ -364,12 +380,16 @@ static void show_usage(const char *name)
         printf("dnx RTOS simulator (POSIX).\n\n");
         printf("Options:\n");
         printf("  -r, --ram <MiB>          size of RAM (default: %u MiB)\n", DEFAULT_RAM_SIZE_MIB);
-        printf("      --rom <file>         ROMFS image (the same as --disk 0=<file>:ro)\n");
         printf("  -d, --disk <n>=<file>[:ro]\n");
         printf("                           connect file to the host disk <n> (0-%d),\n", _HOST_DISK_COUNT - 1);
         printf("                           disk is available by the HOSTDISK driver\n");
         printf("      --hostfs <dir>       host directory available by the hostfs file system,\n");
         printf("                           the siminit mounts it in /host\n");
+        printf("  -u, --uart <n>=pty[:<link>]|<device>\n");
+        printf("                           connect UART <n> (0-%d) to the new pseudo terminal\n", _HOST_UART_COUNT - 1);
+        printf("                           (optional symbolic link to the terminal is created)\n");
+        printf("                           or to the host serial port; UART0 is connected to\n");
+        printf("                           the simulator terminal by default\n");
         printf("  -h, --help               show this help\n\n");
         printf("Press Ctrl+\\ to terminate simulator.\n");
 }
@@ -379,37 +399,31 @@ static void show_usage(const char *name)
  * @brief  Parse disk argument: <n>=<file>[:ro]
  *
  * @param  arg          argument
- * @param  force_ro     force read only access
- * @param  disk_no      disk number (if negative then number is read from arg)
  *
  * @return On success true is returned.
  */
 //==============================================================================
-static bool parse_disk(char *arg, bool force_ro, int disk_no)
+static bool parse_disk(char *arg)
 {
-        char *path = arg;
-
-        if (disk_no < 0) {
-                char *eq = strchr(arg, '=');
-                if (!eq) {
-                        return false;
-                }
-
-                *eq = '\0';
-                char *end = NULL;
-                disk_no = (int)strtol(arg, &end, 10);
-                if ((end == arg) || (*end != '\0')) {
-                        return false;
-                }
-
-                path = eq + 1;
+        char *eq = strchr(arg, '=');
+        if (!eq) {
+                return false;
         }
+
+        *eq = '\0';
+        char *end = NULL;
+        int disk_no = (int)strtol(arg, &end, 10);
+        if ((end == arg) || (*end != '\0')) {
+                return false;
+        }
+
+        char *path = eq + 1;
 
         if ((disk_no < 0) || (disk_no >= _HOST_DISK_COUNT) || (*path == '\0')) {
                 return false;
         }
 
-        bool ro = force_ro;
+        bool ro = false;
         size_t len = strlen(path);
         if ((len > 3) && (strcmp(&path[len - 3], ":ro") == 0)) {
                 path[len - 3] = '\0';
@@ -420,6 +434,188 @@ static bool parse_disk(char *arg, bool force_ro, int disk_no)
         host.disk[disk_no].read_only = ro;
 
         return true;
+}
+
+//==============================================================================
+/**
+ * @brief  Parse UART argument: <n>=pty[:<link>] or <n>=<device>
+ *
+ * @param  arg          argument
+ *
+ * @return On success true is returned.
+ */
+//==============================================================================
+static bool parse_uart(char *arg)
+{
+        char *eq = strchr(arg, '=');
+        if (!eq) {
+                return false;
+        }
+
+        *eq = '\0';
+        char *end = NULL;
+        int port = (int)strtol(arg, &end, 10);
+        if ((end == arg) || (*end != '\0') || (port < 0) || (port >= _HOST_UART_COUNT)) {
+                return false;
+        }
+
+        char *val = eq + 1;
+        uart_t *uart = &host.uart[port];
+
+        if (strcmp(val, "pty") == 0) {
+                uart->type = UART_TYPE__PTY;
+                uart->path = NULL;
+
+        } else if (strncmp(val, "pty:", 4) == 0) {
+                if (val[4] == '\0') {
+                        return false;
+                }
+                uart->type = UART_TYPE__PTY;
+                uart->path = &val[4];
+
+        } else if (*val != '\0') {
+                uart->type = UART_TYPE__DEVICE;
+                uart->path = val;
+
+        } else {
+                return false;
+        }
+
+        return true;
+}
+
+//==============================================================================
+/**
+ * @brief  Open pseudo terminal of selected UART.
+ *
+ * @param  port         UART number
+ * @param  uart         UART object
+ *
+ * @return On success true is returned.
+ */
+//==============================================================================
+static bool uart_open_pty(int port, uart_t *uart)
+{
+        uart->fd = posix_openpt(O_RDWR | O_NOCTTY | O_NONBLOCK | O_CLOEXEC);
+
+        if ((uart->fd < 0) || (grantpt(uart->fd) != 0) || (unlockpt(uart->fd) != 0)) {
+                perror("pty");
+                return false;
+        }
+
+        struct termios attr;
+        if (tcgetattr(uart->fd, &attr) == 0) {
+                cfmakeraw(&attr);
+                tcsetattr(uart->fd, TCSANOW, &attr);
+        }
+
+        const char *name = ptsname(uart->fd);
+        if (!name) {
+                perror("pty");
+                return false;
+        }
+
+        /*
+         * Slave side is opened and closed, so master side reports hang up
+         * until terminal is opened by user (not connected UART).
+         */
+        int slave = open(name, O_RDWR | O_NOCTTY | O_CLOEXEC);
+        if (slave >= 0) {
+                close(slave);
+        }
+
+        if (uart->path) {
+                struct stat st;
+                if ((lstat(uart->path, &st) == 0) && S_ISLNK(st.st_mode)) {
+                        unlink(uart->path);
+                }
+
+                if (symlink(name, uart->path) != 0) {
+                        fprintf(stderr, "UART%d: cannot create link %s: %s\n", port, uart->path, strerror(errno));
+                        return false;
+                }
+
+                uart->link_created = true;
+                fprintf(stderr, "UART%d: %s -> %s\n", port, uart->path, name);
+        } else {
+                fprintf(stderr, "UART%d: %s\n", port, name);
+        }
+
+        return true;
+}
+
+//==============================================================================
+/**
+ * @brief  Open host serial port of selected UART.
+ *
+ * @param  port         UART number
+ * @param  uart         UART object
+ *
+ * @return On success true is returned.
+ */
+//==============================================================================
+static bool uart_open_device(int port, uart_t *uart)
+{
+        uart->fd = open(uart->path, O_RDWR | O_NOCTTY | O_NONBLOCK | O_CLOEXEC);
+        if (uart->fd < 0) {
+                fprintf(stderr, "UART%d: %s: %s\n", port, uart->path, strerror(errno));
+                return false;
+        }
+
+        struct termios attr;
+        if (tcgetattr(uart->fd, &attr) == 0) {
+                cfmakeraw(&attr);
+                attr.c_cflag |= CLOCAL | CREAD;
+                tcsetattr(uart->fd, TCSANOW, &attr);
+        }
+
+        fprintf(stderr, "UART%d: %s\n", port, uart->path);
+
+        return true;
+}
+
+//==============================================================================
+/**
+ * @brief  Open all UARTs selected by program arguments.
+ *
+ * @return On success true is returned.
+ */
+//==============================================================================
+static bool uarts_open(void)
+{
+        for (int i = 0; i < _HOST_UART_COUNT; i++) {
+                uart_t *uart = &host.uart[i];
+
+                if (uart->type == UART_TYPE__PTY) {
+                        if (!uart_open_pty(i, uart)) {
+                                return false;
+                        }
+                } else if (uart->type == UART_TYPE__DEVICE) {
+                        if (!uart_open_device(i, uart)) {
+                                return false;
+                        }
+                }
+        }
+
+        return true;
+}
+
+//==============================================================================
+/**
+ * @brief  Function restore host state at simulator exit (terminal
+ *         configuration, PTY links). Function is called from signal handlers.
+ */
+//==============================================================================
+static void host_cleanup(void)
+{
+        terminal_restore();
+
+        for (int i = 0; i < _HOST_UART_COUNT; i++) {
+                if (host.uart[i].link_created) {
+                        unlink(host.uart[i].path);
+                        host.uart[i].link_created = false;
+                }
+        }
 }
 
 //==============================================================================
@@ -451,16 +647,16 @@ static bool parse_args(int argc, char *argv[])
                         host.ram_size = (size_t)mib * 1024 * 1024;
                         i++;
 
-                } else if (strcmp(opt, "--rom") == 0) {
-                        if (!val || !parse_disk(val, true, 0)) {
-                                fprintf(stderr, "Invalid ROM file\n");
+                } else if ((strcmp(opt, "-d") == 0) || (strcmp(opt, "--disk") == 0)) {
+                        if (!val || !parse_disk(val)) {
+                                fprintf(stderr, "Invalid disk argument: %s\n", val ? val : "");
                                 return false;
                         }
                         i++;
 
-                } else if ((strcmp(opt, "-d") == 0) || (strcmp(opt, "--disk") == 0)) {
-                        if (!val || !parse_disk(val, false, -1)) {
-                                fprintf(stderr, "Invalid disk argument: %s\n", val ? val : "");
+                } else if ((strcmp(opt, "-u") == 0) || (strcmp(opt, "--uart") == 0)) {
+                        if (!val || !parse_uart(val)) {
+                                fprintf(stderr, "Invalid UART argument: %s\n", val ? val : "");
                                 return false;
                         }
                         i++;
@@ -499,11 +695,30 @@ static bool parse_args(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
         host.main_thread = pthread_self();
-        host.argv = argv;
+
+        /* arguments are modified by parser, copy is used by restart */
+        host.argv = calloc((size_t)argc + 1, sizeof(char *));
+        for (int i = 0; host.argv && (i < argc); i++) {
+                host.argv[i] = strdup(argv[i]);
+                if (!host.argv[i]) {
+                        host.argv = NULL;
+                }
+        }
+
+        if (!host.argv) {
+                perror("argv");
+                return EXIT_FAILURE;
+        }
+
         host.ram_size = (size_t)DEFAULT_RAM_SIZE_MIB * 1024 * 1024;
 
         for (int i = 0; i < _HOST_DISK_COUNT; i++) {
                 host.disk[i].fd = -1;
+        }
+
+        for (int i = 0; i < _HOST_UART_COUNT; i++) {
+                host.uart[i].fd = -1;
+                host.uart[i].type = (i == 0) ? UART_TYPE__STDIO : UART_TYPE__NONE;
         }
 
         if (!parse_args(argc, argv)) {
@@ -520,8 +735,17 @@ int main(int argc, char *argv[])
         memset(host.ram, 0, host.ram_size);
 
         signals_configure();
-        terminal_configure();
-        atexit(terminal_restore);
+
+        if (!uarts_open()) {
+                host_cleanup();
+                return EXIT_FAILURE;
+        }
+
+        if (host.uart[0].type == UART_TYPE__STDIO) {
+                terminal_configure();
+        }
+
+        atexit(host_cleanup);
 
         return _dnx_main();
 }
@@ -536,7 +760,7 @@ int main(int argc, char *argv[])
 void _host_exit(int status)
 {
         lock();
-        terminal_restore();
+        host_cleanup();
         _exit(status);
 }
 
@@ -548,7 +772,7 @@ void _host_exit(int status)
 void _host_restart(void)
 {
         lock();
-        terminal_restore();
+        host_cleanup();
 
         for (int i = 0; i < _HOST_DISK_COUNT; i++) {
                 if (host.disk[i].fd >= 0) {
@@ -651,7 +875,8 @@ void _host_sleep_us(uint32_t us)
 
 //==============================================================================
 /**
- * @brief  Check if selected UART is available.
+ * @brief  Check if selected UART is available. Not connected UART is also
+ *         available (output data is dropped, there is no input data).
  *
  * @param  port         UART number
  *
@@ -660,7 +885,105 @@ void _host_sleep_us(uint32_t us)
 //==============================================================================
 bool _host_uart_is_available(int port)
 {
-        return port == 0;
+        return (port >= 0) && (port < _HOST_UART_COUNT);
+}
+
+//==============================================================================
+/**
+ * @brief  Configure UART (host serial port only, other UARTs ignore
+ *         configuration).
+ *
+ * @param  port         UART number
+ * @param  baud         baud rate
+ * @param  parity       parity (0: off, 1: odd, 2: even)
+ * @param  stop_bits    number of stop bits (1, 2)
+ *
+ * @return 0 on success, otherwise host errno value.
+ */
+//==============================================================================
+int _host_uart_configure(int port, uint32_t baud, int parity, int stop_bits)
+{
+        if (!_host_uart_is_available(port)) {
+                return ENODEV;
+        }
+
+        uart_t *uart = &host.uart[port];
+
+        if (uart->type != UART_TYPE__DEVICE) {
+                return 0;
+        }
+
+        static const struct {
+                uint32_t baud;
+                speed_t speed;
+        } SPEED[] = {
+                {50, B50},
+                {75, B75},
+                {110, B110},
+                {134, B134},
+                {150, B150},
+                {200, B200},
+                {300, B300},
+                {600, B600},
+                {1200, B1200},
+                {1800, B1800},
+                {2400, B2400},
+                {4800, B4800},
+                {9600, B9600},
+                {19200, B19200},
+                {38400, B38400},
+                {57600, B57600},
+                {115200, B115200},
+                {230400, B230400},
+                {460800, B460800},
+                {500000, B500000},
+                {576000, B576000},
+                {921600, B921600},
+                {1000000, B1000000},
+                {1152000, B1152000},
+                {1500000, B1500000},
+                {2000000, B2000000},
+                {2500000, B2500000},
+                {3000000, B3000000},
+                {3500000, B3500000},
+                {4000000, B4000000},
+        };
+
+        speed_t speed = 0;
+        for (size_t i = 0; i < sizeof(SPEED) / sizeof(SPEED[0]); i++) {
+                if (SPEED[i].baud == baud) {
+                        speed = SPEED[i].speed;
+                        break;
+                }
+        }
+
+        if (speed == 0) {
+                return EINVAL;
+        }
+
+        int err = 0;
+
+        lock();
+
+        struct termios attr;
+        if (tcgetattr(uart->fd, &attr) == 0) {
+                cfsetispeed(&attr, speed);
+                cfsetospeed(&attr, speed);
+
+                attr.c_cflag &= ~(PARENB | PARODD | CSTOPB);
+                attr.c_cflag |= (parity == 1) ? (PARENB | PARODD) : (parity == 2) ? PARENB : 0;
+                attr.c_cflag |= (stop_bits == 2) ? CSTOPB : 0;
+
+                if (tcsetattr(uart->fd, TCSANOW, &attr) != 0) {
+                        err = errno;
+                }
+        } else {
+                err = errno;
+        }
+
+        unlock();
+
+        return err;
 }
 
 //==============================================================================
@@ -676,55 +999,96 @@ bool _host_uart_is_available(int port)
 //==============================================================================
 int _host_uart_read(int port, void *buf, size_t len)
 {
-        int n = -1;
-
-        if (port == 0) {
-                lock();
-
-                struct pollfd pfd = {.fd = STDIN_FILENO, .events = POLLIN};
-                int r = poll(&pfd, 1, 0);
-                if (r > 0) {
-                        if (pfd.revents & POLLIN) {
-                                n = (int)read(STDIN_FILENO, buf, len);
-                                if ((n < 0) && ((errno == EINTR) || (errno == EAGAIN))) {
-                                        n = 0;
-                                }
-                        } else {
-                                /* hang up or error: stdin closed */
-                                n = -1;
-                        }
-                } else if (r == 0) {
-                        n = 0;
-                } else {
-                        n = (errno == EINTR) ? 0 : -1;
-                }
-
-                unlock();
+        if (!_host_uart_is_available(port)) {
+                return -1;
         }
+
+        uart_t *uart = &host.uart[port];
+
+        if (uart->type == UART_TYPE__NONE) {
+                return 0;
+        }
+
+        int fd = (uart->type == UART_TYPE__STDIO) ? STDIN_FILENO : uart->fd;
+        int n = 0;
+
+        lock();
+
+        struct pollfd pfd = {.fd = fd, .events = POLLIN};
+        int r = poll(&pfd, 1, 0);
+        if (r > 0) {
+                if (pfd.revents & POLLIN) {
+                        n = (int)read(fd, buf, len);
+                        if (n < 0) {
+                                /* EIO: terminal is not opened (PTY) */
+                                n = ((errno == EINTR) || (errno == EAGAIN) || (errno == EIO)) ? 0 : -1;
+                        }
+                } else if (uart->type == UART_TYPE__STDIO) {
+                        /* hang up or error: stdin closed */
+                        n = -1;
+                }
+        } else if (r < 0) {
+                n = (errno == EINTR) ? 0 : -1;
+        }
+
+        unlock();
 
         return n;
 }
 
 //==============================================================================
 /**
- * @brief  Write data to UART.
+ * @brief  Write data to UART. Write to the simulator terminal is blocking,
+ *         write to other UARTs is non-blocking. When PTY is not opened by any
+ *         program then data is dropped.
  *
  * @param  port         UART number
  * @param  buf          buffer
  * @param  len          buffer length
  *
- * @return Number of written bytes, -1 on error.
+ * @return Number of written bytes (0 if UART is busy), -1 on error.
  */
 //==============================================================================
 int _host_uart_write(int port, const void *buf, size_t len)
 {
+        if (!_host_uart_is_available(port)) {
+                return -1;
+        }
+
+        uart_t *uart = &host.uart[port];
         int n = -1;
 
-        if (port == 0) {
-                lock();
+        lock();
+
+        switch (uart->type) {
+        case UART_TYPE__NONE:
+                n = (int)len;
+                break;
+
+        case UART_TYPE__STDIO:
                 n = write_all(STDOUT_FILENO, buf, len);
-                unlock();
+                break;
+
+        case UART_TYPE__PTY: {
+                struct pollfd pfd = {.fd = uart->fd, .events = POLLOUT};
+                if ((poll(&pfd, 1, 0) > 0) && (pfd.revents & POLLHUP)) {
+                        /* terminal is not opened: drop data */
+                        tcflush(uart->fd, TCOFLUSH);
+                        n = (int)len;
+                        break;
+                }
         }
+                /* fall through */
+
+        case UART_TYPE__DEVICE:
+                n = (int)write(uart->fd, buf, len);
+                if ((n < 0) && ((errno == EAGAIN) || (errno == EINTR))) {
+                        n = 0;
+                }
+                break;
+        }
+
+        unlock();
 
         return n;
 }

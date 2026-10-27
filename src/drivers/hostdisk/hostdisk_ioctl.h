@@ -34,10 +34,8 @@ device. Driver is available only in the POSIX simulator. Files are connected
 to disks by simulator program options:
 
 @code
-dnx-sim --rom romfs.bin --disk 1=sdcard.img --disk 2=flash.img:ro
+dnx-sim --disk 0=romfs.bin:ro --disk 1=sdcard.img --disk 2=flash.img:ro
 @endcode
-
-The --rom option is the same as --disk 0=<file>:ro.
 
 \section drv-hostdisk-sup-arch Supported architectures
 \li posix
