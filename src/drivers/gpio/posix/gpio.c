@@ -4,7 +4,9 @@
 @author  Daniel Zorychta
 
 @brief   Virtual GPIO driver (POSIX simulator). Pins are stored in memory,
-         input state is the same as output state.
+         input state is the same as output state. When board model is used
+         (simulator option --board) then output changes are reported to the
+         board and pins driven by board are read from board.
 
 @note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
@@ -34,6 +36,7 @@
 #include "posix/gpio_cfg.h"
 #include "../gpio_ioctl.h"
 #include "../gpio_ddi.h"
+#include "posix/host/host.h"
 
 /*==============================================================================
   Local symbolic constants/macros
@@ -62,6 +65,8 @@ static int pin_toggle(u8_t port_idx, u8_t pin_idx);
 static int pin_get(u8_t port_idx, u8_t pin_idx, int *state);
 static int pin_set_conf(const GPIO_pin_in_port_conf_t *conf);
 static int pin_get_conf(GPIO_pin_in_port_conf_t *conf);
+static void port_write(u8_t port_idx, u32_t clear_mask, u32_t set_mask, u32_t toggle_mask);
+static u32_t port_read(u8_t port_idx);
 
 /*==============================================================================
   Local object definitions
@@ -192,9 +197,7 @@ API_MOD_WRITE(GPIO, void *device_handle, const u8_t *src, size_t count, fpos_t *
                 u32_t value;
                 memcpy(&value, &src[i * sizeof(u32_t)], sizeof(u32_t));
 
-                sys_critical_section_begin();
-                port[hdl->major].state = value;
-                sys_critical_section_end();
+                port_write(hdl->major, UINT32_MAX, value, 0);
         }
 
         *wrcnt = words * sizeof(u32_t);
@@ -225,7 +228,7 @@ API_MOD_READ(GPIO, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, s
         size_t words = count / sizeof(u32_t);
 
         for (size_t i = 0; i < words; i++) {
-                u32_t value = port[hdl->major].state;
+                u32_t value = port_read(hdl->major);
                 memcpy(&dst[i * sizeof(u32_t)], &value, sizeof(u32_t));
         }
 
@@ -388,13 +391,8 @@ static int pin_set_state(u8_t port_idx, u8_t pin_idx, int state)
                 return EINVAL;
         }
 
-        sys_critical_section_begin();
-        if (state) {
-                port[port_idx].state |= (1UL << pin_idx);
-        } else {
-                port[port_idx].state &= ~(1UL << pin_idx);
-        }
-        sys_critical_section_end();
+        u32_t mask = (1UL << pin_idx);
+        port_write(port_idx, mask, state ? mask : 0, 0);
 
         return ESUCC;
 }
@@ -415,9 +413,7 @@ static int pin_toggle(u8_t port_idx, u8_t pin_idx)
                 return EINVAL;
         }
 
-        sys_critical_section_begin();
-        port[port_idx].state ^= (1UL << pin_idx);
-        sys_critical_section_end();
+        port_write(port_idx, 0, 0, (1UL << pin_idx));
 
         return ESUCC;
 }
@@ -439,9 +435,51 @@ static int pin_get(u8_t port_idx, u8_t pin_idx, int *state)
                 return EINVAL;
         }
 
-        *state = (port[port_idx].state & (1UL << pin_idx)) ? 1 : 0;
+        *state = (port_read(port_idx) & (1UL << pin_idx)) ? 1 : 0;
 
         return ESUCC;
+}
+
+//==============================================================================
+/**
+ * @brief  Modify port output state. Changed pins are reported to board model.
+ *
+ * @param  port_idx     port index
+ * @param  clear_mask   pins to clear
+ * @param  set_mask     pins to set (after clear)
+ * @param  toggle_mask  pins to toggle (after set)
+ */
+//==============================================================================
+static void port_write(u8_t port_idx, u32_t clear_mask, u32_t set_mask, u32_t toggle_mask)
+{
+        sys_critical_section_begin();
+
+        u32_t old = port[port_idx].state;
+        u32_t state = ((old & ~clear_mask) | set_mask) ^ toggle_mask;
+        port[port_idx].state = state;
+
+        if (old != state) {
+                _host_gpio_output(port_idx, state, old ^ state);
+        }
+
+        sys_critical_section_end();
+}
+
+//==============================================================================
+/**
+ * @brief  Read port state. Pins driven by board model have state of board.
+ *
+ * @param  port_idx     port index
+ *
+ * @return Port state.
+ */
+//==============================================================================
+static u32_t port_read(u8_t port_idx)
+{
+        u32_t level = 0;
+        u32_t mask = _host_gpio_input(port_idx, &level);
+
+        return (port[port_idx].state & ~mask) | (level & mask);
 }
 
 //==============================================================================

@@ -54,6 +54,8 @@ extern "C" {
 #include "stm32h7/stm32h7xx.h"
 #include "stm32h7/lib/stm32h7xx_ll_rcc.h"
 #include "stm32h7/stm32h7xx_hal_spi.h"
+#elif defined(ARCH_posix)
+#include "posix/spi_cfg.h"
 #endif
 
 /*==============================================================================
@@ -141,6 +143,14 @@ enum {
 #if defined(RCC_APB4ENR_SPI6EN)
         _SPI6,
 #endif
+        _NUMBER_OF_SPI_PERIPHERALS
+};
+#elif defined(ARCH_posix)
+enum {
+        _SPI1,
+        _SPI2,
+        _SPI3,
+        _SPI4,
         _NUMBER_OF_SPI_PERIPHERALS
 };
 #endif

@@ -156,6 +156,22 @@ extern int _host_uart_configure(int port, uint32_t baud, int parity, int stop_bi
 extern int _host_uart_read(int port, void *buf, size_t len);
 extern int _host_uart_write(int port, const void *buf, size_t len);
 
+/* GPIO (board model) */
+extern void _host_gpio_output(int port, uint32_t state, uint32_t changed);
+extern uint32_t _host_gpio_input(int port, uint32_t *level);
+
+/* I2C master (board model), results: 0: ACK, 1: NACK, -1: error */
+#define _HOST_I2C_ADDR_10BIT 0x8000
+extern int _host_i2c_start(int bus);
+extern int _host_i2c_address(int bus, uint16_t address, bool read);
+extern int _host_i2c_write(int bus, const uint8_t *src, size_t count, size_t *written);
+extern int _host_i2c_read(int bus, uint8_t *dst, size_t count);
+extern void _host_i2c_stop(int bus);
+
+/* SPI master (board model), flags: bits 0-1 SPI mode, _HOST_SPI_LSB_FIRST; result: 0 or -1 */
+#define _HOST_SPI_LSB_FIRST 0x04
+extern int _host_spi_transfer(int bus, const uint8_t *tx, uint8_t *rx, size_t count, uint8_t fill, unsigned flags);
+
 /* Ethernet (TAP) */
 extern bool _host_eth_is_available(void);
 extern bool _host_eth_is_link_up(void);

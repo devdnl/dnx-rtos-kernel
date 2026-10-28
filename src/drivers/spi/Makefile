@@ -18,6 +18,9 @@ ifeq ($(__ENABLE_SPI__), _YES_)
       CSRC_ARCH   += drivers/spi/stm32h7/stm32h7xx_hal_spi.c
       CSRC_ARCH   += drivers/spi/stm32h7/stm32h7xx_ll_spi.c
       CXXSRC_ARCH += 
+  else ifeq ($(TARGET), posix)
+      CSRC_ARCH   += drivers/spi/posix/spi_lld.c
+      CXXSRC_ARCH += 
   else
       UNSUPPORTED_MODULES += SPI
   endif

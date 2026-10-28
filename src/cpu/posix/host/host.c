@@ -58,6 +58,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "host.h"
+#include "board.h"
 
 /*==============================================================================
   Local macros
@@ -120,6 +121,8 @@ static struct {
         char fault_info[128];
         char *fs_root;
         const char *tap_name;
+        char *board_script;
+        bool board;
         int tap_fd;
 } host;
 
@@ -398,6 +401,8 @@ static void show_usage(const char *name)
         printf("                           the simulator terminal by default\n");
         printf("      --tap <name>         connect Ethernet interface (ETH driver) to the host\n");
         printf("                           TAP interface (e.g. tap0)\n");
+        printf("      --board <script>     board model (Lua script describing hardware connected\n");
+        printf("                           to the microcontroller, e.g. GPIO and I2C devices)\n");
         printf("  -h, --help               show this help\n\n");
         printf("Press Ctrl+\\ to terminate simulator.\n");
 }
@@ -715,6 +720,16 @@ static bool parse_args(int argc, char *argv[])
                         host.tap_name = val;
                         i++;
 
+                } else if (strcmp(opt, "--board") == 0) {
+                        char *script = val ? realpath(val, NULL) : NULL;
+                        if (!script) {
+                                fprintf(stderr, "Invalid board script: %s\n", val ? val : "");
+                                return false;
+                        }
+                        free(host.board_script);
+                        host.board_script = script;
+                        i++;
+
                 } else if (strcmp(opt, "--hostfs") == 0) {
                         char *root = val ? realpath(val, NULL) : NULL;
                         struct stat st;
@@ -796,6 +811,14 @@ int main(int argc, char *argv[])
                 return EXIT_FAILURE;
         }
 
+        if (host.board_script) {
+                if (_host_board_init(host.board_script) != 0) {
+                        host_cleanup();
+                        return EXIT_FAILURE;
+                }
+                host.board = true;
+        }
+
         if (host.uart[0].type == UART_TYPE__STDIO) {
                 terminal_configure();
         }
@@ -815,6 +838,9 @@ int main(int argc, char *argv[])
 void _host_exit(int status)
 {
         lock();
+        if (host.board) {
+                _host_board_exit();
+        }
         host_cleanup();
         _exit(status);
 }
@@ -827,6 +853,9 @@ void _host_exit(int status)
 void _host_restart(void)
 {
         lock();
+        if (host.board) {
+                _host_board_exit();
+        }
         host_cleanup();
 
         for (int i = 0; i < _HOST_DISK_COUNT; i++) {
@@ -913,6 +942,193 @@ int64_t _host_get_realtime_us(void)
         struct timespec t;
         clock_gettime(CLOCK_REALTIME, &t);
         return ((int64_t)t.tv_sec * 1000000) + ((int64_t)t.tv_nsec / 1000);
+}
+
+//==============================================================================
+/**
+ * @brief  GPIO output state was changed (board model is notified).
+ *
+ * @param  port         port index
+ * @param  state        port output state
+ * @param  changed      mask of changed pins
+ */
+//==============================================================================
+void _host_gpio_output(int port, uint32_t state, uint32_t changed)
+{
+        if (host.board) {
+                lock();
+                _host_board_gpio_output(port, state, changed);
+                unlock();
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Get state of GPIO pins driven by board model.
+ *
+ * @param  port         port index
+ * @param  level        levels of driven pins
+ *
+ * @return Mask of pins driven by board.
+ */
+//==============================================================================
+uint32_t _host_gpio_input(int port, uint32_t *level)
+{
+        uint32_t mask = 0;
+        *level = 0;
+
+        if (host.board) {
+                lock();
+                mask = _host_board_gpio_input(port, level);
+                unlock();
+        }
+
+        return mask;
+}
+
+//==============================================================================
+/**
+ * @brief  I2C master: START or repeated START condition (board model). Bus
+ *         without board model has no devices (address is not acknowledged).
+ *
+ * @param  bus          bus index
+ *
+ * @return 0: ACK, -1: error.
+ */
+//==============================================================================
+int _host_i2c_start(int bus)
+{
+        int result = _HOST_BOARD_I2C_ACK;
+
+        if (host.board) {
+                lock();
+                result = _host_board_i2c_start(bus);
+                unlock();
+        }
+
+        return result;
+}
+
+//==============================================================================
+/**
+ * @brief  I2C master: send device address (board model).
+ *
+ * @param  bus          bus index
+ * @param  address      7-bit address or 10-bit address with _HOST_I2C_ADDR_10BIT flag
+ * @param  read         true: read transfer
+ *
+ * @return 0: ACK, 1: NACK, -1: error.
+ */
+//==============================================================================
+int _host_i2c_address(int bus, uint16_t address, bool read)
+{
+        int result = _HOST_BOARD_I2C_NACK;
+
+        if (host.board) {
+                lock();
+                result = _host_board_i2c_address(bus, address, read);
+                unlock();
+        }
+
+        return result;
+}
+
+//==============================================================================
+/**
+ * @brief  I2C master: transmit bytes (board model).
+ *
+ * @param  bus          bus index
+ * @param  src          data
+ * @param  count        number of bytes
+ * @param  written      number of acknowledged bytes
+ *
+ * @return 0: ACK, 1: NACK, -1: error.
+ */
+//==============================================================================
+int _host_i2c_write(int bus, const uint8_t *src, size_t count, size_t *written)
+{
+        int result = _HOST_BOARD_I2C_NACK;
+        *written = 0;
+
+        if (host.board) {
+                lock();
+                result = _host_board_i2c_write(bus, src, count, written);
+                unlock();
+        }
+
+        return result;
+}
+
+//==============================================================================
+/**
+ * @brief  I2C master: receive bytes (board model).
+ *
+ * @param  bus          bus index
+ * @param  dst          destination
+ * @param  count        number of bytes
+ *
+ * @return 0: ACK, 1: NACK, -1: error.
+ */
+//==============================================================================
+int _host_i2c_read(int bus, uint8_t *dst, size_t count)
+{
+        int result = _HOST_BOARD_I2C_NACK;
+
+        if (host.board) {
+                lock();
+                result = _host_board_i2c_read(bus, dst, count);
+                unlock();
+        } else {
+                memset(dst, 0xFF, count);
+        }
+
+        return result;
+}
+
+//==============================================================================
+/**
+ * @brief  I2C master: STOP condition (board model).
+ *
+ * @param  bus          bus index
+ */
+//==============================================================================
+void _host_i2c_stop(int bus)
+{
+        if (host.board) {
+                lock();
+                _host_board_i2c_stop(bus);
+                unlock();
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  SPI master: full duplex transfer (board model). Without board model
+ *         received data are 0xFF (MISO pulled up).
+ *
+ * @param  bus          bus index
+ * @param  tx           data to transmit (NULL: fill byte)
+ * @param  rx           received data (can be NULL)
+ * @param  count        number of bytes
+ * @param  fill         byte transmitted when tx is NULL
+ * @param  flags        SPI mode and bit order
+ *
+ * @return 0 on success, -1 on error.
+ */
+//==============================================================================
+int _host_spi_transfer(int bus, const uint8_t *tx, uint8_t *rx, size_t count, uint8_t fill, unsigned flags)
+{
+        int result = 0;
+
+        if (host.board) {
+                lock();
+                result = _host_board_spi_transfer(bus, tx, rx, count, fill, flags);
+                unlock();
+        } else if (rx) {
+                memset(rx, 0xFF, count);
+        }
+
+        return result;
 }
 
 //==============================================================================

@@ -129,6 +129,9 @@ LFLAGS   = -g \
 # flags of files that use host (POSIX simulator) headers and libraries
 CFLAGS_HOST = $(CFLAGS) -D_DNX_HOST_ -D_GNU_SOURCE
 
+# flags of third party libraries compiled for host (sources are not modified, warnings disabled)
+CFLAGS_HOST_LIB = $(CFLAGS_HOST) -w $(HOST_LIB_FLAGS)
+
 #---------------------------------------------------------------------------------------------------
 # FILE EXTENSIONS CONFIGURATION
 #---------------------------------------------------------------------------------------------------
@@ -242,6 +245,7 @@ _CSRC_CORE       = $(foreach file, $(CSRC_CORE),$(SYS_LOC)/$(file))
 _CSRC_NOARCH     = $(foreach file, $(CSRC_NOARCH),$(SYS_LOC)/$(file))
 _CSRC_ARCH       = $(foreach file, $(CSRC_ARCH),$(SYS_LOC)/$(file))
 _CSRC_HOST       = $(foreach file, $(CSRC_HOST),$(SYS_LOC)/$(file))
+_CSRC_HOST_LIB   = $(foreach file, $(CSRC_HOST_LIB),$(SYS_LOC)/$(file))
 CSRC             = $(_CSRC_PROGRAMS) $(_CSRC_LIB) $(_CSRC_CORE) $(_CSRC_NOARCH) $(_CSRC_ARCH)
 
 # defines all C++ sources
@@ -257,6 +261,7 @@ CSRCCOREOBJ            = $(_CSRC_CORE:.$(C_EXT)=.$(OBJ_EXT))
 CSRCNOARCHOBJ          = $(_CSRC_NOARCH:.$(C_EXT)=.$(OBJ_EXT))
 CSRCARCHOBJ            = $(_CSRC_ARCH:.$(C_EXT)=.$(OBJ_EXT))
 CSRCHOSTOBJ            = $(_CSRC_HOST:.$(C_EXT)=.$(OBJ_EXT))
+CSRCHOSTLIBOBJ         = $(_CSRC_HOST_LIB:.$(C_EXT)=.$(OBJ_EXT))
 CSRCOBJ                = $(CSRC:.$(C_EXT)=.$(OBJ_EXT))
 CXXSRCCOREOBJ          = $(_CXXSRC_CORE:.$(CXX_EXT)=.$(OBJ_EXT))
 CXXSRCNOARCHOBJ        = $(_CXXSRC_NOARCH:.$(CXX_EXT)=.$(OBJ_EXT))
@@ -269,17 +274,18 @@ OBJECTS_CSRC_CORE      = $(foreach var,$(CSRCCOREOBJ),$(OBJ_PATH)/$(var))
 OBJECTS_CSRC_NOARCH    = $(foreach var,$(CSRCNOARCHOBJ),$(OBJ_PATH)/$(var))
 OBJECTS_CSRC_ARCH      = $(foreach var,$(CSRCARCHOBJ),$(OBJ_PATH)/$(var))
 OBJECTS_CSRC_HOST      = $(foreach var,$(CSRCHOSTOBJ),$(OBJ_PATH)/$(var))
+OBJECTS_CSRC_HOST_LIB  = $(foreach var,$(CSRCHOSTLIBOBJ),$(OBJ_PATH)/$(var))
 OBJECTS_CXXSRC_CORE    = $(foreach var,$(CXXSRCCOREOBJ),$(OBJ_PATH)/$(var))
 OBJECTS_CXXSRC_NOARCH  = $(foreach var,$(CXXSRCNOARCHOBJ),$(OBJ_PATH)/$(var))
 OBJECTS_CXXSRC_ARCH    = $(foreach var,$(CXXSRCARCHOBJ),$(OBJ_PATH)/$(var))
 OBJECTS_ASRC           = $(foreach var,$(ASRCOBJ),$(OBJ_PATH)/$(var))
 OBJECTS_CSRC           = $(OBJECTS_CSRC_PROGRAMS) $(OBJECTS_CSRC_LIB) $(OBJECTS_CSRC_CORE) $(OBJECTS_CSRC_NOARCH) $(OBJECTS_CSRC_ARCH)
 OBJECTS_CXXSRC         = $(OBJECTS_CXXSRC_PROGRAMS) $(OBJECTS_CXXSRC_LIB) $(OBJECTS_CXXSRC_CORE) $(OBJECTS_CXXSRC_NOARCH) $(OBJECTS_CXXSRC_ARCH)
-OBJECTS_ALL            = $(OBJECTS_ASRC) $(OBJECTS_CSRC) $(OBJECTS_CXXSRC) $(OBJECTS_CSRC_HOST)
+OBJECTS_ALL            = $(OBJECTS_ASRC) $(OBJECTS_CSRC) $(OBJECTS_CXXSRC) $(OBJECTS_CSRC_HOST) $(OBJECTS_CSRC_HOST_LIB)
 
 # architecture dependent sources that do not exist (module not supported by selected CPU),
 # modules not supported by selected CPU are also added to UNSUPPORTED_MODULES by module Makefile
-ARCH_SRC               = $(_CSRC_ARCH) $(_CXXSRC_ARCH) $(ASRC) $(_CSRC_HOST)
+ARCH_SRC               = $(_CSRC_ARCH) $(_CXXSRC_ARCH) $(ASRC) $(_CSRC_HOST) $(_CSRC_HOST_LIB)
 MISSING_ARCH_SRC       = $(filter-out $(wildcard $(ARCH_SRC)),$(ARCH_SRC))
 
 .DELETE_ON_ERROR:
@@ -501,6 +507,14 @@ $(OBJECTS_CSRC_HOST) : $(OBJ_PATH)/%.$(OBJ_EXT) : %.$(C_EXT) $(THIS_MAKEFILE)
 	@$(ECHO) "Compiling (host): $<"
 	@$(MKDIR) $(dir $@)
 	@$(CC) $(CFLAGS_HOST) $(SEARCHPATH_HOST) $< -o $@
+
+####################################################################################################
+# rule used to compile third party libraries for host (POSIX simulator)
+####################################################################################################
+$(OBJECTS_CSRC_HOST_LIB) : $(OBJ_PATH)/%.$(OBJ_EXT) : %.$(C_EXT) $(THIS_MAKEFILE)
+	@$(ECHO) "Compiling (host library): $<"
+	@$(MKDIR) $(dir $@)
+	@$(CC) $(CFLAGS_HOST_LIB) $(SEARCHPATH_HOST) $< -o $@
 
 ####################################################################################################
 # rule used to compile object files from C++ sources

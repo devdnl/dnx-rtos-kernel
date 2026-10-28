@@ -18,6 +18,9 @@ ifeq ($(__ENABLE_I2C__), _YES_)
     else ifeq ($(TARGET), stm32h7)
         CSRC_ARCH   += drivers/i2c/drv/STM32F3F7H7/i2c_lld.c
         CXXSRC_ARCH += 
+    else ifeq ($(TARGET), posix)
+        CSRC_ARCH   += drivers/i2c/posix/i2c_lld.c
+        CXXSRC_ARCH += 
     else
         UNSUPPORTED_MODULES += I2C
     endif

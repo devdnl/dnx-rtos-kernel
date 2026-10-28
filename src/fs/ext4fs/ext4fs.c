@@ -178,6 +178,10 @@ API_FS_INIT(ext4fs, void **fs_handle, const char *src_path, const char *opts)
         ext4_mount_setup_locks(hdl->mp, &EXT4_LOCK);
 
         int rerr = ext4_recover(hdl->mp);
+        if (rerr == ENOTSUP) {
+                rerr = ESUCC; /* file system without journal (e.g. ext2) */
+        }
+
         if (rerr) {
                 if (!read_only) {
                         printk("EXT4FS: %s journal recovery failed (%d)", src_path, rerr);

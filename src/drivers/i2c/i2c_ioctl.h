@@ -37,6 +37,9 @@ Driver handles I2C peripheral.
 \li stm32f3
 \li stm32f4
 \li stm32f7
+\li stm32h7
+\li posix (simulator: master mode only, devices are described by the board
+    model, simulator option --board)
 
 \section drv-i2c-ddesc Details
 \subsection drv-i2c-ddesc-num Meaning of major and minor numbers

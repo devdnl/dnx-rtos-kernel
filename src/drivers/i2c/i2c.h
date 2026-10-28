@@ -138,6 +138,14 @@ enum _I2C_major {
 #endif
         _I2C_NUMBER_OF_PERIPHERALS
 };
+#elif defined(ARCH_posix)
+enum _I2C_major {
+        _I2C1,
+        _I2C2,
+        _I2C3,
+        _I2C4,
+        _I2C_NUMBER_OF_PERIPHERALS
+};
 #endif
 
 /// type defines I2C device in the runtime environment

@@ -522,7 +522,6 @@
 	};
 	["config/arch/stm32f1/spi_flags.h"]={
 		["__SPI_DEFAULT_CLK_DIV__"]="SPI_CLK_DIV__4";
-		["__SPI_DEFAULT_FLUSH_BYTE__"]="0xFF";
 		["__SPI_DEFAULT_MODE__"]="SPI_MODE__0";
 		["__SPI_DEFAULT_MSB_FIRST__"]="_YES_";
 		["__SPI_SPI1_USE_DMA__"]="_YES_";
@@ -2714,7 +2713,6 @@
 	};
 	["config/arch/stm32f4/spi_flags.h"]={
 		["__SPI_DEFAULT_CLK_DIV__"]="SPI_CLK_DIV__4";
-		["__SPI_DEFAULT_FLUSH_BYTE__"]="0xFF";
 		["__SPI_DEFAULT_MODE__"]="SPI_MODE__0";
 		["__SPI_DEFAULT_MSB_FIRST__"]="_YES_";
 		["__SPI_SPI1_USE_DMA__"]="_NO_";
@@ -3859,7 +3857,6 @@
 	};
 	["config/arch/stm32f7/spi_flags.h"]={
 		["__SPI_DEFAULT_CLK_DIV__"]="SPI_CLK_DIV__4";
-		["__SPI_DEFAULT_FLUSH_BYTE__"]="0xFF";
 		["__SPI_DEFAULT_MODE__"]="SPI_MODE__0";
 		["__SPI_DEFAULT_MSB_FIRST__"]="_YES_";
 		["__SPI_SPI1_USE_DMA__"]="_YES_";

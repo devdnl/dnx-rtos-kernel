@@ -75,6 +75,12 @@ endif
 ifeq ($(TARGET), posix)
 CSRC_ARCH   += cpu/posix/cpuctl.c
 CSRC_HOST   += cpu/posix/host/host.c
+CSRC_HOST   += cpu/posix/host/board.c
+CSRC_HOST_LIB += $(foreach f, lapi lauxlib lbaselib lcode lcorolib lctype ldblib ldebug \
+                   ldo ldump lfunc lgc linit liolib llex lmathlib \
+                   lmem loadlib lobject lopcodes loslib lparser lstate lstring \
+                   lstrlib ltable ltablib ltm lundump lutf8lib lvm lzio,cpu/posix/host/lua/$(f).c)
+HOST_LIB_FLAGS += -DLUA_USE_POSIX
 HDRLOC_ARCH += cpu/posix
 HDRLOC_ARCH += cpu/posix/compat
 HDRLOC_HOST += cpu/posix/host

@@ -174,6 +174,7 @@ mount("fatfs", "/dev/sda", "/mnt", "");
   Include files
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
+#include "drivers/class/device/ioctl.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -196,6 +197,16 @@ extern "C" {
  *          On error (card not initialized) -1 is returned and @ref errno is set.
  */
 #define IOCTL_SDSPI__INITIALIZE_CARD IOCTL_STORAGE__INITIALIZE
+
+/**
+ *  @brief  SDSPI configuration by string: "spi_path=<SPI file>,timeout=<ms>"
+ *          (timeout is optional, default 1000 ms), e.g. from shell:
+ *          modprobe -i SDSPI 0 0 /dev/sda -c spi_path=/dev/spi_sda
+ *  @param  [WR] const char * configuration string
+ *  @return On success 0 is returned.
+ *          On error -1 is returned and @ref errno is set.
+ */
+#define IOCTL_SDSPI__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
 /*==============================================================================
   Exported object types

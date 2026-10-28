@@ -365,6 +365,28 @@ API_MOD_IOCTL(SPI, void *device_handle, int request, void *arg)
                 }
                 break;
 
+        case IOCTL_SPI__CONFIGURE_STR:
+                if (arg) {
+                        SPI_config_t cfg = hdl->config;
+                        cfg.clk_divider = sys_stropt_get_int(arg, "clk_divider", cfg.clk_divider);
+                        cfg.mode = sys_stropt_get_int(arg, "mode", cfg.mode);
+                        cfg.msb_first = sys_stropt_get_bool(arg, "msb_first", cfg.msb_first);
+                        cfg.CS_port_idx = sys_stropt_get_int(arg, "cs_port", cfg.CS_port_idx);
+                        cfg.CS_pin_idx = sys_stropt_get_int(arg, "cs_pin", cfg.CS_pin_idx);
+                        cfg.CS_reverse = sys_stropt_get_bool(arg, "cs_reverse", cfg.CS_reverse);
+
+                        if ((cfg.clk_divider > SPI_CLK_DIV__256) || (cfg.mode > SPI_MODE__3)) {
+                                err = EINVAL;
+                        } else {
+                                hdl->config = cfg;
+                                slave_deselect(hdl);
+                                err = ESUCC;
+                        }
+                } else {
+                        err = EINVAL;
+                }
+                break;
+
         case IOCTL_SPI__GET_CONFIGURATION:
                 if (arg) {
                         *cast(SPI_config_t *, arg) = hdl->config;

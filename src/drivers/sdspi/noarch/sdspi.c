@@ -326,6 +326,20 @@ API_MOD_IOCTL(SDSPI, void *device_handle, int request, void *arg)
                 break;
         }
 
+        case IOCTL_SDSPI__CONFIGURE_STR: {
+                char path[64];
+                SDSPI_config_t cfg;
+                cfg.filepath = path;
+                cfg.timeout = sys_stropt_get_int(arg, "timeout", 1000);
+
+                if (arg && sys_stropt_get_string_copy(arg, "spi_path", path, sizeof(path)) && cfg.timeout > 0) {
+                        err = configure(hdl, &cfg);
+                } else {
+                        err = EINVAL;
+                }
+                break;
+        }
+
         case IOCTL_SDSPI__INITIALIZE_CARD:
                 err = sys_mutex_lock(hdl->protect_mtx, _WAIT_FOREVER_MS);
                 if (!err) {
@@ -838,7 +852,7 @@ static int card_initialize(SDSPI_t *hdl)
                         }
 
                         /* set R/W block length to 512 */
-                        if (!sys_is_time_expired(tref, hdl->timeout_ms) ||
+                        if (sys_is_time_expired(tref, hdl->timeout_ms) ||
                                 card_send_cmd(hdl, SD_CMD__CMD16, SECTOR_SIZE) != 0) {
 
                                 hdl->type.type = SD_TYPE__UNKNOWN;
@@ -852,10 +866,8 @@ static int card_initialize(SDSPI_t *hdl)
         }
 
         if (!err) {
-                /* clear card info */
+                /* clear card size (card type and addressing mode are detected above) */
                 hdl->size_blocks = 0;
-                hdl->type.block = false;
-                hdl->type.type = SD_TYPE__UNKNOWN;
 
                 // read size
                 if (card_send_cmd(hdl, SD_CMD__CMD9, 0) == 0) {

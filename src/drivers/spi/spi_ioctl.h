@@ -36,6 +36,8 @@ Driver handles SPI peripheral.
 \li stm32f4
 \li stm32f7
 \li stm32h7
+\li posix (simulator: devices are described by the board model, simulator
+    option --board)
 
 \section drv-spi-ddesc Details
 \subsection drv-spi-ddesc-num Meaning of major and minor numbers
@@ -78,6 +80,18 @@ driver_release("SPI", 0, 1);
 @endcode
 
 \subsection drv-spi-ddesc-cfg Driver configuration
+Device can be also configured by configuration string (all parameters are
+optional, not specified parameters are not changed):
+@code
+ioctl(fileno(dev), IOCTL_SPI__CONFIGURE_STR, "clk_divider=1,mode=0,msb_first=1,cs_port=0,cs_pin=4,cs_reverse=0");
+@endcode
+where clk_divider is @ref SPI_clk_div value (0: divided by 2, 1: by 4, ...),
+mode is @ref SPI_mode value (0..3), cs_port and cs_pin select Chip Select pin
+(GPIO port and pin index, 255: CS not used). From shell:
+@code
+modprobe -i SPI 0 0 /dev/spi-ee -c cs_port=0,cs_pin=4
+@endcode
+
 Driver configuration should be done before usage and after initialization.
 The best place to do this is user application. To configure particular SPI
 device the ioctl() function shall be used:
@@ -92,7 +106,6 @@ static const char *dev_path = "/dev/SPI0-0";
 FILE *dev = fopen(dev_path, "r+");
 if (dev) {
       static const SPI_config_t cfg = {
-           .flush_byte  = 0xFF,                             // flush byte
            .clk_divider = SPI_CLK_DIV__4,                   // Peripheral clock / 4
            .mode        = SPI_MODE__0,                      // SPI mode 0
            .msb_first   = true,                             // MSb first
@@ -141,8 +154,7 @@ static const char *dev_path = "/dev/SPI0-0";
 static const char *blk      = "Data block sent by SPI bus";
 
 static const SPI_config_t cfg = {
-     .flush_byte  = 0xFF,                             // flush byte
-     .clk_divider = SPI_CLK_DIV__32                   // Peripheral clock / 32
+     .clk_divider = SPI_CLK_DIV__32,                  // Peripheral clock / 32
      .mode        = SPI_MODE__0,                      // SPI mode 0
      .msb_first   = true,                             // MSb first
      .CS_port_idx = IOCTL_GPIO_PORT_IDX__CS0,         // port index of CS0
@@ -193,8 +205,7 @@ Example assumptions:
 static const char *dev_path = "/dev/SPI0-0";
 
 static const SPI_config_t cfg = {
-     .flush_byte  = 0xFF,                             // flush byte
-     .clk_divider = SPI_CLK_DIV__32                   // Peripheral clock / 32
+     .clk_divider = SPI_CLK_DIV__32,                  // Peripheral clock / 32
      .mode        = SPI_MODE__0,                      // SPI mode 0
      .msb_first   = true,                             // MSb first
      .CS_port_idx = IOCTL_GPIO_PORT_IDX__CS0,         // port index of CS0
@@ -247,8 +258,7 @@ Example assumptions:
 static const char *dev_path = "/dev/SPI0-0";
 
 static const SPI_config_t cfg = {
-     .flush_byte  = 0xFF,                             // not used in this example
-     .clk_divider = SPI_CLK_DIV__32                   // Peripheral clock / 32
+     .clk_divider = SPI_CLK_DIV__32,                  // Peripheral clock / 32
      .mode        = SPI_MODE__0,                      // SPI mode 0
      .msb_first   = true,                             // MSb first
      .CS_port_idx = IOCTL_GPIO_PORT_IDX__CS0,         // port index of CS0
@@ -315,6 +325,7 @@ int_main(spi_ex, STACK_DEPTH_MEDIUM, int argc, char *argv[])
   Include files
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
+#include "drivers/class/device/ioctl.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -362,6 +373,15 @@ extern "C" {
  *  @return On success 0 is returned, otherwise -1.
  */
 #define IOCTL_SPI__TRANSMIT_NO_SELECT _IOW(SPI, 0x05, const u8_t *)
+
+/**
+ *  @brief  Set SPI configuration by string, e.g. "mode=0,cs_port=0,cs_pin=4".
+ *          Parameters: clk_divider, mode, msb_first, cs_port, cs_pin,
+ *          cs_reverse; not specified parameters are not changed.
+ *  @param  [WR] const char * configuration string
+ *  @return On success 0 is returned, otherwise -1.
+ */
+#define IOCTL_SPI__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
 /*==============================================================================
   Exported object types
