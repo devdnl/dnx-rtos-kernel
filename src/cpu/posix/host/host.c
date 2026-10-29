@@ -63,8 +63,8 @@
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define DEFAULT_RAM_SIZE_MIB __CPU_RAM_SIZE_MIB__
-#define MAX_RAM_SIZE_MIB     1024
+#define DEFAULT_RAM_SIZE_KIB __CPU_RAM_SIZE_KIB__
+#define MAX_RAM_SIZE_KIB     1048576
 
 /* kernel panic causes (kernel/kpanic.h) */
 #define KERNEL_PANIC_CAUSE_SEGFAULT   0
@@ -388,7 +388,7 @@ static void show_usage(const char *name)
         printf("Usage: %s [options]\n", name);
         printf("dnx RTOS simulator (POSIX).\n\n");
         printf("Options:\n");
-        printf("  -r, --ram <MiB>          size of RAM (default: %u MiB)\n", DEFAULT_RAM_SIZE_MIB);
+        printf("  -r, --ram <KiB>          size of RAM (default: %u KiB)\n", DEFAULT_RAM_SIZE_KIB);
         printf("  -d, --disk <n>=<file>[:ro]\n");
         printf("                           connect file to the host disk <n> (0-%d),\n", _HOST_DISK_COUNT - 1);
         printf("                           disk is available by the HOSTDISK driver\n");
@@ -690,12 +690,12 @@ static bool parse_args(int argc, char *argv[])
                         exit(EXIT_SUCCESS);
 
                 } else if ((strcmp(opt, "-r") == 0) || (strcmp(opt, "--ram") == 0)) {
-                        long mib = val ? strtol(val, NULL, 10) : 0;
-                        if ((mib <= 0) || (mib > MAX_RAM_SIZE_MIB)) {
+                        long kib = val ? strtol(val, NULL, 10) : 0;
+                        if ((kib <= 0) || (kib > MAX_RAM_SIZE_KIB)) {
                                 fprintf(stderr, "Invalid RAM size: %s\n", val ? val : "");
                                 return false;
                         }
-                        host.ram_size = (size_t)mib * 1024 * 1024;
+                        host.ram_size = (size_t)kib * 1024;
                         i++;
 
                 } else if ((strcmp(opt, "-d") == 0) || (strcmp(opt, "--disk") == 0)) {
@@ -779,7 +779,7 @@ int main(int argc, char *argv[])
                 return EXIT_FAILURE;
         }
 
-        host.ram_size = (size_t)DEFAULT_RAM_SIZE_MIB * 1024 * 1024;
+        host.ram_size = (size_t)DEFAULT_RAM_SIZE_KIB * 1024;
         host.tap_fd = -1;
 
         for (int i = 0; i < _HOST_DISK_COUNT; i++) {
