@@ -361,6 +361,44 @@ API_MOD_IOCTL(SND, void *device_handle, int request, void *arg)
         int err = EBADRQC;
 
         switch (request) {
+        case IOCTL_SND__CONFIGURE_STR: {
+                static const char *const CHANNELS[] = {
+                        [SND_CHANNELS__MONO] = "mono",
+                        [SND_CHANNELS__STEREO] = "stereo",
+                };
+                static const char *const SAMPLE_RATE[] = {
+                        [SND_SAMPLE_RATE__44100] = "44100",
+                        [SND_SAMPLE_RATE__22050] = "22050",
+                        [SND_SAMPLE_RATE__11025] = "11025",
+                };
+                static const char *const BITS[] = {
+                        [SND_BITS_PER_SAMPLE__8] = "8",
+                        [SND_BITS_PER_SAMPLE__16] = "16",
+                        [SND_BITS_PER_SAMPLE__32] = "32",
+                };
+
+                if (arg) {
+                        SND_config_t conf = hdl->conf;
+                        int ch = sys_stropt_get_enum(arg, "channels", CHANNELS, ARRAY_SIZE(CHANNELS), conf.channels);
+                        int sr = sys_stropt_get_enum(arg, "sample_rate", SAMPLE_RATE, ARRAY_SIZE(SAMPLE_RATE),
+                                conf.sample_rate);
+                        int bps = sys_stropt_get_enum(arg, "bits_per_sample", BITS, ARRAY_SIZE(BITS),
+                                conf.bits_per_sample);
+
+                        if ((ch < 0) || (sr < 0) || (bps < 0)) {
+                                err = EINVAL;
+                        } else {
+                                conf.channels = ch;
+                                conf.sample_rate = sr;
+                                conf.bits_per_sample = bps;
+                                err = configure(hdl, &conf);
+                        }
+                } else {
+                        err = EINVAL;
+                }
+                break;
+        }
+
         case IOCTL_SND__SET_CONFIGURATION: {
                 const SND_config_t *conf = cast(const SND_config_t *, arg);
                 if (conf) {

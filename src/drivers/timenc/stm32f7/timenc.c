@@ -316,8 +316,25 @@ API_MOD_IOCTL(TIMENC, void *device_handle, int request, void *arg)
 
         switch (request) {
         case IOCTL_TIMENC__CONFIGURE:
-                hdl->pin_A = cast(const TIMENC_config_t *, arg)->pin_A;
-                hdl->pin_B = cast(const TIMENC_config_t *, arg)->pin_B;
+                if (arg) {
+                        hdl->pin_A = cast(const TIMENC_config_t *, arg)->pin_A;
+                        hdl->pin_B = cast(const TIMENC_config_t *, arg)->pin_B;
+                        err = ESUCC;
+                } else {
+                        err = EINVAL;
+                }
+                break;
+
+        case IOCTL_TIMENC__CONFIGURE_STR:
+                if (arg) {
+                        hdl->pin_A.port_idx = sys_stropt_get_int(arg, "a_port", hdl->pin_A.port_idx);
+                        hdl->pin_A.pin_idx = sys_stropt_get_int(arg, "a_pin", hdl->pin_A.pin_idx);
+                        hdl->pin_B.port_idx = sys_stropt_get_int(arg, "b_port", hdl->pin_B.port_idx);
+                        hdl->pin_B.pin_idx = sys_stropt_get_int(arg, "b_pin", hdl->pin_B.pin_idx);
+                        err = ESUCC;
+                } else {
+                        err = EINVAL;
+                }
                 break;
         }
 

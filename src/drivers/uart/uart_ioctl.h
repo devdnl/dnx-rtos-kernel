@@ -94,6 +94,7 @@ with fread() function). File position is ignored because device handle stream.
   Include files
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
+#include "drivers/class/device/ioctl.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -111,6 +112,16 @@ extern "C" {
  *  @return On success 0 is returned, otherwise -1.
  */
 #define IOCTL_UART__SET_CONFIGURATION _IOW(UART, 0x00, struct UART_config *)
+
+/**
+ *  @brief  Set UART configuration by string (not specified parameters are not
+ *          changed): mode=normal|lin|rs485, parity=off|odd|even, stop_bits=1|2,
+ *          tx_enable=0|1, rx_enable=0|1, baud=<bps>, features=<UART_FEATURE__ flags>,
+ *          single_wire=0|1, hw_flow_ctrl=0|1, e.g. "baud=9600,parity=even".
+ *  @param  [WR] const char * configuration string
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
+ */
+#define IOCTL_UART__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
 /**
  *  @brief  Gets UART configuration.

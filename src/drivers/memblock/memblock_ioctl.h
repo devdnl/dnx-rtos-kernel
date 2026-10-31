@@ -107,6 +107,7 @@ The same as from regular file.
   Include files
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
+#include "drivers/class/device/ioctl.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -121,6 +122,15 @@ extern "C" {
  *  @return On success 0 is returned, otherwise -1.
  */
 #define IOCTL_MEMBLOCK__SET_CONFIGURATION _IOW(MEMBLOCK, 0x00, const MEMBLOCK_config_t *)
+
+/**
+ *  @brief  Set memory block configuration by string (not specified parameters
+ *          are not changed): memory_address=<address>,block_size=<bytes>,
+ *          access=rdonly|wronly|rdwr, e.g. "memory_address=0x90000000,block_size=512,access=rdonly".
+ *  @param  [WR] const char * configuration string
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
+ */
+#define IOCTL_MEMBLOCK__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
 /**
  *  @brief  Gets MEMBLOCK configuration

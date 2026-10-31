@@ -356,6 +356,19 @@ API_MOD_IOCTL(NVM, void *device_handle, int request, void *arg)
                 }
                 break;
 
+        case IOCTL_NVM__CONFIGURE_STR:
+                if (arg) {
+                        NVM_config_t cfg = {
+                                .start_sector = sys_stropt_get_int(arg, "start_sector", 0),
+                                .number_of_sectors = sys_stropt_get_int(arg, "number_of_sectors", 0),
+                        };
+
+                        if (cfg.number_of_sectors > 0) {
+                                err = configure(hdl, &cfg);
+                        }
+                }
+                break;
+
         case IOCTL_NVM__SECTOR_ERASE:
                 if (arg) {
                         err = sys_mutex_lock(hdl->mtx, TIMEOUT_MS);

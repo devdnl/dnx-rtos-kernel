@@ -79,6 +79,7 @@ driver_release("TIMENC", 0, 1);
   Include files
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
+#include "drivers/class/device/ioctl.h"
 #include "gpio_ioctl.h"
 
 #ifdef __cplusplus
@@ -94,6 +95,15 @@ extern "C" {
  *  @return On success 0 is returned, otherwise -1.
  */
 #define IOCTL_TIMENC__CONFIGURE _IOW(TIMENC, 0x00, const TIMENC_config_t *)
+
+/**
+ *  @brief  Configure encoder by string (not specified parameters are not
+ *          changed): a_port=<n>,a_pin=<n>,b_port=<n>,b_pin=<n> (GPIO port and pin
+ *          indexes of A and B inputs), e.g. "a_port=0,a_pin=8,b_port=0,b_pin=9".
+ *  @param  [WR] const char * configuration string
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
+ */
+#define IOCTL_TIMENC__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
 /*==============================================================================
   Exported object types

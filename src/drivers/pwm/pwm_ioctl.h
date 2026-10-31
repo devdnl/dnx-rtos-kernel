@@ -129,6 +129,7 @@ if (f) {
   Include files
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
+#include "drivers/class/device/ioctl.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -143,6 +144,14 @@ extern "C" {
  *  @return On success 0 is returned, otherwise -1.
  */
 #define IOCTL_PWM__SET_CONFIGURATION _IOW(PWM, 0x00, const PWM_config_t *)
+
+/**
+ *  @brief  Set PWM configuration by string (not specified parameters are not
+ *          changed): reload=<n>,prescaler=<n>, e.g. "reload=1000,prescaler=72".
+ *  @param  [WR] const char * configuration string
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
+ */
+#define IOCTL_PWM__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
 /**
  *  @brief  Return base frequency of timer.

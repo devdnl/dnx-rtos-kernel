@@ -148,6 +148,7 @@ while (true) {
   Include files
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
+#include "drivers/class/device/ioctl.h"
 #include "drivers/class/ethif.h"
 
 #ifdef __cplusplus
@@ -168,6 +169,14 @@ extern "C" {
  * @return On success 0 is returned, otherwise -1 and @ref errno code is set.
  */
 #define IOCTL_ENC28J60__CONFIGURE _IOW(ENC28J60, 0x00, ENC28J60_config_t *)
+
+/**
+ *  @brief  Configure ENC28J60 by string: spi_path=<SPI device file>,
+ *          e.g. "spi_path=/dev/spi_eth".
+ *  @param  [WR] const char * configuration string
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
+ */
+#define IOCTL_ENC28J60__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
 /*
  * NOTE: additional requests are defined in ethernet class file: class/ethif.h.

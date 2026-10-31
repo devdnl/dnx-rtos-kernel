@@ -507,6 +507,18 @@ API_MOD_IOCTL(TTY, void *device_handle, int request, void *arg)
                 }
                 break;
 
+        case IOCTL_TTY__CONFIGURE_STR:
+                if (arg) {
+                        char in[64], out[64];
+                        TTY_config_t cfg = {
+                                .input_file = sys_stropt_get_string_copy(arg, "input_file", in, sizeof(in)) ? in : NULL,
+                                .output_file = sys_stropt_get_string_copy(arg, "output_file", out, sizeof(out)) ? out
+                                                                                                                  : NULL,
+                        };
+                        err = configure(tty, &cfg);
+                }
+                break;
+
         case IOCTL_TTY__GET_CURRENT_TTY:
                 if (arg) {
                         *cast(int *, arg) = tty->io->current_tty;

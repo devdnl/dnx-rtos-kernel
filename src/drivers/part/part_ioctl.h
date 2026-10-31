@@ -79,6 +79,7 @@ The same as regular file.
   Include files
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
+#include "drivers/class/device/ioctl.h"
 #include "drivers/class/storage/ioctl.h"
 
 #ifdef __cplusplus
@@ -129,6 +130,16 @@ extern "C" {
     @endcode
  */
 #define IOCTL_PART__CONFIGURE _IOW(PART, 0x00, const PART_config_t *)
+
+/**
+ *  @brief  Configure partition by string: path=<device>,block_size=<bytes>,
+ *          offset_blocks=<n>,total_blocks=<n> (block_size default 512, offset_blocks and
+ *          total_blocks default 0: partition can be configured from MBR by
+ *          IOCTL_PART__READ_MBR), e.g. "path=/dev/sda,offset_blocks=2048,total_blocks=65536".
+ *  @param  [WR] const char * configuration string
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
+ */
+#define IOCTL_PART__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
 /**
  *  @brief  Get driver configuration.

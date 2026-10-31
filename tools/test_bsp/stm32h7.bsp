@@ -1,7 +1,7 @@
 {
 	["config/arch/arch_flags.h"]={
 		["__ENABLE_AFM__"]="_NO_";
-		["__ENABLE_CAN__"]="_NO_";
+		["__ENABLE_CAN__"]="_YES_";
 		["__ENABLE_CLK__"]="_YES_";
 		["__ENABLE_CRC__"]="_NO_";
 		["__ENABLE_DCI__"]="_NO_";
@@ -14,7 +14,8 @@
 		["__ENABLE_I2C__"]="_NO_";
 		["__ENABLE_IRQ__"]="_NO_";
 		["__ENABLE_LOOP__"]="_YES_";
-		["__ENABLE_NVM__"]="_NO_";
+		["__ENABLE_LTDC__"]="_YES_";
+		["__ENABLE_NVM__"]="_YES_";
 		["__ENABLE_PART__"]="_YES_";
 		["__ENABLE_PWM__"]="_NO_";
 		["__ENABLE_RTC__"]="_NO_";

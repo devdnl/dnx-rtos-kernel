@@ -30,7 +30,7 @@ switch_to_bsp()
     bash ./tools/configtool.sh import=tools/test_bsp/$1.bsp:.
 }
 
-for bsp in stm32f1 stm32f3 stm32f4 stm32f7 stm32h7; do
+for bsp in stm32f1 stm32f3 stm32f4 stm32f7 stm32h7 rpcm0; do
     switch_to_bsp "$bsp"
     make all
 done

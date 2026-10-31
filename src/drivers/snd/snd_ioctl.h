@@ -79,6 +79,7 @@ driver_release("SND", 0, 1);
   Include files
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
+#include "drivers/class/device/ioctl.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -104,6 +105,15 @@ extern "C" {
     @endcode
  */
 #define IOCTL_SND__SET_CONFIGURATION _IOW(SND, 0x00, SND_config_t *)
+
+/**
+ *  @brief  Set sound configuration by string (not specified parameters are not
+ *          changed): channels=mono|stereo, sample_rate=44100|22050|11025,
+ *          bits_per_sample=8|16|32, e.g. "channels=stereo,sample_rate=44100,bits_per_sample=16".
+ *  @param  [WR] const char * configuration string
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
+ */
+#define IOCTL_SND__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
 /*==============================================================================
   Exported object types

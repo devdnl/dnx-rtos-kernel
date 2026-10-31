@@ -263,6 +263,47 @@ API_MOD_IOCTL(LTDC, void *device_handle, int request, void *arg)
                 err = configure(hdl, arg);
                 break;
 
+        case IOCTL_LTDC__CONFIGURE_STR: {
+                static const char *const PIXEL_FORMAT[] = {
+                        [LTDC_PIXEL_FORMAT__ARGB8888] = "argb8888",
+                        [LTDC_PIXEL_FORMAT__RGB888] = "rgb888",
+                        [LTDC_PIXEL_FORMAT__RGB565] = "rgb565",
+                        [LTDC_PIXEL_FORMAT__ARGB1555] = "argb1555",
+                        [LTDC_PIXEL_FORMAT__ARGB4444] = "argb4444",
+                        [LTDC_PIXEL_FORMAT__L8] = "l8",
+                        [LTDC_PIXEL_FORMAT__AL44] = "al44",
+                        [LTDC_PIXEL_FORMAT__AL88] = "al88",
+                };
+
+                if (arg) {
+                        char region[32];
+                        LTDC_config_t cfg = hdl->config;
+                        int fmt = sys_stropt_get_enum(arg, "pixel_format", PIXEL_FORMAT, ARRAY_SIZE(PIXEL_FORMAT),
+                                cfg.pixel_format);
+
+                        if (sys_stropt_get_string_copy(arg, "mem_region", region, sizeof(region))) {
+                                cfg.mem_region_name = region;
+                        }
+
+                        cfg.background_color_R = sys_stropt_get_int(arg, "bg_r", cfg.background_color_R);
+                        cfg.background_color_G = sys_stropt_get_int(arg, "bg_g", cfg.background_color_G);
+                        cfg.background_color_B = sys_stropt_get_int(arg, "bg_b", cfg.background_color_B);
+
+                        if (fmt < 0) {
+                                err = EINVAL;
+                        } else {
+                                cfg.pixel_format = fmt;
+                                err = configure(hdl, &cfg);
+
+                                /* region name is used only during configuration (local buffer) */
+                                hdl->config.mem_region_name = NULL;
+                        }
+                } else {
+                        err = EINVAL;
+                }
+                break;
+        }
+
         case IOCTL_LTDC__GET_FEATURES: {
                 LTDC_features_t *feat = arg;
                 feat->bits_per_pixel = PIXEL_FORMAT_TO_PIXEL_SIZE[hdl->config.pixel_format] * BITS_IN_BYTE;

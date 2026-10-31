@@ -458,6 +458,7 @@ typedef struct {
         u8_t major;
         u8_t minor;
         ENC28J60_config_t config;
+        char spi_path[64]; /* path copy (configuration string) */
         ETHIF_config_t ethif_config;
         bool configured;
         bool run;
@@ -753,6 +754,15 @@ API_MOD_IOCTL(ENC28J60, void *device_handle, int request, void *arg)
                 if (arg) {
                         hdl->config = *cast(ENC28J60_config_t *, arg);
                         err = 0;
+                }
+                break;
+
+        case IOCTL_ENC28J60__CONFIGURE_STR:
+                if (arg) {
+                        if (sys_stropt_get_string_copy(arg, "spi_path", hdl->spi_path, sizeof(hdl->spi_path))) {
+                                hdl->config.spi_path = hdl->spi_path;
+                                err = 0;
+                        }
                 }
                 break;
 

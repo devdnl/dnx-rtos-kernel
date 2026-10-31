@@ -431,6 +431,27 @@ API_MOD_IOCTL(PWM, void *device_handle, int request, void *arg)
                 }
                 break;
 
+        case IOCTL_PWM__CONFIGURE_STR:
+                if (arg) {
+                        u32_t prescaler = TIM[hdl->timer].reg->PSC + 1;
+                        u32_t reload = TIM[hdl->timer].reg->ARR;
+
+                        prescaler = sys_stropt_get_int(arg, "prescaler", prescaler);
+                        reload = sys_stropt_get_int(arg, "reload", reload);
+
+                        if ((prescaler > UINT16_MAX + 1) || (reload > UINT16_MAX)) {
+                                err = EINVAL;
+                        } else {
+                                TIM[hdl->timer].reg->PSC = prescaler > 0 ? prescaler - 1 : 0;
+                                TIM[hdl->timer].reg->ARR = reload;
+                                TIM[hdl->timer].reg->CNT = 0;
+                                err = ESUCC;
+                        }
+                } else {
+                        err = EINVAL;
+                }
+                break;
+
         case IOCTL_PWM__AUTO_ADJUST:
                 if (arg) {
                         const PWM_auto_adjust_t *adj = arg;

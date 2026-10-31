@@ -14,6 +14,7 @@
 		["__ENABLE_I2C__"]="_YES_";
 		["__ENABLE_IRQ__"]="_YES_";
 		["__ENABLE_LOOP__"]="_YES_";
+		["__ENABLE_LTDC__"]="_YES_";
 		["__ENABLE_NVM__"]="_YES_";
 		["__ENABLE_PART__"]="_YES_";
 		["__ENABLE_PWM__"]="_YES_";

@@ -292,6 +292,12 @@ API_MOD_IOCTL(DHT11, void *device_handle, int request, void *arg)
                         hdl->cfg = *cast(DHT11_config_t *, arg);
                         err = ESUCC;
                         break;
+
+                case IOCTL_DHT11__CONFIGURE_STR:
+                        hdl->cfg.port_idx = sys_stropt_get_int(arg, "port", hdl->cfg.port_idx);
+                        hdl->cfg.pin_idx = sys_stropt_get_int(arg, "pin", hdl->cfg.pin_idx);
+                        err = ESUCC;
+                        break;
                 }
         }
 

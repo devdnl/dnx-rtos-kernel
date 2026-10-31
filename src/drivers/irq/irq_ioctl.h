@@ -173,6 +173,8 @@ if (ioctl(fileno(irq), IOCTL_IRQ__TRIGGER) == 0) {
 /*==============================================================================
   Include files
 ==============================================================================*/
+#include "drivers/ioctl_macros.h"
+#include "drivers/class/device/ioctl.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -215,6 +217,14 @@ typedef enum {
  * @return On success 0 is returned, otherwise -1 and @ref errno code is set
  */
 #define IOCTL_IRQ__CONFIGURE _IOW(IRQ, 2, const IRQ_config_t *)
+
+/**
+ *  @brief  Configure IRQ by string: trigger=disabled|falling|rising|both|low|high,
+ *          e.g. "trigger=falling".
+ *  @param  [WR] const char * configuration string
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
+ */
+#define IOCTL_IRQ__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
 /**
  * @brief  Get number of interrupt occurence

@@ -66,6 +66,8 @@ extern const char *_stropt_get_string_ref(const char *opts, const char *var, siz
 extern size_t _stropt_get_string_copy(const char *opts, const char *var, char *buf, size_t buflen);
 extern int _stropt_get_bool(const char *opts, const char *var, int defval);
 extern bool _stropt_is_flag(const char *opts, const char *flag);
+extern int _stropt_get_enum(const char *opts, const char *var, const char *const names[], size_t count,
+                            int defval);
 
 /*==============================================================================
   Exported inline functions

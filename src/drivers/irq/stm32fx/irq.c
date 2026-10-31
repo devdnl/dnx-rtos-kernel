@@ -296,6 +296,25 @@ API_MOD_IOCTL(IRQ, void *device_handle, int request, void *arg)
                         break;
                 }
 
+                case IOCTL_IRQ__CONFIGURE_STR: {
+                        static const char *const TRIGGER[] = {
+                                [IRQ_CONFIG__IRQ_DISABLED] = "disabled",
+                                [IRQ_CONFIG__TRIGGER_ON_FALLING_EDGE] = "falling",
+                                [IRQ_CONFIG__TRIGGER_ON_RISING_EDGE] = "rising",
+                                [IRQ_CONFIG__TRIGGER_ON_BOTH_EDGES] = "both",
+                                [IRQ_CONFIG__TRIGGER_ON_LOW_LEVEL] = "low",
+                                [IRQ_CONFIG__TRIGGER_ON_HIGH_LEVEL] = "high",
+                        };
+
+                        int trigger = sys_stropt_get_enum(arg, "trigger", TRIGGER, ARRAY_SIZE(TRIGGER), -1);
+                        if (trigger < 0) {
+                                err = EINVAL;
+                        } else {
+                                err = IRQ_configure(minor, cast(enum _IRQ_MODE, trigger), -1);
+                        }
+                        break;
+                }
+
                 case IOCTL_IRQ__GET_COUNTER: {
                         u32_t *counter = arg;
                         *counter = IRQ->counter[minor];

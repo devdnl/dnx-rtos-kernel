@@ -281,6 +281,7 @@ baud = (fPCLK [Hz]) / (prescaler * (1 + TS1 + TS2)) [bps]
   Include files
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
+#include "drivers/class/device/ioctl.h"
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -296,6 +297,17 @@ extern "C" {
  *  @return On success 0 is returned, otherwise -1.
  */
 #define IOCTL_CAN__CONFIGURE _IOW(CAN, 0x00, const CAN_config_t *)
+
+/**
+ *  @brief  Configure CAN by string: loopback, silent, auto_bus_off,
+ *          auto_wake_up, auto_retransmission (0|1, default 0), sjw, ts1, ts2,
+ *          prescaler (nominal bit rate, required), data_sjw, data_ts1, data_ts2,
+ *          data_prescaler (FD data bit rate, default: nominal values),
+ *          e.g. "auto_retransmission=1,sjw=1,ts1=13,ts2=2,prescaler=6".
+ *  @param  [WR] const char * configuration string
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
+ */
+#define IOCTL_CAN__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
 /**
  *  @brief  Acceptance filter setup.

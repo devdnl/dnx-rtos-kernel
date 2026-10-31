@@ -149,6 +149,7 @@ Reading from the device works in the same way as reading from a regular file.
   Include files
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
+#include "drivers/class/device/ioctl.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -186,6 +187,14 @@ extern "C" {
     @endcode
  */
 #define IOCTL_NVM__CONFIGURE _IOW(NVM, 0, const NVM_config_t *)
+
+/**
+ *  @brief  Configure NVM by string: start_sector=<n>,number_of_sectors=<n>,
+ *          e.g. "start_sector=6,number_of_sectors=2".
+ *  @param  [WR] const char * configuration string
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
+ */
+#define IOCTL_NVM__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
 /**
  *  Request erase selected sector. Sector number is relative to start sector in

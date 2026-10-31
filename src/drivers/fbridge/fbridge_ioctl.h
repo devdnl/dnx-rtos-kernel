@@ -80,6 +80,7 @@ driver_release("FBRIDGE", 0, 1);
   Include files
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
+#include "drivers/class/device/ioctl.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -94,6 +95,14 @@ extern "C" {
  *  @return On success 0 is returned, otherwise -1.
  */
 #define IOCTL_FBRIDGE__CONFIGURE _IOW(FBRIDGE, 0x00, const FBRIDGE_conf_t *)
+
+/**
+ *  @brief  Configure file bridge by string: read_path=<path>,write_path=<path>,
+ *          e.g. "read_path=/dev/ttyS1,write_path=/dev/ttyS2".
+ *  @param  [WR] const char * configuration string
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
+ */
+#define IOCTL_FBRIDGE__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
 /*==============================================================================
   Exported object types

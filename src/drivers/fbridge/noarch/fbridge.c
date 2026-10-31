@@ -175,6 +175,10 @@ API_MOD_WRITE(FBRIDGE, void *device_handle, const u8_t *src, size_t count, fpos_
 {
         FBRIDGE_t *hdl = device_handle;
 
+        if (!hdl->write_file) {
+                return ENXIO; /* not configured */
+        }
+
         int rq = IOCTL_VFS__DEFAULT_WR_MODE;
 
         if (fattr.non_blocking_wr) {
@@ -205,6 +209,10 @@ API_MOD_WRITE(FBRIDGE, void *device_handle, const u8_t *src, size_t count, fpos_
 API_MOD_READ(FBRIDGE, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdctr, struct vfs_fattr fattr)
 {
         FBRIDGE_t *hdl = device_handle;
+
+        if (!hdl->read_file) {
+                return ENXIO; /* not configured */
+        }
 
         int rq = IOCTL_VFS__DEFAULT_RD_MODE;
 
@@ -243,6 +251,20 @@ API_MOD_IOCTL(FBRIDGE, void *device_handle, int request, void *arg)
         case IOCTL_FBRIDGE__CONFIGURE:
                 err = configure(hdl, arg);
                 break;
+
+        case IOCTL_FBRIDGE__CONFIGURE_STR:
+                if (arg) {
+                        char rd[64], wr[64];
+                        FBRIDGE_conf_t cfg = {.read_path = rd, .write_path = wr};
+
+                        if (sys_stropt_get_string_copy(arg, "read_path", rd, sizeof(rd))
+                            && sys_stropt_get_string_copy(arg, "write_path", wr, sizeof(wr))) {
+                                err = configure(hdl, &cfg);
+                        } else {
+                                err = EINVAL;
+                        }
+                }
+                break;
         }
 
         return err;
@@ -278,9 +300,17 @@ API_MOD_STAT(FBRIDGE, void *device_handle, struct vfs_dev_stat *device_stat)
 {
         FBRIDGE_t *hdl = device_handle;
 
+        device_stat->st_size = 0;
+
+        if (!hdl->read_file) {
+                return ESUCC; /* not configured */
+        }
+
         struct stat stat_buf;
         int err = sys_fstat(hdl->read_file, &stat_buf);
-        device_stat->st_size = stat_buf.st_size;
+        if (!err) {
+                device_stat->st_size = stat_buf.st_size;
+        }
 
         return err;
 }
@@ -313,6 +343,8 @@ static int configure(FBRIDGE_t *hdl, const FBRIDGE_conf_t *conf)
 
                         hdl->read_file = new_read_file;
                         hdl->write_file = new_write_file;
+                } else {
+                        sys_fclose(new_read_file);
                 }
         }
 

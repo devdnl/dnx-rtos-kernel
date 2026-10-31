@@ -98,6 +98,7 @@ terminals) or by using ioctl() function.
   Include files
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
+#include "drivers/class/device/ioctl.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -112,6 +113,14 @@ extern "C" {
  *  @return On success 0 is returned, otherwise -1.
  */
 #define IOCTL_TTY__CONFIGURE _IOW(TTY, 0x00, const TTY_config_t *)
+
+/**
+ *  @brief  Configure TTY by string: input_file=<path>,output_file=<path>
+ *          (file not specified: not used), e.g. "input_file=/dev/ttyS1,output_file=/dev/ttyS1".
+ *  @param  [WR] const char * configuration string
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
+ */
+#define IOCTL_TTY__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
 /**
  *  @brief  Gets current TTY number.

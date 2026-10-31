@@ -140,6 +140,7 @@ int_main(dht11, STACK_DEPTH_LOW, int argc, char *argv[])
   Include files
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
+#include "drivers/class/device/ioctl.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -154,6 +155,14 @@ extern "C" {
  *  @return On success 0 is returned, otherwise -1 and @ref errno code is set.
  */
 #define IOCTL_DHT11__CONFIGURE _IOW(DHT11, 0, const DHT11_config_t *)
+
+/**
+ *  @brief  Configure DHT11 by string (not specified parameters are not changed):
+ *          port=<GPIO port index>,pin=<GPIO pin index>, e.g. "port=0,pin=5".
+ *  @param  [WR] const char * configuration string
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
+ */
+#define IOCTL_DHT11__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
 /*==============================================================================
   Exported object types

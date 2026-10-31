@@ -77,6 +77,7 @@ Device can be read as regular file.
   Include files
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
+#include "drivers/class/device/ioctl.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -91,6 +92,16 @@ extern "C" {
  *  @return On success 0 is returned, otherwise -1.
  */
 #define IOCTL_LTDC__CONFIGURE _IOW(LTDC, 0x00, const LTDC_config_t *)
+
+/**
+ *  @brief  Configure LTDC by string (not specified parameters are not changed):
+ *          pixel_format=argb8888|rgb888|rgb565|argb1555|argb4444|l8|al44|al88,
+ *          mem_region=<memory region name>, bg_r=<0..255>, bg_g=<0..255>,
+ *          bg_b=<0..255>, e.g. "pixel_format=rgb565,mem_region=sdram".
+ *  @param  [WR] const char * configuration string
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
+ */
+#define IOCTL_LTDC__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
 /**
  *  @brief  Get driver features.

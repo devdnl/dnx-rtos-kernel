@@ -4850,6 +4850,28 @@ static inline bool sys_stropt_is_flag(const char *opts, const char *flag)
 
 //==============================================================================
 /**
+ * @brief  Function return enumeration value from given configuration.
+ *
+ * Function found expression: VAR=NAME or VAR=NUMBER, e.g. "parity=even".
+ *
+ * @param opts          options to analyze
+ * @param var           variable to search
+ * @param names         names of enumeration values (index is value)
+ * @param count         number of names
+ * @param defval        value used if variable does not found
+ *
+ * @return Enumeration value, <i>defval</i> if variable does not exist, -1 if
+ *         value is not correct.
+ */
+//==============================================================================
+static inline int sys_stropt_get_enum(const char *opts, const char *var, const char *const names[], size_t count,
+                                      int defval)
+{
+        return _stropt_get_enum(opts, var, names, count, defval);
+}
+
+//==============================================================================
+/**
  * @brief Function find driver name and then initialize device
  *
  * @note Function can be used only by driver code.

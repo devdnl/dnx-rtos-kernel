@@ -280,6 +280,22 @@ API_MOD_IOCTL(PART, void *device_handle, int request, void *arg)
                 }
                 break;
 
+        case IOCTL_PART__CONFIGURE_STR:
+                if (arg) {
+                        char path[64];
+                        PART_config_t cfg = {
+                                .path = path,
+                                .block_size = sys_stropt_get_int(arg, "block_size", 512),
+                                .offset_blocks = sys_stropt_get_int(arg, "offset_blocks", 0),
+                                .total_blocks = sys_stropt_get_int(arg, "total_blocks", 0),
+                        };
+
+                        if (sys_stropt_get_string_copy(arg, "path", path, sizeof(path)) && (cfg.block_size > 0)) {
+                                err = configure(hdl, &cfg);
+                        }
+                }
+                break;
+
         case IOCTL_PART__READ_MBR:
                 err = auto_configure(hdl);
                 break;

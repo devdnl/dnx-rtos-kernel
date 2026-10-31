@@ -285,6 +285,64 @@ bool _stropt_is_flag(const char *opts, const char *flag)
         }
 }
 
+//==============================================================================
+/**
+ * @brief  Function return enumeration value from given configuration.
+ *
+ * Function found expression: VAR=NAME or VAR=NUMBER. NAME is searched in the
+ * names table (index of found name is returned), NUMBER is returned directly.
+ *
+ * @param opts          options to analyze
+ * @param var           variable to search
+ * @param names         names of enumeration values (index is value, NULL entries are skipped)
+ * @param count         number of names
+ * @param defval        value used if variable does not found
+ *
+ * @return Enumeration value, <i>defval</i> if variable does not exist, -1 if
+ *         value is not correct (unknown name or number out of range).
+ */
+//==============================================================================
+int _stropt_get_enum(const char *opts, const char *var, const char *const names[], size_t count, int defval)
+{
+        if (!opts || !var) {
+                return defval;
+        }
+
+        size_t len = 0;
+        const char *val = find_var(opts, var, &len);
+        if (!val) {
+                return defval;
+        }
+
+        /* value is terminated by comma, space or end of string */
+        for (size_t i = 0; i < len; i++) {
+                if (isspace(val[i])) {
+                        len = i;
+                        break;
+                }
+        }
+
+        if (len == 0) {
+                return -1;
+        }
+
+        for (size_t i = 0; i < count; i++) {
+                if (names[i] && (strlen(names[i]) == len) && (strncmp(val, names[i], len) == 0)) {
+                        return (int)i;
+                }
+        }
+
+        if (isdigit(val[0])) {
+                i32_t value = -1;
+                const char *end = sys_strtoi32(val, 0, &value);
+                if ((end == val + len) && (value >= 0) && ((size_t)value < count)) {
+                        return value;
+                }
+        }
+
+        return -1;
+}
+
 /*==============================================================================
   End of file
 ==============================================================================*/

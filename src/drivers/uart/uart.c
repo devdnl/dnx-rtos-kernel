@@ -405,6 +405,45 @@ API_MOD_IOCTL(UART, void *device_handle, int request, void *arg)
                         err = _UART_LLD__configure(hdl, &hdl->config);
                         break;
 
+                case IOCTL_UART__CONFIGURE_STR: {
+                        static const char *const MODE[] = {"normal", "lin", "rs485"};
+                        static const char *const PARITY[] = {"off", "odd", "even"};
+                        static const char *const STOP_BITS[] = {"1", "2"};
+
+                        struct UART_config cfg = hdl->config.basic;
+                        int mode = sys_stropt_get_enum(arg, "mode", MODE, ARRAY_SIZE(MODE), cfg.mode);
+                        int parity = sys_stropt_get_enum(arg, "parity", PARITY, ARRAY_SIZE(PARITY), cfg.parity);
+                        int stop = sys_stropt_get_enum(arg, "stop_bits", STOP_BITS, ARRAY_SIZE(STOP_BITS),
+                                cfg.stop_bits);
+                        cfg.tx_enable = sys_stropt_get_bool(arg, "tx_enable", cfg.tx_enable);
+                        cfg.rx_enable = sys_stropt_get_bool(arg, "rx_enable", cfg.rx_enable);
+                        cfg.baud = sys_stropt_get_int(arg, "baud", cfg.baud);
+                        cfg.features = sys_stropt_get_int(arg, "features", cfg.features);
+
+                        int single_wire = sys_stropt_get_bool(arg, "single_wire", -1);
+                        if (single_wire >= 0) {
+                                cfg.features = single_wire ? (cfg.features | UART_FEATURE__SINGLE_WIRE)
+                                                           : (cfg.features & ~UART_FEATURE__SINGLE_WIRE);
+                        }
+
+                        int hw_flow = sys_stropt_get_bool(arg, "hw_flow_ctrl", -1);
+                        if (hw_flow >= 0) {
+                                cfg.features = hw_flow ? (cfg.features | UART_FEATURE__HARDWARE_FLOW_CTRL)
+                                                       : (cfg.features & ~UART_FEATURE__HARDWARE_FLOW_CTRL);
+                        }
+
+                        if ((mode < 0) || (parity < 0) || (stop < 0) || (cfg.baud == 0)) {
+                                err = EINVAL;
+                        } else {
+                                cfg.mode = mode;
+                                cfg.parity = parity;
+                                cfg.stop_bits = stop;
+                                hdl->config.basic = cfg;
+                                err = _UART_LLD__configure(hdl, &hdl->config);
+                        }
+                        break;
+                }
+
                 case IOCTL_UART__GET_CONFIGURATION:
                         *cast(struct UART_config *, arg) = hdl->config.basic;
                         err = ESUCC;

@@ -247,6 +247,36 @@ API_MOD_IOCTL(MEMBLOCK, void *device_handle, int request, void *arg)
                 }
                 break;
 
+        case IOCTL_MEMBLOCK__CONFIGURE_STR:
+                if (arg) {
+                        static const char *const ACCESS[] = {"rdonly", "wronly", "rdwr"};
+                        static const uint32_t ACCESS_FLAGS[] = {O_RDONLY, O_WRONLY, O_RDWR};
+
+                        int access = -2;
+                        for (size_t i = 0; i < ARRAY_SIZE(ACCESS_FLAGS); i++) {
+                                if (hdl->config.access == ACCESS_FLAGS[i]) {
+                                        access = i;
+                                }
+                        }
+
+                        access = sys_stropt_get_enum(arg, "access", ACCESS, ARRAY_SIZE(ACCESS), access);
+                        if (access == -1) {
+                                err = EINVAL;
+                        } else {
+                                if (access >= 0) {
+                                        hdl->config.access = ACCESS_FLAGS[access];
+                                }
+                                hdl->config.memory_address =
+                                        cast(u32_t, sys_stropt_get_int(arg, "memory_address", hdl->config.memory_address));
+                                hdl->config.block_size =
+                                        cast(u32_t, sys_stropt_get_int(arg, "block_size", hdl->config.block_size));
+                                err = ESUCC;
+                        }
+                } else {
+                        err = EINVAL;
+                }
+                break;
+
         case IOCTL_MEMBLOCK__GET_CONFIGURATION:
                 if (arg) {
                         *cast(MEMBLOCK_config_t *, arg) = hdl->config;
