@@ -116,6 +116,9 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
+/** Driver provides block devices (S_IFBLK). Marker used by adddriver.sh. */
+#define _MEMBLOCK_BLOCK_DEVICE
+
 /**
  *  @brief  Set MEMBLOCK configuration.
  *  @param  [WR] @ref MEMBLOCK_config_t * MEMBLOCK peripheral configuration

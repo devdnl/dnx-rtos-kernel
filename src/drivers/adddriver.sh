@@ -73,8 +73,14 @@ function create_driver_registration_file_c()
         ifimport="$ifimport\t_IMPORT_MODULE_INTERFACE(${module^^});\n"
         ifimport="$ifimport#endif\n"
 
+        # block device drivers define _<MODULE>_BLOCK_DEVICE in <module>_ioctl.h
+        type="S_IFCHR"
+        if grep -qE "^#define[[:space:]]+_${module^^}_BLOCK_DEVICE\b" "$1/$module/${module}_ioctl.h"; then
+            type="S_IFBLK"
+        fi
+
         modtable="$modtable\t$enable"
-        modtable="$modtable\t\t_MODULE_INTERFACE(${module^^}),\n"
+        modtable="$modtable\t\t_MODULE_INTERFACE(${module^^}, $type),\n"
         modtable="$modtable\t#endif\n"
     done
     modtable=$modtable"};\n"

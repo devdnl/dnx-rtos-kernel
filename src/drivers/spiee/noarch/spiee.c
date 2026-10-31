@@ -421,6 +421,7 @@ API_MOD_STAT(SPIEE, void *device_handle, struct vfs_dev_stat *device_stat)
         SPIEE_t *hdl = device_handle;
 
         device_stat->st_size = hdl->memory_size;
+        device_stat->st_blksize = 1;
 
         return ESUCC;
 }

@@ -183,6 +183,9 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
+/** Driver provides block devices (S_IFBLK). Marker used by adddriver.sh. */
+#define _SDSPI_BLOCK_DEVICE
+
 /**
  *  @brief  SDSPI configuration.
  *  @param  [WR] @ref SDSPI_config_t *  SDSPI configuration object.

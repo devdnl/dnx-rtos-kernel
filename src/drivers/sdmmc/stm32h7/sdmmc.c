@@ -559,6 +559,7 @@ API_MOD_STAT(SDMMC, void *device_handle, struct vfs_dev_stat *device_stat)
         SDMMC_t *hdl = device_handle;
 
         device_stat->st_size = hdl->card_size;
+        device_stat->st_blksize = SDMMC_BLOCKSIZE;
 
         return ESUCC;
 }

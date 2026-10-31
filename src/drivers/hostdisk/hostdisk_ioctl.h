@@ -87,6 +87,8 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
+/** Driver provides block devices (S_IFBLK). Marker used by adddriver.sh. */
+#define _HOSTDISK_BLOCK_DEVICE
 
 /*==============================================================================
   Exported object types

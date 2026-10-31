@@ -5037,6 +5037,22 @@ static inline int sys_driver_stat(dev_t id, struct vfs_dev_stat *stat)
 
 //==============================================================================
 /**
+ * @brief Function returns device type: character or block device.
+ *
+ * @note Function can be used only by file system or driver code.
+ *
+ * @param id            device id
+ *
+ * @return @ref S_IFBLK for block devices, @ref S_IFCHR for character devices.
+ */
+//==============================================================================
+static inline mode_t sys_driver_type(dev_t id)
+{
+        return _driver_get_type(id);
+}
+
+//==============================================================================
+/**
  * @brief Function returns a pseudo-random integer.
  *
  * The rand() function returns a pseudo-random integer in the range 0 to

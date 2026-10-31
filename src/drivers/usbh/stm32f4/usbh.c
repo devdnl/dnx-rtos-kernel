@@ -501,6 +501,8 @@ API_MOD_STAT(USBH, void *device_handle, struct vfs_dev_stat *device_stat)
 {
         USBH_t *hdl = device_handle;
 
+        device_stat->st_blksize = SECTOR_SIZE;
+
         if (hdl->class_active) {
                 MSC_LUNTypeDef info;
                 USBH_MSC_GetLUNInfo(&hdl->hUSBHost, 0, &info);

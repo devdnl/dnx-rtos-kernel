@@ -430,6 +430,9 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
+/** Driver provides block devices (S_IFBLK). Marker used by adddriver.sh. */
+#define _LOOP_BLOCK_DEVICE
+
 /**
  * @brief  Host request. Set this program as Host.
  *

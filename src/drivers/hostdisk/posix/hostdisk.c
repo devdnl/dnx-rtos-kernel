@@ -314,6 +314,7 @@ API_MOD_STAT(HOSTDISK, void *device_handle, struct vfs_dev_stat *device_stat)
         HOSTDISK_t *hdl = device_handle;
 
         device_stat->st_size = hdl->size;
+        device_stat->st_blksize = 1;
 
         return ESUCC;
 }

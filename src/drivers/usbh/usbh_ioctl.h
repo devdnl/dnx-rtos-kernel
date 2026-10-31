@@ -87,6 +87,9 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
+/** Driver provides block devices (S_IFBLK). Marker used by adddriver.sh. */
+#define _USBH_BLOCK_DEVICE
+
 /**
  *  @brief  Return manufacturer string.
  *  @param  [RD] usbh_buf_t*

@@ -128,6 +128,9 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
+/** Driver provides block devices (S_IFBLK). Marker used by adddriver.sh. */
+#define _SPIEE_BLOCK_DEVICE
+
 /**
  * @brief  SPI EEPROM driver configuration.
  * @param  [WR] @ref SPIEE_config_t*            driver configuration.

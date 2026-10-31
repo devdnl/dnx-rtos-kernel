@@ -40,6 +40,9 @@
 #define PIPE_READ_TIMEOUT  MAX_DELAY
 #define DATA_CHAIN_SIZE    __RAMFS_FILE_CHAIN_SIZE__
 
+/* device node: character or block device */
+#define IS_DEVICE(mode) (S_ISCHR(mode) || S_ISBLK(mode))
+
 /*
  * Memory accounting estimates. RAMFS counts memory of its content (nodes,
  * names, file data, list items, pipes, open file descriptors). Allocations
@@ -306,8 +309,8 @@ API_FS_MKNOD(ramfs, void *fs_handle, const char *path, const dev_t dev)
                         err = copy_basename(hdl, path, &child_name);
                         if (!err) {
                                 node_t *child;
-                                err = new_node(hdl, parent, child_name, S_IRWXU | S_IRGRP | S_IROTH | S_IFDEV, NULL,
-                                        &child);
+                                err = new_node(hdl, parent, child_name,
+                                        S_IRWXU | S_IRGRP | S_IROTH | sys_driver_type(dev), NULL, &child);
                                 if (!err) {
                                         child->data.dev_t = dev;
                                 } else {
@@ -508,7 +511,7 @@ API_FS_READDIR(ramfs, void *fs_handle, kdir_t *dir)
                         dir->dirent.mode = child->mode;
                         dir->dirent.size = child->size;
 
-                        if (S_ISDEV(child->mode)) {
+                        if (IS_DEVICE(child->mode)) {
                                 /* copy data before unlock: child can be removed meanwhile */
                                 dev_t dev = child->data.dev_t;
                                 dir->dirent.dev = dev;
@@ -809,7 +812,7 @@ API_FS_FSTAT(ramfs, void *fs_handle, void *extra, struct stat *stat)
                 stat->st_size = opened_file->child->size;
                 stat->st_uid = opened_file->child->uid;
 
-                if (S_ISDEV(opened_file->child->mode)) {
+                if (IS_DEVICE(opened_file->child->mode)) {
 
                         stat->st_dev = opened_file->child->data.dev_t;
 
@@ -1027,7 +1030,7 @@ API_FS_OPEN(ramfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
                                 *fpos = 0;
                         }
 
-                } else if (S_ISDEV(child->mode)) {
+                } else if (IS_DEVICE(child->mode)) {
                         err = sys_driver_open(child->data.dev_t, flags);
                         if (!err) {
                                 *fpos = 0;
@@ -1073,7 +1076,7 @@ API_FS_CLOSE(ramfs, void *fs_handle, void *fhdl)
                         node_t *target = opened_file->child;
 
                         /* close device if file is driver type */
-                        if (S_ISDEV(target->mode)) {
+                        if (IS_DEVICE(target->mode)) {
                                 err = sys_driver_close(target->data.dev_t, true);
 
                         } else if (S_ISFIFO(target->mode)) {
@@ -1144,7 +1147,7 @@ API_FS_WRITE(ramfs, void *fs_handle, void *fhdl, const u8_t *src, size_t count, 
 
                 sys_gettime(&node->mtime);
 
-                if (S_ISDEV(node->mode)) {
+                if (IS_DEVICE(node->mode)) {
                         dev_t dev = node->data.dev_t;
                         err = sys_driver_write(dev, src, count, fpos, wrcnt, fattr);
 
@@ -1198,7 +1201,7 @@ API_FS_READ(ramfs, void *fs_handle, void *fhdl, u8_t *dst, size_t count, fpos_t 
         if (opened_file && opened_file->child) {
                 node_t *node = opened_file->child;
 
-                if (S_ISDEV(node->mode)) {
+                if (IS_DEVICE(node->mode)) {
                         dev_t dev = node->data.dev_t;
                         err = sys_driver_read(dev, dst, count, fpos, rdcnt, fattr);
 
@@ -1246,7 +1249,7 @@ API_FS_IOCTL(ramfs, void *fs_handle, void *fhdl, int request, void *arg)
 
         struct opened_file_info *opened_file = fhdl;
         if (opened_file && opened_file->child) {
-                if (S_ISDEV(opened_file->child->mode)) {
+                if (IS_DEVICE(opened_file->child->mode)) {
                         dev_t dev = opened_file->child->data.dev_t;
                         err = sys_driver_ioctl(dev, request, arg);
 
@@ -1303,7 +1306,7 @@ API_FS_FLUSH(ramfs, void *fs_handle, void *fhdl)
 
                 struct opened_file_info *opened_file = fhdl;
                 if (opened_file && opened_file->child) {
-                        if (S_ISDEV(opened_file->child->mode)) {
+                        if (IS_DEVICE(opened_file->child->mode)) {
                                 sys_mutex_unlock(hdl->resource_mtx);
                                 return sys_driver_flush(opened_file->child->data.dev_t);
                         } else {

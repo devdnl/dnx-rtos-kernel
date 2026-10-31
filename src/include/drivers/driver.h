@@ -349,9 +349,10 @@ extern "C" {
  * The type represents device information e.g. size and address.
  */
 struct vfs_dev_stat {
-        u64_t st_size; /*!< Total size, in bytes.*/
-        u8_t st_major; /*!< Device major number.*/
-        u8_t st_minor; /*!< Device minor number.*/
+        u64_t st_size;    /*!< Total size, in bytes.*/
+        u32_t st_blksize; /*!< Block size in bytes (block devices only, 0 if not used).*/
+        u8_t st_major;    /*!< Device major number.*/
+        u8_t st_minor;    /*!< Device minor number.*/
 };
 
 /**

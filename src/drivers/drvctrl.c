@@ -530,10 +530,34 @@ int _driver_stat(dev_t id, struct vfs_dev_stat *stat)
                 stat->st_major = _dev_t__extract_major(id);
                 stat->st_minor = _dev_t__extract_minor(id);
                 stat->st_size = 0;
+                stat->st_blksize = 0;
                 err = _drvreg_module_table[modno].IF.drv_stat(mem, stat);
         }
 
         return err;
+}
+
+//==============================================================================
+/**
+ * @brief Function returns type of device (character or block device). The type
+ *        is a property of the module, so the device does not need to be
+ *        initialized.
+ *
+ * @param id            device id
+ *
+ * @return S_IFBLK for block devices, S_IFCHR for character devices or unknown
+ *         modules.
+ */
+//==============================================================================
+mode_t _driver_get_type(dev_t id)
+{
+        u16_t modno = _dev_t__extract_modno(id);
+
+        if (modno < _drvreg_number_of_modules) {
+                return _drvreg_module_table[modno].type;
+        } else {
+                return S_IFCHR;
+        }
 }
 
 //==============================================================================

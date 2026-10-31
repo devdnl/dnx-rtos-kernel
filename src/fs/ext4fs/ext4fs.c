@@ -1456,11 +1456,11 @@ static mode_t ext4ftype2vfs(u32_t mode)
         case EXT4_INODE_MODE_FIFO:
                 return S_IFIFO;
         case EXT4_INODE_MODE_CHARDEV:
-                return S_IFDEV;
+                return S_IFCHR;
         case EXT4_INODE_MODE_DIRECTORY:
                 return S_IFDIR;
         case EXT4_INODE_MODE_BLOCKDEV:
-                return S_IFDEV;
+                return S_IFBLK;
         case EXT4_INODE_MODE_FILE:
                 return S_IFREG;
         case EXT4_INODE_MODE_SOFTLINK:

@@ -45,9 +45,10 @@ extern "C" {
 ==============================================================================*/
 #define _MODULE_NAME(module_name) #module_name
 
-#define _MODULE_INTERFACE(_modname)                           \
+#define _MODULE_INTERFACE(_modname, _type)                    \
         {                                                     \
                 .name = #_modname,                            \
+                .type = _type,                                \
                 .IF = {.drv_init = _##_modname##_init,        \
                         .drv_release = _##_modname##_release, \
                         .drv_open = _##_modname##_open,       \
@@ -88,6 +89,7 @@ struct _module_if {
 
 struct _module_entry {
         const char *name;
+        const mode_t type; /* S_IFCHR or S_IFBLK */
         const struct _module_if IF;
 };
 
@@ -113,6 +115,7 @@ extern int _driver_read(dev_t, u8_t *, size_t, fpos_t *, size_t *, struct vfs_fa
 extern int _driver_ioctl(dev_t, int, void *);
 extern int _driver_flush(dev_t);
 extern int _driver_stat(dev_t, struct vfs_dev_stat *);
+extern mode_t _driver_get_type(dev_t);
 extern int _module_get_instance(const char *, u8_t, u8_t, void **);
 extern const char *_module_get_name(size_t);
 extern size_t _module_get_count(void);

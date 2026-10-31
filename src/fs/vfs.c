@@ -2205,7 +2205,7 @@ static int direct_devfs_fstat(void *fshdl, void *fhdl, struct stat *stat)
         if (!err) {
                 memset(stat, 0, sizeof(*stat));
                 stat->st_dev = cast(dev_t, fhdl);
-                stat->st_mode = 0666 | S_IFDEV;
+                stat->st_mode = 0666 | _driver_get_type(cast(dev_t, fhdl));
                 stat->st_size = dev_stat.st_size;
         }
 

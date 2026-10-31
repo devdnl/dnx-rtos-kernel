@@ -545,6 +545,7 @@ API_MOD_STAT(LOOP, void *device_handle, struct vfs_dev_stat *device_stat)
         int err = ESUCC;
 
         device_stat->st_size = 0;
+        device_stat->st_blksize = 1;
 
         if (sys_device_is_locked(&hdl->host_lock)) {
 

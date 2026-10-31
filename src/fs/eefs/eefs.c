@@ -1861,7 +1861,7 @@ static int block_get_file_stat(EEFS_t *hdl, struct stat *stat)
                 }
 
                 stat->st_dev = hdl->block.buf.node.dev;
-                stat->st_mode = S_IFDEV | hdl->block.buf.node.mode;
+                stat->st_mode = sys_driver_type(hdl->block.buf.node.dev) | hdl->block.buf.node.mode;
                 stat->st_uid = hdl->block.buf.node.uid;
                 stat->st_gid = hdl->block.buf.node.gid;
                 stat->st_ctime = hdl->block.buf.node.ctime;
@@ -3186,7 +3186,7 @@ static int dir_read_entry(EEFS_t *hdl, dir_desc_t *dd, dir_entry_t *eefs_entry, 
 
                 if (!err) {
                         dirent->dev = hdl->tmpblock.buf.node.dev;
-                        dirent->mode = S_IFDEV | hdl->tmpblock.buf.node.mode;
+                        dirent->mode = sys_driver_type(hdl->tmpblock.buf.node.dev) | hdl->tmpblock.buf.node.mode;
 
                         struct vfs_dev_stat dev_stat;
                         err = sys_driver_stat(hdl->tmpblock.buf.node.dev, &dev_stat);

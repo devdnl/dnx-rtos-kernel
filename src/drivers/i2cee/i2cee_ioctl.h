@@ -143,6 +143,9 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
+/** Driver provides block devices (S_IFBLK). Marker used by adddriver.sh. */
+#define _I2CEE_BLOCK_DEVICE
+
 /**
  * @brief  I2C EEPROM driver configuration.
  * @param  [WR] @ref I2CEE_config_t*            driver configuration.

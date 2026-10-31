@@ -393,6 +393,7 @@ API_MOD_STAT(I2CEE, void *device_handle, struct vfs_dev_stat *device_stat)
         I2CEE_t *hdl = device_handle;
 
         device_stat->st_size = hdl->memory_size;
+        device_stat->st_blksize = 1;
 
         return ESUCC;
 }

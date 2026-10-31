@@ -135,6 +135,9 @@ extern "C" {
 /*==============================================================================
   Exported macros
 ==============================================================================*/
+/** Driver provides block devices (S_IFBLK). Marker used by adddriver.sh. */
+#define _SDMMC_BLOCK_DEVICE
+
 /**
  *  @brief  Initialize SD/MMC card (OS storage request).
  *  @return On success (card initialized) 0 is returned.

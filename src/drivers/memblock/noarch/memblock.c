@@ -324,6 +324,7 @@ API_MOD_STAT(MEMBLOCK, void *device_handle, struct vfs_dev_stat *device_stat)
         MEMBLOCK_t *hdl = device_handle;
 
         device_stat->st_size = hdl->config.block_size;
+        device_stat->st_blksize = 1;
 
         return ESUCC;
 }

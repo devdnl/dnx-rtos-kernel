@@ -429,6 +429,8 @@ API_MOD_STAT(SDSPI, void *device_handle, struct vfs_dev_stat *device_stat)
 {
         SDSPI_t *hdl = device_handle;
 
+        device_stat->st_blksize = SECTOR_SIZE;
+
         if (hdl->initialized) {
                 device_stat->st_size = cast(u64_t, hdl->size_blocks) * SECTOR_SIZE;
         } else {

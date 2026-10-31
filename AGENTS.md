@@ -175,6 +175,11 @@ both the C preprocessor and make**:
       `$(TARGET)` checks),
     - an `__ENABLE_<NAME>__` entry in `config/arch/arch_flags.h`,
     - matching options files if needed.
+  - Drivers are character devices (`S_IFCHR`) by default. A driver of a
+    medium that can hold a file system (random read and overwrite in place)
+    is a block device: it defines `_<NAME>_BLOCK_DEVICE` in `<name>_ioctl.h`
+    (read by `src/drivers/adddriver.sh`) and reports `st_blksize` in
+    `API_MOD_STAT`. File systems get the type with `sys_driver_type(dev)`.
   - A new file system needs `src/fs/<name>/` with a `Makefile` and flags in
     `config/filesystems/`.
   - Use `tools/adddriver.sh` / `tools/addfilesystem.sh` or copy `drivers/zero`
