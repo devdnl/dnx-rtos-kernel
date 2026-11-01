@@ -351,7 +351,7 @@ API_MOD_STAT(PART, void *device_handle, struct vfs_dev_stat *device_stat)
         PART_t *hdl = device_handle;
 
         device_stat->st_size = hdl->total_bytes;
-        device_stat->st_blksize = hdl->block_size;
+        device_stat->st_blksize = 1; // requests are forwarded, alignment is handled by the underlying device
 
         return ESUCC;
 }

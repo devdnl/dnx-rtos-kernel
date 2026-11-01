@@ -31,6 +31,7 @@
 /*==============================================================================
   Include files
 ==============================================================================*/
+#include <stdalign.h>
 #include "drivers/driver.h"
 
 #include "uart.h"
@@ -101,19 +102,14 @@ typedef DMA_Channel_TypeDef DMA_Stream_TypeDef;
 #define USART_SR_TC   USART_ISR_TC
 #define USART_SR_IDLE USART_ISR_IDLE
 #define USART_SR_TXE  USART_ISR_TXE_TXFNF
-#define UART_MEM                                         \
-        (const char *[])                                 \
-        {                                                \
-                "SRAM1", "SRAM2", "SRAM3", "SRAM4", NULL \
-        }
+#define UART_MEM      ((const char *[]) {"SRAM1", "SRAM2", "SRAM3", "SRAM4", NULL})
 #endif
 
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define DMA_BUFFER_MASK   (_CPUCTL_CACHE_ALIGN - 1)
-#define DMA_ALIGN_UP(n)   (((n) + DMA_BUFFER_MASK) & ~DMA_BUFFER_MASK)
-#define DMA_ALIGN_DOWN(n) ((n) & ~DMA_BUFFER_MASK)
+#define DMA_BUFFER_MASK (_CPUCTL_CACHE_ALIGN - 1)
+#define DMA_ALIGN_UP(n) (((n) + DMA_BUFFER_MASK) & ~DMA_BUFFER_MASK)
 
 #define USE_DMA                                                                                                     \
         __UART_UART1_DMA_MODE__ || __UART_UART2_DMA_MODE__ || __UART_UART3_DMA_MODE__ || __UART_UART4_DMA_MODE__ || \
@@ -146,9 +142,8 @@ typedef struct {
         u16_t rd_idx;
         u32_t desc;
         DMA_Stream_TypeDef *stream;
-        u8_t *buf;
         u16_t buflen;
-        u8_t buf_holder[];
+        alignas(_CPUCTL_CACHE_ALIGN) u8_t buf[];
 } uart_dma_t;
 
 /* UART specific handle */
@@ -665,13 +660,10 @@ int _UART_LLD__turn_on(struct UART_mem *hdl)
                                 buf_len = max(_CPUCTL_CACHE_ALIGN, buf_len);
 
                                 uart_dma_t *dmabuf;
-                                size_t dma_buf_size = sizeof(*dmabuf) + buf_len + _CPUCTL_CACHE_ALIGN;
-
-                                err = sys_zalloc2(dma_buf_size, UART_MEM, _MM_FLAG__DMA, _MM_FLAG__DMA,
-                                        cast(void **, &dmabuf));
+                                err = sys_zalloc2(sizeof(*dmabuf) + buf_len, _CPUCTL_CACHE_ALIGN, UART_MEM,
+                                        _MM_FLAG__DMA, _MM_FLAG__DMA, cast(void **, &dmabuf));
                                 if (!err) {
                                         dmabuf->buflen = buf_len;
-                                        dmabuf->buf = (void *)DMA_ALIGN_UP((u32_t)&dmabuf->buf_holder);
 
 #if defined(ARCH_stm32f1) || defined(ARCH_stm32f3) || defined(ARCH_stm32f4) || defined(ARCH_stm32f7)
                                         dmabuf->desc = _DMA_DDI_reserve(SETUP->DMA_major, SETUP->DMA_rx_stream_pri);

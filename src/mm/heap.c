@@ -596,25 +596,39 @@ void _heap_free(_heap_t *heap, void *rmem, size_t *freed)
  * @brief  Allocate a block of memory with a minimum of 'size' bytes.
  *         Note that the returned value will always be aligned (as defined by MEM_ALIGNMENT).
  *
+ *         Larger alignment can be requested (e.g. D-cache line for DMA buffers):
+ *         the block is placed at aligned address (space before the block remains
+ *         free) and the size is rounded up to the alignment, so the block does
+ *         not share alignment units (cache lines) with other blocks.
+ *
  * @param  heap         heap object
  * @param  size         is the minimum size of the requested block in bytes.
+ * @param  align        block alignment (power of 2), 0 or values not bigger than
+ *                      heap alignment select default alignment
  * @param  allocated    real size of allocated block (it can be bigger than size)
 
  * @return Pointer to allocated memory or NULL if no free memory was found.
  */
 //==============================================================================
-void *_heap_alloc(_heap_t *heap, size_t size_in, size_t *allocated)
+void *_heap_alloc(_heap_t *heap, size_t size_in, size_t align, size_t *allocated)
 {
         size_t ptr, ptr2, size;
         struct mem *mem, *mem2;
         size_t used;
 
-        if (!heap || size_in == 0 || !heap->size) {
+        if (!heap || size_in == 0 || !heap->size || (align & (align - 1))) {
+                return NULL;
+        }
+
+        if (align <= _HEAP_ALIGN_) {
+                align = 0;
+
+        } else if (size_in > (SIZE_MAX - align)) {
                 return NULL;
         }
 
         /* Expand the size of the allocated memory region so that we can adjust for alignment. */
-        size = MEM_ALIGN_SIZE(size_in);
+        size = align ? ((size_in + align - 1) & ~(align - 1)) : MEM_ALIGN_SIZE(size_in);
         if (size < BLOCK_MIN_SIZE_ALIGNED) {
                 /* every data block must be at least BLOCK_MIN_SIZE_ALIGNED long */
                 size = BLOCK_MIN_SIZE_ALIGNED;
@@ -636,6 +650,41 @@ void *_heap_alloc(_heap_t *heap, size_t size_in, size_t *allocated)
         for (ptr = mem_to_ptr(heap, heap->lfree); ptr < heap->size - size; ptr = ptr_to_mem(heap, ptr)->next) {
 
                 mem = ptr_to_mem(heap, ptr);
+
+                if (align && !mem->used) {
+                        /*
+                         * Aligned block: find aligned user data address in the
+                         * free block. Space before the new block must be big
+                         * enough to stay a free block (header and minimal data).
+                         */
+                        uintptr_t data = (uintptr_t)mem + SIZEOF_STRUCT_MEM + MEM_SANITY_OFFSET;
+                        size_t gap = ((data + align - 1) & ~(uintptr_t)(align - 1)) - data;
+
+                        while (gap && (gap < (SIZEOF_STRUCT_MEM + BLOCK_MIN_SIZE_ALIGNED))) {
+                                gap += align;
+                        }
+
+                        if ((mem->next - ptr) < (gap + SIZEOF_STRUCT_MEM + size)) {
+                                continue;
+                        }
+
+                        if (gap) {
+                                /* split: leading part remains free */
+                                ptr2 = ptr + gap;
+                                mem2 = ptr_to_mem(heap, ptr2);
+                                mem2->used = 0;
+                                mem2->next = mem->next;
+                                mem2->prev = ptr;
+                                mem->next = ptr2;
+
+                                if (mem2->next != heap->size) {
+                                        ptr_to_mem(heap, mem2->next)->prev = ptr2;
+                                }
+
+                                ptr = ptr2;
+                                mem = mem2;
+                        }
+                }
 
                 if ((!mem->used) && (mem->next - (ptr + SIZEOF_STRUCT_MEM)) >= size) {
                         /*

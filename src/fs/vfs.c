@@ -505,7 +505,7 @@ int _vfs_opendir(const struct vfs_path *path, kdir_t **dir)
                 return EINVAL;
         }
 
-        int err = _kzalloc(_MM_KRN, sizeof(kdir_t), NULL, 0, 0, cast(void **, dir));
+        int err = _kzalloc(_MM_KRN, sizeof(kdir_t), 0, NULL, 0, 0, cast(void **, dir));
         if (!err) {
                 char *cwd_path;
                 err = new_absolute_path(path, ADD_SLASH, &cwd_path);
@@ -953,7 +953,7 @@ int _vfs_fopen(const struct vfs_path *path, int flags, mode_t mode, kfile_t **fi
         char *cwd_path = NULL;
         bool opened = false;
 
-        int err = _kzalloc(_MM_KRN, sizeof(kfile_t), NULL, 0, 0, cast(void **, &file_obj));
+        int err = _kzalloc(_MM_KRN, sizeof(kfile_t), 0, NULL, 0, 0, cast(void **, &file_obj));
         if (err) {
                 return err;
         }
@@ -1585,7 +1585,7 @@ static int new_FS_entry(FS_entry_t *parent_FS, const char *fs_mount_point, const
         const vfs_FS_itf_t *fs_interface, const char *opts, FS_entry_t **fs_entry)
 {
         FS_entry_t *new_FS = NULL;
-        int err = _kzalloc(_MM_KRN, sizeof(FS_entry_t), NULL, 0, 0, cast(void **, &new_FS));
+        int err = _kzalloc(_MM_KRN, sizeof(FS_entry_t), 0, NULL, 0, 0, cast(void **, &new_FS));
         if (!err) {
                 err = fs_interface->fs_init(&new_FS->handle, fs_src_file, opts);
                 if (!err) {
@@ -1676,7 +1676,7 @@ static int check_dir_exists(FS_entry_t *fs, const char *path)
 {
         kdir_t *dir = NULL;
 
-        int err = _kzalloc(_MM_KRN, sizeof(kdir_t), NULL, 0, 0, cast(void **, &dir));
+        int err = _kzalloc(_MM_KRN, sizeof(kdir_t), 0, NULL, 0, 0, cast(void **, &dir));
         if (!err) {
                 dir->FS_hdl = fs->handle;
                 dir->FS_if = fs->interface;
@@ -1926,7 +1926,7 @@ static int new_absolute_path(const struct vfs_path *path, enum path_correction c
 
         // memory allocation
         char *abspath;
-        int err = _kzalloc(_MM_KRN, abslen, _cpuctl_fast_mem, 0, 0, cast(void *, &abspath));
+        int err = _kzalloc(_MM_KRN, abslen, 0, _cpuctl_fast_mem, 0, 0, cast(void *, &abspath));
         if (!err) {
                 if (path->PATH[0] == '/') {
                         strcpy(abspath, path->PATH);
@@ -1949,7 +1949,7 @@ static int new_absolute_path(const struct vfs_path *path, enum path_correction c
                 size_t plen = strsize(abspath);
 
                 if (_mm_align(plen) < _mm_align(abslen)) {
-                        if (_kzalloc(_MM_KRN, plen, _cpuctl_fast_mem, 0, 0, cast(void **, new_path)) == 0) {
+                        if (_kzalloc(_MM_KRN, plen, 0, _cpuctl_fast_mem, 0, 0, cast(void **, new_path)) == 0) {
                                 strcpy(*new_path, abspath);
                                 _kfree(_MM_KRN, cast(void *, &abspath));
                                 abspath = *new_path;

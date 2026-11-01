@@ -72,8 +72,8 @@ Data transfer (datagram, up to MTU)
 /*==============================================================================
   Local macros
 ==============================================================================*/
-#define zalloc(_size, _pptr) _kzalloc(_MM_NET, _size, NULL, 0, 0, _pptr)
-#define kalloc(_size, _pptr) _kmalloc(_MM_NET, _size, NULL, 0, 0, _pptr)
+#define zalloc(_size, _pptr) _kzalloc(_MM_NET, _size, 0, NULL, 0, 0, _pptr)
+#define kalloc(_size, _pptr) _kmalloc(_MM_NET, _size, 0, NULL, 0, 0, _pptr)
 #define zfree(_pptr)         _kfree(_MM_NET, _pptr)
 
 #if __NETWORK_CANNET_DEBUG_ON__ > 0

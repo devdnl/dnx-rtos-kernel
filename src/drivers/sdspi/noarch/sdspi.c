@@ -928,16 +928,11 @@ static int card_read(SDSPI_t *hdl, u8_t *dst, size_t count, u64_t lseek, size_t 
         int err = EIO;
 
         if (hdl->initialized) {
-                if ((count % SECTOR_SIZE == 0) && (lseek % SECTOR_SIZE == 0)) {
-
-                        ssize_t n = card_read_sectors(hdl, dst, count / SECTOR_SIZE, lseek);
-                        if (n >= 0) {
-                                *rdcnt = n * SECTOR_SIZE;
-                                err = ESUCC;
-                        }
-
-                } else {
-                        err = ESPIPE;
+                /* request is aligned to sector size by the kernel (see API_MOD_STAT) */
+                ssize_t n = card_read_sectors(hdl, dst, count / SECTOR_SIZE, lseek);
+                if (n >= 0) {
+                        *rdcnt = n * SECTOR_SIZE;
+                        err = ESUCC;
                 }
 
                 SPI_deselect_card(hdl);
@@ -964,14 +959,11 @@ static int card_write(SDSPI_t *hdl, const u8_t *src, size_t count, u64_t lseek, 
         int err = EIO;
 
         if (hdl->initialized) {
-                if ((count % SECTOR_SIZE == 0) && (lseek % SECTOR_SIZE == 0)) {
-                        ssize_t n = card_write_sectors(hdl, src, count / SECTOR_SIZE, lseek);
-                        if (n >= 0) {
-                                *wrcnt = n * SECTOR_SIZE;
-                                err = ESUCC;
-                        }
-                } else {
-                        err = ESPIPE;
+                /* request is aligned to sector size by the kernel (see API_MOD_STAT) */
+                ssize_t n = card_write_sectors(hdl, src, count / SECTOR_SIZE, lseek);
+                if (n >= 0) {
+                        *wrcnt = n * SECTOR_SIZE;
+                        err = ESUCC;
                 }
 
                 SPI_deselect_card(hdl);

@@ -128,7 +128,7 @@ int _shm_create(const char *key, size_t size)
 
                         if (!err) {
                                 shm_region_t *region = NULL;
-                                err = _kzalloc(_MM_SHM, sizeof(shm_region_t) + size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA,
+                                err = _kzalloc(_MM_SHM, sizeof(shm_region_t) + size, 0, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA,
                                         cast(void *, &region));
 
                                 if (!err) {
@@ -334,7 +334,7 @@ static int attach_pid(shm_region_t *region, pid_t pid)
                         }
 
                         if (!lst->next) {
-                                err = _kzalloc(_MM_SHM, sizeof(pid_list_t), NULL, 0, 0, cast(void *, &lst->next));
+                                err = _kzalloc(_MM_SHM, sizeof(pid_list_t), 0, NULL, 0, 0, cast(void *, &lst->next));
                                 if (err) {
                                         break;
                                 }

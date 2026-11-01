@@ -77,7 +77,7 @@
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefreg[], u32_t required,
+static int kalloc(enum _mm_mem mpur, size_t size, size_t align, bool clear, const char *prefreg[], u32_t required,
         u32_t required_mask, void **mem, void *arg);
 
 /*==============================================================================
@@ -204,6 +204,8 @@ int _mm_register_region(_mm_region_t *region, void *start, size_t size, u32_t fl
  *
  * @param[in]  mpur             memory purpose
  * @param[in]  size             object size
+ * @param[in]  align            block alignment (power of 2, e.g. _CPUCTL_CACHE_ALIGN
+ *                              for DMA buffers), 0: default heap alignment
  * @param[in]  prefreg          preferred region names, NULL terminated
  * @param[in]  required         required region features (DMA, cacheable)
  * @param[in]  required_mask    required region features mask (DMA, cacheable)
@@ -213,15 +215,15 @@ int _mm_register_region(_mm_region_t *region, void *start, size_t size, u32_t fl
  * @return One of errno values.
  */
 //==============================================================================
-int _kzalloc(enum _mm_mem mpur, size_t size, const char *prefreg[], u32_t required, u32_t required_mask, void **mem,
-        ...)
+int _kzalloc(enum _mm_mem mpur, size_t size, size_t align, const char *prefreg[], u32_t required, u32_t required_mask,
+        void **mem, ...)
 {
         va_list vaarg;
         va_start(vaarg, mem);
         void *arg = va_arg(vaarg, void *);
         va_end(vaarg);
 
-        return kalloc(mpur, size, true, prefreg, required, required_mask, mem, arg);
+        return kalloc(mpur, size, align, true, prefreg, required, required_mask, mem, arg);
 }
 
 //==============================================================================
@@ -230,6 +232,8 @@ int _kzalloc(enum _mm_mem mpur, size_t size, const char *prefreg[], u32_t requir
  *
  * @param[in]  mpur             memory purpose
  * @param[in]  size             object size
+ * @param[in]  align            block alignment (power of 2, e.g. _CPUCTL_CACHE_ALIGN
+ *                              for DMA buffers), 0: default heap alignment
  * @param[in]  prefreg          preferred region names, NULL terminated
  * @param[in]  required         required region features (DMA, cacheable)
  * @param[in]  required_mask    required region features mask (DMA, cacheable)
@@ -239,15 +243,15 @@ int _kzalloc(enum _mm_mem mpur, size_t size, const char *prefreg[], u32_t requir
  * @return One of errno values.
  */
 //==============================================================================
-int _kmalloc(enum _mm_mem mpur, size_t size, const char *prefreg[], u32_t required, u32_t required_mask, void **mem,
-        ...)
+int _kmalloc(enum _mm_mem mpur, size_t size, size_t align, const char *prefreg[], u32_t required, u32_t required_mask,
+        void **mem, ...)
 {
         va_list vaarg;
         va_start(vaarg, mem);
         void *arg = va_arg(vaarg, void *);
         va_end(vaarg);
 
-        return kalloc(mpur, size, false, prefreg, required, required_mask, mem, arg);
+        return kalloc(mpur, size, align, false, prefreg, required, required_mask, mem, arg);
 }
 
 //==============================================================================
@@ -710,6 +714,7 @@ int _mm_get_region_info(size_t idx, _mm_region_info_t *info)
  *
  * @param[in]      mpur             memory purpose
  * @param[in]      size             object size
+ * @param[in]      align            block alignment (power of 2), 0: default
  * @param[in]      clear            clear allocated block
  * @param[in]      prefreg          preferred memory region, if NULL any memory can be
  * used
@@ -721,12 +726,13 @@ int _mm_get_region_info(size_t idx, _mm_region_info_t *info)
  * @return One of errno values.
  */
 //==============================================================================
-static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefreg[], u32_t required,
+static int kalloc(enum _mm_mem mpur, size_t size, size_t align, bool clear, const char *prefreg[], u32_t required,
         u32_t required_mask, void **mem, void *arg)
 {
         int err = EINVAL;
 
-        if (mpur < _MM_COUNT && size && mem) {
+        /* program blocks begin with resource header, alignment is not supported */
+        if (mpur < _MM_COUNT && size && mem && !(align & (align - 1)) && !(align && (mpur == _MM_PROG))) {
                 i32_t *usage = NULL;
 
                 switch (mpur) {
@@ -791,7 +797,7 @@ static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefre
                         for (_mm_region_t *r = regions; r && !blk; r = r->next) {
                                 if ((r->flags & required_mask) == required) {
                                         if (_heap_get_free(&r->heap) >= size) {
-                                                blk = _heap_alloc(&r->heap, size, &allocated);
+                                                blk = _heap_alloc(&r->heap, size, align, &allocated);
                                         }
                                 }
                         }
@@ -804,7 +810,7 @@ static int kalloc(enum _mm_mem mpur, size_t size, bool clear, const char *prefre
                                         if (isstreq(*preg, r->name_ref)) {
                                                 if ((r->flags & required_mask) == required) {
                                                         if (_heap_get_free(&r->heap) >= size) {
-                                                                blk = _heap_alloc(&r->heap, size, &allocated);
+                                                                blk = _heap_alloc(&r->heap, size, align, &allocated);
                                                         }
                                                 }
                                         }

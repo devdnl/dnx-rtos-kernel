@@ -115,7 +115,8 @@ static void dummy_free(void *obj);
 //==============================================================================
 API_FS_INIT(fatfs, void **fs_handle, const char *src_path, const char *opts)
 {
-        int err = sys_zalloc(sizeof(struct fatfs), fs_handle);
+        /* FATFS contains sector buffer aligned to FF_BUF_ALIGN */
+        int err = sys_zalloc2(sizeof(struct fatfs), FF_BUF_ALIGN, _cpuctl_preferred_FS_RAM, fs_handle);
         if (!err) {
                 struct fatfs *hdl = *fs_handle;
 
@@ -297,7 +298,8 @@ API_FS_OPEN(fatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
 
         if (!err && !obj) {
                 /* first handle to the file */
-                err = sys_zalloc(sizeof(struct fatobj), cast(void *, &obj));
+                /* FIL contains sector buffer aligned to FF_BUF_ALIGN */
+                err = sys_zalloc2(sizeof(struct fatobj), FF_BUF_ALIGN, _cpuctl_preferred_FS_RAM, cast(void *, &obj));
                 if (!err) {
                         BYTE method = FA_OPEN_EXISTING;
 

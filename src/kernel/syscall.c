@@ -57,6 +57,11 @@
 /*==============================================================================
   Local macros
 ==============================================================================*/
+/* sysconf() variables (the same values as _SC_* constants in libc unistd.h) */
+#define SYSCONF_NPROCESSORS_CONF       83
+#define SYSCONF_NPROCESSORS_ONLN       84
+#define SYSCONF_LEVEL1_DCACHE_LINESIZE 190
+
 #define GETARG(type, var)    type var = va_arg(rq->args, type)
 #define LOADARG(type)        va_arg(rq->args, type)
 #define GETRETURN(type, var) type var = rq->retptr
@@ -204,6 +209,7 @@ typedef enum {
         SYSCALL_PINTHREADTOCORE,        // int errno (pid_t *pid , tid_t *tid, u32_t *core_mask)
         SYSCALL_GETCURRENTCORE,         // int errno (u8_t *core)
         SYSCALL_GETCPUCORECOUNT,        // int errno (u8_t *core_count)
+        SYSCALL_SYSCONF,                // int errno (const int *name, long *value)
         _SYSCALL_COUNT,
 } syscall_t;
 // clang-format on
@@ -346,6 +352,7 @@ static int syscall_memregioninfo(syscallrq_t *rq);
 static int syscall_pinthreadtocore(syscallrq_t *rq);
 static int syscall_getcurrentcore(syscallrq_t *rq);
 static int syscall_getcpucorecount(syscallrq_t *rq);
+static int syscall_sysconf(syscallrq_t *rq);
 
 /*==============================================================================
   Local objects
@@ -478,6 +485,7 @@ static const syscallfunc_t syscalltab[] = {
         [SYSCALL_PINTHREADTOCORE] = syscall_pinthreadtocore,
         [SYSCALL_GETCURRENTCORE] = syscall_getcurrentcore,
         [SYSCALL_GETCPUCORECOUNT] = syscall_getcpucorecount,
+        [SYSCALL_SYSCONF] = syscall_sysconf,
 };
 
 /*==============================================================================
@@ -1311,7 +1319,7 @@ static int syscall_malloc(syscallrq_t *rq)
         }
 
         void *mem = NULL;
-        int err = _kmalloc(_MM_PROG, *size, pref_ram, _MM_FLAG__DMA, _MM_FLAG__DMA, &mem);
+        int err = _kmalloc(_MM_PROG, *size, 0, pref_ram, _MM_FLAG__DMA, _MM_FLAG__DMA, &mem);
         if (!err) {
                 err = _process_register_resource(GETPROCESS(), mem);
                 if (err) {
@@ -1344,7 +1352,7 @@ static int syscall_zalloc(syscallrq_t *rq)
         }
 
         void *mem = NULL;
-        int err = _kzalloc(_MM_PROG, *size, pref_ram, _MM_FLAG__DMA, _MM_FLAG__DMA, &mem);
+        int err = _kzalloc(_MM_PROG, *size, 0, pref_ram, _MM_FLAG__DMA, _MM_FLAG__DMA, &mem);
         if (!err) {
                 err = _process_register_resource(GETPROCESS(), mem);
                 if (err) {
@@ -3594,6 +3602,41 @@ static int syscall_getcpucorecount(syscallrq_t *rq)
                 *core_count = _CPUCTL_CORE_NUM;
                 return 0;
         } else {
+                return EINVAL;
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  This syscall return value of system configuration variable
+ *         (sysconf() function). Variable numbers are the same as _SC_*
+ *         constants in libc unistd.h.
+ *
+ * @param  rq                   syscall request
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int syscall_sysconf(syscallrq_t *rq)
+{
+        GETARG(const int *, name);
+        GETARG(long *, value);
+
+        if (!name || !value) {
+                return EINVAL;
+        }
+
+        switch (*name) {
+        case SYSCONF_NPROCESSORS_CONF:
+        case SYSCONF_NPROCESSORS_ONLN:
+                *value = _CPUCTL_CORE_NUM;
+                return 0;
+
+        case SYSCONF_LEVEL1_DCACHE_LINESIZE:
+                *value = (_CPUCTL_CACHE_ALIGN > 1) ? _CPUCTL_CACHE_ALIGN : 0;
+                return 0;
+
+        default:
                 return EINVAL;
         }
 }

@@ -115,7 +115,11 @@ API_MOD_INIT(AFM, void **device_handle, u8_t major, u8_t minor, const void *conf
                 GPV_SET_AXI_QOS(4);
                 GPV_SET_AXI_QOS(5);
                 GPV_SET_AXI_QOS(6);
+#if defined(DUAL_CORE) || defined(STM32H7A3xx) || defined(STM32H7A3xxQ) || defined(STM32H7B0xx) || \
+        defined(STM32H7B0xxQ) || defined(STM32H7B3xx) || defined(STM32H7B3xxQ)
+                /* AXI interconnect INI 7 exists only on these devices */
                 GPV_SET_AXI_QOS(7);
+#endif
 
                 return ESUCC;
         } else {

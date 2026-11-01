@@ -607,23 +607,25 @@ struct _prog_data {
 //==============================================================================
 static inline int sys_malloc(size_t size, void **mem)
 {
-        return _kmalloc(_MM_FS, size, _cpuctl_preferred_FS_RAM, _MM_FLAG__DMA, _MM_FLAG__DMA, mem);
+        return _kmalloc(_MM_FS, size, 0, _cpuctl_preferred_FS_RAM, _MM_FLAG__DMA, _MM_FLAG__DMA, mem);
 }
 
 //==============================================================================
 /**
- * @brief  Allocate memory
+ * @brief  Allocate memory with selected alignment
  *
  * @param size             object size
- * @param prefreg          preffered region list
+ * @param align            alignment (power of 2, e.g. _CPUCTL_CACHE_ALIGN for
+ *                         DMA buffers), 0: default heap alignment
+ * @param prefreg          preffered region list (NULL: any region)
  * @param mem              pointer to memory block pointer
  *
  * @return One of @ref errno value.
  */
 //==============================================================================
-static inline int sys_malloc2(size_t size, const char *prefreg[], void **mem)
+static inline int sys_malloc2(size_t size, size_t align, const char *prefreg[], void **mem)
 {
-        return _kmalloc(_MM_FS, size, prefreg, _MM_FLAG__DMA, _MM_FLAG__DMA, mem);
+        return _kmalloc(_MM_FS, size, align, prefreg, _MM_FLAG__DMA, _MM_FLAG__DMA, mem);
 }
 
 //==============================================================================
@@ -638,22 +640,25 @@ static inline int sys_malloc2(size_t size, const char *prefreg[], void **mem)
 //==============================================================================
 static inline int sys_zalloc(size_t size, void **mem)
 {
-        return _kzalloc(_MM_FS, size, _cpuctl_preferred_FS_RAM, _MM_FLAG__DMA, _MM_FLAG__DMA, mem);
+        return _kzalloc(_MM_FS, size, 0, _cpuctl_preferred_FS_RAM, _MM_FLAG__DMA, _MM_FLAG__DMA, mem);
 }
 
 //==============================================================================
 /**
- * @brief  Allocate memory and clear content
+ * @brief  Allocate memory with selected alignment and clear content
  *
  * @param size             object size
+ * @param align            alignment (power of 2, e.g. _CPUCTL_CACHE_ALIGN for
+ *                         DMA buffers), 0: default heap alignment
+ * @param prefreg          preffered region list (NULL: any region)
  * @param mem              pointer to memory block pointer
  *
  * @return One of @ref errno value.
  */
 //==============================================================================
-static inline int sys_zalloc2(size_t size, const char *prefreg[], void **mem)
+static inline int sys_zalloc2(size_t size, size_t align, const char *prefreg[], void **mem)
 {
-        return _kzalloc(_MM_FS, size, prefreg, _MM_FLAG__DMA, _MM_FLAG__DMA, mem);
+        return _kzalloc(_MM_FS, size, align, prefreg, _MM_FLAG__DMA, _MM_FLAG__DMA, mem);
 }
 
 //==============================================================================

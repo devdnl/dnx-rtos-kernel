@@ -44,6 +44,8 @@
 #include "lib/llist.h"
 #include "fs/vfs.h"
 #include "lib/misc.h"
+#include "drivers/class/storage/ioctl.h"
+#include "mm/mm.h"
 
 /*==============================================================================
   Local macros
@@ -53,14 +55,40 @@
 #define DRIVER_NAME      "Driver %s:%d-%d"
 #define DRIVER_NAME_ARGS module, major, minor
 
+/* minimal block size used by I/O statistics */
+#define BLK_STATS_MIN_UNIT 512
+
+/* maximal size of bounce buffer used when data buffer does not meet driver requirements */
+#define BLK_BOUNCE_MAX_SIZE 4096
+
 /*==============================================================================
   Local object types
 ==============================================================================*/
+/* block device I/O statistics */
+typedef struct blkstat {
+        STORAGE_stats_t pub;
+        u32_t lru_used;
+        u32_t lru[STORAGE_STATS_LRU_BLOCKS];
+} blkstat_t;
+
 typedef struct drvmem {
         struct drvmem *next;
         void *mem;
         dev_t devid;
+        u32_t blksize;           /* block device: block size used for alignment (0 or 1: not used) */
+        u32_t rdbufalign;        /* block device: required read buffer alignment (0 or 1: any) */
+        u32_t wrbufalign;        /* block device: required write buffer alignment (0 or 1: any) */
+        bool bufdma;             /* block device: data buffer must be in DMA capable memory */
+        const char **bufregions; /* block device: allowed memory regions of data buffer (NULL: any) */
+        blkstat_t *stat;         /* block device: I/O statistics (NULL if disabled) */
 } drvmem_t;
+
+/* bounce buffer */
+typedef struct {
+        void *mem;   /* allocated memory */
+        u8_t *buf;   /* aligned buffer */
+        size_t size; /* buffer size */
+} blkbuf_t;
 
 /*==============================================================================
   Local function prototypes
@@ -70,6 +98,7 @@ typedef struct drvmem {
   Local objects
 ==============================================================================*/
 static drvmem_t **drvmem;
+static kmtx_t *blk_mtx; /* serializes read-modify-write operations of block devices (recursive: stacked devices) */
 
 /*==============================================================================
   Exported objects
@@ -94,22 +123,22 @@ extern const struct _module_entry _drvreg_module_table[];
  * @return On success ESUCC, otherwise other values.
  */
 //==============================================================================
-static int driver__get_module_no_and_mem(dev_t id, u16_t *modno, void **mem)
+static int driver__get(dev_t id, u16_t *modno, drvmem_t **drv)
 {
         int err = EINVAL;
 
-        if (modno && mem && id != -1) {
+        if (modno && drv && id != -1) {
                 err = ENODEV;
 
                 *modno = _dev_t__extract_modno(id);
 
-                if (*modno < _drvreg_number_of_modules) {
+                if (drvmem && (*modno < _drvreg_number_of_modules)) {
                         _kernel_scheduler_lock();
                         {
-                                for (drvmem_t *drv = drvmem[*modno]; drv != NULL && err == ENODEV; drv = drv->next) {
+                                for (drvmem_t *d = drvmem[*modno]; d != NULL && err == ENODEV; d = d->next) {
 
-                                        if (drv->devid == id) {
-                                                *mem = drv->mem;
+                                        if (d->devid == id) {
+                                                *drv = d;
                                                 err = ESUCC;
                                         }
                                 }
@@ -119,6 +148,542 @@ static int driver__get_module_no_and_mem(dev_t id, u16_t *modno, void **mem)
         }
 
         return err;
+}
+
+//==============================================================================
+/**
+ * @brief Check if device is running
+ *
+ * @param [in]  id      driver ID
+ * @param [out] modno   module number
+ * @param [out] mem     module memory
+ *
+ * @return On success ESUCC, otherwise other values.
+ */
+//==============================================================================
+static int driver__get_module_no_and_mem(dev_t id, u16_t *modno, void **mem)
+{
+        drvmem_t *drv = NULL;
+
+        int err = mem ? driver__get(id, modno, &drv) : EINVAL;
+        if (!err) {
+                *mem = drv->mem;
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Function checks whether module provides block devices.
+ *
+ * @param  modno        module number
+ *
+ * @return true if block device module, otherwise false.
+ */
+//==============================================================================
+static inline bool driver__is_block(u16_t modno)
+{
+        return _drvreg_module_table[modno].type == S_IFBLK;
+}
+
+//==============================================================================
+/**
+ * @brief  Function reads block size and data buffer requirements of block
+ *         device (from device statistics).
+ *
+ * @param  modno        module number
+ * @param  drv          driver instance
+ */
+//==============================================================================
+static void blk__update_params(u16_t modno, drvmem_t *drv)
+{
+        struct vfs_dev_stat stat;
+        memset(&stat, 0, sizeof(stat));
+
+        stat.st_major = _dev_t__extract_major(drv->devid);
+        stat.st_minor = _dev_t__extract_minor(drv->devid);
+
+        if (_drvreg_module_table[modno].IF.drv_stat(drv->mem, &stat) == ESUCC) {
+                drv->blksize = stat.st_blksize;
+                drv->rdbufalign = stat.st_rdbufalign;
+                drv->wrbufalign = stat.st_wrbufalign;
+                drv->bufdma = stat.st_bufdma;
+                drv->bufregions = stat.st_bufregions;
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Function checks whether data buffer meets driver requirements.
+ *
+ * @param  drv          driver instance
+ * @param  write        true: write buffer, false: read buffer
+ * @param  buf          data buffer
+ *
+ * @return true if buffer can be passed to the driver, otherwise false.
+ */
+//==============================================================================
+static bool blk__buf_ok(const drvmem_t *drv, bool write, const void *buf)
+{
+        const u32_t align = write ? drv->wrbufalign : drv->rdbufalign;
+
+        if ((align > 1) && ((cast(uintptr_t, buf) % align) != 0)) {
+                return false;
+        }
+
+        if (drv->bufdma && !_mm_is_dma_capable(buf)) {
+                return false;
+        }
+
+        if (drv->bufregions && !_mm_is_mem_region(buf, drv->bufregions)) {
+                return false;
+        }
+
+        return true;
+}
+
+//==============================================================================
+/**
+ * @brief  Function calculates size of bounce buffer (multiple of block size).
+ *
+ * @param  bs           block size
+ * @param  count        request size
+ *
+ * @return Bounce buffer size.
+ */
+//==============================================================================
+static size_t blk__bounce_size(u32_t bs, size_t count)
+{
+        size_t max_size = max(BLK_BOUNCE_MAX_SIZE - (BLK_BOUNCE_MAX_SIZE % bs), bs);
+        size_t need = ((count / bs) + ((count % bs) ? 1 : 0)) * bs;
+
+        return max(min(need, max_size), bs);
+}
+
+//==============================================================================
+/**
+ * @brief  Function allocates bounce buffer which meets driver requirements
+ *         (alignment, DMA capable memory, memory regions).
+ *
+ * @param  drv          driver instance
+ * @param  size         buffer size
+ * @param  bb           bounce buffer
+ *
+ * @return One of errno value (errno.h)
+ */
+//==============================================================================
+static int blk__buf_alloc(const drvmem_t *drv, size_t size, blkbuf_t *bb)
+{
+        const size_t align = max(drv->rdbufalign, drv->wrbufalign);
+        const u32_t flags = drv->bufdma ? _MM_FLAG__DMA : 0;
+
+        bb->mem = NULL;
+
+        int err = _kmalloc(_MM_KRN, size, align, drv->bufregions, flags, flags, &bb->mem);
+        if (!err) {
+                bb->buf = bb->mem;
+                bb->size = size;
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Function checks block in LRU model and moves it to the front.
+ *
+ * @param  st           statistics
+ * @param  blk          block number
+ *
+ * @return true if block was found in the model (cache hit), otherwise false.
+ */
+//==============================================================================
+static bool blk__lru_access(blkstat_t *st, u32_t blk)
+{
+        u32_t i = 0;
+
+        while ((i < st->lru_used) && (st->lru[i] != blk)) {
+                i++;
+        }
+
+        bool hit = (i < st->lru_used);
+
+        if (!hit) {
+                if (st->lru_used < STORAGE_STATS_LRU_BLOCKS) {
+                        st->lru_used++;
+                }
+
+                i = st->lru_used - 1;
+        }
+
+        memmove(&st->lru[1], &st->lru[0], i * sizeof(st->lru[0]));
+        st->lru[0] = blk;
+
+        return hit;
+}
+
+//==============================================================================
+/**
+ * @brief  Function counts driver call in statistics.
+ *
+ * @param  drv          driver instance
+ * @param  write        true: write call, false: read call
+ */
+//==============================================================================
+static void blk__count_call(drvmem_t *drv, bool write)
+{
+        if (drv->stat) {
+                _kernel_scheduler_lock();
+                {
+                        if (drv->stat) {
+                                if (write) {
+                                        drv->stat->pub.wr_drv++;
+                                } else {
+                                        drv->stat->pub.rd_drv++;
+                                }
+                        }
+                }
+                _kernel_scheduler_unlock();
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Function counts request in statistics.
+ *
+ * @param  drv          driver instance
+ * @param  write        true: write request, false: read request
+ * @param  pos          request position
+ * @param  count        request size
+ * @param  unaligned    request not aligned to block size
+ * @param  bounced      data copied through bounce buffer
+ * @param  err          request result
+ */
+//==============================================================================
+static void blk__account(drvmem_t *drv, bool write, fpos_t pos, size_t count, bool unaligned, bool bounced, int err)
+{
+        _kernel_scheduler_lock();
+        {
+                blkstat_t *st = drv->stat;
+                if (st) {
+                        STORAGE_stats_t *s = &st->pub;
+
+                        u64_t first = cast(u64_t, pos) / s->unit;
+                        u64_t last = (count > 0) ? (cast(u64_t, pos) + count - 1) / s->unit : first;
+                        u64_t blocks = last - first + 1;
+                        u32_t bucket = (blocks <= 1) ? 0 : (blocks < 8) ? 1 : (blocks < 64) ? 2 : 3;
+
+                        if (write) {
+                                s->wr_req++;
+                                s->wr_bytes += count;
+                                s->wr_size[bucket]++;
+                                s->wr_unaligned += unaligned ? 1 : 0;
+                                s->wr_bounce += bounced ? 1 : 0;
+                                s->wr_err += err ? 1 : 0;
+                        } else {
+                                s->rd_req++;
+                                s->rd_bytes += count;
+                                s->rd_size[bucket]++;
+                                s->rd_unaligned += unaligned ? 1 : 0;
+                                s->rd_bounce += bounced ? 1 : 0;
+                                s->rd_err += err ? 1 : 0;
+                        }
+
+                        if (blocks <= STORAGE_STATS_LRU_MAX_REQ) {
+                                for (u64_t blk = first; blk <= last; blk++) {
+                                        bool hit = blk__lru_access(st, cast(u32_t, blk));
+
+                                        if (write) {
+                                                s->wr_lru_blocks++;
+                                                s->wr_lru_hits += hit ? 1 : 0;
+                                        } else {
+                                                s->rd_lru_blocks++;
+                                                s->rd_lru_hits += hit ? 1 : 0;
+                                        }
+                                }
+                        }
+                }
+        }
+        _kernel_scheduler_unlock();
+}
+
+//==============================================================================
+/**
+ * @brief  Function calls driver read function.
+ *
+ * @param  modno        module number
+ * @param  drv          driver instance
+ * @param  dst          destination buffer
+ * @param  count        bytes to read
+ * @param  pos          position
+ * @param  rdcnt        number of read bytes
+ * @param  fattr        file attributes
+ *
+ * @return One of errno value (errno.h)
+ */
+//==============================================================================
+static int blk__drv_read(u16_t modno, drvmem_t *drv, u8_t *dst, size_t count, fpos_t pos, size_t *rdcnt,
+        struct vfs_fattr fattr)
+{
+        *rdcnt = 0;
+        int err = _drvreg_module_table[modno].IF.drv_read(drv->mem, dst, count, &pos, rdcnt, fattr);
+        blk__count_call(drv, false);
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Function calls driver write function.
+ *
+ * @param  modno        module number
+ * @param  drv          driver instance
+ * @param  src          source buffer
+ * @param  count        bytes to write
+ * @param  pos          position
+ * @param  wrcnt        number of written bytes
+ * @param  fattr        file attributes
+ *
+ * @return One of errno value (errno.h)
+ */
+//==============================================================================
+static int blk__drv_write(u16_t modno, drvmem_t *drv, const u8_t *src, size_t count, fpos_t pos, size_t *wrcnt,
+        struct vfs_fattr fattr)
+{
+        *wrcnt = 0;
+        int err = _drvreg_module_table[modno].IF.drv_write(drv->mem, src, count, &pos, wrcnt, fattr);
+        blk__count_call(drv, true);
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Function transfers data of block device request that can not be
+ *         passed to the driver directly:
+ *         - position or size not aligned to block size: partial blocks are read
+ *           to bounce buffer (and written back: read-modify-write),
+ *         - data buffer does not meet driver requirements (alignment, DMA
+ *           capable memory, memory regions): data is copied through bounce
+ *           buffer.
+ *
+ * @param  modno        module number
+ * @param  drv          driver instance
+ * @param  write        true: write request, false: read request
+ * @param  data         data buffer
+ * @param  count        request size
+ * @param  pos          position
+ * @param  cnt          number of transferred bytes
+ * @param  fattr        file attributes
+ * @param  bounced      set to true if data buffer was replaced by bounce buffer
+ *
+ * @return One of errno value (errno.h)
+ */
+//==============================================================================
+static int blk__xfer(u16_t modno, drvmem_t *drv, bool write, u8_t *data, size_t count, fpos_t pos, size_t *cnt,
+        struct vfs_fattr fattr, bool *bounced)
+{
+        const u32_t bs = max(drv->blksize, 1);
+
+        blkbuf_t bb = {NULL, NULL, 0};
+        int err = ESUCC;
+        bool locked = false;
+        size_t done = 0;
+
+        /* read-modify-write must not be interleaved with other read-modify-write */
+        if (write && (bs > 1) && (((cast(u64_t, pos) % bs) != 0) || ((count % bs) != 0))) {
+                err = _mutex_lock(blk_mtx, _MAX_DELAY_MS);
+                locked = (err == ESUCC);
+        }
+
+        while (!err && (done < count)) {
+                const fpos_t p = pos + done;
+                const size_t off = cast(u64_t, p) % bs;
+                const size_t rem = count - done;
+                u8_t *ptr = data + done;
+                size_t n = 0;
+
+                if ((off == 0) && (rem >= bs) && blk__buf_ok(drv, write, ptr)) {
+                        /* whole blocks directly from/to data buffer */
+                        size_t len = rem - (rem % bs);
+
+                        if (write) {
+                                err = blk__drv_write(modno, drv, ptr, len, p, &n, fattr);
+                        } else {
+                                err = blk__drv_read(modno, drv, ptr, len, p, &n, fattr);
+                        }
+
+                        done += min(n, len);
+
+                        if (n < len) {
+                                break;
+                        }
+
+                        continue;
+                }
+
+                if (bb.mem == NULL) {
+                        err = blk__buf_alloc(drv, blk__bounce_size(bs, count), &bb);
+                        if (err) {
+                                break;
+                        }
+                }
+
+                if ((off == 0) && (rem >= bs)) {
+                        /* whole blocks through bounce buffer */
+                        size_t len = min(rem - (rem % bs), bb.size);
+                        *bounced = true;
+
+                        if (write) {
+                                memcpy(bb.buf, ptr, len);
+                                err = blk__drv_write(modno, drv, bb.buf, len, p, &n, fattr);
+                        } else {
+                                err = blk__drv_read(modno, drv, bb.buf, len, p, &n, fattr);
+                                if (!err) {
+                                        memcpy(ptr, bb.buf, min(n, len));
+                                }
+                        }
+
+                        done += min(n, len);
+
+                        if (n < len) {
+                                break;
+                        }
+
+                } else {
+                        /* partial block */
+                        size_t len = min(bs - off, rem);
+
+                        err = blk__drv_read(modno, drv, bb.buf, bs, p - off, &n, fattr);
+                        if (err) {
+                                break;
+                        }
+
+                        if (write) {
+                                if (n < bs) {
+                                        break; // end of device
+                                }
+
+                                memcpy(bb.buf + off, ptr, len);
+
+                                err = blk__drv_write(modno, drv, bb.buf, bs, p - off, &n, fattr);
+                                if (!err && (n < bs)) {
+                                        break;
+                                }
+
+                                if (!err) {
+                                        done += len;
+                                }
+
+                        } else {
+                                size_t avail = (n > off) ? min(n - off, len) : 0;
+                                memcpy(ptr, bb.buf + off, avail);
+                                done += avail;
+
+                                if (avail < len) {
+                                        break;
+                                }
+                        }
+                }
+        }
+
+        if (locked) {
+                _mutex_unlock(blk_mtx);
+        }
+
+        *cnt += done;
+
+        if (bb.mem) {
+                _kfree(_MM_KRN, &bb.mem);
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Function handles block device requests implemented by the kernel.
+ *
+ * @param  drv          driver instance
+ * @param  request      ioctl request
+ * @param  arg          request argument
+ * @param  err          request result
+ *
+ * @return true if request was handled, otherwise false (request for driver).
+ */
+//==============================================================================
+static bool blk__ioctl(drvmem_t *drv, int request, void *arg, int *err)
+{
+        switch (request) {
+        case IOCTL_STORAGE__STATS_ENABLE: {
+                blkstat_t *st = NULL;
+                *err = _kzalloc(_MM_KRN, sizeof(blkstat_t), 0, NULL, 0, 0, cast(void *, &st));
+
+                if (!*err) {
+                        st->pub.blksize = drv->blksize;
+                        st->pub.unit = max(drv->blksize, BLK_STATS_MIN_UNIT);
+                        st->pub.enabled = 1;
+
+                        _kernel_scheduler_lock();
+                        {
+                                blkstat_t *old = drv->stat;
+                                drv->stat = st;
+                                st = old;
+                        }
+                        _kernel_scheduler_unlock();
+
+                        if (st) {
+                                _kfree(_MM_KRN, cast(void *, &st));
+                        }
+                }
+
+                return true;
+        }
+
+        case IOCTL_STORAGE__STATS_DISABLE: {
+                blkstat_t *st = NULL;
+
+                _kernel_scheduler_lock();
+                {
+                        st = drv->stat;
+                        drv->stat = NULL;
+                }
+                _kernel_scheduler_unlock();
+
+                if (st) {
+                        _kfree(_MM_KRN, cast(void *, &st));
+                }
+
+                *err = ESUCC;
+                return true;
+        }
+
+        case IOCTL_STORAGE__GET_STATS: {
+                STORAGE_stats_t *out = arg;
+
+                if (out) {
+                        memset(out, 0, sizeof(*out));
+                        out->blksize = drv->blksize;
+                        out->unit = max(drv->blksize, BLK_STATS_MIN_UNIT);
+
+                        _kernel_scheduler_lock();
+                        {
+                                if (drv->stat) {
+                                        *out = drv->stat->pub;
+                                }
+                        }
+                        _kernel_scheduler_unlock();
+
+                        *err = ESUCC;
+                } else {
+                        *err = EINVAL;
+                }
+
+                return true;
+        }
+
+        default:
+                return false;
+        }
 }
 
 //==============================================================================
@@ -154,7 +719,7 @@ static int driver__register(u16_t modno, u8_t major, u8_t minor, drvmem_t **drv)
 
                         // create new driver chain
                         if (!err) {
-                                err = _kzalloc(_MM_KRN, sizeof(drvmem_t), _cpuctl_fast_mem, 0, 0, cast(void *, drv));
+                                err = _kzalloc(_MM_KRN, sizeof(drvmem_t), 0, _cpuctl_fast_mem, 0, 0, cast(void *, drv));
                                 if (!err) {
                                         (*drv)->devid = _dev_t__create(modno, major, minor);
                                         (*drv)->mem = NULL;
@@ -200,6 +765,10 @@ static void driver__remove(dev_t devid)
                         for (; curr; curr = curr->next) {
                                 if (curr->devid == devid) {
                                         void *tofree = curr;
+
+                                        if (curr->stat) {
+                                                _kfree(_MM_KRN, cast(void *, &curr->stat));
+                                        }
 
                                         if (prev) {
                                                 prev->next = curr->next;
@@ -272,9 +841,16 @@ int _driver_init(const char *module, u8_t major, u8_t minor, const char *node_pa
 
         // allocate modules memory handles
         if (drvmem == NULL) {
-                err = _kzalloc(_MM_KRN, _drvreg_number_of_modules * sizeof(drvmem_t *), _cpuctl_fast_mem, 0, 0,
+                err = _kzalloc(_MM_KRN, _drvreg_number_of_modules * sizeof(drvmem_t *), 0, _cpuctl_fast_mem, 0, 0,
                         cast(void *, &drvmem));
 
+                if (err) {
+                        return err;
+                }
+        }
+
+        if (blk_mtx == NULL) {
+                err = _mutex_create(KMTX_TYPE_RECURSIVE, &blk_mtx);
                 if (err) {
                         return err;
                 }
@@ -375,11 +951,15 @@ int _driver_release(dev_t id)
 int _driver_open(dev_t id, u32_t flags)
 {
         u16_t modno;
-        void *mem;
+        drvmem_t *drv;
 
-        int err = driver__get_module_no_and_mem(id, &modno, &mem);
+        int err = driver__get(id, &modno, &drv);
         if (!err) {
-                err = _drvreg_module_table[modno].IF.drv_open(mem, vfs_filter_flags_for_device(flags));
+                err = _drvreg_module_table[modno].IF.drv_open(drv->mem, vfs_filter_flags_for_device(flags));
+
+                if (!err && driver__is_block(modno)) {
+                        blk__update_params(modno, drv);
+                }
         }
 
         return err;
@@ -425,11 +1005,25 @@ int _driver_close(dev_t id, bool force)
 int _driver_write(dev_t id, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt, struct vfs_fattr fattr)
 {
         u16_t modno;
-        void *mem;
+        drvmem_t *drv;
 
-        int err = driver__get_module_no_and_mem(id, &modno, &mem);
+        int err = driver__get(id, &modno, &drv);
         if (!err) {
-                err = _drvreg_module_table[modno].IF.drv_write(mem, src, count, fpos, wrcnt, fattr);
+                const fpos_t pos = *fpos;
+                const u32_t bs = drv->blksize;
+                const bool unaligned = (bs > 1) && (((cast(u64_t, pos) % bs) != 0) || ((count % bs) != 0));
+                bool bounced = false;
+
+                if (unaligned || !blk__buf_ok(drv, true, src)) {
+                        err = blk__xfer(modno, drv, true, const_cast(src), count, pos, wrcnt, fattr, &bounced);
+                } else {
+                        err = _drvreg_module_table[modno].IF.drv_write(drv->mem, src, count, fpos, wrcnt, fattr);
+                        blk__count_call(drv, true);
+                }
+
+                if (drv->stat) {
+                        blk__account(drv, true, pos, count, unaligned, bounced, err);
+                }
         }
 
         return err;
@@ -452,11 +1046,25 @@ int _driver_write(dev_t id, const u8_t *src, size_t count, fpos_t *fpos, size_t 
 int _driver_read(dev_t id, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr fattr)
 {
         u16_t modno;
-        void *mem;
+        drvmem_t *drv;
 
-        int err = driver__get_module_no_and_mem(id, &modno, &mem);
+        int err = driver__get(id, &modno, &drv);
         if (!err) {
-                err = _drvreg_module_table[modno].IF.drv_read(mem, dst, count, fpos, rdcnt, fattr);
+                const fpos_t pos = *fpos;
+                const u32_t bs = drv->blksize;
+                const bool unaligned = (bs > 1) && (((cast(u64_t, pos) % bs) != 0) || ((count % bs) != 0));
+                bool bounced = false;
+
+                if (unaligned || !blk__buf_ok(drv, false, dst)) {
+                        err = blk__xfer(modno, drv, false, dst, count, pos, rdcnt, fattr, &bounced);
+                } else {
+                        err = _drvreg_module_table[modno].IF.drv_read(drv->mem, dst, count, fpos, rdcnt, fattr);
+                        blk__count_call(drv, false);
+                }
+
+                if (drv->stat) {
+                        blk__account(drv, false, pos, count, unaligned, bounced, err);
+                }
         }
 
         return err;
@@ -476,11 +1084,20 @@ int _driver_read(dev_t id, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt,
 int _driver_ioctl(dev_t id, int request, void *arg)
 {
         u16_t modno;
-        void *mem;
+        drvmem_t *drv;
 
-        int err = driver__get_module_no_and_mem(id, &modno, &mem);
+        int err = driver__get(id, &modno, &drv);
         if (!err) {
-                err = _drvreg_module_table[modno].IF.drv_ioctl(mem, request, arg);
+                if (driver__is_block(modno) && blk__ioctl(drv, request, arg, &err)) {
+                        return err;
+                }
+
+                err = _drvreg_module_table[modno].IF.drv_ioctl(drv->mem, request, arg);
+
+                /* block size and buffer requirements can be known after device initialization */
+                if (!err && driver__is_block(modno) && (request == IOCTL_STORAGE__INITIALIZE)) {
+                        blk__update_params(modno, drv);
+                }
         }
 
         return err;
@@ -531,6 +1148,10 @@ int _driver_stat(dev_t id, struct vfs_dev_stat *stat)
                 stat->st_minor = _dev_t__extract_minor(id);
                 stat->st_size = 0;
                 stat->st_blksize = 0;
+                stat->st_rdbufalign = 0;
+                stat->st_wrbufalign = 0;
+                stat->st_bufdma = false;
+                stat->st_bufregions = NULL;
                 err = _drvreg_module_table[modno].IF.drv_stat(mem, stat);
         }
 

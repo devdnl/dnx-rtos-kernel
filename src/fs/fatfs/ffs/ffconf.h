@@ -274,6 +274,11 @@
 
 /* #include <somertos.h>	// O/S definitions */
 #include "fs/fs.h"
+
+/* dnx RTOS: alignment of sector buffers (win[] and file buffer) used in device
+/  transfers: D-cache line, so DMA transfers do not need bounce buffers. Objects
+/  that contain these buffers must be allocated with the same alignment. */
+#define FF_BUF_ALIGN	_CPUCTL_CACHE_ALIGN
 #define FF_FS_REENTRANT	1
 #define FF_FS_TIMEOUT	5000	/* ms (sys_mutex_lock() in ff_req_grant()) */
 #define FF_SYNC_t		kmtx_t*

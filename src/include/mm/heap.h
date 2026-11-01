@@ -107,7 +107,7 @@ typedef struct {
 ==============================================================================*/
 extern int _heap_init(_heap_t *, void *, size_t);
 extern void _heap_free(_heap_t *, void *, size_t *);
-extern void *_heap_alloc(_heap_t *, size_t, size_t *);
+extern void *_heap_alloc(_heap_t *, size_t, size_t, size_t *);
 extern size_t _heap_get_free(_heap_t *);
 extern size_t _heap_get_used(_heap_t *);
 extern size_t _heap_get_size(_heap_t *);

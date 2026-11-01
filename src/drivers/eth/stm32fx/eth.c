@@ -31,6 +31,7 @@
 /*==============================================================================
   Include files
 ==============================================================================*/
+#include <stdalign.h>
 #include "drivers/driver.h"
 #include "eth_ioctl.h"
 #include "stm32f4xx_hal_eth.h"
@@ -56,36 +57,31 @@
 #define RCC_AHBxENR_ETHMACRXEN RCC_AHBENR_ETHMACRXEN
 #define RCC_AHBxENR_ETHMACTXEN RCC_AHBENR_ETHMACTXEN
 #define RCC_AHBxENR_ETHMACEN   RCC_AHBENR_ETHMACEN
-#define CPU_CACHE_ALIGN        1
 #elif defined(ARCH_stm32f4)
 #define AHBxENR                AHB1ENR
 #define RCC_AHBxENR_ETHMACRXEN RCC_AHB1ENR_ETHMACRXEN
 #define RCC_AHBxENR_ETHMACTXEN RCC_AHB1ENR_ETHMACTXEN
 #define RCC_AHBxENR_ETHMACEN   RCC_AHB1ENR_ETHMACEN
-#define CPU_CACHE_ALIGN        1
 #elif defined(ARCH_stm32f7)
 #define AHBxENR                AHB1ENR
 #define RCC_AHBxENR_ETHMACRXEN RCC_AHB1ENR_ETHMACRXEN
 #define RCC_AHBxENR_ETHMACTXEN RCC_AHB1ENR_ETHMACTXEN
 #define RCC_AHBxENR_ETHMACEN   RCC_AHB1ENR_ETHMACEN
-#define CPU_CACHE_ALIGN        32
 #endif
 
-#if CPU_CACHE_ALIGN != ETH_CPU_CACHE_ALIGN
+#if _CPUCTL_CACHE_ALIGN != ETH_CPU_CACHE_ALIGN
 #error "CPU cache alignments are different!"
 #endif
 
-#define DMA_BUFFER_MASK   (CPU_CACHE_ALIGN - 1)
-#define DMA_ALIGN_UP(n)   (((n) + DMA_BUFFER_MASK) & ~DMA_BUFFER_MASK)
-#define DMA_ALIGN_DOWN(n) ((n) & ~DMA_BUFFER_MASK)
+#define DMA_BUFFER_MASK (_CPUCTL_CACHE_ALIGN - 1)
+#define DMA_ALIGN_UP(n) (((n) + DMA_BUFFER_MASK) & ~DMA_BUFFER_MASK)
 
 #define RX_DESC_ARRAY_SIZE DMA_ALIGN_UP(sizeof(ETH_DMADescTypeDef) * __ETH_RXBUFNB__)
 #define TX_DESC_ARRAY_SIZE DMA_ALIGN_UP(sizeof(ETH_DMADescTypeDef) * __ETH_TXBUFNB__)
 #define RX_BUF_ARRAY_SIZE  DMA_ALIGN_UP(ETH_RX_BUF_SIZE_ALIGN *__ETH_RXBUFNB__)
 #define TX_BUF_ARRAY_SIZE  DMA_ALIGN_UP(ETH_TX_BUF_SIZE_ALIGN *__ETH_TXBUFNB__)
 
-#define DESCS_BUFFS_SIZE \
-        (RX_DESC_ARRAY_SIZE + TX_DESC_ARRAY_SIZE + RX_BUF_ARRAY_SIZE + TX_BUF_ARRAY_SIZE + CPU_CACHE_ALIGN)
+#define DESCS_BUFFS_SIZE (RX_DESC_ARRAY_SIZE + TX_DESC_ARRAY_SIZE + RX_BUF_ARRAY_SIZE + TX_BUF_ARRAY_SIZE)
 
 /*==============================================================================
   Local object types
@@ -106,7 +102,7 @@ struct eth {
         bool run;
         u32_t rx_timeout_ms;
         u32_t tx_timeout_ms;
-        u8_t descs_and_buffs[DESCS_BUFFS_SIZE];
+        alignas(_CPUCTL_CACHE_ALIGN) u8_t descs_and_buffs[DESCS_BUFFS_SIZE];
 
         struct {
                 bool link_up[2];
@@ -176,7 +172,8 @@ API_MOD_INIT(ETH, void **device_handle, u8_t major, u8_t minor, const void *conf
                 return ENODEV;
         }
 
-        int err = sys_zalloc(sizeof(struct eth), device_handle);
+        int err = sys_zalloc2(sizeof(struct eth), _CPUCTL_CACHE_ALIGN, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA,
+                device_handle);
         if (!err) {
                 struct eth *hdl = *device_handle;
 
@@ -193,25 +190,15 @@ API_MOD_INIT(ETH, void **device_handle, u8_t major, u8_t minor, const void *conf
                         if (!err) {
 
                                 /*
-                                 * Each DMA description is aligned to DMA cache line.
+                                 * Each DMA descriptor array and RX/TX buffer is aligned to CPU cache
+                                 * line (handle is allocated with cache line alignment).
                                  */
-                                hdl->DMA_rx_desc = (void *)DMA_ALIGN_DOWN(
-                                        (u32_t)hdl->descs_and_buffs + CPU_CACHE_ALIGN - 1);
-                                hdl->DMA_tx_desc = (void *)DMA_ALIGN_DOWN(
-                                        (u32_t)hdl->descs_and_buffs + RX_DESC_ARRAY_SIZE + CPU_CACHE_ALIGN - 1);
-
-                                /*
-                                 * Each RX/TX buffer (even for single packet) is aligned to
-                                 * DMA cache line.
-                                 */
-                                hdl->rx_buff = (void *)DMA_ALIGN_DOWN(
-                                        (u32_t)hdl->DMA_tx_desc + TX_DESC_ARRAY_SIZE + CPU_CACHE_ALIGN - 1);
-                                hdl->tx_buff = (void *)DMA_ALIGN_DOWN(
-                                        (u32_t)hdl->rx_buff + RX_BUF_ARRAY_SIZE + CPU_CACHE_ALIGN - 1);
+                                hdl->DMA_rx_desc = cast(void *, &hdl->descs_and_buffs[0]);
+                                hdl->DMA_tx_desc = cast(void *, &hdl->descs_and_buffs[RX_DESC_ARRAY_SIZE]);
+                                hdl->rx_buff = &hdl->descs_and_buffs[RX_DESC_ARRAY_SIZE + TX_DESC_ARRAY_SIZE];
+                                hdl->tx_buff = hdl->rx_buff + RX_BUF_ARRAY_SIZE;
 
 #if DEBUG
-                                dev_dbg(hdl, "padding             : %u",
-                                        (u32_t)hdl->DMA_rx_desc - (u32_t)hdl->descs_and_buffs);
                                 dev_dbg(hdl, "hdl->descs_and_buffs: %p %u", hdl->descs_and_buffs,
                                         sizeof(hdl->descs_and_buffs));
                                 dev_dbg(hdl, "hdl->DMA_rx_desc    : %p %u", hdl->DMA_rx_desc, RX_DESC_ARRAY_SIZE);

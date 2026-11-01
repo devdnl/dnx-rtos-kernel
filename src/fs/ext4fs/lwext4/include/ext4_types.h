@@ -827,11 +827,17 @@ struct jbd_sb {
 extern void *ext4_user_malloc(size_t size);
 extern void *ext4_user_calloc(size_t num, size_t size);
 extern void  ext4_user_free(void *mem);
+extern void *ext4_user_io_malloc(size_t size);
+extern void  ext4_user_io_free(void *mem);
 
 #define ext4_malloc  ext4_user_malloc
 #define ext4_calloc  ext4_user_calloc
 #define ext4_realloc ext4_user_realloc
 #define ext4_free    ext4_user_free
+
+/* dnx RTOS: buffers of block device I/O (aligned for DMA transfers) */
+#define ext4_io_malloc ext4_user_io_malloc
+#define ext4_io_free   ext4_user_io_free
 
 #else
 
@@ -839,6 +845,9 @@ extern void  ext4_user_free(void *mem);
 #define ext4_calloc  calloc
 #define ext4_realloc realloc
 #define ext4_free    free
+
+#define ext4_io_malloc malloc
+#define ext4_io_free   free
 
 #endif
 

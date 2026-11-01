@@ -61,7 +61,17 @@ driver_release("HOSTDISK", 0, 0);
 @endcode
 
 \subsection drv-hostdisk-ddesc-cfg Driver configuration
-No driver configuration.
+Driver can emulate constraints of hardware block devices to test the kernel
+block layer: block size (requests must be aligned to block size) and data
+buffer alignment (e.g. DMA requirements). Constraints are configured by string
+(by default there are no constraints):
+
+@code
+modprobe -i HOSTDISK 4 0 /dev/hd4 -c block_size=512,buffer_align=32
+@endcode
+
+Requests that do not meet constraints are rejected (EINVAL: position or size
+not aligned to block size, EFAULT: data buffer not aligned).
 
 \subsection drv-hostdisk-ddesc-write Data write
 The same as regular file.
@@ -79,6 +89,7 @@ The same as regular file.
   Include files
 ==============================================================================*/
 #include "drivers/ioctl_macros.h"
+#include "drivers/class/device/ioctl.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -89,6 +100,15 @@ extern "C" {
 ==============================================================================*/
 /** Driver provides block devices (S_IFBLK). Marker used by adddriver.sh. */
 #define _HOSTDISK_BLOCK_DEVICE
+
+/**
+ *  @brief  Configure emulated constraints by string (not specified parameters
+ *          are not changed): block_size=<bytes>,buffer_align=<bytes>, e.g.
+ *          "block_size=512,buffer_align=32". Value 0 or 1 disables constraint.
+ *  @param  [WR] const char * configuration string
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
+ */
+#define IOCTL_HOSTDISK__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
 /*==============================================================================
   Exported object types

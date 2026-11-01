@@ -62,22 +62,32 @@ extern "C" {
 
 #ifndef DOXYGEN /* Doxygen documentation in sysfunc.h */
 #undef sys_zalloc
-#define sys_zalloc(size_t__size, void__ppmem) \
-        _kzalloc(_MM_MOD, size_t__size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, void__ppmem, _module_get_ID(_module_name_))
+#define sys_zalloc(size_t__size, void__ppmem)                                               \
+        _kzalloc(_MM_MOD, size_t__size, 0, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, void__ppmem, \
+                _module_get_ID(_module_name_))
 
 #undef sys_malloc
-#define sys_malloc(size_t__size, void__ppmem) \
-        _kmalloc(_MM_MOD, size_t__size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, void__ppmem, _module_get_ID(_module_name_))
-
-#undef sys_zalloc2
-#define sys_zalloc2(size_t__size, prefreg_name, required_features, required_features_mask, void__ppmem)       \
-        _kzalloc(_MM_MOD, size_t__size, prefreg_name, required_features, required_features_mask, void__ppmem, \
+#define sys_malloc(size_t__size, void__ppmem)                                               \
+        _kmalloc(_MM_MOD, size_t__size, 0, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, void__ppmem, \
                 _module_get_ID(_module_name_))
+
+/*
+ * sys_zalloc2()/sys_malloc2(): allocation with selected alignment (power of 2,
+ * e.g. _CPUCTL_CACHE_ALIGN for DMA buffers; 0: default heap alignment) in
+ * preferred memory regions (NULL terminated list of region names, NULL: any)
+ * with required features (_MM_FLAG__*). Aligned blocks have size rounded up
+ * to the alignment, so they do not share cache lines with other blocks.
+ * Memory is released by sys_free().
+ */
+#undef sys_zalloc2
+#define sys_zalloc2(size_t__size, size_t__align, prefreg_name, required_features, required_features_mask, void__ppmem) \
+        _kzalloc(_MM_MOD, size_t__size, size_t__align, prefreg_name, required_features, required_features_mask,        \
+                void__ppmem, _module_get_ID(_module_name_))
 
 #undef sys_malloc2
-#define sys_malloc2(size_t__size, prefreg_name, required_features, required_features_mask, void__ppmem)       \
-        _kzalloc(_MM_MOD, size_t__size, prefreg_name, required_features, required_features_mask, void__ppmem, \
-                _module_get_ID(_module_name_))
+#define sys_malloc2(size_t__size, size_t__align, prefreg_name, required_features, required_features_mask, void__ppmem) \
+        _kmalloc(_MM_MOD, size_t__size, size_t__align, prefreg_name, required_features, required_features_mask,        \
+                void__ppmem, _module_get_ID(_module_name_))
 
 #undef sys_free
 #define sys_free(void__ppmem) _kfree(_MM_MOD, void__ppmem, _module_get_ID(_module_name_))
@@ -349,10 +359,14 @@ extern "C" {
  * The type represents device information e.g. size and address.
  */
 struct vfs_dev_stat {
-        u64_t st_size;    /*!< Total size, in bytes.*/
-        u32_t st_blksize; /*!< Block size in bytes (block devices only, 0 if not used).*/
-        u8_t st_major;    /*!< Device major number.*/
-        u8_t st_minor;    /*!< Device minor number.*/
+        u64_t st_size;              /*!< Total size, in bytes.*/
+        u32_t st_blksize;           /*!< Block size in bytes (block devices only, 0 if not used).*/
+        u32_t st_rdbufalign;        /*!< Required read buffer alignment, power of 2 (block devices only, 0: any).*/
+        u32_t st_wrbufalign;        /*!< Required write buffer alignment, power of 2 (block devices only, 0: any).*/
+        const char **st_bufregions; /*!< Allowed memory regions of data buffer (block devices only, NULL: any).*/
+        bool st_bufdma;             /*!< Data buffer must be in DMA capable memory (block devices only).*/
+        u8_t st_major;              /*!< Device major number.*/
+        u8_t st_minor;              /*!< Device minor number.*/
 };
 
 /**

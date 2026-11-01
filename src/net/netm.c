@@ -170,7 +170,7 @@ static int socket_alloc(ksocket_t **socket, NETM_family_t family, struct netname
 #endif
         };
 
-        int err = _kzalloc(_MM_NET, _mm_align(sizeof(ksocket_t)) + net_socket_size[family], NULL, 0, 0,
+        int err = _kzalloc(_MM_NET, _mm_align(sizeof(ksocket_t)) + net_socket_size[family], 0, NULL, 0, 0,
                 cast(void **, socket));
 
         if (!err) {
@@ -441,7 +441,7 @@ int _net_ifadd(const char *netname, NETM_family_t family, const char *if_path)
                         if (n < ARRAY_SIZE(net_list)) {
                                 // network name is copied because caller's string can be released
                                 char *name = NULL;
-                                err = _kmalloc(_MM_NET, strlen(netname) + 1, NULL, 0, 0, cast(void **, &name));
+                                err = _kmalloc(_MM_NET, strlen(netname) + 1, 0, NULL, 0, 0, cast(void **, &name));
                                 if (!err) {
                                         strcpy(name, netname);
 

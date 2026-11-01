@@ -538,7 +538,7 @@ int _semaphore_create(size_t cnt_max, size_t cnt_init, ksem_t **sem)
         int err = EINVAL;
 
         if (cnt_max > 0 && sem) {
-                err = _kzalloc(_MM_KRN, sizeof(ksem_t), _cpuctl_fast_mem, 0, 0, cast(void **, sem));
+                err = _kzalloc(_MM_KRN, sizeof(ksem_t), 0, _cpuctl_fast_mem, 0, 0, cast(void **, sem));
                 if (err == ESUCC) {
 
                         if (cnt_max == 1) {
@@ -738,7 +738,7 @@ int _mutex_create(enum kmtx_type type, kmtx_t **mtx)
         int err = EINVAL;
 
         if (type <= KMTX_TYPE_NORMAL && mtx) {
-                err = _kzalloc(_MM_KRN, sizeof(kmtx_t), _cpuctl_fast_mem, 0, 0, cast(void **, mtx));
+                err = _kzalloc(_MM_KRN, sizeof(kmtx_t), 0, _cpuctl_fast_mem, 0, 0, cast(void **, mtx));
                 if (err == ESUCC) {
                         if (type == KMTX_TYPE_RECURSIVE) {
                                 (*mtx)->object = xSemaphoreCreateRecursiveMutexStatic(&(*mtx)->buffer);
@@ -898,7 +898,7 @@ int _spinlock_create(u32_t loop_delay_ms, kspinlock_t **spinlock)
         int err = EINVAL;
 
         if (spinlock) {
-                err = _kzalloc(_MM_KRN, sizeof(kspinlock_t), _cpuctl_fast_mem, 0, 0, cast(void **, spinlock));
+                err = _kzalloc(_MM_KRN, sizeof(kspinlock_t), 0, _cpuctl_fast_mem, 0, 0, cast(void **, spinlock));
                 if (not err) {
                         (*spinlock)->loop_delay_ms = loop_delay_ms;
                         (*spinlock)->header.self = *spinlock;
@@ -1014,7 +1014,7 @@ int _flag_create(kflag_t **flag)
         int err = EINVAL;
 
         if (flag) {
-                err = _kzalloc(_MM_KRN, sizeof(kflag_t), _cpuctl_fast_mem, 0, 0, cast(void **, flag));
+                err = _kzalloc(_MM_KRN, sizeof(kflag_t), 0, _cpuctl_fast_mem, 0, 0, cast(void **, flag));
                 if (err == ESUCC) {
                         (*flag)->object = xEventGroupCreateStatic(&(*flag)->buffer);
 
@@ -1187,7 +1187,7 @@ int _queue_create(size_t length, size_t item_size, kqueue_t **queue)
         int err = EINVAL;
 
         if (length && item_size && queue) {
-                err = _kzalloc(_MM_KRN, sizeof(kqueue_t) + (length * item_size), _cpuctl_fast_mem, 0, 0,
+                err = _kzalloc(_MM_KRN, sizeof(kqueue_t) + (length * item_size), 0, _cpuctl_fast_mem, 0, 0,
                         cast(void **, queue));
                 if (err == ESUCC) {
                         (*queue)->object = xQueueCreateStatic(length, item_size, cast(uint8_t *, &(*queue)[1]),

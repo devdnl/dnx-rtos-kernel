@@ -86,9 +86,19 @@ different GCC or modify the Makefiles to work around it. Say that the build
 could not be verified.
 
 `tools/tests.sh` builds the kernel for every configuration in
-`tools/test_bsp/` (stm32f1, stm32f3, stm32f4, stm32f7, stm32h7) and restores
-the current `config/` at the end. Use it to check changes in shared code across
-architectures. There is no test BSP for `rpcm0` yet.
+`tools/test_bsp/` (stm32f1, stm32f3, stm32f4, stm32f7, stm32h7, rpcm0) and
+restores the current `config/` at the end. Use it to check changes in shared
+code across architectures. The configtool (`tools/configtool.sh`) needs `lua`
+with `lfs` and the `dialog` command (the import fails without them).
+
+Each test BSP contains only the files of its own architecture (plus `noarch`)
+and enables every driver available for its CPU (peripheral list `uC.PERIPH`
+in `config/arch/arch_flags.h` and all `noarch` drivers except `HOSTDISK`),
+all file systems and network stacks, and UART1 in DMA mode. When flags are
+added or a BSP is outdated, regenerate it: import the BSP into a clean copy of
+`config/`, update flags, export it with
+`tools/configtool.sh export=<file>:<dir>/,config` and remove sections of other
+architectures (`tools/optimize_bsp.lua <file> <arch>` in the workspace).
 
 ## Configuration files (important)
 
@@ -179,7 +189,30 @@ both the C preprocessor and make**:
     medium that can hold a file system (random read and overwrite in place)
     is a block device: it defines `_<NAME>_BLOCK_DEVICE` in `<name>_ioctl.h`
     (read by `src/drivers/adddriver.sh`) and reports `st_blksize` in
-    `API_MOD_STAT`. File systems get the type with `sys_driver_type(dev)`.
+    `API_MOD_STAT` (stacked drivers such as `part` and `loop` report 1, the
+    underlying device handles alignment). File systems get the type with
+    `sys_driver_type(dev)`.
+  - Requests to block devices not aligned to `st_blksize` are split by
+    `drvctrl.c` (read-modify-write), so block drivers get only aligned
+    requests. Data buffer requirements (e.g. DMA) are declared in
+    `API_MOD_STAT` (`st_rdbufalign`, `st_wrbufalign`, `st_bufdma`,
+    `st_bufregions`); buffers that do not meet them are replaced by bounce
+    buffers. Block drivers must not check alignment or copy data to own
+    buffers.
+  - Memory alignment is selected by the allocating code: `sys_malloc()` /
+    `sys_zalloc()` use default heap alignment (`_HEAP_ALIGN_`),
+    `sys_malloc2()` / `sys_zalloc2()` take `align` after size (drivers:
+    `size, align, prefreg, required, mask, mem`; file systems: `size, align,
+    prefreg, mem`; 0 is default alignment). The heap places aligned blocks
+    natively and rounds their size up to the alignment, so a block aligned to
+    `_CPUCTL_CACHE_ALIGN` does not share D-cache lines with other blocks (DMA
+    buffers). Memory is always released by `sys_free()`. Buffers inside
+    structures use `alignas(_CPUCTL_CACHE_ALIGN)` (FatFs: `FF_BUF_ALIGN`) and
+    the structure is allocated with the same alignment. Do not over-allocate
+    and move pointers manually. `drvctrl.c` also handles
+    `IOCTL_STORAGE__STATS_*` / `IOCTL_STORAGE__GET_STATS` (I/O statistics,
+    `iostat` program). The HOSTDISK driver (simulator) can emulate these
+    constraints (`block_size`, `buffer_align` configuration string).
   - A new file system needs `src/fs/<name>/` with a `Makefile` and flags in
     `config/filesystems/`.
   - Use `tools/adddriver.sh` / `tools/addfilesystem.sh` or copy `drivers/zero`

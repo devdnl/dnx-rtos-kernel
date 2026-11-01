@@ -158,7 +158,7 @@ int _llist_create_krn(enum _mm_mem mem, llist_cmp_functor_t cmp_functor, llist_o
         int err = EINVAL;
 
         if (list && mem != _MM_MOD && mem < _MM_COUNT) {
-                err = _kzalloc(mem, sizeof(llist_t), NULL, 0, 0, cast(void *, list));
+                err = _kzalloc(mem, sizeof(llist_t), 0, NULL, 0, 0, cast(void *, list));
                 if (!err) {
                         (*list)->malloc = krnmalloc;
                         (*list)->free = krnfree;
@@ -195,7 +195,7 @@ int _llist_create_mod(size_t modid, llist_cmp_functor_t cmp_functor, llist_obj_d
         int err = EINVAL;
 
         if (list) {
-                err = _kzalloc(_MM_MOD, sizeof(llist_t), NULL, 0, 0, cast(void *, list), modid);
+                err = _kzalloc(_MM_MOD, sizeof(llist_t), 0, NULL, 0, 0, cast(void *, list), modid);
                 if (!err) {
                         (*list)->malloc = modmalloc;
                         (*list)->free = modfree;
@@ -1333,7 +1333,7 @@ static void usrfree(void *mem, void *freectx)
 static void *krnmalloc(size_t size, void *allocctx)
 {
         void *mem = NULL;
-        _kmalloc(cast(enum _mm_mem, allocctx), size, NULL, 0, 0, &mem);
+        _kmalloc(cast(enum _mm_mem, allocctx), size, 0, NULL, 0, 0, &mem);
         return mem;
 }
 
@@ -1365,7 +1365,7 @@ static void krnfree(void *mem, void *freectx)
 static void *modmalloc(size_t size, void *allocctx)
 {
         void *mem = NULL;
-        _kmalloc(_MM_MOD, size, NULL, 0, 0, &mem, cast(size_t, allocctx));
+        _kmalloc(_MM_MOD, size, 0, NULL, 0, 0, &mem, cast(size_t, allocctx));
         return mem;
 }
 

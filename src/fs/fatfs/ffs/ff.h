@@ -32,6 +32,10 @@ extern "C" {
 #error Wrong configuration file (ffconf.h).
 #endif
 
+#ifndef FF_BUF_ALIGN
+#define FF_BUF_ALIGN 1	/* dnx RTOS: alignment of sector buffers */
+#endif
+
 
 /* Integer types used for FatFs API */
 
@@ -172,7 +176,7 @@ typedef struct {
 	LBA_t	bitbase;		/* Allocation bitmap base sector */
 #endif
 	LBA_t	winsect;		/* Current sector appearing in the win[] */
-	BYTE	win[FF_MAX_SS];	/* Disk access window for Directory, FAT (and file data at tiny cfg) */
+	_Alignas(FF_BUF_ALIGN) BYTE	win[FF_MAX_SS];	/* Disk access window for Directory, FAT (and file data at tiny cfg) */
 } FATFS;
 
 
@@ -221,7 +225,7 @@ typedef struct {
 	DWORD*	cltbl;			/* Pointer to the cluster link map table (nulled on open, set by application) */
 #endif
 #if !FF_FS_TINY
-	BYTE	buf[FF_MAX_SS];	/* File private data read/write window */
+	_Alignas(FF_BUF_ALIGN) BYTE	buf[FF_MAX_SS];	/* File private data read/write window */
 #endif
 } FIL;
 

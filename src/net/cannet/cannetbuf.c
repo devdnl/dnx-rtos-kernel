@@ -91,7 +91,7 @@ int cannetbuf__create(cannetbuf_t **cannetbuf, size_t max_capacity)
 {
         cannetbuf_t *this = NULL;
 
-        int err = _kzalloc(_MM_NET, sizeof(cannetbuf_t), NULL, 0, 0, (void *)&this);
+        int err = _kzalloc(_MM_NET, sizeof(cannetbuf_t), 0, NULL, 0, 0, (void *)&this);
 
         if (!err) {
                 err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &this->mutex);
@@ -177,7 +177,7 @@ int cannetbuf__write(cannetbuf_t *cannetbuf, const u8_t *data, size_t size)
 
                                 } else {
                                         data_chain_t *new_chain;
-                                        err = _kzalloc(_MM_NET, sizeof(*new_chain), NULL, 0, 0, (void *)&new_chain);
+                                        err = _kzalloc(_MM_NET, sizeof(*new_chain), 0, NULL, 0, 0, (void *)&new_chain);
                                         if (!err) {
                                                 if (*chain) {
                                                         (*chain)->next = new_chain;

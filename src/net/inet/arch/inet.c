@@ -59,7 +59,7 @@ Brief    Network management.
  */
 #define WAIT_SLICE_MS 50
 
-#define zalloc(_size, _pptr) _kzalloc(_MM_NET, _size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, _pptr)
+#define zalloc(_size, _pptr) _kzalloc(_MM_NET, _size, 0, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, _pptr)
 #define zfree(_pptr)         _kfree(_MM_NET, _pptr)
 
 /*

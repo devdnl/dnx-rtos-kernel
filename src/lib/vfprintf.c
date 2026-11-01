@@ -89,7 +89,7 @@ int _vfprintf(kfile_t *file, const char *format, va_list arg)
 
                 if (len > 0) {
                         char *str = NULL;
-                        int err = _kmalloc(_MM_KRN, len + 1, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, cast(void *, &str));
+                        int err = _kmalloc(_MM_KRN, len + 1, 0, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, cast(void *, &str));
                         if (!err && str) {
                                 _vsnprintf(str, len + 1, format, arg);
 

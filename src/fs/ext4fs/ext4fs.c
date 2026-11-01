@@ -30,6 +30,7 @@ Brief   EXT4 file system
 ==============================================================================*/
 #include "fs/fs.h"
 #include "ext4.h"
+#include <stdalign.h>
 
 /*==============================================================================
   Local macros
@@ -54,7 +55,7 @@ typedef struct {
         struct ext4_blockdev bd;
         kfile_t *dev;
         kmtx_t *fs_mutex;
-        u8_t buf[SECTOR_SIZE];
+        alignas(_CPUCTL_CACHE_ALIGN) u8_t buf[SECTOR_SIZE]; /* physical block buffer (DMA aligned) */
         u32_t open_files;
         struct ext4fs_file *files; /* list of opened files */
 } ext4fs_t;
@@ -130,7 +131,8 @@ static const struct ext4_lock EXT4_LOCK = {
 //==============================================================================
 API_FS_INIT(ext4fs, void **fs_handle, const char *src_path, const char *opts)
 {
-        int err = sys_zalloc(sizeof(ext4fs_t), fs_handle);
+        /* handle contains physical block buffer aligned to D-cache line (DMA) */
+        int err = sys_zalloc2(sizeof(ext4fs_t), _CPUCTL_CACHE_ALIGN, _cpuctl_preferred_FS_RAM, fs_handle);
         if (err) {
                 return err;
         }
@@ -1515,6 +1517,34 @@ void *ext4_user_calloc(size_t num, size_t size)
  */
 //==============================================================================
 void ext4_user_free(void *mem)
+{
+        sys_free(&mem);
+}
+
+//==============================================================================
+/**
+ * @brief  Function allocate block device I/O buffer for EXT4 library (aligned
+ *         to D-cache line, so DMA transfers do not need bounce buffers).
+ *
+ * @param  size         buffer size.
+ *
+ * @return Pointer to allocated memory or NULL if error.
+ */
+//==============================================================================
+void *ext4_user_io_malloc(size_t size)
+{
+        void *mem = NULL;
+        return sys_malloc2(size, _CPUCTL_CACHE_ALIGN, _cpuctl_preferred_FS_RAM, &mem) == ESUCC ? mem : NULL;
+}
+
+//==============================================================================
+/**
+ * @brief  Function free block device I/O buffer.
+ *
+ * @param  mem          memory to free.
+ */
+//==============================================================================
+void ext4_user_io_free(void *mem)
 {
         sys_free(&mem);
 }

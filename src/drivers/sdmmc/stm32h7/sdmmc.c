@@ -340,27 +340,12 @@ API_MOD_WRITE(SDMMC, void *device_handle, const u8_t *src, size_t count, fpos_t 
 
         SDMMC_t *hdl = device_handle;
 
-        if ((*fpos & (SDMMC_BLOCKSIZE - 1)) != 0) {
-                return EINVAL;
-        }
-
-        if ((count & (SDMMC_BLOCKSIZE - 1)) != 0) {
-                return EINVAL;
-        }
-
         int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (err) {
                 return err;
         }
 
         u32_t mode = hdl->mode;
-
-        if ((hdl->major == 0) and (hdl->mode == _SDMMC_MODE_DMA)) {
-                if (not sys_is_mem_region(src, SDMMC1_RAM)) {
-                        dev_dbg(hdl, "address %08lXh out of DMA range - using IRQ mode", src);
-                        mode = _SDMMC_MODE_IRQ;
-                }
-        }
 
         u32_t block_address = *fpos / SDMMC_BLOCKSIZE;
         u32_t blocks = count / SDMMC_BLOCKSIZE;
@@ -427,27 +412,12 @@ API_MOD_READ(SDMMC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, 
 
         SDMMC_t *hdl = device_handle;
 
-        if ((*fpos & (SDMMC_BLOCKSIZE - 1)) != 0) {
-                return EINVAL;
-        }
-
-        if ((count & (SDMMC_BLOCKSIZE - 1)) != 0) {
-                return EINVAL;
-        }
-
         int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
         if (err) {
                 return err;
         }
 
         u32_t mode = hdl->mode;
-
-        if ((hdl->major == 0) and (hdl->mode == _SDMMC_MODE_DMA)) {
-                if (not sys_is_mem_region(dst, SDMMC1_RAM)) {
-                        dev_dbg(hdl, "address %08lXh out of DMA range - using IRQ mode", dst);
-                        mode = _SDMMC_MODE_IRQ;
-                }
-        }
 
         u32_t block_address = *fpos / SDMMC_BLOCKSIZE;
         u32_t blocks = count / SDMMC_BLOCKSIZE;
@@ -560,6 +530,19 @@ API_MOD_STAT(SDMMC, void *device_handle, struct vfs_dev_stat *device_stat)
 
         device_stat->st_size = hdl->card_size;
         device_stat->st_blksize = SDMMC_BLOCKSIZE;
+
+        /* data buffer requirements of DMA transfers (bounce buffers are used by the kernel) */
+        if (hdl->mode == _SDMMC_MODE_DMA) {
+                /* read: D-cache invalidation must not affect data around the buffer */
+                device_stat->st_rdbufalign = _CPUCTL_CACHE_ALIGN;
+                device_stat->st_wrbufalign = _HEAP_ALIGN_;
+                device_stat->st_bufdma = true;
+
+                /* SDMMC1 IDMA can access only selected memories */
+                if (hdl->major == 0) {
+                        device_stat->st_bufregions = SDMMC1_RAM;
+                }
+        }
 
         return ESUCC;
 }
@@ -1122,27 +1105,16 @@ static int card_write_blocks_DMA(SDMMC_t *hdl, const u8_t *src, uint32_t block_a
 {
         int err = EFAULT;
 
-        bool mem_dma = sys_is_mem_dma_capable(src) && (((uintptr_t)src % _HEAP_ALIGN_) == 0);
-
-        if (mem_dma) {
-                _cpuctl_clean_invalidate_dcache_by_addr(const_cast(src), blocks * SDMMC_BLOCKSIZE);
-        }
+        /* buffer meets DMA requirements (bounce buffer is used by the kernel, see API_MOD_STAT) */
+        _cpuctl_clean_invalidate_dcache_by_addr(const_cast(src), blocks * SDMMC_BLOCKSIZE);
 
         if (hdl->config.device_type == SDMMC_DEVICE_TYPE__SD) {
 #if SD_ENABLED
-                if (mem_dma) {
-                        err = HAL_SD_WriteBlocks_DMA(&hdl->handle.sd, src, block_address, blocks);
-                } else {
-                        err = HAL_SD_WriteBlocks_IT(&hdl->handle.sd, src, block_address, blocks);
-                }
+                err = HAL_SD_WriteBlocks_DMA(&hdl->handle.sd, src, block_address, blocks);
 #endif
         } else if (hdl->config.device_type == SDMMC_DEVICE_TYPE__MMC) {
 #if MMC_ENABLED
-                if (mem_dma) {
-                        err = HAL_MMC_WriteBlocks_DMA(&hdl->handle.mmc, src, block_address, blocks);
-                } else {
-                        err = HAL_MMC_WriteBlocks_IT(&hdl->handle.mmc, src, block_address, blocks);
-                }
+                err = HAL_MMC_WriteBlocks_DMA(&hdl->handle.mmc, src, block_address, blocks);
 #endif
         }
 
@@ -1252,23 +1224,16 @@ static int card_read_blocks_DMA(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
 {
         int err = EFAULT;
 
-        bool mem_dma = sys_is_mem_dma_capable(dst) && (((uintptr_t)dst % _HEAP_ALIGN_) == 0);
+        /* buffer meets DMA requirements (bounce buffer is used by the kernel, see API_MOD_STAT) */
+        _cpuctl_invalidate_dcache_by_addr(dst, blocks * SDMMC_BLOCKSIZE);
 
         if (hdl->config.device_type == SDMMC_DEVICE_TYPE__SD) {
 #if SD_ENABLED
-                if (mem_dma) {
-                        err = HAL_SD_ReadBlocks_DMA(&hdl->handle.sd, dst, block_address, blocks);
-                } else {
-                        err = HAL_SD_ReadBlocks_IT(&hdl->handle.sd, dst, block_address, blocks);
-                }
+                err = HAL_SD_ReadBlocks_DMA(&hdl->handle.sd, dst, block_address, blocks);
 #endif
         } else if (hdl->config.device_type == SDMMC_DEVICE_TYPE__MMC) {
 #if MMC_ENABLED
-                if (mem_dma) {
-                        err = HAL_MMC_ReadBlocks_DMA(&hdl->handle.mmc, dst, block_address, blocks);
-                } else {
-                        err = HAL_MMC_ReadBlocks_IT(&hdl->handle.mmc, dst, block_address, blocks);
-                }
+                err = HAL_MMC_ReadBlocks_DMA(&hdl->handle.mmc, dst, block_address, blocks);
 #endif
         }
 
@@ -1284,10 +1249,8 @@ static int card_read_blocks_DMA(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
                 err = card_check_sdmmc_error(hdl);
         }
 
-        if (!err && mem_dma) {
-                size_t cache_line_size = 32;
-                _cpuctl_invalidate_dcache_by_addr(dst - cache_line_size,
-                        blocks * SDMMC_BLOCKSIZE + 2 * cache_line_size);
+        if (!err) {
+                _cpuctl_invalidate_dcache_by_addr(dst, blocks * SDMMC_BLOCKSIZE);
         }
 
         return err;

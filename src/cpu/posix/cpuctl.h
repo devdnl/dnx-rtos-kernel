@@ -59,8 +59,10 @@ extern "C" {
 #define _cpuctl_clean_dcache_by_addr(...)
 #define _cpuctl_clean_invalidate_dcache_by_addr(...)
 
-/* CACHE macros */
-#define _CPUCTL_CACHE_ALIGN 1
+/* CACHE macros: simulator has no data cache, but the cache line of STM32F7/H7
+ * (32 bytes) is emulated, so buffer alignment paths (block layer, file systems,
+ * sysconf(_SC_LEVEL1_DCACHE_LINESIZE)) are tested as on hardware with cache */
+#define _CPUCTL_CACHE_ALIGN 32
 
 /* Number of cores */
 #define _CPUCTL_CORE_NUM 1

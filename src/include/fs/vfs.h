@@ -182,10 +182,14 @@ struct vfs_file;
 
 /** device info. Doxygen documentation in drivers/driver.h */
 struct vfs_dev_stat {
-        u64_t st_size;    /**< total size, in bytes */
-        u32_t st_blksize; /**< block size in bytes (block devices only) */
-        u8_t st_major;    /**< device major number  */
-        u8_t st_minor;    /**< device minor number  */
+        u64_t st_size;              /**< total size, in bytes */
+        u32_t st_blksize;           /**< block size in bytes (block devices only) */
+        u32_t st_rdbufalign;        /**< required read buffer alignment, power of 2 (block devices only) */
+        u32_t st_wrbufalign;        /**< required write buffer alignment, power of 2 (block devices only) */
+        const char **st_bufregions; /**< allowed memory regions of data buffer, NULL: any (block devices only) */
+        bool st_bufdma;             /**< data buffer must be in DMA capable memory (block devices only) */
+        u8_t st_major;              /**< device major number  */
+        u8_t st_minor;              /**< device minor number  */
 };
 
 /** file write/read attributes. Doxygen documentation in fs/fs.h */

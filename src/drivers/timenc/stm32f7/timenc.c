@@ -107,7 +107,7 @@ API_MOD_INIT(TIMENC, void **device_handle, u8_t major, u8_t minor, const void *c
         if ((major == 0) && (minor < __TIMENC_MAX_ENCODERS__)) {
 
                 if (BASE == NULL) {
-                        err = sys_zalloc2(sizeof(*BASE), NULL, 0, 0, cast(void **, &BASE));
+                        err = sys_zalloc2(sizeof(*BASE), 0, NULL, 0, 0, cast(void **, &BASE));
                         if (!err) {
                                 SET_BIT(RCC->APB1ENR, RCC_APB1ENR_TIM7EN);
                                 SET_BIT(RCC->APB1RSTR, RCC_APB1RSTR_TIM7RST);
@@ -136,7 +136,7 @@ API_MOD_INIT(TIMENC, void **device_handle, u8_t major, u8_t minor, const void *c
 
                 if (!err) {
                         TIMENC_t *hdl;
-                        err = sys_zalloc2(sizeof(*hdl), NULL, 0, 0, cast(void **, &hdl));
+                        err = sys_zalloc2(sizeof(*hdl), 0, NULL, 0, 0, cast(void **, &hdl));
                         if (!err) {
                                 *device_handle = hdl;
                                 hdl->major = major;

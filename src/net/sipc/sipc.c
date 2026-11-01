@@ -91,8 +91,8 @@ DATA      -----------> store data
 /* number of consecutive failed/empty reads after which payload drain stops */
 #define DRAIN_MAX_FAILS 3
 
-#define zalloc(_size, _pptr) _kzalloc(_MM_NET, _size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, _pptr)
-#define kalloc(_size, _pptr) _kmalloc(_MM_NET, _size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, _pptr)
+#define zalloc(_size, _pptr) _kzalloc(_MM_NET, _size, 0, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, _pptr)
+#define kalloc(_size, _pptr) _kmalloc(_MM_NET, _size, 0, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, _pptr)
 #define zfree(_pptr)         _kfree(_MM_NET, _pptr)
 
 #if __NETWORK_SIPC_DEBUG_ON__ > 0

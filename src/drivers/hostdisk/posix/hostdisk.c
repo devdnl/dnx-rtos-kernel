@@ -49,11 +49,14 @@ typedef struct {
         u8_t minor;
         u64_t size;
         bool read_only;
+        u32_t block_size;   /* emulated block size (0 or 1: none) */
+        u32_t buffer_align; /* emulated data buffer alignment (0 or 1: none) */
 } HOSTDISK_t;
 
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
+static int check_constraints(HOSTDISK_t *hdl, const void *buf, size_t count, fpos_t fpos);
 
 /*==============================================================================
   Local object
@@ -67,6 +70,34 @@ MODULE_NAME(HOSTDISK);
 /*==============================================================================
   Function definitions
 ==============================================================================*/
+//==============================================================================
+/**
+ * @brief Function checks emulated constraints of hardware block device.
+ *
+ * @param hdl           driver instance
+ * @param buf           data buffer
+ * @param count         request size
+ * @param fpos          request position
+ *
+ * @return One of errno value (errno.h)
+ */
+//==============================================================================
+static int check_constraints(HOSTDISK_t *hdl, const void *buf, size_t count, fpos_t fpos)
+{
+        if ((hdl->block_size > 1) &&
+                (((cast(u64_t, fpos) % hdl->block_size) != 0) || ((count % hdl->block_size) != 0))) {
+                dev_dbg(hdl, "request not aligned to block size (pos %llu, size %u)", cast(u64_t, fpos),
+                        cast(uint, count));
+                return EINVAL;
+        }
+
+        if ((hdl->buffer_align > 1) && ((cast(uintptr_t, buf) % hdl->buffer_align) != 0)) {
+                dev_dbg(hdl, "buffer %p not aligned to %u", buf, cast(uint, hdl->buffer_align));
+                return EFAULT;
+        }
+
+        return ESUCC;
+}
 
 //==============================================================================
 /**
@@ -187,6 +218,11 @@ API_MOD_WRITE(HOSTDISK, void *device_handle, const u8_t *src, size_t count, fpos
                 return EROFS;
         }
 
+        int err = check_constraints(hdl, src, count, *fpos);
+        if (err) {
+                return err;
+        }
+
         *wrcnt = 0;
 
         if (*fpos >= hdl->size) {
@@ -230,6 +266,11 @@ API_MOD_READ(HOSTDISK, void *device_handle, u8_t *dst, size_t count, fpos_t *fpo
 
         HOSTDISK_t *hdl = device_handle;
 
+        int err = check_constraints(hdl, dst, count, *fpos);
+        if (err) {
+                return err;
+        }
+
         *rdcnt = 0;
 
         if (*fpos >= hdl->size) {
@@ -267,13 +308,30 @@ API_MOD_READ(HOSTDISK, void *device_handle, u8_t *dst, size_t count, fpos_t *fpo
 //==============================================================================
 API_MOD_IOCTL(HOSTDISK, void *device_handle, int request, void *arg)
 {
-        UNUSED_ARG2(device_handle, arg);
+        HOSTDISK_t *hdl = device_handle;
 
         int err = EBADRQC;
 
         switch (request) {
         case IOCTL_STORAGE__INITIALIZE:
                 err = ESUCC;
+                break;
+
+        case IOCTL_HOSTDISK__CONFIGURE_STR:
+                if (arg) {
+                        int bs = sys_stropt_get_int(arg, "block_size", hdl->block_size);
+                        int align = sys_stropt_get_int(arg, "buffer_align", hdl->buffer_align);
+
+                        if ((bs >= 0) && (align >= 0) && ((align & (align - 1)) == 0)) {
+                                hdl->block_size = bs;
+                                hdl->buffer_align = align;
+                                err = ESUCC;
+                        } else {
+                                err = EINVAL;
+                        }
+                } else {
+                        err = EINVAL;
+                }
                 break;
 
         default:
@@ -314,7 +372,9 @@ API_MOD_STAT(HOSTDISK, void *device_handle, struct vfs_dev_stat *device_stat)
         HOSTDISK_t *hdl = device_handle;
 
         device_stat->st_size = hdl->size;
-        device_stat->st_blksize = 1;
+        device_stat->st_blksize = max(hdl->block_size, 1);
+        device_stat->st_rdbufalign = hdl->buffer_align;
+        device_stat->st_wrbufalign = hdl->buffer_align;
 
         return ESUCC;
 }

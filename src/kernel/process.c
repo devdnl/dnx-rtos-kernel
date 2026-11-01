@@ -232,7 +232,7 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
         _process_t *proc = NULL;
         task_args_t *task_args = NULL;
 
-        int err = _kzalloc(_MM_KRN, sizeof(_process_t), _cpuctl_fast_mem, 0, 0, cast(void **, &proc));
+        int err = _kzalloc(_MM_KRN, sizeof(_process_t), 0, _cpuctl_fast_mem, 0, 0, cast(void **, &proc));
         if (err) {
                 return err;
         }
@@ -314,7 +314,7 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
                 proc->flag |= PROC_FLAG_KWORKER;
         }
 
-        err = _kzalloc(_MM_KRN, sizeof(*task_args), _cpuctl_fast_mem, 0, 0, cast(void **, &task_args));
+        err = _kzalloc(_MM_KRN, sizeof(*task_args), 0, _cpuctl_fast_mem, 0, 0, cast(void **, &task_args));
         if (err) {
                 goto finish;
         }
@@ -867,7 +867,7 @@ int _process_set_CWD(_process_t *proc, const char *CWD)
 
         if (is_proc_valid(proc) && CWD && CWD[0] == '/') {
                 char *cwd;
-                err = _kmalloc(_MM_KRN, strsize(CWD), NULL, 0, 0, cast(void *, &cwd));
+                err = _kmalloc(_MM_KRN, strsize(CWD), 0, NULL, 0, 0, cast(void *, &cwd));
                 if (!err) {
                         strcpy(cwd, CWD);
                         _vfs_realpath(cwd, SUB_SLASH);
@@ -1442,7 +1442,7 @@ int _process_thread_create(_process_t *proc, thread_func_t func, const _thread_a
 
                 if (id < __OS_PROCESS_MAX_THREADS__) {
                         task_args_t *args = NULL;
-                        err = _kmalloc(_MM_KRN, sizeof(*args), _cpuctl_fast_mem, 0, 0, cast(void *, &args));
+                        err = _kmalloc(_MM_KRN, sizeof(*args), 0, _cpuctl_fast_mem, 0, 0, cast(void *, &args));
                         if (!err) {
 
                                 args->func = func;
@@ -2505,7 +2505,7 @@ int _process_descriptor_allocate(_process_t *process, int *desc, res_header_t *r
 
                         if (not found) {
                                 if (chain->next == NULL) {
-                                        err = _kzalloc(_MM_KRN, sizeof(dchain_t), _cpuctl_fast_mem, 0, 0,
+                                        err = _kzalloc(_MM_KRN, sizeof(dchain_t), 0, _cpuctl_fast_mem, 0, 0,
                                                 cast(void **, &chain->next));
                                         if (err) {
                                                 chain->next = NULL;
@@ -3111,7 +3111,7 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
                  */
                 size_t cwdlen = attr->cwd ? strsize(attr->cwd) : strsize("/");
 
-                err = _kmalloc(_MM_KRN, cwdlen, NULL, 0, 0, cast(void *, &proc->cwd));
+                err = _kmalloc(_MM_KRN, cwdlen, 0, NULL, 0, 0, cast(void *, &proc->cwd));
                 if (!err) {
                         if (attr->cwd && attr->cwd[0] == '/') {
                                 strcpy(proc->cwd, attr->cwd);
@@ -3358,14 +3358,14 @@ static int analyze_shebang(_process_t *proc, const char *cmd, char **cmdarg)
         size_t fnlen = args ? ((u32_t)args - (u32_t)cmd) : strsize(cmd);
 
         // allocate file name
-        int err = _kmalloc(_MM_KRN, fnlen, NULL, 0, 0, cast(void **, &filename));
+        int err = _kmalloc(_MM_KRN, fnlen, 0, NULL, 0, 0, cast(void **, &filename));
         if (err) {
                 goto finish;
         }
         sys_strlcpy(filename, cmd, fnlen);
 
         // allocate line
-        err = _kzalloc(_MM_KRN, SHEBANGLEN, NULL, 0, 0, cast(void **, &line));
+        err = _kzalloc(_MM_KRN, SHEBANGLEN, 0, NULL, 0, 0, cast(void **, &line));
         if (err) {
                 goto finish;
         }
@@ -3412,7 +3412,7 @@ static int analyze_shebang(_process_t *proc, const char *cmd, char **cmdarg)
 
                 size_t arglen = strsize(p) + strsize(filename) + argslen;
 
-                err = _kmalloc(_MM_KRN, arglen, NULL, 0, 0, cast(void **, cmdarg));
+                err = _kmalloc(_MM_KRN, arglen, 0, NULL, 0, 0, cast(void **, cmdarg));
                 if (!err) {
                         sys_strlcpy(*cmdarg, p, arglen);
                         sys_strlcat(*cmdarg, " ", arglen);
@@ -3558,7 +3558,7 @@ static int argtab_create(const char *str, u16_t *argc, char **argv[])
 
                                 // add argument to list
                                 char *arg;
-                                err = _kmalloc(_MM_KRN, str_len + 1, NULL, 0, 0, cast(void **, &arg));
+                                err = _kmalloc(_MM_KRN, str_len + 1, 0, NULL, 0, 0, cast(void **, &arg));
                                 if (!err) {
                                         str = start;
                                         argument_parse(&str, arg);
@@ -3589,7 +3589,7 @@ static int argtab_create(const char *str, u16_t *argc, char **argv[])
                         *argc = no_of_args;
 
                         char **arg = NULL;
-                        err = _kmalloc(_MM_KRN, (no_of_args + 1) * sizeof(char *), NULL, 0, 0, cast(void *, &arg));
+                        err = _kmalloc(_MM_KRN, (no_of_args + 1) * sizeof(char *), 0, NULL, 0, 0, cast(void *, &arg));
                         if (!err) {
                                 for (int i = 0; i < no_of_args; i++) {
                                         arg[i] = sys_llist_take_front(largs);
@@ -3668,7 +3668,7 @@ int _process_register_appset(const void **appset_address_array, size_t appset_co
         for (size_t i = 0; i < appset_count; i++) {
 
                 appset_table_t *at = NULL;
-                err = _kmalloc(_MM_KRN, sizeof(*at), _cpuctl_fast_mem, 0, 0, cast(void **, &at));
+                err = _kmalloc(_MM_KRN, sizeof(*at), 0, _cpuctl_fast_mem, 0, 0, cast(void **, &at));
                 if (err) {
                         break;
                 }
@@ -3757,7 +3757,7 @@ static int allocate_process_globals(_process_t *proc, size_t app_ctx_size, const
 
         if (*usrprog->globals_size > 0) {
                 res_header_t *mem;
-                err = _kzalloc(_MM_PROG, *usrprog->globals_size, pref_ram, _MM_FLAG__DMA, _MM_FLAG__DMA,
+                err = _kzalloc(_MM_PROG, *usrprog->globals_size, 0, pref_ram, _MM_FLAG__DMA, _MM_FLAG__DMA,
                         cast(void *, &mem));
                 if (!err) {
                         proc->globals = &mem[1];
@@ -3767,7 +3767,7 @@ static int allocate_process_globals(_process_t *proc, size_t app_ctx_size, const
 
         if (!err and (app_ctx_size > 0)) {
                 res_header_t *ctx;
-                err = _kzalloc(_MM_PROG, app_ctx_size, pref_ram, _MM_FLAG__DMA, _MM_FLAG__DMA, cast(void *, &ctx));
+                err = _kzalloc(_MM_PROG, app_ctx_size, 0, pref_ram, _MM_FLAG__DMA, _MM_FLAG__DMA, cast(void *, &ctx));
                 if (!err) {
                         proc->app_ctx = &ctx[1];
                         _process_register_resource(proc, ctx);

@@ -59,7 +59,7 @@
 void * pvPortMalloc( size_t xWantedSize )
 {
     void *pvReturn = NULL;
-    _kmalloc(_MM_KRN, xWantedSize, _cpuctl_fast_mem, 0, 0, &pvReturn);
+    _kmalloc(_MM_KRN, xWantedSize, 0, _cpuctl_fast_mem, 0, 0, &pvReturn);
     return pvReturn;
 }
 /*-----------------------------------------------------------*/

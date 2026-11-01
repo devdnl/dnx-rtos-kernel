@@ -28,11 +28,9 @@ Brief   USB Host driver
 /*==============================================================================
   Include files
 ==============================================================================*/
-#include <stdalign.h>
 #include "drivers/driver.h"
 #include "drivers/class/storage/mbr.h"
 #include "stm32f4/lib/stm32f4xx_rcc.h"
-#include "stm32f4/dma_ddi.h"
 #include "../usbh_ioctl.h"
 #include "gpio/gpio_ddi.h"
 
@@ -73,7 +71,6 @@ typedef struct {
         HCD_HandleTypeDef hhcd;
         bool class_active;
         u32_t irq_ctr_max;
-        alignas(_HEAP_ALIGN_) u8_t buffer[8 * SECTOR_SIZE];
 } USBH_t;
 
 /*==============================================================================
@@ -234,36 +231,18 @@ API_MOD_WRITE(USBH, void *device_handle, const u8_t *src, size_t count, fpos_t *
 
         USBH_t *hdl = device_handle;
 
-        if ((count & 0x1FF) || (*fpos & 0x1FF)) {
-                return EINVAL;
-        }
-
         int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
         if (!err) {
 
                 if (hdl->class_active) {
 
-                        bool unaligned = hdl->hhcd.Init.dma_enable &&
-                                (((uintptr_t)src % _HEAP_ALIGN_) || !sys_is_mem_dma_capable(src));
-
-                        if (unaligned) {
-                                DEBUG("write from unaligned source pointer");
-                        }
-
+                        /* request and buffer are aligned by the kernel (see API_MOD_STAT) */
                         *wrcnt = 0;
 
                         while (!err && count) {
 
-                                size_t len = unaligned ? min(count, sizeof(hdl->buffer)) : count;
-
-                                if (unaligned) {
-                                        if (_DMA_DDI_memcpy(hdl->buffer, src, len) != 0) {
-                                                DEBUG("DMA M2M transfer fail!");
-                                                memcpy(hdl->buffer, src, len);
-                                        }
-                                }
-
-                                u8_t *buf = unaligned ? hdl->buffer : const_cast(src);
+                                size_t len = count;
+                                u8_t *buf = const_cast(src);
                                 uint32_t sector_count = len / SECTOR_SIZE;
                                 uint32_t sector_addr = (*fpos / SECTOR_SIZE);
 
@@ -338,42 +317,24 @@ API_MOD_READ(USBH, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, s
 
         USBH_t *hdl = device_handle;
 
-        if ((count & 0x1FF) || (*fpos & 0x1FF)) {
-                return EINVAL;
-        }
-
         int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
         if (!err) {
 
                 if (hdl->class_active) {
 
-                        bool unaligned = hdl->hhcd.Init.dma_enable &&
-                                (((uintptr_t)dst % _HEAP_ALIGN_) || !sys_is_mem_dma_capable(dst));
-
-                        if (unaligned) {
-                                DEBUG("read to unaligned destination pointer");
-                        }
-
+                        /* request and buffer are aligned by the kernel (see API_MOD_STAT) */
                         *rdcnt = 0;
 
                         while (!err && count) {
 
-                                size_t len = unaligned ? min(count, sizeof(hdl->buffer)) : count;
-
-                                u8_t *buf = unaligned ? hdl->buffer : dst;
+                                size_t len = count;
+                                u8_t *buf = dst;
                                 uint32_t sector_count = len / SECTOR_SIZE;
                                 uint32_t sector_addr = (*fpos / SECTOR_SIZE);
 
                                 for (int try = 0; try < 3; try ++) {
                                         err = USBH_MSC_Read(&hdl->hUSBHost, 0, sector_addr, buf, sector_count);
                                         if (!err) {
-                                                if (unaligned) {
-                                                        if (_DMA_DDI_memcpy(dst, hdl->buffer, len) != 0) {
-                                                                DEBUG("DMA M2M transfer fail!");
-                                                                memcpy(dst, hdl->buffer, len);
-                                                        }
-                                                }
-
                                                 dst += len;
                                                 *fpos += len;
                                                 *rdcnt += len;
@@ -502,6 +463,13 @@ API_MOD_STAT(USBH, void *device_handle, struct vfs_dev_stat *device_stat)
         USBH_t *hdl = device_handle;
 
         device_stat->st_blksize = SECTOR_SIZE;
+
+        /* data buffer requirements of DMA transfers (bounce buffers are used by the kernel) */
+        if (hdl->hhcd.Init.dma_enable) {
+                device_stat->st_rdbufalign = _HEAP_ALIGN_;
+                device_stat->st_wrbufalign = _HEAP_ALIGN_;
+                device_stat->st_bufdma = true;
+        }
 
         if (hdl->class_active) {
                 MSC_LUNTypeDef info;
@@ -1133,7 +1101,7 @@ void USBH_Delay(uint32_t Delay)
 void *USBH_malloc(uint32_t size)
 {
         void *mem = NULL;
-        int err = sys_zalloc2(size, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, &mem);
+        int err = sys_zalloc2(size, 0, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, &mem);
         return !err ? mem : NULL;
 }
 
