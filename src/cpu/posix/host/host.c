@@ -122,6 +122,7 @@ static struct {
         char *fs_root;
         const char *tap_name;
         char *board_script;
+        const char *panel_socket;
         bool board;
         int tap_fd;
 } host;
@@ -403,6 +404,8 @@ static void show_usage(const char *name)
         printf("                           TAP interface (e.g. tap0)\n");
         printf("      --board <script>     board model (Lua script describing hardware connected\n");
         printf("                           to the microcontroller, e.g. GPIO and I2C devices)\n");
+        printf("      --panel <socket>     create socket of the board panel (visualization in\n");
+        printf("                           a web browser by tools/simpanel.py), needs --board\n");
         printf("  -h, --help               show this help\n\n");
         printf("Press Ctrl+\\ to terminate simulator.\n");
 }
@@ -667,6 +670,11 @@ static void host_cleanup(void)
                         host.uart[i].link_created = false;
                 }
         }
+
+        /* socket of board panel (created by board module), also at termination by signal */
+        if (host.board && host.panel_socket) {
+                unlink(host.panel_socket);
+        }
 }
 
 //==============================================================================
@@ -728,6 +736,14 @@ static bool parse_args(int argc, char *argv[])
                         }
                         free(host.board_script);
                         host.board_script = script;
+                        i++;
+
+                } else if (strcmp(opt, "--panel") == 0) {
+                        if (!val || (*val == '\0')) {
+                                fprintf(stderr, "Invalid panel socket: %s\n", val ? val : "");
+                                return false;
+                        }
+                        host.panel_socket = val;
                         i++;
 
                 } else if (strcmp(opt, "--hostfs") == 0) {
@@ -796,6 +812,11 @@ int main(int argc, char *argv[])
                 return EXIT_FAILURE;
         }
 
+        if (host.panel_socket && !host.board_script) {
+                fprintf(stderr, "Option --panel requires --board\n");
+                return EXIT_FAILURE;
+        }
+
         host.ram = aligned_alloc(64, host.ram_size);
         if (!host.ram) {
                 perror("RAM");
@@ -812,7 +833,7 @@ int main(int argc, char *argv[])
         }
 
         if (host.board_script) {
-                if (_host_board_init(host.board_script) != 0) {
+                if (_host_board_init(host.board_script, host.panel_socket) != 0) {
                         host_cleanup();
                         return EXIT_FAILURE;
                 }

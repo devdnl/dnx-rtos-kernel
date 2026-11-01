@@ -53,7 +53,7 @@ extern "C" {
   Exported macros
 ==============================================================================*/
 /** version of board interface */
-#define _HOST_BOARD_INTERFACE_VERSION 3
+#define _HOST_BOARD_INTERFACE_VERSION 4
 
 /** I2C address flag: 10-bit address */
 #define _HOST_BOARD_I2C_ADDR_10BIT 0x8000
@@ -75,10 +75,12 @@ extern "C" {
  *         system start.
  *
  * @param  script       board description file
+ * @param  panel        path of panel socket (Unix domain socket created by
+ *                      module, tools/simpanel.py connects to it), NULL: no panel
  *
  * @return 0 on success, otherwise -1 (error message is printed by module).
  */
-extern int _host_board_init(const char *script);
+extern int _host_board_init(const char *script, const char *panel);
 
 /**
  * @brief  Stop board model (simulator exit).

@@ -36,6 +36,7 @@
   Include files
 ==============================================================================*/
 #include <errno.h>
+#include <fcntl.h>
 #include <libgen.h>
 #include <pthread.h>
 #include <signal.h>
@@ -44,6 +45,9 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <sys/un.h>
 
 #include "lua/lua.h"
 #include "lua/lauxlib.h"
@@ -60,12 +64,17 @@
 #define I2C_BUSES       16
 #define SPI_BUSES       16
 #define REQUEST_TIMEOUT 5000 /* ms */
+#define PANEL_LINE_MAX  4096 /* max length of panel message */
+#define PANEL_SEND_TMO  1000 /* ms */
 
 /*==============================================================================
   Local object types
 ==============================================================================*/
 typedef enum {
         EVENT__GPIO_OUTPUT,
+        EVENT__PANEL_CONNECT,
+        EVENT__PANEL_MESSAGE,
+        EVENT__PANEL_DISCONNECT,
 } event_type_t;
 
 typedef struct {
@@ -73,6 +82,7 @@ typedef struct {
         int port;
         uint32_t state;
         uint32_t changed;
+        char *text;             /* panel message (allocated) */
 } event_t;
 
 typedef enum {
@@ -137,6 +147,13 @@ static struct {
         int ref_i2c_request;
         int ref_spi_request;
         int ref_run_exit;
+        int ref_panel_event;
+
+        const char *panel_path;           /* panel socket path (NULL: no panel) */
+        pthread_t panel_thread;
+        int panel_listen;                 /* listening socket */
+        int panel_client;                 /* connected panel (-1: none) */
+        bool panel_started;
 
         bool init_done;
         int init_result;
@@ -148,6 +165,8 @@ static struct {
         .cond = PTHREAD_COND_INITIALIZER,
         .req_mtx = PTHREAD_MUTEX_INITIALIZER,
         .req_cond = PTHREAD_COND_INITIALIZER,
+        .panel_listen = -1,
+        .panel_client = -1,
 };
 
 /*
@@ -175,6 +194,8 @@ static const char PRELUDE[] =
         "host = {}\n"
         "host.time_ms = B.time_ms\n"
         "host.log = print\n"
+        "host.script = B.SCRIPT\n"
+        "host.dir = string.match(B.SCRIPT, '^(.*)/[^/]*$') or '.'\n"
         "\n"
         "local timers = {}\n"
         "\n"
@@ -248,11 +269,28 @@ static const char PRELUDE[] =
         "    return v and true or false\n"
         "end\n"
         "\n"
+        "-- observers of pin level seen by the system (panel)\n"
+        "local watchers = {}\n"
+        "\n"
+        "local function watch_pin(p, n, fn)\n"
+        "    local key = p * 32 + n\n"
+        "    watchers[key] = watchers[key] or {}\n"
+        "    table.insert(watchers[key], fn)\n"
+        "end\n"
+        "\n"
+        "local function notify(p, n)\n"
+        "    local list = watchers[p * 32 + n]\n"
+        "    if list then\n"
+        "        local v = B.level(p, n)\n"
+        "        for _, fn in ipairs(list) do call(fn, v) end\n"
+        "    end\n"
+        "end\n"
+        "\n"
         "-- drive input pin of the system (true/1: high, false/0: low)\n"
-        "function gpio.set(name, v) local p, n = pin(name); B.drive(p, n, level(v)) end\n"
+        "function gpio.set(name, v) local p, n = pin(name); B.drive(p, n, level(v)); notify(p, n) end\n"
         "\n"
         "-- stop driving pin (system sees its own output state)\n"
-        "function gpio.release(name) local p, n = pin(name); B.drive(p, n, nil) end\n"
+        "function gpio.release(name) local p, n = pin(name); B.drive(p, n, nil); notify(p, n) end\n"
         "\n"
         "-- pin level seen by the system\n"
         "function gpio.get(name) local p, n = pin(name); return B.level(p, n) end\n"
@@ -284,6 +322,7 @@ static const char PRELUDE[] =
         "                local v = (state >> n) & 1 == 1\n"
         "                for _, h in ipairs(list) do call(h.fn, v, h.name) end\n"
         "            end\n"
+        "            notify(port, n)\n"
         "        end\n"
         "    end\n"
         "end\n"
@@ -493,7 +532,198 @@ static const char PRELUDE[] =
         "    return res\n"
         "end\n"
         "\n"
-        "return next_timeout, run_timers, gpio_event, i2c_request, run_exit, spi_request\n";
+        "-- panel -----------------------------------------------------------------\n"
+        "panel = {}\n"
+        "\n"
+        "local signals, order = {}, {}     -- id -> {id, kind, ui, value}, definition order\n"
+        "local controls = {}               -- id -> list of fn(value, id)\n"
+        "local dirty, dirty_list = {}, {}\n"
+        "local page_name = string.match(B.SCRIPT, '([^/]+)%.lua$') or 'default'\n"
+        "local connected = false\n"
+        "local flush_timer = nil\n"
+        "local FLUSH_MS = 20\n"
+        "\n"
+        "local ARRAY = {}\n"
+        "\n"
+        "local ESC = {['\"'] = '\\\\\"', ['\\\\'] = '\\\\\\\\', ['\\n'] = '\\\\n', ['\\r'] = '\\\\r', ['\\t'] = '\\\\t'}\n"
+        "\n"
+        "local function json(v)\n"
+        "    local t = type(v)\n"
+        "    if t == 'string' then\n"
+        "        return '\"' .. (v:gsub('[%c\"\\\\]', function(c)\n"
+        "            return ESC[c] or string.format('\\\\u%04x', c:byte())\n"
+        "        end)) .. '\"'\n"
+        "    elseif t == 'number' then\n"
+        "        if v ~= v or v == math.huge or v == -math.huge then return 'null' end\n"
+        "        if math.type(v) == 'integer' then return tostring(v) end\n"
+        "        return string.format('%.14g', v)\n"
+        "    elseif t == 'boolean' then\n"
+        "        return tostring(v)\n"
+        "    elseif t == 'table' then\n"
+        "        local out = {}\n"
+        "        if getmetatable(v) == ARRAY or #v > 0 then\n"
+        "            for i = 1, #v do out[i] = json(v[i]) end\n"
+        "            return '[' .. table.concat(out, ',') .. ']'\n"
+        "        end\n"
+        "        local keys = {}\n"
+        "        for k in pairs(v) do keys[#keys + 1] = tostring(k) end\n"
+        "        table.sort(keys)\n"
+        "        for i, k in ipairs(keys) do out[i] = json(k) .. ':' .. json(v[k]) end\n"
+        "        return '{' .. table.concat(out, ',') .. '}'\n"
+        "    end\n"
+        "    return 'null'\n"
+        "end\n"
+        "\n"
+        "local function send(obj)\n"
+        "    if connected and not B.panel_send(json(obj)) then\n"
+        "        connected = false\n"
+        "    end\n"
+        "end\n"
+        "\n"
+        "local function send_init()\n"
+        "    local list, state = setmetatable({}, ARRAY), {}\n"
+        "    for _, id in ipairs(order) do\n"
+        "        local e = signals[id]\n"
+        "        list[#list + 1] = {id = id, kind = e.kind, ui = e.ui}\n"
+        "        if e.value ~= nil then state[id] = e.value end\n"
+        "    end\n"
+        "    dirty, dirty_list = {}, {}\n"
+        "    send({t = 'init', page = page_name, board = B.SCRIPT, signals = list, state = state})\n"
+        "end\n"
+        "\n"
+        "local function flush()\n"
+        "    flush_timer = nil\n"
+        "    local state = {}\n"
+        "    for _, id in ipairs(dirty_list) do state[id] = signals[id].value end\n"
+        "    dirty, dirty_list = {}, {}\n"
+        "    if next(state) ~= nil then send({t = 'state', state = state}) end\n"
+        "end\n"
+        "\n"
+        "local function publish(id, v)\n"
+        "    local e = signals[id]\n"
+        "    if e.value == v and type(v) ~= 'table' then return end\n"
+        "    e.value = v\n"
+        "    if not connected then return end\n"
+        "    if not dirty[id] then\n"
+        "        dirty[id] = true\n"
+        "        dirty_list[#dirty_list + 1] = id\n"
+        "    end\n"
+        "    if not flush_timer then flush_timer = host.timer(FLUSH_MS, flush) end\n"
+        "end\n"
+        "\n"
+        "local function define(id, kind, opts, value)\n"
+        "    if type(id) ~= 'string' or not string.match(id, '^[%w_%.%-]+$') then\n"
+        "        error('panel: invalid signal id: ' .. tostring(id), 3)\n"
+        "    end\n"
+        "    if signals[id] then error('panel: signal ' .. id .. ' is already defined', 3) end\n"
+        "    local ui = {}\n"
+        "    for k, v in pairs(opts or {}) do\n"
+        "        local t = type(v)\n"
+        "        if type(k) == 'string' and (t == 'string' or t == 'number' or t == 'boolean') then ui[k] = v end\n"
+        "    end\n"
+        "    signals[id] = {id = id, kind = kind, ui = ui, value = value}\n"
+        "    order[#order + 1] = id\n"
+        "    if connected then send_init() end\n"
+        "end\n"
+        "\n"
+        "local function add_control(id, fn)\n"
+        "    controls[id] = controls[id] or {}\n"
+        "    table.insert(controls[id], fn)\n"
+        "end\n"
+        "\n"
+        "-- select page of the panel (directory sim-env/panel/<name>, default: board script name)\n"
+        "function panel.page(name)\n"
+        "    page_name = tostring(name)\n"
+        "    if connected then send_init() end\n"
+        "end\n"
+        "\n"
+        "-- show pin level seen by the system (e.g. LED), opts.active_low: inverted\n"
+        "function panel.output(id, name, opts)\n"
+        "    local p, n = pin(name)\n"
+        "    local inv = (opts and opts.active_low) and true or false\n"
+        "    define(id, 'output', opts, B.level(p, n) ~= inv)\n"
+        "    watch_pin(p, n, function(v) publish(id, v ~= inv) end)\n"
+        "end\n"
+        "\n"
+        "-- panel control drives input pin of the system (button, switch),\n"
+        "-- opts.active_low: inverted, opts.value: initial state (default false)\n"
+        "function panel.input(id, name, opts)\n"
+        "    pin(name)\n"
+        "    local inv = (opts and opts.active_low) and true or false\n"
+        "    local init = (opts and opts.value) and true or false\n"
+        "    define(id, 'input', opts, init)\n"
+        "    gpio.set(name, init ~= inv)\n"
+        "    add_control(id, function(v)\n"
+        "        v = level(v)\n"
+        "        gpio.set(name, v ~= inv)\n"
+        "        publish(id, v)\n"
+        "    end)\n"
+        "end\n"
+        "\n"
+        "-- value shown by the panel: initial value or function polled every\n"
+        "-- opts.period ms (default 500), changed by panel.set()\n"
+        "function panel.value(id, v, opts)\n"
+        "    if type(v) == 'function' then\n"
+        "        local fn = v\n"
+        "        define(id, 'value', opts, fn())\n"
+        "        host.timer((opts and opts.period) or 500, function() publish(id, fn()) end, true)\n"
+        "    else\n"
+        "        define(id, 'value', opts, v)\n"
+        "    end\n"
+        "end\n"
+        "\n"
+        "-- panel control (slider, field, button): fn(value, id) is called when the\n"
+        "-- value is changed in the panel, opts.value: initial value\n"
+        "function panel.control(id, fn, opts)\n"
+        "    assert(type(fn) == 'function', 'panel.control: function expected')\n"
+        "    define(id, 'control', opts, opts and opts.value)\n"
+        "    add_control(id, function(v, i)\n"
+        "        publish(id, v)\n"
+        "        fn(v, i)\n"
+        "    end)\n"
+        "end\n"
+        "\n"
+        "-- set value of signal (sent to the panel)\n"
+        "function panel.set(id, v)\n"
+        "    if not signals[id] then error('panel.set: unknown signal: ' .. tostring(id), 2) end\n"
+        "    publish(id, v)\n"
+        "end\n"
+        "\n"
+        "-- current value of signal\n"
+        "function panel.get(id)\n"
+        "    local e = signals[id]\n"
+        "    return e and e.value\n"
+        "end\n"
+        "\n"
+        "-- panel is connected\n"
+        "function panel.connected()\n"
+        "    return connected\n"
+        "end\n"
+        "\n"
+        "-- panel event: 0 connected, 1 message, 2 disconnected\n"
+        "local function panel_event(kind, text)\n"
+        "    if kind == 0 then\n"
+        "        connected = true\n"
+        "        send_init()\n"
+        "    elseif kind == 2 then\n"
+        "        connected = false\n"
+        "    elseif kind == 1 then\n"
+        "        -- set <id> <type><value>, type: b (0/1), n (number), s (string)\n"
+        "        local id, t, v = string.match(text, '^set ([%w_%.%-]+) (%a)(.*)$')\n"
+        "        if t == 'b' then v = (v == '1')\n"
+        "        elseif t == 'n' then v = tonumber(v)\n"
+        "        elseif t ~= 's' then v = nil end\n"
+        "        if not id or v == nil then\n"
+        "            print('panel: invalid message: ' .. text)\n"
+        "        elseif not controls[id] then\n"
+        "            print('panel: signal is not a control: ' .. id)\n"
+        "        else\n"
+        "            for _, fn in ipairs(controls[id]) do call(fn, v, id) end\n"
+        "        end\n"
+        "    end\n"
+        "end\n"
+        "\n"
+        "return next_timeout, run_timers, gpio_event, i2c_request, run_exit, spi_request, panel_event\n";
 
 /*==============================================================================
   Function definitions
@@ -610,6 +840,51 @@ static int l_level(lua_State *L)
         pthread_mutex_unlock(&board.mtx);
 
         lua_pushboolean(L, (state & mask) != 0);
+        return 1;
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: B.panel_send(line) -> true on success. Line (JSON) is sent to the
+ *         connected panel, the connection is closed on error (e.g. the panel
+ *         does not read data).
+ */
+//==============================================================================
+static int l_panel_send(lua_State *L)
+{
+        size_t len;
+        const char *msg = luaL_checklstring(L, 1, &len);
+
+        pthread_mutex_lock(&board.mtx);
+        int fd = board.panel_client;
+        pthread_mutex_unlock(&board.mtx);
+
+        bool ok = (fd >= 0);
+
+        for (int i = 0; ok && (i < 2); i++) {
+                const char *p = (i == 0) ? msg : "\n";
+                size_t n = (i == 0) ? len : 1;
+
+                while (n > 0) {
+                        ssize_t r = send(fd, p, n, MSG_NOSIGNAL);
+                        if (r > 0) {
+                                p += r;
+                                n -= (size_t)r;
+                        } else if ((r < 0) && (errno == EINTR)) {
+                                continue;
+                        } else {
+                                ok = false;
+                                break;
+                        }
+                }
+        }
+
+        if (!ok && (fd >= 0)) {
+                /* reader thread closes the connection */
+                shutdown(fd, SHUT_RDWR);
+        }
+
+        lua_pushboolean(L, ok);
         return 1;
 }
 
@@ -865,6 +1140,7 @@ static bool board_load(void)
                 {"log", l_log},
                 {"drive", l_drive},
                 {"level", l_level},
+                {"panel_send", l_panel_send},
                 {NULL, NULL},
         };
 
@@ -883,12 +1159,15 @@ static bool board_load(void)
         lua_setfield(L, -2, "SPI_LSB_FIRST");
         lua_pushinteger(L, _HOST_BOARD_I2C_ADDR_10BIT);
         lua_setfield(L, -2, "I2C_ADDR_10BIT");
+        lua_pushstring(L, board.script);
+        lua_setfield(L, -2, "SCRIPT");
 
-        if (lua_pcall(L, 1, 6, 1) != LUA_OK) {
+        if (lua_pcall(L, 1, 7, 1) != LUA_OK) {
                 board_log(lua_tostring(L, -1));
                 return false;
         }
 
+        board.ref_panel_event = luaL_ref(L, LUA_REGISTRYINDEX);
         board.ref_spi_request = luaL_ref(L, LUA_REGISTRYINDEX);
         board.ref_run_exit = luaL_ref(L, LUA_REGISTRYINDEX);
         board.ref_i2c_request = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -979,6 +1258,10 @@ static void *board_thread(void *arg)
                 pthread_mutex_unlock(&board.mtx);
 
                 if (stop) {
+                        for (size_t i = 0; i < n; i++) {
+                                free(events[i].text);
+                        }
+
                         call_ref(board.ref_run_exit, 0, 0);
 
                         pthread_mutex_lock(&board.mtx);
@@ -995,12 +1278,24 @@ static void *board_thread(void *arg)
                 }
 
                 for (size_t i = 0; i < n; i++) {
-                        if (events[i].type == EVENT__GPIO_OUTPUT) {
+                        switch (events[i].type) {
+                        case EVENT__GPIO_OUTPUT:
                                 lua_pushinteger(board.L, events[i].port);
                                 lua_pushinteger(board.L, events[i].state);
                                 lua_pushinteger(board.L, events[i].changed);
                                 call_ref(board.ref_gpio_event, 3, 0);
+                                break;
+
+                        case EVENT__PANEL_CONNECT:
+                        case EVENT__PANEL_MESSAGE:
+                        case EVENT__PANEL_DISCONNECT:
+                                lua_pushinteger(board.L, events[i].type - EVENT__PANEL_CONNECT);
+                                lua_pushstring(board.L, events[i].text ? events[i].text : "");
+                                call_ref(board.ref_panel_event, 2, 0);
+                                break;
                         }
+
+                        free(events[i].text);
                 }
 
                 /* request after events: events were sent by system before request (events
@@ -1019,6 +1314,170 @@ static void *board_thread(void *arg)
 
 //==============================================================================
 /**
+ * @brief  Queue event for board thread. Called with locked mutex. Text of lost
+ *         event is freed.
+ *
+ * @param  ev           event
+ */
+//==============================================================================
+static void queue_event(const event_t *ev)
+{
+        size_t next = (board.head + 1) % EVENT_QUEUE_LEN;
+        if (next != board.tail) {
+                board.queue[board.head] = *ev;
+                board.head = next;
+                pthread_cond_broadcast(&board.cond);
+        } else {
+                free(ev->text);
+                board.lost++;
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Queue panel event (panel thread).
+ *
+ * @param  type         event type
+ * @param  text         message (copied, can be NULL)
+ */
+//==============================================================================
+static void queue_panel_event(event_type_t type, const char *text)
+{
+        event_t ev = {.type = type, .text = text ? strdup(text) : NULL};
+
+        pthread_mutex_lock(&board.mtx);
+        if (board.running) {
+                queue_event(&ev);
+        } else {
+                free(ev.text);
+        }
+        pthread_mutex_unlock(&board.mtx);
+}
+
+//==============================================================================
+/**
+ * @brief  Panel thread: accepts panel connection (one at a time) and queues
+ *         received lines as events of board thread.
+ */
+//==============================================================================
+static void *panel_thread(void *arg)
+{
+        (void)arg;
+
+        static char line[PANEL_LINE_MAX];
+
+        for (;;) {
+                int fd = accept4(board.panel_listen, NULL, NULL, SOCK_CLOEXEC);
+                if (fd < 0) {
+                        if (errno == EINTR || errno == ECONNABORTED) {
+                                continue;
+                        }
+                        break;
+                }
+
+                struct timeval tmo = {.tv_sec = PANEL_SEND_TMO / 1000,
+                                      .tv_usec = (PANEL_SEND_TMO % 1000) * 1000};
+                setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tmo, sizeof(tmo));
+
+                pthread_mutex_lock(&board.mtx);
+                board.panel_client = fd;
+                pthread_mutex_unlock(&board.mtx);
+
+                queue_panel_event(EVENT__PANEL_CONNECT, NULL);
+
+                size_t len = 0;
+                bool skip = false; /* too long line is dropped */
+
+                for (;;) {
+                        char buf[512];
+                        ssize_t r = recv(fd, buf, sizeof(buf), 0);
+                        if (r < 0 && errno == EINTR) {
+                                continue;
+                        }
+                        if (r <= 0) {
+                                break;
+                        }
+
+                        for (ssize_t i = 0; i < r; i++) {
+                                char ch = buf[i];
+                                if (ch == '\n') {
+                                        if (!skip && (len > 0)) {
+                                                if (line[len - 1] == '\r') {
+                                                        len--;
+                                                }
+                                                line[len] = '\0';
+                                                queue_panel_event(EVENT__PANEL_MESSAGE, line);
+                                        }
+                                        len = 0;
+                                        skip = false;
+                                } else if (len < sizeof(line) - 1) {
+                                        line[len++] = ch;
+                                } else {
+                                        skip = true;
+                                }
+                        }
+                }
+
+                pthread_mutex_lock(&board.mtx);
+                board.panel_client = -1;
+                pthread_mutex_unlock(&board.mtx);
+
+                close(fd);
+                queue_panel_event(EVENT__PANEL_DISCONNECT, NULL);
+        }
+
+        return NULL;
+}
+
+//==============================================================================
+/**
+ * @brief  Create panel socket and start panel thread.
+ *
+ * @return 0 on success, otherwise -1.
+ */
+//==============================================================================
+static int panel_start(void)
+{
+        struct sockaddr_un addr = {.sun_family = AF_UNIX};
+
+        if (strlen(board.panel_path) >= sizeof(addr.sun_path)) {
+                fprintf(stderr, "board: panel socket path is too long: %s\n", board.panel_path);
+                return -1;
+        }
+
+        strcpy(addr.sun_path, board.panel_path);
+
+        board.panel_listen = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+        if (board.panel_listen < 0) {
+                perror("board: panel socket");
+                return -1;
+        }
+
+        unlink(board.panel_path);
+
+        if (  (bind(board.panel_listen, (struct sockaddr *)&addr, sizeof(addr)) != 0)
+           || (listen(board.panel_listen, 1) != 0) ) {
+                fprintf(stderr, "board: panel socket %s: %s\n", board.panel_path, strerror(errno));
+                close(board.panel_listen);
+                board.panel_listen = -1;
+                return -1;
+        }
+
+        int err = pthread_create(&board.panel_thread, NULL, panel_thread, NULL);
+        if (err) {
+                fprintf(stderr, "board: unable to create panel thread: %s\n", strerror(err));
+                close(board.panel_listen);
+                board.panel_listen = -1;
+                unlink(board.panel_path);
+                return -1;
+        }
+
+        board.panel_started = true;
+        return 0;
+}
+
+//==============================================================================
+/**
  * @brief  Load board description and start board model.
  *
  * @param  script       board description file
@@ -1026,9 +1485,10 @@ static void *board_thread(void *arg)
  * @return 0 on success, otherwise -1.
  */
 //==============================================================================
-int _host_board_init(const char *script)
+int _host_board_init(const char *script, const char *panel)
 {
         board.script = script;
+        board.panel_path = panel;
         clock_gettime(CLOCK_MONOTONIC, &board.t0);
 
         /* board thread does not handle any signal (scheduler signals are sent to tasks) */
@@ -1053,6 +1513,15 @@ int _host_board_init(const char *script)
         if (result != 0) {
                 pthread_join(board.thread, NULL);
                 fprintf(stderr, "board: unable to load %s\n", script);
+
+        } else if (panel) {
+                pthread_sigmask(SIG_SETMASK, &all, &old);
+                result = panel_start();
+                pthread_sigmask(SIG_SETMASK, &old, NULL);
+
+                if (result != 0) {
+                        _host_board_exit();
+                }
         }
 
         return result;
@@ -1084,7 +1553,17 @@ void _host_board_exit(void)
                 }
         }
 
+        int client = board.panel_client;
+
         pthread_mutex_unlock(&board.mtx);
+
+        /* panel sees end of connection, socket file is removed */
+        if (board.panel_started) {
+                if (client >= 0) {
+                        shutdown(client, SHUT_RDWR);
+                }
+                unlink(board.panel_path);
+        }
 }
 
 //==============================================================================
@@ -1106,19 +1585,12 @@ void _host_board_gpio_output(int port, uint32_t state, uint32_t changed)
 
         board.out_state[port] = state;
 
-        size_t next = (board.head + 1) % EVENT_QUEUE_LEN;
-        if (next != board.tail) {
-                board.queue[board.head] = (event_t){
-                        .type = EVENT__GPIO_OUTPUT,
-                        .port = port,
-                        .state = state,
-                        .changed = changed,
-                };
-                board.head = next;
-                pthread_cond_broadcast(&board.cond);
-        } else {
-                board.lost++;
-        }
+        queue_event(&(event_t){
+                .type = EVENT__GPIO_OUTPUT,
+                .port = port,
+                .state = state,
+                .changed = changed,
+        });
 
         pthread_mutex_unlock(&board.mtx);
 }
