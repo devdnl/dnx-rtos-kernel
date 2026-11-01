@@ -95,7 +95,7 @@ as follow (EEPROM example):
 #include <sys/ioctl.h>
 
 static const I2C_config_t cfg = {
-      .address       = 0xA0,                          // EEPROM address
+      .address       = 0x50,                          // EEPROM address (7-bit)
       .sub_addr_mode = I2C_SUB_ADDR_MODE__2_BYTES,    // EEPROM up to 64KiB
       .addr_10bit    = false,                         // 7-bit address
       .mode          = I2C_MODE__MASTER,              // master mode
@@ -126,7 +126,7 @@ as follow:
 #include <sys/ioctl.h>
 
 static const I2C_config_t cfg = {
-      .address       = 0xA0,                          // microcontroller address
+      .address       = 0x50,                          // microcontroller address (7-bit)
       .sub_addr_mode = I2C_SUB_ADDR_MODE__DISABLED,   // don't care in slave mode
       .addr_10bit    = false,                         // 7-bit address
       .mode          = I2C_MODE__SLAVE,               // slave mode
@@ -197,7 +197,7 @@ fseek() value and next read data sequence.
 \subsubsection drv-i2c-ddesc-write-master Master mode
 Data to the I2C device can be written as regular file. Example assumptions:
 - EEPROM device is AT24C32 (4KiB EEPROM)
-- EEPROM address is 0xA0
+- EEPROM address is 0x50 (7-bit)
 - EEPROM is visible in system as "/dev/ee"
 
 @code
@@ -211,7 +211,7 @@ static const char *blk1     = "Data block 1 at 0x0";
 static const char *blk2     = "Data block 2 at 0x100";
 
 static const I2C_config_t cfg = {
-      .address       = 0xA0,                          // EEPROM address
+      .address       = 0x50,                          // EEPROM address (7-bit)
       .sub_addr_mode = I2C_SUB_ADDR_MODE__2_BYTES,    // EEPROM up to 64KiB
       .addr_10bit    = false,                         // 7-bit address
       .mode          = I2C_MODE__MASTER,              // master mode
@@ -259,7 +259,7 @@ data direction and selection event.
 static const char *dev_path = "/dev/I2C0";
 
 static const I2C_config_t cfg = {
-      .address       = 0xA0,                          // microcontroller address
+      .address       = 0x50,                          // microcontroller address (7-bit)
       .sub_addr_mode = I2C_SUB_ADDR_MODE__DISABLED,   // don't care in slave mode
       .addr_10bit    = false,                         // 7-bit address
       .mode          = I2C_MODE__SLAVE,               // slave mode
@@ -326,7 +326,7 @@ int_main(slave, STACK_DEPTH_MEDIUM, int argc, char *argv[])
 \subsubsection drv-i2c-ddesc-read-master Master mode
 Data to the I2C device can be read as regular file. Example assumptions:
 - EEPROM device is AT24C32 (4KiB EEPROM)
-- EEPROM address is 0xA0
+- EEPROM address is 0x50 (7-bit)
 - EEPROM is visible in system as "/dev/ee"
 
 @code
@@ -338,7 +338,7 @@ Data to the I2C device can be read as regular file. Example assumptions:
 static const char *dev_path = "/dev/ee";
 
 static const I2C_config_t cfg = {
-      .address       = 0xA0,                          // EEPROM address
+      .address       = 0x50,                          // EEPROM address (7-bit)
       .sub_addr_mode = I2C_SUB_ADDR_MODE__2_BYTES,    // EEPROM up to 64KiB
       .addr_10bit    = false,                         // 7-bit address
       .mode          = I2C_MODE__MASTER,              // master mode
@@ -391,7 +391,7 @@ data direction and selection event.
 static const char *dev_path = "/dev/I2C0";
 
 static const I2C_config_t cfg = {
-      .address       = 0xA0,                          // microcontroller address
+      .address       = 0x50,                          // microcontroller address (7-bit)
       .sub_addr_mode = I2C_SUB_ADDR_MODE__DISABLED,   // don't care in slave mode
       .addr_10bit    = false,                         // 7-bit address
       .mode          = I2C_MODE__SLAVE,               // slave mode
@@ -495,7 +495,7 @@ typedef enum {
  * Type represents I2C peripheral configuration.
  */
 typedef struct {
-        u16_t address;                     /*!< Device address 8 or 10 bit.*/
+        u16_t address;                     /*!< Device address: 7-bit (e.g. 0x50) or 10-bit (addr_10bit).*/
         I2C_sub_addr_mode_t sub_addr_mode; /*!< Number of bytes of sub-address (EEPROM, RTC).*/
         bool addr_10bit;                   /*!< @b true: 10 bit addressing enabled.*/
         I2C_mode_t mode;                   /*!< I2C peripheral mode*/

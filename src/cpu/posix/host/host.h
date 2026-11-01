@@ -172,6 +172,11 @@ extern void _host_i2c_stop(int bus);
 #define _HOST_SPI_LSB_FIRST 0x04
 extern int _host_spi_transfer(int bus, const uint8_t *tx, uint8_t *rx, size_t count, uint8_t fill, unsigned flags);
 
+/* LCD (board panel): framebuffer shown by the panel in a web browser (fb NULL: detach), format: pixel
+ * format of the LTDC driver (LTDC_pixel_format_t), bg_*: background color */
+extern void _host_lcd_attach(const void *fb, uint16_t width, uint16_t height, int format, uint8_t bg_r,
+                             uint8_t bg_g, uint8_t bg_b);
+
 /* Ethernet (TAP) */
 extern bool _host_eth_is_available(void);
 extern bool _host_eth_is_link_up(void);

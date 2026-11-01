@@ -132,9 +132,8 @@ void _I2C_LLD__master_stop(I2C_dev_t *hdl)
 
 //==============================================================================
 /**
- * @brief  Function send I2C address sequence. The address of configuration
- *         is 8-bit (7-bit address shifted left, e.g. 0xA0), 10-bit address is
- *         used directly.
+ * @brief  Function send I2C address sequence (7-bit or 10-bit address of
+ *         configuration).
  *
  * @param  hdl          device handle
  * @param  write        true: compose write address
@@ -152,7 +151,7 @@ int _I2C_LLD__master_send_address(I2C_dev_t *hdl, bool write, size_t count)
         if (hdl->config.addr_10bit) {
                 address = (hdl->config.address & 0x3FF) | _HOST_I2C_ADDR_10BIT;
         } else {
-                address = (hdl->config.address >> 1) & 0x7F;
+                address = hdl->config.address & 0x7F;
         }
 
         int result = _host_i2c_address(hdl->major, address, !write);

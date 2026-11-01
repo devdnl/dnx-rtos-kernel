@@ -32,7 +32,9 @@ Brief   LCD-TFT Display Controller module
 Driver handles LTDC LCD-TFT Display Controller.
 
 \section drv-ltdc-sup-arch Supported architectures
+\li stm32f7
 \li stm32h7
+\li posix (display is shown by the board panel of the simulator in a web browser)
 
 \section drv-ltdc-ddesc Details
 \subsection drv-ltdc-ddesc-num Meaning of major and minor numbers

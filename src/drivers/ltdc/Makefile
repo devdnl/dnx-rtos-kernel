@@ -10,6 +10,8 @@ ifeq ($(__ENABLE_LTDC__), _YES_)
       CSRC_ARCH   += drivers/ltdc/$(TARGET)/ltdc.c
       CSRC_ARCH   += drivers/ltdc/$(TARGET)/stm32h7xx_hal_ltdc.c
       CXXSRC_ARCH +=
+   else ifeq ($(TARGET), posix)
+      CSRC_ARCH   += drivers/ltdc/$(TARGET)/ltdc.c
    else
       UNSUPPORTED_MODULES += LTDC
    endif

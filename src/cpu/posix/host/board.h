@@ -53,7 +53,7 @@ extern "C" {
   Exported macros
 ==============================================================================*/
 /** version of board interface */
-#define _HOST_BOARD_INTERFACE_VERSION 4
+#define _HOST_BOARD_INTERFACE_VERSION 5
 
 /** I2C address flag: 10-bit address */
 #define _HOST_BOARD_I2C_ADDR_10BIT 0x8000
@@ -86,6 +86,22 @@ extern int _host_board_init(const char *script, const char *panel);
  * @brief  Stop board model (simulator exit).
  */
 extern void _host_board_exit(void);
+
+/**
+ * @brief  LCD framebuffer is shown by the panel (changed lines are sent
+ *         periodically). Framebuffer must be valid until it is detached.
+ *
+ * @param  fb           framebuffer (NULL: detach)
+ * @param  width        width in pixels
+ * @param  height       height in pixels
+ * @param  format       pixel format (LTDC_pixel_format_t: 0 ARGB8888, 1 RGB888,
+ *                      2 RGB565, 3 ARGB1555, 4 ARGB4444, 5 L8, 6 AL44, 7 AL88)
+ * @param  bg_r         background color (red)
+ * @param  bg_g         background color (green)
+ * @param  bg_b         background color (blue)
+ */
+extern void _host_board_lcd_attach(const void *fb, uint16_t width, uint16_t height, int format, uint8_t bg_r,
+                                   uint8_t bg_g, uint8_t bg_b);
 
 /**
  * @brief  GPIO output state was changed by system.

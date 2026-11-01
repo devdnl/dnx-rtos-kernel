@@ -560,7 +560,7 @@ int _I2C_LLD__master_send_address(I2C_dev_t *hdl, bool write, size_t count)
                 sys_critical_section_begin();
                 {
                         u16_t tmp = i2c->SR1;
-                        i2c->DR = _I2C_HEADER_ADDR_10BIT | ((hdl->config.address & 0xFE) >> 7);
+                        i2c->DR = _I2C_HEADER_ADDR_10BIT | ((hdl->config.address >> 7) & 0x06);
                         (void)tmp;
                 }
                 sys_critical_section_end();
@@ -574,17 +574,17 @@ int _I2C_LLD__master_send_address(I2C_dev_t *hdl, bool write, size_t count)
                 sys_critical_section_begin();
                 {
                         u16_t tmp = i2c->SR1;
-                        i2c->DR = hdl->config.address;
+                        i2c->DR = hdl->config.address & 0xFF;
                         (void)tmp;
                 }
                 sys_critical_section_end();
 
                 err = wait_for_event_poll(hdl, PI2C_SR1_ADDR, _I2C_TIMEOUT_BYTE_TRANSFER);
-                if (err) {
+                if (err || write) {
                         goto finish;
                 }
 
-                // send repeat start
+                // read: repeat start and header with read bit
                 err = _I2C_LLD__master_repeat_start(hdl);
                 if (err) {
                         goto finish;
@@ -597,9 +597,9 @@ int _I2C_LLD__master_send_address(I2C_dev_t *hdl, bool write, size_t count)
                                 SET_BIT(i2c->CR1, PI2C_CR1_POS | PI2C_CR1_ACK);
                         }
 
-                        u8_t hdr = _I2C_HEADER_ADDR_10BIT | ((hdl->config.address >> 7) & 0x6);
+                        u8_t hdr = _I2C_HEADER_ADDR_10BIT | ((hdl->config.address >> 7) & 0x06);
                         u16_t tmp = i2c->SR1;
-                        i2c->DR = write ? hdr : hdr | 0x01;
+                        i2c->DR = hdr | 0x01;
                         (void)tmp;
                 }
                 sys_critical_section_end();
@@ -621,7 +621,7 @@ int _I2C_LLD__master_send_address(I2C_dev_t *hdl, bool write, size_t count)
                         }
 
                         u16_t tmp = i2c->SR1;
-                        i2c->DR = write ? (hdl->config.address & 0xFE) : (hdl->config.address | 0x01);
+                        i2c->DR = ((hdl->config.address & 0x7F) << 1) | (write ? 0 : 1);
                         (void)tmp;
                 }
                 sys_critical_section_end();
@@ -976,7 +976,8 @@ int _I2C_LLD__slave_mode_setup(I2C_dev_t *hdl)
         if (hdl->config.mode == I2C_MODE__SLAVE) {
 
                 i2c->OAR1 = (1 << 14) // not used but documentation say to set this bit...
-                        | (hdl->config.address & 0x3FF) | (hdl->config.addr_10bit ? PI2C_OAR1_ADDMODE : 0);
+                        | (hdl->config.addr_10bit ? ((hdl->config.address & 0x3FF) | PI2C_OAR1_ADDMODE)
+                                                  : ((hdl->config.address & 0x7F) << 1));
 
                 i2c->OAR2 = 0;
 

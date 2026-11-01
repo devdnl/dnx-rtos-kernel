@@ -66,6 +66,7 @@
 #define REQUEST_TIMEOUT 5000 /* ms */
 #define PANEL_LINE_MAX  4096 /* max length of panel message */
 #define PANEL_SEND_TMO  1000 /* ms */
+#define LCD_REFRESH_MS  50   /* period of LCD refresh (changed lines are sent) */
 
 /*==============================================================================
   Local object types
@@ -153,7 +154,20 @@ static struct {
         pthread_t panel_thread;
         int panel_listen;                 /* listening socket */
         int panel_client;                 /* connected panel (-1: none) */
+        unsigned panel_conn;              /* number of panel connections */
+        pthread_mutex_t panel_send_mtx;   /* messages are not mixed */
         bool panel_started;
+
+        struct {
+                pthread_mutex_t mtx;
+                pthread_t thread;
+                const uint8_t *fb;        /* framebuffer of system (NULL: no LCD) */
+                uint16_t width;
+                uint16_t height;
+                int format;
+                uint8_t bg[3];
+                unsigned version;         /* changed by attach */
+        } lcd;
 
         bool init_done;
         int init_result;
@@ -167,6 +181,8 @@ static struct {
         .req_cond = PTHREAD_COND_INITIALIZER,
         .panel_listen = -1,
         .panel_client = -1,
+        .panel_send_mtx = PTHREAD_MUTEX_INITIALIZER,
+        .lcd = {.mtx = PTHREAD_MUTEX_INITIALIZER},
 };
 
 /*
@@ -700,6 +716,14 @@ static const char PRELUDE[] =
         "    return connected\n"
         "end\n"
         "\n"
+        "local touch_handlers = {}\n"
+        "\n"
+        "-- call fn(x, y, pressed) when LCD of the panel is touched (pressed false: released)\n"
+        "function panel.on_touch(fn)\n"
+        "    assert(type(fn) == 'function', 'panel.on_touch: function expected')\n"
+        "    table.insert(touch_handlers, fn)\n"
+        "end\n"
+        "\n"
         "-- panel event: 0 connected, 1 message, 2 disconnected\n"
         "local function panel_event(kind, text)\n"
         "    if kind == 0 then\n"
@@ -707,6 +731,14 @@ static const char PRELUDE[] =
         "        send_init()\n"
         "    elseif kind == 2 then\n"
         "        connected = false\n"
+        "    elseif kind == 1 and string.sub(text, 1, 6) == 'touch ' then\n"
+        "        -- touch <x> <y> <pressed: 0/1>\n"
+        "        local x, y, p = string.match(text, '^touch (%d+) (%d+) ([01])$')\n"
+        "        if not x then\n"
+        "            print('panel: invalid message: ' .. text)\n"
+        "        else\n"
+        "            for _, fn in ipairs(touch_handlers) do call(fn, tonumber(x), tonumber(y), p == '1') end\n"
+        "        end\n"
         "    elseif kind == 1 then\n"
         "        -- set <id> <type><value>, type: b (0/1), n (number), s (string)\n"
         "        local id, t, v = string.match(text, '^set ([%w_%.%-]+) (%a)(.*)$')\n"
@@ -845,15 +877,20 @@ static int l_level(lua_State *L)
 
 //==============================================================================
 /**
- * @brief  Lua: B.panel_send(line) -> true on success. Line (JSON) is sent to the
- *         connected panel, the connection is closed on error (e.g. the panel
- *         does not read data).
+ * @brief  Send message (line) to the connected panel. Message consists of
+ *         parts, new line is added. The connection is closed on error (e.g. the
+ *         panel does not read data).
+ *
+ * @param  part         message parts
+ * @param  size         sizes of parts
+ * @param  count        number of parts
+ *
+ * @return true on success.
  */
 //==============================================================================
-static int l_panel_send(lua_State *L)
+static bool panel_write(const char *const part[], const size_t size[], size_t count)
 {
-        size_t len;
-        const char *msg = luaL_checklstring(L, 1, &len);
+        pthread_mutex_lock(&board.panel_send_mtx);
 
         pthread_mutex_lock(&board.mtx);
         int fd = board.panel_client;
@@ -861,9 +898,9 @@ static int l_panel_send(lua_State *L)
 
         bool ok = (fd >= 0);
 
-        for (int i = 0; ok && (i < 2); i++) {
-                const char *p = (i == 0) ? msg : "\n";
-                size_t n = (i == 0) ? len : 1;
+        for (size_t i = 0; ok && (i <= count); i++) {
+                const char *p = (i < count) ? part[i] : "\n";
+                size_t n = (i < count) ? size[i] : 1;
 
                 while (n > 0) {
                         ssize_t r = send(fd, p, n, MSG_NOSIGNAL);
@@ -884,7 +921,23 @@ static int l_panel_send(lua_State *L)
                 shutdown(fd, SHUT_RDWR);
         }
 
-        lua_pushboolean(L, ok);
+        pthread_mutex_unlock(&board.panel_send_mtx);
+
+        return ok;
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: B.panel_send(line) -> true on success. Line (JSON) is sent to the
+ *         connected panel.
+ */
+//==============================================================================
+static int l_panel_send(lua_State *L)
+{
+        size_t len;
+        const char *msg = luaL_checklstring(L, 1, &len);
+
+        lua_pushboolean(L, panel_write(&msg, &len, 1));
         return 1;
 }
 
@@ -1381,6 +1434,7 @@ static void *panel_thread(void *arg)
 
                 pthread_mutex_lock(&board.mtx);
                 board.panel_client = fd;
+                board.panel_conn++;
                 pthread_mutex_unlock(&board.mtx);
 
                 queue_panel_event(EVENT__PANEL_CONNECT, NULL);
@@ -1431,6 +1485,171 @@ static void *panel_thread(void *arg)
 
 //==============================================================================
 /**
+ * @brief  Base64 encoding.
+ *
+ * @param  src          data
+ * @param  len          data length
+ * @param  dst          destination (4 * ((len + 2) / 3) bytes)
+ *
+ * @return Length of encoded data.
+ */
+//==============================================================================
+static size_t base64(const uint8_t *src, size_t len, char *dst)
+{
+        static const char T[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        char *p = dst;
+
+        for (size_t i = 0; i < len; i += 3) {
+                uint32_t v = (uint32_t)src[i] << 16;
+                if (i + 1 < len) v |= (uint32_t)src[i + 1] << 8;
+                if (i + 2 < len) v |= src[i + 2];
+
+                *p++ = T[(v >> 18) & 63];
+                *p++ = T[(v >> 12) & 63];
+                *p++ = (i + 1 < len) ? T[(v >> 6) & 63] : '=';
+                *p++ = (i + 2 < len) ? T[v & 63] : '=';
+        }
+
+        return (size_t)(p - dst);
+}
+
+//==============================================================================
+/**
+ * @brief  LCD thread: sends changed lines of the framebuffer to the panel.
+ *         Message: {"t":"lcd","w":<width>,"h":<height>,"fmt":"<format>",
+ *         "bg":[r,g,b],"y":<first line>,"n":<lines>,"data":"<base64>"}, LCD
+ *         without framebuffer: "w":0. All lines are sent after connection and
+ *         after framebuffer change (attach).
+ */
+//==============================================================================
+static void *lcd_thread(void *arg)
+{
+        (void)arg;
+
+        static const char *const FORMAT[] = {"argb8888", "rgb888", "rgb565", "argb1555", "argb4444", "l8",
+                                             "al44", "al88"};
+        static const uint8_t PIXEL_SIZE[] = {4, 3, 2, 2, 2, 1, 1, 2};
+
+        uint8_t *shadow = NULL;
+        size_t shadow_size = 0;
+        char *enc = NULL;
+        unsigned conn = 0;
+        unsigned version = 0;
+        bool sent_empty = false;
+
+        for (;;) {
+                struct timespec t = {.tv_sec = 0, .tv_nsec = LCD_REFRESH_MS * 1000000L};
+                nanosleep(&t, NULL);
+
+                pthread_mutex_lock(&board.mtx);
+                bool connected = (board.panel_client >= 0);
+                unsigned cur_conn = board.panel_conn;
+                pthread_mutex_unlock(&board.mtx);
+
+                if (!connected) {
+                        continue;
+                }
+
+                bool force = (cur_conn != conn);
+                conn = cur_conn;
+
+                char head[160];
+                int first = -1, last = -1;
+                size_t line = 0;
+
+                pthread_mutex_lock(&board.lcd.mtx);
+
+                if (board.lcd.version != version) {
+                        version = board.lcd.version;
+                        force = true;
+                }
+
+                if (!board.lcd.fb) {
+                        pthread_mutex_unlock(&board.lcd.mtx);
+
+                        if (force || !sent_empty) {
+                                const char *msg = "{\"t\":\"lcd\",\"w\":0,\"h\":0}";
+                                size_t len = strlen(msg);
+                                sent_empty = panel_write(&msg, &len, 1);
+                        }
+                        continue;
+                }
+
+                sent_empty = false;
+
+                int fmt = board.lcd.format;
+                line = (size_t)board.lcd.width * PIXEL_SIZE[fmt];
+                size_t size = line * board.lcd.height;
+
+                if (size != shadow_size) {
+                        free(shadow);
+                        free(enc);
+                        shadow = malloc(size);
+                        enc = malloc(4 * ((size + 2) / 3) + 1);
+                        shadow_size = (shadow && enc) ? size : 0;
+                        force = true;
+                }
+
+                if (shadow_size) {
+                        for (int y = 0; y < board.lcd.height; y++) {
+                                const uint8_t *src = board.lcd.fb + (size_t)y * line;
+                                uint8_t *dst = shadow + (size_t)y * line;
+                                if (force || (memcmp(src, dst, line) != 0)) {
+                                        memcpy(dst, src, line);
+                                        if (first < 0) first = y;
+                                        last = y;
+                                }
+                        }
+                }
+
+                snprintf(head, sizeof(head),
+                         "{\"t\":\"lcd\",\"w\":%u,\"h\":%u,\"fmt\":\"%s\",\"bg\":[%u,%u,%u],"
+                         "\"y\":%d,\"n\":%d,\"data\":\"",
+                         board.lcd.width, board.lcd.height, FORMAT[fmt], board.lcd.bg[0], board.lcd.bg[1],
+                         board.lcd.bg[2], first, last - first + 1);
+
+                pthread_mutex_unlock(&board.lcd.mtx);
+
+                /* shadow is used only by this thread, sending can take time */
+                if (first >= 0) {
+                        size_t len = base64(shadow + (size_t)first * line, (size_t)(last - first + 1) * line, enc);
+                        const char *part[] = {head, enc, "\"}"};
+                        const size_t psize[] = {strlen(head), len, 2};
+                        if (!panel_write(part, psize, 3)) {
+                                conn = 0; /* all lines after reconnection */
+                        }
+                }
+        }
+
+        return NULL;
+}
+
+//==============================================================================
+/**
+ * @brief  LCD framebuffer is shown by the panel.
+ */
+//==============================================================================
+void _host_board_lcd_attach(const void *fb, uint16_t width, uint16_t height, int format, uint8_t bg_r,
+                            uint8_t bg_g, uint8_t bg_b)
+{
+        if ((format < 0) || (format > 7)) {
+                fb = NULL;
+        }
+
+        pthread_mutex_lock(&board.lcd.mtx);
+        board.lcd.fb = fb;
+        board.lcd.width = fb ? width : 0;
+        board.lcd.height = fb ? height : 0;
+        board.lcd.format = fb ? format : 0;
+        board.lcd.bg[0] = bg_r;
+        board.lcd.bg[1] = bg_g;
+        board.lcd.bg[2] = bg_b;
+        board.lcd.version++;
+        pthread_mutex_unlock(&board.lcd.mtx);
+}
+
+//==============================================================================
+/**
  * @brief  Create panel socket and start panel thread.
  *
  * @return 0 on success, otherwise -1.
@@ -1470,6 +1689,11 @@ static int panel_start(void)
                 board.panel_listen = -1;
                 unlink(board.panel_path);
                 return -1;
+        }
+
+        err = pthread_create(&board.lcd.thread, NULL, lcd_thread, NULL);
+        if (err) {
+                fprintf(stderr, "board: unable to create LCD thread: %s\n", strerror(err));
         }
 
         board.panel_started = true;

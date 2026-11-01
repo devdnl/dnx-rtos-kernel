@@ -985,6 +985,21 @@ void _host_gpio_output(int port, uint32_t state, uint32_t changed)
 
 //==============================================================================
 /**
+ * @brief  LCD framebuffer is shown by the board panel (NULL: detached).
+ */
+//==============================================================================
+void _host_lcd_attach(const void *fb, uint16_t width, uint16_t height, int format, uint8_t bg_r,
+                      uint8_t bg_g, uint8_t bg_b)
+{
+        if (host.board) {
+                lock();
+                _host_board_lcd_attach(fb, width, height, format, bg_r, bg_g, bg_b);
+                unlock();
+        }
+}
+
+//==============================================================================
+/**
  * @brief  Get state of GPIO pins driven by board model.
  *
  * @param  port         port index

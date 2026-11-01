@@ -187,6 +187,7 @@ typedef struct {
   Local function prototypes
 ==============================================================================*/
 static inline I2C_TypeDef *get_I2C(I2C_dev_t *hdl);
+static inline u32_t slave_address(I2C_dev_t *hdl);
 static void IRQ_EV_handler(u8_t major);
 static void IRQ_ER_handler(u8_t major);
 
@@ -311,6 +312,23 @@ static const I2C_info_t I2C_HW[_I2C_NUMBER_OF_PERIPHERALS] = {
 static inline I2C_TypeDef *get_I2C(I2C_dev_t *hdl)
 {
         return const_cast(I2C_HW[hdl->major].I2C);
+}
+
+//==============================================================================
+/**
+ * @brief  Device address in format of CR2.SADD and OAR1.OA1 registers: 7-bit
+ *         address in bits 7:1, 10-bit address in bits 9:0.
+ * @param  hdl          device handle
+ * @return Register value.
+ */
+//==============================================================================
+static inline u32_t slave_address(I2C_dev_t *hdl)
+{
+        if (hdl->config.addr_10bit) {
+                return hdl->config.address & 0x3FF;
+        } else {
+                return (hdl->config.address & 0x7F) << 1;
+        }
 }
 
 //==============================================================================
@@ -603,7 +621,7 @@ int _I2C_LLD__master_receive(I2C_dev_t *hdl, u8_t *dst, size_t count, size_t *rd
          * Set I2C device address
          */
         CLEAR_BIT(i2c->CR2, I2C_CR2_SADD);
-        SET_BIT(i2c->CR2, ((hdl->config.address & 0xFFFE) << I2C_CR2_SADD_Pos) & I2C_CR2_SADD);
+        SET_BIT(i2c->CR2, slave_address(hdl) & I2C_CR2_SADD);
 
         CLEAR_BIT(i2c->CR2, I2C_CR2_ADD10);
         if (hdl->config.addr_10bit) {
@@ -729,7 +747,7 @@ int _I2C_LLD__master_transmit(I2C_dev_t *hdl, const u8_t *src, size_t count, siz
          * Set device address.
          */
         CLEAR_BIT(i2c->CR2, I2C_CR2_SADD);
-        SET_BIT(i2c->CR2, ((hdl->config.address & 0xFFFE) << I2C_CR2_SADD_Pos) & I2C_CR2_SADD);
+        SET_BIT(i2c->CR2, slave_address(hdl) & I2C_CR2_SADD);
 
         CLEAR_BIT(i2c->CR2, I2C_CR2_ADD10);
         if (hdl->config.addr_10bit) {
@@ -804,7 +822,7 @@ int _I2C_LLD__slave_mode_setup(I2C_dev_t *hdl)
 
         if (hdl->config.mode == I2C_MODE__SLAVE) {
 
-                i2c->OAR1 = (hdl->config.address & I2C_OAR1_OA1) | (hdl->config.addr_10bit ? I2C_OAR1_OA1MODE : 0);
+                i2c->OAR1 = slave_address(hdl) | (hdl->config.addr_10bit ? I2C_OAR1_OA1MODE : 0);
 
                 i2c->OAR2 = 0;
 
