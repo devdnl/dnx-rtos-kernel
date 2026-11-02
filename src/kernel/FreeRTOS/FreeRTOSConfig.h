@@ -165,6 +165,7 @@ extern void _task_switched_in(void *, void *, void *);
 #define INCLUDE_vTaskDelay                     1
 #define INCLUDE_xTaskGetSchedulerState         1
 #define INCLUDE_xTaskGetCurrentTaskHandle      1
+#define INCLUDE_xSemaphoreGetMutexHolder       1
 #define INCLUDE_uxTaskGetStackHighWaterMark    1
 #define INCLUDE_xTaskGetIdleTaskHandle         1
 #define INCLUDE_xTimerGetTimerDaemonTaskHandle 0

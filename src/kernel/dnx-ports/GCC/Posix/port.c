@@ -120,6 +120,13 @@ static pthread_t hMainThread = ( pthread_t ) NULL;
 static volatile BaseType_t uxCriticalNesting;
 static BaseType_t xSchedulerEnd = pdFALSE;
 static pthread_t hTimerTickThread;
+
+/*
+ * dnx RTOS: the timer thread sends signal to the thread of the current task
+ * and the thread of deleted task is canceled and joined. Both operations are
+ * serialized, otherwise the signal can be sent to thread that does not exist.
+ */
+static pthread_mutex_t xThreadCancelMutex = PTHREAD_MUTEX_INITIALIZER;
 static bool xTimerTickThreadShouldRun;
 static uint64_t prvStartTimeNs;
 /*-----------------------------------------------------------*/
@@ -409,8 +416,10 @@ static void * prvTimerTickHandler( void * arg )
          * signal to the active task to cause tick handling or
          * preemption (if enabled)
          */
+        pthread_mutex_lock( &xThreadCancelMutex );
         Thread_t * thread = prvGetThreadFromTask( xTaskGetCurrentTaskHandle() );
         pthread_kill( thread->pthread, SIGALRM );
+        pthread_mutex_unlock( &xThreadCancelMutex );
         usleep( portTICK_RATE_MICROSECONDS );
     }
 
@@ -494,9 +503,11 @@ void vPortCancelThread( void * pxTaskToDelete )
     /*
      * The thread has already been suspended so it can be safely cancelled.
      */
+    pthread_mutex_lock( &xThreadCancelMutex );
     pthread_cancel( pxThreadToCancel->pthread );
     event_signal( pxThreadToCancel->ev );
     pthread_join( pxThreadToCancel->pthread, NULL );
+    pthread_mutex_unlock( &xThreadCancelMutex );
     event_delete( pxThreadToCancel->ev );
 
     vPortExitCritical();

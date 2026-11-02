@@ -56,6 +56,9 @@ extern "C" {
 
 #define _PROCESS_EXIT_FLAG(tid) (1 << (tid))
 
+/** Exit status of killed process (POSIX shell: 128 + SIGKILL), the same as PROCESS_STATUS_KILLED in libc. */
+#define _PROCESS_STATUS_KILLED 137
+
 /*==============================================================================
   Exported types, enums definitions
 ==============================================================================*/
@@ -103,6 +106,9 @@ typedef struct {
         u8_t curr_syscall;                //!< current syscall
         bool running;                     //!< thread is running
         bool kill;                        //!< thread kill requested
+        bool detached;                    //!< thread is released at exit (cannot be joined)
+        bool zombie;                      //!< finished thread, slot is reserved until join
+        void *start_args;                 //!< task arguments (released by task or with not started task)
 } task_data_t;
 
 struct _process {
@@ -121,6 +127,7 @@ struct _process {
         pid_t ppid;                                       //!< parent process ID (0: no parent)
         u8_t flag;                                        //!< control flags
         u8_t curr_task;                                   //!< current working task (thread)
+        task_t *exit_task;                                //!< task that exited process (destroyed with zombie)
         task_data_t taskdata[__OS_PROCESS_MAX_THREADS__]; //!< array of tasks data
 };
 
@@ -183,7 +190,7 @@ extern int _process_thread_get_stat(pid_t, tid_t, _thread_stat_t *);
 extern int _process_thread_pin_to_core(pid_t, tid_t, u32_t);
 extern int _process_get_current_core(u8_t *);
 extern int _process_thread_exit(int);
-extern int _process_thread_get_status(_process_t *, tid_t, int *);
+extern int _process_thread_join(_process_t *, tid_t, int *, u32_t);
 extern bool _process_is_consistent(bool);
 extern void _process_enter_kernelspace(_process_t *, u8_t);
 extern void _process_exit_kernelspace(_process_t *);

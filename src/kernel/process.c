@@ -104,6 +104,8 @@ enum {
 ==============================================================================*/
 static void process_code(void *mainfn);
 static void thread_code(void *args);
+static void thread_finish(_process_t *proc, tid_t tid);
+static void release_start_args(task_data_t *task_data, bool lock);
 static void process_destroy_all_resources(_process_t *proc);
 static int resource_destroy(res_header_t *resource);
 static size_t argument_parse(const char **str, char *dst);
@@ -115,7 +117,7 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
 static void process_get_stat(_process_t *proc, _process_stat_t *stat);
 static bool process_move_list(_process_t *proc, _process_t **list_from, _process_t **list_to);
 static void process_remove_from_list(_process_t *proc, _process_t **list);
-static void process_release(_process_t *proc);
+static bool process_release(_process_t *proc, task_t *exit_task);
 static void process_orphan_children(_process_t *parent);
 static tid_t get_own_tid(_process_t *proc);
 static int get_pid(pid_t *pid);
@@ -336,6 +338,8 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
                 task_args->at_init = attr->at_init;
                 task_args->at_init_ctx = attr->at_init_ctx;
 
+                proc->taskdata[0].start_args = task_args;
+
                 err = _task_create(process_code, proc->pdata->name, proc->taskdata[0].stack_size, task_args,
                         &proc->taskdata[0].task);
                 if (!err) {
@@ -355,6 +359,8 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
                                 proc->header.next = cast(res_header_t *, active_process_list);
                                 active_process_list = proc;
                         }
+                } else {
+                        proc->taskdata[0].start_args = NULL;
                 }
         }
 
@@ -489,7 +495,7 @@ void _process_clean_up_killed_processes(void)
                                 _mutex_unlock(process_mtx);
 
                                 if (proc) {
-                                        process_release(proc);
+                                        process_release(proc, NULL);
                                 }
                         }
                 }
@@ -535,11 +541,41 @@ int _process_kill_timeout(pid_t pid, u32_t timeout_ms)
         foreach_process (proc, active_process_list) {
 
                 if (proc->pid == pid) {
+                        /*
+                         * NOTE: process that finishes by itself (exit flag is
+                         *       already set) keeps its own exit status.
+                         */
+                        if (not(proc->flag & PROC_FLAG_KILL)) {
+                                proc->taskdata[0].status = _PROCESS_STATUS_KILLED;
+                        }
+
                         proc->flag |= PROC_FLAG_KILL;
 
                         process_move_list(proc, &active_process_list, &terminate_process_list);
                         err = ESUCC;
                         break;
+                }
+        }
+
+        if (err) {
+                /*
+                 * NOTE: kill of process that is finished already (e.g. zombie
+                 *       that was not waited for yet) has no effect (as in POSIX).
+                 */
+                _process_t *const lists[] = {
+                        terminate_process_list,
+                        destroy_process_list,
+                        release_process_list,
+                        zombie_process_list,
+                };
+
+                for (size_t l = 0; (l < ARRAY_SIZE(lists)) and err; l++) {
+                        foreach_process (proc, lists[l]) {
+                                if (proc->pid == pid) {
+                                        err = ESUCC;
+                                        break;
+                                }
+                        }
                 }
         }
 
@@ -628,6 +664,16 @@ void _process_remove_zombie(_process_t *proc, int *status)
 
                                 if (status) {
                                         *status = proc->taskdata[0].status;
+                                }
+
+                                /*
+                                 * NOTE: exit task is suspended or suspends
+                                 *       itself after process mutex is unlocked
+                                 *       (it does not use any resources).
+                                 */
+                                if (proc->exit_task) {
+                                        _task_destroy(proc->exit_task);
+                                        proc->exit_task = NULL;
                                 }
 
                                 _flag_destroy(proc->event);
@@ -758,6 +804,8 @@ void _process_exit(_process_t *proc, int status)
                                         _task_destroy(proc->taskdata[tid].task);
                                         proc->taskdata[tid].task = NULL;
                                 }
+
+                                release_start_args(&proc->taskdata[tid], false);
                         }
 
                         /*
@@ -789,7 +837,17 @@ void _process_exit(_process_t *proc, int status)
                  *       after this call.
                  */
                 if (release) {
-                        process_release(proc);
+                        /*
+                         * NOTE: task of process that is not detached is
+                         *       destroyed with zombie by waiting process, so
+                         *       memory is released immediately (not by idle
+                         *       task as for task that destroys itself).
+                         */
+                        if (process_release(proc, _task_get_handle())) {
+                                for (;;) {
+                                        _task_suspend(_THIS_TASK);
+                                }
+                        }
                 } else {
                         // process was killed in the meantime, kworker finishes it
                         _kworker_wake();
@@ -1432,15 +1490,23 @@ int _process_thread_create(_process_t *proc, thread_func_t func, const _thread_a
         }
 
         ATOMIC (process_mtx) {
+                /*
+                 * NOTE: slot of finished thread which is not joined yet
+                 *       (zombie) is not free, so thread ID cannot be assigned
+                 *       to the other thread before join.
+                 */
                 tid_t id = 1;
                 for (; id < __OS_PROCESS_MAX_THREADS__; id++) {
-                        if (proc->taskdata[id].task == NULL) {
+                        if ((proc->taskdata[id].task == NULL) and not proc->taskdata[id].zombie) {
                                 memset(&proc->taskdata[id], 0, sizeof(proc->taskdata[id]));
                                 break;
                         }
                 }
 
-                if (id < __OS_PROCESS_MAX_THREADS__) {
+                if (id >= __OS_PROCESS_MAX_THREADS__) {
+                        err = EAGAIN;
+
+                } else {
                         task_args_t *args = NULL;
                         err = _kmalloc(_MM_KRN, sizeof(*args), 0, _cpuctl_fast_mem, 0, 0, cast(void *, &args));
                         if (!err) {
@@ -1459,9 +1525,15 @@ int _process_thread_create(_process_t *proc, thread_func_t func, const _thread_a
                                 proc->taskdata[id].curr_syscall = NO_SYSCALL;
                                 proc->taskdata[id].kernelspace = (proc->flag & PROC_FLAG_KWORKER);
 
+                                // kernel threads are never joined
+                                proc->taskdata[id].detached =
+                                        (proc->flag & PROC_FLAG_KWORKER) or (attr and attr->detached);
+
                                 if (proc->event) {
                                         _flag_clear(proc->event, _PROCESS_EXIT_FLAG(id));
                                 }
+
+                                proc->taskdata[id].start_args = args;
 
                                 err = _task_create(thread_code, "", proc->taskdata[id].stack_size, args,
                                         &proc->taskdata[id].task);
@@ -1480,6 +1552,7 @@ int _process_thread_create(_process_t *proc, thread_func_t func, const _thread_a
                                         }
 
                                 } else {
+                                        proc->taskdata[id].start_args = NULL;
                                         _kfree(_MM_KRN, cast(void *, &args));
                                 }
                         }
@@ -1520,18 +1593,24 @@ int _process_thread_kill(_process_t *proc, tid_t tid)
 
         ATOMIC (process_mtx) {
                 task = proc->taskdata[tid].task;
-                err = ESUCC;
 
-                if (task and (task != self) and wait) {
+                if (proc->taskdata[tid].zombie) {
+                        // thread is finished already, it is destroyed by join
+                        task = NULL;
+                        err = ESUCC;
+
+                } else if (not task) {
+                        err = ESRCH;
+
+                } else if ((task != self) and wait) {
                         // thread mutex/semaphore/queue waits are canceled from now on
                         proc->taskdata[tid].kill = true;
+                        err = ESUCC;
+
                 } else {
                         wait = false;
-                        proc->taskdata[tid].task = NULL;
-
-                        if (proc->event) {
-                                _flag_set(proc->event, _PROCESS_EXIT_FLAG(tid));
-                        }
+                        thread_finish(proc, tid);
+                        err = ESUCC;
                 }
         }
 
@@ -1559,13 +1638,7 @@ int _process_thread_kill(_process_t *proc, tid_t tid)
 
                         if (proc->taskdata[tid].curr_syscall == NO_SYSCALL) {
                                 _task_suspend(task);
-                                proc->taskdata[tid].running = false;
-                                proc->taskdata[tid].task = NULL;
-
-                                if (proc->event) {
-                                        _flag_set(proc->event, _PROCESS_EXIT_FLAG(tid));
-                                }
-
+                                thread_finish(proc, tid);
                                 parked = true;
                         }
 
@@ -1834,22 +1907,107 @@ int _process_thread_exit(int exit)
 
 //==============================================================================
 /**
- * @brief  Function return thread exit status.
+ * @brief  Function waits for finish of selected thread and releases it. Thread
+ *         ID of finished thread is reserved until join.
  *
  * @param  proc         process
- * @param  tid          thread id
- * @param  status       destiantion status pointer
+ * @param  tid          thread ID
+ * @param  status       thread exit status (can be NULL)
+ * @param  timeout      timeout [ms]
  *
- * @return One of errno value.
+ * @return One of errno value (ESRCH: no such thread, EINVAL: thread cannot be
+ *         joined, ETIME: timeout).
  */
 //==============================================================================
-int _process_thread_get_status(_process_t *proc, tid_t tid, int *status)
+int _process_thread_join(_process_t *proc, tid_t tid, int *status, u32_t timeout)
 {
-        if (is_proc_valid(proc) and is_tid_in_range(proc, tid) and status) {
-                *status = proc->taskdata[tid].status;
-                return ESUCC;
-        } else {
+        if (not is_proc_valid(proc) or (tid == 0) or not is_tid_in_range(proc, tid)) {
                 return EINVAL;
+        }
+
+        kflag_t *flag = NULL;
+        int err = _process_get_event_flags(proc, &flag);
+        if (err) {
+                return err;
+        }
+
+        task_t *self = _task_get_handle();
+
+        ATOMIC (process_mtx) {
+                task_data_t *td = &proc->taskdata[tid];
+
+                if ((td->task == NULL) and not td->zombie) {
+                        err = ESRCH;
+                } else if (td->detached or (td->task == self)) {
+                        err = EINVAL;
+                }
+        }
+
+        if (err) {
+                return err;
+        }
+
+        err = _flag_wait(flag, _PROCESS_EXIT_FLAG(tid), timeout);
+        if (err) {
+                return err;
+        }
+
+        task_t *task = NULL;
+
+        ATOMIC (process_mtx) {
+                task_data_t *td = &proc->taskdata[tid];
+
+                if (td->zombie) {
+                        if (status) {
+                                *status = td->status;
+                        }
+
+                        task = td->task;
+                        td->task = NULL;
+                        td->zombie = false;
+
+                } else {
+                        // joined by other thread in the meantime
+                        err = ESRCH;
+                }
+        }
+
+        /*
+         * NOTE: task of finished thread is suspended (or suspends itself in a
+         *       moment), destroyed task of the other task releases memory
+         *       immediately.
+         */
+        if (task) {
+                _task_destroy(task);
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Function marks thread as finished (thread was killed). Slot of
+ *         detached thread is released, joinable thread becomes zombie.
+ *
+ * @note   Process mutex must be locked.
+ *
+ * @param  proc         process
+ * @param  tid          thread ID
+ */
+//==============================================================================
+static void thread_finish(_process_t *proc, tid_t tid)
+{
+        task_data_t *td = &proc->taskdata[tid];
+
+        td->task = NULL;
+        td->running = false;
+        td->zombie = not td->detached;
+
+        // thread killed before start
+        release_start_args(td, false);
+
+        if (proc->event) {
+                _flag_set(proc->event, _PROCESS_EXIT_FLAG(tid));
         }
 }
 
@@ -2645,10 +2803,15 @@ static void process_code(void *arg)
         _assert(arg);
 
         task_args_t args = *cast(task_args_t *, arg);
-        _kfree(_MM_KRN, &arg);
+        release_start_args(args.task_data, true);
 
-        _task_set_storage_pointer(NULL, STORAGE_IDX_PROC, args.proc);
+        /*
+         * NOTE: task data is set before process, because context switch hooks
+         *       use task data when process is set (task can be switched
+         *       between these operations).
+         */
         _task_set_storage_pointer(NULL, STORAGE_IDX_TASK_DATA, args.task_data);
+        _task_set_storage_pointer(NULL, STORAGE_IDX_PROC, args.proc);
         _task_yield();
 
         if (args.at_init) {
@@ -2677,24 +2840,50 @@ static void thread_code(void *arg)
         _assert(arg);
 
         task_args_t args = *cast(task_args_t *, arg);
-        _kfree(_MM_KRN, cast(void *, &arg));
+        release_start_args(args.task_data, true);
 
-        _task_set_storage_pointer(NULL, STORAGE_IDX_PROC, args.proc);
+        /*
+         * NOTE: task data is set before process, because context switch hooks
+         *       use task data when process is set (task can be switched
+         *       between these operations).
+         */
         _task_set_storage_pointer(NULL, STORAGE_IDX_TASK_DATA, args.task_data);
+        _task_set_storage_pointer(NULL, STORAGE_IDX_PROC, args.proc);
         _task_yield();
 
         thread_func_t func = args.func;
         args.task_data->status = func(args.arg);
 
+        bool detached = true;
+
         ATOMIC (process_mtx) {
+                detached = args.task_data->detached;
+
+                if (detached) {
+                        args.task_data->task = NULL;
+                } else {
+                        // slot and task are released by join
+                        args.task_data->zombie = true;
+                        args.task_data->running = false;
+                }
+
                 if (args.proc->event) {
                         _flag_set(args.proc->event, _PROCESS_EXIT_FLAG(args.task_data->id));
                 }
-
-                args.task_data->task = NULL;
         }
 
-        _task_exit();
+        if (detached) {
+                _task_exit();
+        }
+
+        /*
+         * NOTE: task of joinable thread is destroyed by join. Memory is
+         *       released immediately (not by idle task as for task that
+         *       destroys itself).
+         */
+        for (;;) {
+                _task_suspend(_THIS_TASK);
+        }
 }
 
 //==============================================================================
@@ -2836,10 +3025,15 @@ static void process_orphan_children(_process_t *parent)
  *         or detached process object is freed.
  *
  * @param  proc         process in the release list
+ * @param  exit_task    task of exiting process (destroyed with zombie), can be NULL
+ *
+ * @return true if exit task is destroyed with zombie.
  */
 //==============================================================================
-static void process_release(_process_t *proc)
+static bool process_release(_process_t *proc, task_t *exit_task)
 {
+        bool zombie = false;
+
         process_destroy_all_resources(proc);
 
         /*
@@ -2853,6 +3047,9 @@ static void process_release(_process_t *proc)
         process_orphan_children(proc);
 
         if (not(proc->flag & PROC_FLAG_DETACHED)) {
+                proc->exit_task = exit_task;
+                zombie = true;
+
                 process_move_list(proc, &release_process_list, &zombie_process_list);
 
                 // waiting process can remove zombie from now on
@@ -2869,6 +3066,8 @@ static void process_release(_process_t *proc)
         }
 
         _mutex_unlock(process_mtx);
+
+        return zombie and exit_task;
 }
 
 //==============================================================================
@@ -3195,6 +3394,37 @@ static void destroy_all_tasks(_process_t *proc, bool with_zero)
                         _task_destroy(proc->taskdata[tid].task);
                         proc->taskdata[tid].task = NULL;
                 }
+
+                // task destroyed before start
+                release_start_args(&proc->taskdata[tid], false);
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Function releases start arguments of task. Arguments are released
+ *         by task at start or when task is destroyed before start.
+ *
+ * @param  task_data    task data
+ * @param  lock         lock process mutex (false: mutex is locked or task
+ *                      does not run)
+ */
+//==============================================================================
+static void release_start_args(task_data_t *task_data, bool lock)
+{
+        if (lock) {
+                while (_mutex_lock(process_mtx, _WAIT_FOREVER_MS) != ESUCC) {
+                        ;
+                }
+        }
+
+        if (task_data->start_args) {
+                _kfree(_MM_KRN, &task_data->start_args);
+                task_data->start_args = NULL;
+        }
+
+        if (lock) {
+                _mutex_unlock(process_mtx);
         }
 }
 
@@ -3797,7 +4027,7 @@ void _task_switched_in(void *task, void *proc, void *task_data)
         CPU_load[cpuid].CPU_total_time_last = CPU_load[cpuid].CPU_total_time;
         active_process[cpuid] = proc;
 
-        if (active_process[cpuid] && (active_process[cpuid]->header.type == RES_TYPE_PROCESS)) {
+        if (active_process[cpuid] && task_data && (active_process[cpuid]->header.type == RES_TYPE_PROCESS)) {
                 active_process[cpuid]->curr_task = cast(task_data_t *, task_data)->id;
                 _errno[cpuid] = cast(task_data_t *, task_data)->errnov;
                 _global[cpuid] = active_process[cpuid]->globals;
@@ -3830,7 +4060,7 @@ void _task_switched_out(void *task, void *proc, void *task_data)
 
         CPU_load[cpuid].CPU_total_time += _cpuctl_get_CPU_load_counter_delta();
 
-        if (active_process[cpuid] && (active_process[cpuid]->header.type == RES_TYPE_PROCESS)) {
+        if (active_process[cpuid] && task_data && (active_process[cpuid]->header.type == RES_TYPE_PROCESS)) {
                 cast(task_data_t *, task_data)->errnov = _errno[cpuid];
                 active_process[cpuid]->globals = _global[cpuid];
                 active_process[cpuid]->app_ctx = _app_ctx[cpuid];

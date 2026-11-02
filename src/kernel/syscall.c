@@ -1470,16 +1470,12 @@ static int syscall_processkill(syscallrq_t *rq)
 {
         GETARG(const pid_t *, pid);
 
-        _process_t *proc = NULL;
-        int err = _process_get_container(*pid, &proc);
-        if (!err) {
-                err = _process_kill(*pid);
-                if (!err) {
-                        _process_remove_zombie(proc, NULL);
-                }
-        }
-
-        return err;
+        /*
+         * NOTE: killed process is not removed here. Process which is not
+         *       detached becomes zombie and must be waited for by parent
+         *       (the same as process that finished by itself).
+         */
+        return _process_kill(*pid);
 }
 
 //==============================================================================
@@ -1506,8 +1502,13 @@ static int syscall_processwait(syscallrq_t *rq)
                         const uint32_t mask = _PROCESS_EXIT_FLAG(0);
                         err = _flag_wait(flag, mask, *timeout);
                         if (!err) {
+                                /*
+                                 * NOTE: exit flag is set when resources of the
+                                 *       process are released (also its tasks,
+                                 *       memory is freed immediately), so a
+                                 *       scheduler switch is not needed here.
+                                 */
                                 _process_remove_zombie(proc, status);
-                                _sleep_ms(1); // force scheduler switch
                         }
                 }
         }
@@ -3415,24 +3416,7 @@ static int syscall_threadjoin(syscallrq_t *rq)
         GETARG(int *, status);
         GETARG(const u32_t *, timeout);
 
-        int err = EINVAL;
-
-        if ((*tid > 0) and (*tid < __OS_PROCESS_MAX_THREADS__)) {
-
-                kflag_t *flag;
-                err = _process_get_event_flags(rq->client_proc, &flag);
-                if (not err) {
-                        const u32_t mask = _PROCESS_EXIT_FLAG(*tid);
-                        err = _flag_wait(flag, mask, *timeout);
-                        if (not err) {
-                                if (status) {
-                                        err = _process_thread_get_status(GETPROCESS(), *tid, status);
-                                }
-                        }
-                }
-        }
-
-        return err;
+        return _process_thread_join(rq->client_proc, *tid, status, *timeout);
 }
 
 //==============================================================================

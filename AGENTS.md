@@ -239,6 +239,16 @@ repositories, so the interface between them must stay consistent:
   `libtui` library (nano, mc, dialog). In raw mode input bytes go directly to
   the reader and output bypasses the screen buffer; `dsh` switches the
   terminal back to line mode before each prompt.
+- **Thread and process lifetime**: a finished thread that is not detached
+  stays a zombie (thread ID reserved) until `thread_join` releases it, kernel
+  (kworker) threads are always detached. `process_kill` does not remove the
+  zombie of a killed process, the parent must wait for it (exit status
+  `_PROCESS_STATUS_KILLED`, 137, the same as `PROCESS_STATUS_KILLED` in libc);
+  kill of a finished process that was not waited for yet succeeds and keeps
+  its status. Tasks of finished joinable threads and processes are destroyed
+  by `thread_join`/`process_wait` (memory is released immediately, a task that
+  deletes itself is released only by the idle task). Stress tests of this
+  behavior are in the workspace `perf` program (`perf -s`).
 - **Command line parsing** (`argument_parse()`/`argtab_create()` in
   `process.c`) follows shell quoting rules and is relied on by `dsh`,
   `system()`, Lua `io.popen()` and configtool's dialog calls. `argc` is

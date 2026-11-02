@@ -260,7 +260,13 @@ int _task_create(task_func_t func, const char *name, const size_t stack_depth, v
                 UBaseType_t parent_priority = _PRIORITY(0);
 
                 if (scheduler_status != taskSCHEDULER_NOT_STARTED) {
-                        parent_priority = uxTaskPriorityGet(_THIS_TASK);
+                        /*
+                         * NOTE: base priority is used, because priority set
+                         *       by vTaskPrioritySet() is base priority. Current
+                         *       priority can be inherited from mutex waiter
+                         *       and would stay forever.
+                         */
+                        parent_priority = uxTaskBasePriorityGet(_THIS_TASK);
 
                         // set this task priority to highest possible to prevent
                         // against context switch to new task
@@ -338,9 +344,7 @@ void _task_exit(void)
 //==============================================================================
 void _task_suspend(task_t *taskhdl)
 {
-        if (taskhdl) {
-                vTaskSuspend(taskhdl);
-        }
+        vTaskSuspend(taskhdl);
 }
 
 //==============================================================================
@@ -841,6 +845,14 @@ int _mutex_lock(kmtx_t *mutex, u32_t blocktime_ms)
 int _mutex_unlock(kmtx_t *mutex)
 {
         if (is_mutex_valid(mutex)) {
+                /*
+                 * NOTE: mutex can be unlocked only by owner. Unlock by other
+                 *       task breaks priority inheritance of the owner.
+                 */
+                if (xSemaphoreGetMutexHolder(mutex->object) != xTaskGetCurrentTaskHandle()) {
+                        return EPERM;
+                }
+
                 bool status;
                 if (mutex->recursive) {
                         status = xSemaphoreGiveRecursive(mutex->object);
