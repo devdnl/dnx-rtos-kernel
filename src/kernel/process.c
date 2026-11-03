@@ -4024,7 +4024,9 @@ void _task_switched_in(void *task, void *proc, void *task_data)
 
         u8_t cpuid = _cpuctl_get_cpu_id();
 
+#if (__OS_MONITOR_CPU_LOAD__ > 0)
         CPU_load[cpuid].CPU_total_time_last = CPU_load[cpuid].CPU_total_time;
+#endif
         active_process[cpuid] = proc;
 
         if (active_process[cpuid] && task_data && (active_process[cpuid]->header.type == RES_TYPE_PROCESS)) {
@@ -4058,7 +4060,9 @@ void _task_switched_out(void *task, void *proc, void *task_data)
 
         u8_t cpuid = _cpuctl_get_cpu_id();
 
+#if (__OS_MONITOR_CPU_LOAD__ > 0)
         CPU_load[cpuid].CPU_total_time += _cpuctl_get_CPU_load_counter_delta();
+#endif
 
         if (active_process[cpuid] && task_data && (active_process[cpuid]->header.type == RES_TYPE_PROCESS)) {
                 cast(task_data_t *, task_data)->errnov = _errno[cpuid];

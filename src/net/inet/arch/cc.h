@@ -59,7 +59,19 @@ typedef i32_t   s32_t;
 #define X32_F                           "x"
 
 #define LWIP_ERROR(message, expression, handler) if (!(expression)) {_printk(message); handler;}
+/*
+ * NOTE: messages of lwIP assertions (condition and file name) need a lot of
+ *       flash memory, so they are enabled by configuration (debug).
+ */
+#ifndef __NETWORK_LWIP_ASSERT_DEBUG__
+#define __NETWORK_LWIP_ASSERT_DEBUG__   0
+#endif
+
+#if (__NETWORK_LWIP_ASSERT_DEBUG__ > 0)
 #define LWIP_PLATFORM_ASSERT(x)         do {_printk("lwIP assertion: %s (%s:%d)", x, __FILE__, __LINE__); while(true);} while(0)
+#else
+#define LWIP_PLATFORM_ASSERT(x)         do {while(true);} while(0)
+#endif
 
 /* type which describe error (must be signed) */
 #define LWIP_ERR_T                      int

@@ -327,6 +327,7 @@ static int load_dns_file(inet_t *inet)
 {
         UNUSED_ARG1(inet);
 
+#if LWIP_DNS
         if (isstrempty(__NETWORK_LWIP_DNS_LIST_PATH__)) {
                 return 0;
         }
@@ -371,6 +372,10 @@ static int load_dns_file(inet_t *inet)
         sys_fclose(dns_file);
 
         return err;
+#else
+        // DNS is disabled in configuration, DNS servers are not used
+        return 0;
+#endif
 }
 
 //==============================================================================
@@ -1677,7 +1682,11 @@ int INET_gethostbyname(void *ctx, const char *name, NETM_INET_sockaddr_t *sock_a
 
         } else {
                 ip_addr_t lwip_addr;
+#if LWIP_DNS
                 err = err_to_errno(netconn_gethostbyname(name, &lwip_addr));
+#else
+                err = ipaddr_aton(name, &lwip_addr) ? ESUCC : ENOTSUP;
+#endif
                 if (!err) {
                         create_addr(&sock_addr->addr, &lwip_addr);
                 }
