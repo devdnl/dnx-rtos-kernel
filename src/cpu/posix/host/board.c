@@ -67,6 +67,11 @@
 #define PANEL_LINE_MAX  4096 /* max length of panel message */
 #define PANEL_SEND_TMO  1000 /* ms */
 #define LCD_REFRESH_MS  50   /* period of LCD refresh (changed lines are sent) */
+#define LCD_MAX         8    /* max number of LCDs (LTDC driver and board models) */
+#define LCD_ID_LEN      32   /* max length of LCD id (with terminating zero) */
+#define LCD_SIZE_MAX    4096 /* max width and height of LCD of board model */
+#define LCD_FORMATS     8
+#define LCD_METATABLE   "board.lcd"
 
 /*==============================================================================
   Local object types
@@ -112,6 +117,31 @@ typedef struct {
         int result;
         size_t done;
 } request_t;
+
+/* LCD shown by the panel: LTDC driver (slot 0, id "ltdc") or board model */
+typedef struct {
+        char id[LCD_ID_LEN];      /* empty: slot was never used */
+        bool used;                /* slot is allocated */
+        const uint8_t *fb;        /* framebuffer (NULL: LCD is not active) */
+        uint8_t *own;             /* framebuffer of board model (allocated) */
+        uint16_t width;
+        uint16_t height;
+        int format;
+        uint8_t bg[3];
+        unsigned version;         /* changed by attach, enable, release */
+
+        /* used only by LCD thread */
+        uint8_t *shadow;          /* copy of sent framebuffer */
+        size_t shadow_size;
+        char *enc;                /* base64 buffer */
+        unsigned sent_version;
+        bool sent_empty;
+} lcd_t;
+
+/* LCD object of board script (userdata) */
+typedef struct {
+        int slot;
+} lcd_ref_t;
 
 /*==============================================================================
   Local function prototypes
@@ -161,12 +191,7 @@ static struct {
         struct {
                 pthread_mutex_t mtx;
                 pthread_t thread;
-                const uint8_t *fb;        /* framebuffer of system (NULL: no LCD) */
-                uint16_t width;
-                uint16_t height;
-                int format;
-                uint8_t bg[3];
-                unsigned version;         /* changed by attach */
+                lcd_t slot[LCD_MAX];      /* slot 0: LTDC driver */
         } lcd;
 
         bool init_done;
@@ -182,8 +207,13 @@ static struct {
         .panel_listen = -1,
         .panel_client = -1,
         .panel_send_mtx = PTHREAD_MUTEX_INITIALIZER,
-        .lcd = {.mtx = PTHREAD_MUTEX_INITIALIZER},
+        .lcd = {.mtx = PTHREAD_MUTEX_INITIALIZER, .slot = {[0] = {.id = "ltdc", .used = true}}},
 };
+
+/* pixel formats (the same order as in the LTDC driver) */
+static const char *const LCD_FORMAT[LCD_FORMATS + 1] = {"argb8888", "rgb888", "rgb565", "argb1555",
+                                                        "argb4444", "l8",     "al44",   "al88", NULL};
+static const uint8_t LCD_PIXEL_SIZE[LCD_FORMATS] = {4, 3, 2, 2, 2, 1, 1, 2};
 
 /*
  * Board API implemented in Lua. The chunk gets the table of primitives
@@ -718,10 +748,33 @@ static const char PRELUDE[] =
         "\n"
         "local touch_handlers = {}\n"
         "\n"
-        "-- call fn(x, y, pressed) when LCD of the panel is touched (pressed false: released)\n"
-        "function panel.on_touch(fn)\n"
+        "-- call fn(x, y, pressed, lcd_id) when LCD of the panel is touched (pressed\n"
+        "-- false: released), lcd_id: only touch of this LCD (default: all LCDs)\n"
+        "function panel.on_touch(fn, lcd_id)\n"
         "    assert(type(fn) == 'function', 'panel.on_touch: function expected')\n"
-        "    table.insert(touch_handlers, fn)\n"
+        "    table.insert(touch_handlers, {fn = fn, id = lcd_id})\n"
+        "end\n"
+        "\n"
+        "-- LCD of board model (e.g. model of LCD controller) shown by the panel\n"
+        "-- (<canvas data-lcd=\"<id>\">), id \"ltdc\" is the LCD of the LTDC driver,\n"
+        "-- opts.format: pixel format (default rgb565), opts.bg: {r, g, b} background\n"
+        "-- color (blended with alpha of pixels), opts.enabled: false - not shown\n"
+        "local lcds = {}\n"
+        "local LCD = B.LCD_METHODS\n"
+        "\n"
+        "function LCD:on_touch(fn) panel.on_touch(fn, self.id) end\n"
+        "\n"
+        "function panel.lcd(id, width, height, opts)\n"
+        "    opts = opts or {}\n"
+        "    if type(id) ~= 'string' or not string.match(id, '^[%w_%.%-]+$') then\n"
+        "        error('panel.lcd: invalid LCD id: ' .. tostring(id), 2)\n"
+        "    end\n"
+        "    local bg = opts.bg or {}\n"
+        "    local ok, d = pcall(B.lcd_new, id, width, height, opts.format or 'rgb565', bg[1], bg[2], bg[3])\n"
+        "    if not ok then error(d, 2) end\n"
+        "    if opts.enabled == false then d:enable(false) end\n"
+        "    lcds[id] = d      -- LCD exists until the board is stopped\n"
+        "    return d\n"
         "end\n"
         "\n"
         "-- panel event: 0 connected, 1 message, 2 disconnected\n"
@@ -732,12 +785,14 @@ static const char PRELUDE[] =
         "    elseif kind == 2 then\n"
         "        connected = false\n"
         "    elseif kind == 1 and string.sub(text, 1, 6) == 'touch ' then\n"
-        "        -- touch <x> <y> <pressed: 0/1>\n"
-        "        local x, y, p = string.match(text, '^touch (%d+) (%d+) ([01])$')\n"
+        "        -- touch <x> <y> <pressed: 0/1> <LCD id>\n"
+        "        local x, y, p, id = string.match(text, '^touch (%d+) (%d+) ([01]) ([%w_%.%-]+)$')\n"
         "        if not x then\n"
         "            print('panel: invalid message: ' .. text)\n"
         "        else\n"
-        "            for _, fn in ipairs(touch_handlers) do call(fn, tonumber(x), tonumber(y), p == '1') end\n"
+        "            for _, h in ipairs(touch_handlers) do\n"
+        "                if h.id == nil or h.id == id then call(h.fn, tonumber(x), tonumber(y), p == '1', id) end\n"
+        "            end\n"
         "        end\n"
         "    elseif kind == 1 then\n"
         "        -- set <id> <type><value>, type: b (0/1), n (number), s (string)\n"
@@ -939,6 +994,386 @@ static int l_panel_send(lua_State *L)
 
         lua_pushboolean(L, panel_write(&msg, &len, 1));
         return 1;
+}
+
+//==============================================================================
+/**
+ * @brief  LCD slot of LCD object (argument of Lua function).
+ *
+ * @param  L            Lua state
+ * @param  size         size of framebuffer in bytes (can be NULL)
+ *
+ * @return LCD slot.
+ */
+//==============================================================================
+static lcd_t *check_lcd(lua_State *L, size_t *size)
+{
+        lcd_ref_t *ref = luaL_checkudata(L, 1, LCD_METATABLE);
+        luaL_argcheck(L, ref->slot > 0, 1, "LCD is released");
+
+        lcd_t *lcd = &board.lcd.slot[ref->slot];
+
+        if (size) {
+                *size = (size_t)lcd->width * lcd->height * LCD_PIXEL_SIZE[lcd->format];
+        }
+
+        return lcd;
+}
+
+//==============================================================================
+/**
+ * @brief  Write pixel value (little endian, as in the framebuffer of LTDC).
+ *
+ * @param  dst          destination
+ * @param  value        pixel value
+ * @param  size         pixel size in bytes
+ */
+//==============================================================================
+static void lcd_put(uint8_t *dst, uint32_t value, int size)
+{
+        for (int i = 0; i < size; i++) {
+                dst[i] = (uint8_t)(value >> (8 * i));
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: B.lcd_new(id, width, height, format, r, g, b) -> LCD object
+ *         (framebuffer of board model shown by the panel)
+ */
+//==============================================================================
+static int l_lcd_new(lua_State *L)
+{
+        const char *id = luaL_checkstring(L, 1);
+        lua_Integer width = luaL_checkinteger(L, 2);
+        lua_Integer height = luaL_checkinteger(L, 3);
+        int format = luaL_checkoption(L, 4, "rgb565", LCD_FORMAT);
+        uint8_t bg[3];
+
+        for (int i = 0; i < 3; i++) {
+                bg[i] = (uint8_t)luaL_optinteger(L, 5 + i, 0);
+        }
+
+        luaL_argcheck(L, (strlen(id) > 0) && (strlen(id) < LCD_ID_LEN), 1, "invalid LCD id");
+        luaL_argcheck(L, (width > 0) && (width <= LCD_SIZE_MAX), 2, "invalid width");
+        luaL_argcheck(L, (height > 0) && (height <= LCD_SIZE_MAX), 3, "invalid height");
+
+        size_t size = (size_t)width * (size_t)height * LCD_PIXEL_SIZE[format];
+        uint8_t *fb = calloc(1, size);
+        if (!fb) {
+                return luaL_error(L, "panel.lcd: out of memory");
+        }
+
+        lcd_ref_t *ref = lua_newuserdatauv(L, sizeof(lcd_ref_t), 0);
+        ref->slot = 0;
+        luaL_setmetatable(L, LCD_METATABLE);
+
+        const char *err = NULL;
+
+        pthread_mutex_lock(&board.lcd.mtx);
+
+        for (int i = 0; i < LCD_MAX; i++) {
+                if (board.lcd.slot[i].used && (strcmp(board.lcd.slot[i].id, id) == 0)) {
+                        err = "panel.lcd: LCD %s is already defined";
+                        break;
+                }
+        }
+
+        for (int i = 1; !err && (i < LCD_MAX); i++) {
+                lcd_t *lcd = &board.lcd.slot[i];
+                if (!lcd->used) {
+                        strcpy(lcd->id, id);
+                        lcd->used = true;
+                        lcd->own = fb;
+                        lcd->fb = fb;
+                        lcd->width = (uint16_t)width;
+                        lcd->height = (uint16_t)height;
+                        lcd->format = format;
+                        memcpy(lcd->bg, bg, sizeof(bg));
+                        lcd->version++;
+                        ref->slot = i;
+                        break;
+                }
+        }
+
+        if (!err && (ref->slot == 0)) {
+                err = "panel.lcd: too many LCDs (%s)";
+        }
+
+        pthread_mutex_unlock(&board.lcd.mtx);
+
+        if (err) {
+                free(fb);
+                return luaL_error(L, err, id);
+        }
+
+        return 1;
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: lcd:write(offset, data) -> number of written bytes
+ *         (raw data of framebuffer, offset in bytes)
+ */
+//==============================================================================
+static int l_lcd_write(lua_State *L)
+{
+        size_t size, len;
+        lcd_t *lcd = check_lcd(L, &size);
+        lua_Integer offset = luaL_checkinteger(L, 2);
+        const char *data = luaL_checklstring(L, 3, &len);
+
+        size_t n = 0;
+        if ((offset >= 0) && ((size_t)offset < size)) {
+                n = (len < size - (size_t)offset) ? len : size - (size_t)offset;
+                pthread_mutex_lock(&board.lcd.mtx);
+                memcpy(lcd->own + offset, data, n);
+                pthread_mutex_unlock(&board.lcd.mtx);
+        }
+
+        lua_pushinteger(L, (lua_Integer)n);
+        return 1;
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: lcd:read(offset, len) -> data (raw data of framebuffer)
+ */
+//==============================================================================
+static int l_lcd_read(lua_State *L)
+{
+        size_t size;
+        lcd_t *lcd = check_lcd(L, &size);
+        lua_Integer offset = luaL_checkinteger(L, 2);
+        lua_Integer len = luaL_checkinteger(L, 3);
+
+        if ((offset < 0) || ((size_t)offset >= size) || (len <= 0)) {
+                lua_pushliteral(L, "");
+        } else {
+                size_t n = ((size_t)len < size - (size_t)offset) ? (size_t)len : size - (size_t)offset;
+                lua_pushlstring(L, (const char *)lcd->own + offset, n); /* written only by this thread */
+        }
+
+        return 1;
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: lcd:pixel(x, y [, value]) -> value (pixel value in LCD format,
+ *         pixels out of LCD are not written, nil is returned)
+ */
+//==============================================================================
+static int l_lcd_pixel(lua_State *L)
+{
+        lcd_t *lcd = check_lcd(L, NULL);
+        lua_Integer x = luaL_checkinteger(L, 2);
+        lua_Integer y = luaL_checkinteger(L, 3);
+
+        if ((x < 0) || (y < 0) || (x >= lcd->width) || (y >= lcd->height)) {
+                lua_pushnil(L);
+                return 1;
+        }
+
+        int ps = LCD_PIXEL_SIZE[lcd->format];
+        uint8_t *p = lcd->own + ((size_t)y * lcd->width + (size_t)x) * ps;
+
+        if (!lua_isnoneornil(L, 4)) {
+                uint32_t v = (uint32_t)luaL_checkinteger(L, 4);
+                pthread_mutex_lock(&board.lcd.mtx);
+                lcd_put(p, v, ps);
+                pthread_mutex_unlock(&board.lcd.mtx);
+        }
+
+        uint32_t v = 0;
+        for (int i = 0; i < ps; i++) {
+                v |= (uint32_t)p[i] << (8 * i);
+        }
+
+        lua_pushinteger(L, v);
+        return 1;
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: lcd:fill(value [, x, y, w, h]) (rectangle is clipped)
+ */
+//==============================================================================
+static int l_lcd_fill(lua_State *L)
+{
+        lcd_t *lcd = check_lcd(L, NULL);
+        uint32_t v = (uint32_t)luaL_checkinteger(L, 2);
+        lua_Integer x = luaL_optinteger(L, 3, 0);
+        lua_Integer y = luaL_optinteger(L, 4, 0);
+        lua_Integer w = luaL_optinteger(L, 5, lcd->width);
+        lua_Integer h = luaL_optinteger(L, 6, lcd->height);
+
+        if (x < 0) {
+                w += x;
+                x = 0;
+        }
+
+        if (y < 0) {
+                h += y;
+                y = 0;
+        }
+
+        if (w > lcd->width - x) {
+                w = lcd->width - x;
+        }
+
+        if (h > lcd->height - y) {
+                h = lcd->height - y;
+        }
+
+        if ((w > 0) && (h > 0)) {
+                int ps = LCD_PIXEL_SIZE[lcd->format];
+                pthread_mutex_lock(&board.lcd.mtx);
+                for (lua_Integer j = y; j < y + h; j++) {
+                        uint8_t *p = lcd->own + ((size_t)j * lcd->width + (size_t)x) * ps;
+                        for (lua_Integer i = 0; i < w; i++, p += ps) {
+                                lcd_put(p, v, ps);
+                        }
+                }
+                pthread_mutex_unlock(&board.lcd.mtx);
+        }
+
+        return 0;
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: lcd:color(r, g, b [, a]) -> pixel value in LCD format
+ *         (components 0..255, l8/al44/al88: luminance)
+ */
+//==============================================================================
+static int l_lcd_color(lua_State *L)
+{
+        lcd_t *lcd = check_lcd(L, NULL);
+        uint32_t c[4];
+
+        for (int i = 0; i < 4; i++) {
+                c[i] = (uint32_t)luaL_optinteger(L, 2 + i, 255) & 0xFF;
+        }
+
+        uint32_t r = c[0], g = c[1], b = c[2], a = c[3];
+        uint32_t l = (r * 77 + g * 150 + b * 29) >> 8;
+        uint32_t v = 0;
+
+        switch (lcd->format) {
+        case 0: v = (a << 24) | (r << 16) | (g << 8) | b; break;                                 /* argb8888 */
+        case 1: v = (r << 16) | (g << 8) | b; break;                                             /* rgb888 */
+        case 2: v = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3); break;                        /* rgb565 */
+        case 3: v = ((a >> 7) << 15) | ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3); break;     /* argb1555 */
+        case 4: v = ((a >> 4) << 12) | ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4); break;      /* argb4444 */
+        case 5: v = l; break;                                                                    /* l8 */
+        case 6: v = ((a >> 4) << 4) | (l >> 4); break;                                           /* al44 */
+        case 7: v = (a << 8) | l; break;                                                         /* al88 */
+        }
+
+        lua_pushinteger(L, v);
+        return 1;
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: lcd:enable(on) (disabled LCD is not shown by the panel)
+ */
+//==============================================================================
+static int l_lcd_enable(lua_State *L)
+{
+        lcd_t *lcd = check_lcd(L, NULL);
+        const uint8_t *fb = lua_toboolean(L, 2) ? lcd->own : NULL;
+
+        pthread_mutex_lock(&board.lcd.mtx);
+        if (lcd->fb != fb) {
+                lcd->fb = fb;
+                lcd->version++;
+        }
+        pthread_mutex_unlock(&board.lcd.mtx);
+
+        return 0;
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: lcd fields: id, width, height, format, pixel_size, enabled;
+ *         methods from the method table.
+ */
+//==============================================================================
+static int l_lcd_index(lua_State *L)
+{
+        lcd_t *lcd = check_lcd(L, NULL);
+        const char *key = luaL_checkstring(L, 2);
+
+        if (strcmp(key, "id") == 0) {
+                lua_pushstring(L, lcd->id);
+        } else if (strcmp(key, "width") == 0) {
+                lua_pushinteger(L, lcd->width);
+        } else if (strcmp(key, "height") == 0) {
+                lua_pushinteger(L, lcd->height);
+        } else if (strcmp(key, "format") == 0) {
+                lua_pushstring(L, LCD_FORMAT[lcd->format]);
+        } else if (strcmp(key, "pixel_size") == 0) {
+                lua_pushinteger(L, LCD_PIXEL_SIZE[lcd->format]);
+        } else if (strcmp(key, "enabled") == 0) {
+                lua_pushboolean(L, lcd->fb != NULL);
+        } else {
+                lua_getfield(L, lua_upvalueindex(1), key);
+        }
+
+        return 1;
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: LCD object is collected: LCD is removed from the panel.
+ */
+//==============================================================================
+static int l_lcd_gc(lua_State *L)
+{
+        lcd_ref_t *ref = luaL_checkudata(L, 1, LCD_METATABLE);
+
+        if (ref->slot > 0) {
+                pthread_mutex_lock(&board.lcd.mtx);
+                lcd_t *lcd = &board.lcd.slot[ref->slot];
+                free(lcd->own);
+                lcd->own = NULL;
+                lcd->fb = NULL;
+                lcd->used = false;
+                lcd->version++;
+                pthread_mutex_unlock(&board.lcd.mtx);
+                ref->slot = 0;
+        }
+
+        return 0;
+}
+
+//==============================================================================
+/**
+ * @brief  Create metatable of LCD objects, the method table (can be extended
+ *         by board API in Lua) is left on the stack.
+ */
+//==============================================================================
+static void lcd_metatable(lua_State *L)
+{
+        static const luaL_Reg METHODS[] = {
+                {"write", l_lcd_write},
+                {"read", l_lcd_read},
+                {"pixel", l_lcd_pixel},
+                {"fill", l_lcd_fill},
+                {"color", l_lcd_color},
+                {"enable", l_lcd_enable},
+                {NULL, NULL},
+        };
+
+        luaL_newlib(L, METHODS);                /* methods */
+        luaL_newmetatable(L, LCD_METATABLE);    /* methods, mt */
+        lua_pushvalue(L, -2);
+        lua_pushcclosure(L, l_lcd_index, 1);
+        lua_setfield(L, -2, "__index");
+        lua_pushcfunction(L, l_lcd_gc);
+        lua_setfield(L, -2, "__gc");
+        lua_pop(L, 1);                          /* methods */
 }
 
 //==============================================================================
@@ -1194,6 +1629,7 @@ static bool board_load(void)
                 {"drive", l_drive},
                 {"level", l_level},
                 {"panel_send", l_panel_send},
+                {"lcd_new", l_lcd_new},
                 {NULL, NULL},
         };
 
@@ -1214,6 +1650,8 @@ static bool board_load(void)
         lua_setfield(L, -2, "I2C_ADDR_10BIT");
         lua_pushstring(L, board.script);
         lua_setfield(L, -2, "SCRIPT");
+        lcd_metatable(L);
+        lua_setfield(L, -2, "LCD_METHODS");
 
         if (lua_pcall(L, 1, 7, 1) != LUA_OK) {
                 board_log(lua_tostring(L, -1));
@@ -1515,27 +1953,107 @@ static size_t base64(const uint8_t *src, size_t len, char *dst)
 
 //==============================================================================
 /**
- * @brief  LCD thread: sends changed lines of the framebuffer to the panel.
- *         Message: {"t":"lcd","w":<width>,"h":<height>,"fmt":"<format>",
- *         "bg":[r,g,b],"y":<first line>,"n":<lines>,"data":"<base64>"}, LCD
- *         without framebuffer: "w":0. All lines are sent after connection and
- *         after framebuffer change (attach).
+ * @brief  Send changed lines of LCD to the panel (LCD thread).
+ *         Message: {"t":"lcd","id":"<id>","w":<width>,"h":<height>,
+ *         "fmt":"<format>","bg":[r,g,b],"y":<first line>,"n":<lines>,
+ *         "data":"<base64>"}, LCD without framebuffer: "w":0.
+ *
+ * @param  lcd          LCD slot
+ * @param  force        all lines are sent
+ *
+ * @return false when the message cannot be sent (connection is closed).
+ */
+//==============================================================================
+static bool lcd_send(lcd_t *lcd, bool force)
+{
+        char head[192];
+        int first = -1, last = -1;
+        size_t line = 0;
+
+        pthread_mutex_lock(&board.lcd.mtx);
+
+        if (lcd->version != lcd->sent_version) {
+                lcd->sent_version = lcd->version;
+                force = true;
+        }
+
+        if (lcd->id[0] == '\0') {
+                pthread_mutex_unlock(&board.lcd.mtx);
+                return true;
+        }
+
+        if (!lcd->fb) {
+                snprintf(head, sizeof(head), "{\"t\":\"lcd\",\"id\":\"%s\",\"w\":0,\"h\":0}", lcd->id);
+                pthread_mutex_unlock(&board.lcd.mtx);
+
+                if (force || !lcd->sent_empty) {
+                        const char *msg = head;
+                        size_t len = strlen(msg);
+                        lcd->sent_empty = panel_write(&msg, &len, 1);
+                        return lcd->sent_empty;
+                }
+
+                return true;
+        }
+
+        lcd->sent_empty = false;
+
+        int fmt = lcd->format;
+        line = (size_t)lcd->width * LCD_PIXEL_SIZE[fmt];
+        size_t size = line * lcd->height;
+
+        if (size != lcd->shadow_size) {
+                free(lcd->shadow);
+                free(lcd->enc);
+                lcd->shadow = malloc(size);
+                lcd->enc = malloc(4 * ((size + 2) / 3) + 1);
+                lcd->shadow_size = (lcd->shadow && lcd->enc) ? size : 0;
+                force = true;
+        }
+
+        if (lcd->shadow_size) {
+                for (int y = 0; y < lcd->height; y++) {
+                        const uint8_t *src = lcd->fb + (size_t)y * line;
+                        uint8_t *dst = lcd->shadow + (size_t)y * line;
+                        if (force || (memcmp(src, dst, line) != 0)) {
+                                memcpy(dst, src, line);
+                                if (first < 0) first = y;
+                                last = y;
+                        }
+                }
+        }
+
+        snprintf(head, sizeof(head),
+                 "{\"t\":\"lcd\",\"id\":\"%s\",\"w\":%u,\"h\":%u,\"fmt\":\"%s\",\"bg\":[%u,%u,%u],"
+                 "\"y\":%d,\"n\":%d,\"data\":\"",
+                 lcd->id, lcd->width, lcd->height, LCD_FORMAT[fmt], lcd->bg[0], lcd->bg[1], lcd->bg[2], first,
+                 last - first + 1);
+
+        pthread_mutex_unlock(&board.lcd.mtx);
+
+        /* shadow is used only by this thread, sending can take time */
+        if (first >= 0) {
+                size_t len = base64(lcd->shadow + (size_t)first * line, (size_t)(last - first + 1) * line, lcd->enc);
+                const char *part[] = {head, lcd->enc, "\"}"};
+                const size_t psize[] = {strlen(head), len, 2};
+                return panel_write(part, psize, 3);
+        }
+
+        return true;
+}
+
+//==============================================================================
+/**
+ * @brief  LCD thread: sends changed lines of LCDs (LTDC driver and LCDs of
+ *         board models) to the panel. All lines are sent after connection
+ *         and after framebuffer change (attach).
  */
 //==============================================================================
 static void *lcd_thread(void *arg)
 {
         (void)arg;
 
-        static const char *const FORMAT[] = {"argb8888", "rgb888", "rgb565", "argb1555", "argb4444", "l8",
-                                             "al44", "al88"};
-        static const uint8_t PIXEL_SIZE[] = {4, 3, 2, 2, 2, 1, 1, 2};
-
-        uint8_t *shadow = NULL;
-        size_t shadow_size = 0;
-        char *enc = NULL;
         unsigned conn = 0;
-        unsigned version = 0;
-        bool sent_empty = false;
 
         for (;;) {
                 struct timespec t = {.tv_sec = 0, .tv_nsec = LCD_REFRESH_MS * 1000000L};
@@ -1553,70 +2071,10 @@ static void *lcd_thread(void *arg)
                 bool force = (cur_conn != conn);
                 conn = cur_conn;
 
-                char head[160];
-                int first = -1, last = -1;
-                size_t line = 0;
-
-                pthread_mutex_lock(&board.lcd.mtx);
-
-                if (board.lcd.version != version) {
-                        version = board.lcd.version;
-                        force = true;
-                }
-
-                if (!board.lcd.fb) {
-                        pthread_mutex_unlock(&board.lcd.mtx);
-
-                        if (force || !sent_empty) {
-                                const char *msg = "{\"t\":\"lcd\",\"w\":0,\"h\":0}";
-                                size_t len = strlen(msg);
-                                sent_empty = panel_write(&msg, &len, 1);
-                        }
-                        continue;
-                }
-
-                sent_empty = false;
-
-                int fmt = board.lcd.format;
-                line = (size_t)board.lcd.width * PIXEL_SIZE[fmt];
-                size_t size = line * board.lcd.height;
-
-                if (size != shadow_size) {
-                        free(shadow);
-                        free(enc);
-                        shadow = malloc(size);
-                        enc = malloc(4 * ((size + 2) / 3) + 1);
-                        shadow_size = (shadow && enc) ? size : 0;
-                        force = true;
-                }
-
-                if (shadow_size) {
-                        for (int y = 0; y < board.lcd.height; y++) {
-                                const uint8_t *src = board.lcd.fb + (size_t)y * line;
-                                uint8_t *dst = shadow + (size_t)y * line;
-                                if (force || (memcmp(src, dst, line) != 0)) {
-                                        memcpy(dst, src, line);
-                                        if (first < 0) first = y;
-                                        last = y;
-                                }
-                        }
-                }
-
-                snprintf(head, sizeof(head),
-                         "{\"t\":\"lcd\",\"w\":%u,\"h\":%u,\"fmt\":\"%s\",\"bg\":[%u,%u,%u],"
-                         "\"y\":%d,\"n\":%d,\"data\":\"",
-                         board.lcd.width, board.lcd.height, FORMAT[fmt], board.lcd.bg[0], board.lcd.bg[1],
-                         board.lcd.bg[2], first, last - first + 1);
-
-                pthread_mutex_unlock(&board.lcd.mtx);
-
-                /* shadow is used only by this thread, sending can take time */
-                if (first >= 0) {
-                        size_t len = base64(shadow + (size_t)first * line, (size_t)(last - first + 1) * line, enc);
-                        const char *part[] = {head, enc, "\"}"};
-                        const size_t psize[] = {strlen(head), len, 2};
-                        if (!panel_write(part, psize, 3)) {
+                for (int i = 0; i < LCD_MAX; i++) {
+                        if (!lcd_send(&board.lcd.slot[i], force)) {
                                 conn = 0; /* all lines after reconnection */
+                                break;
                         }
                 }
         }
@@ -1626,25 +2084,26 @@ static void *lcd_thread(void *arg)
 
 //==============================================================================
 /**
- * @brief  LCD framebuffer is shown by the panel.
+ * @brief  LCD framebuffer of LTDC driver is shown by the panel (LCD "ltdc").
  */
 //==============================================================================
 void _host_board_lcd_attach(const void *fb, uint16_t width, uint16_t height, int format, uint8_t bg_r,
                             uint8_t bg_g, uint8_t bg_b)
 {
-        if ((format < 0) || (format > 7)) {
+        if ((format < 0) || (format >= LCD_FORMATS)) {
                 fb = NULL;
         }
 
         pthread_mutex_lock(&board.lcd.mtx);
-        board.lcd.fb = fb;
-        board.lcd.width = fb ? width : 0;
-        board.lcd.height = fb ? height : 0;
-        board.lcd.format = fb ? format : 0;
-        board.lcd.bg[0] = bg_r;
-        board.lcd.bg[1] = bg_g;
-        board.lcd.bg[2] = bg_b;
-        board.lcd.version++;
+        lcd_t *lcd = &board.lcd.slot[0];
+        lcd->fb = fb;
+        lcd->width = fb ? width : 0;
+        lcd->height = fb ? height : 0;
+        lcd->format = fb ? format : 0;
+        lcd->bg[0] = bg_r;
+        lcd->bg[1] = bg_g;
+        lcd->bg[2] = bg_b;
+        lcd->version++;
         pthread_mutex_unlock(&board.lcd.mtx);
 }
 

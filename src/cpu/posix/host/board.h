@@ -88,8 +88,9 @@ extern int _host_board_init(const char *script, const char *panel);
 extern void _host_board_exit(void);
 
 /**
- * @brief  LCD framebuffer is shown by the panel (changed lines are sent
- *         periodically). Framebuffer must be valid until it is detached.
+ * @brief  LCD framebuffer of the LTDC driver is shown by the panel as LCD
+ *         "ltdc" (changed lines are sent periodically). Framebuffer must be
+ *         valid until it is detached.
  *
  * @param  fb           framebuffer (NULL: detach)
  * @param  width        width in pixels
