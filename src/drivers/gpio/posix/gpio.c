@@ -41,7 +41,7 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define NUMBER_OF_PORTS __GPIO_POSIX_NUMBER_OF_PORTS__
+#define NUMBER_OF_PORTS 8
 #define PINS_IN_PORT    _GPIO_POSIX_PINS_IN_PORT
 
 /*==============================================================================
