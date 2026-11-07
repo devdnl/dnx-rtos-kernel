@@ -234,7 +234,12 @@ repositories, so the interface between them must stay consistent:
   user-space programs. Changing request numbers or structures breaks existing
   programs.
 - **Appset table format** (`_program_table_desc_t`, magic value in
-  `process.c`) is shared with the appset build.
+  `process.c`) is shared with the appset build. In the POSIX simulator the
+  main table is `_program_table_desc` and the workspace may link more appsets
+  (`SIM_APPSETS`): their generated program registration puts a reference of
+  each table in the `dnx_appset_tables` section, `_process_init()` registers
+  them after the main table (weak `__start_/__stop_dnx_appset_tables`, the
+  section may not exist).
 - **TTY raw mode** (`IOCTL_TTY__RAW_MODE_ON/OFF`) is used by the workspace
   `libtui` library (nano, mc, dialog). In raw mode input bytes go directly to
   the reader and output bypasses the screen buffer; `dsh` switches the

@@ -199,6 +199,27 @@ void _process_init(void)
         if (at->table->bss_start and at->table->bss_size) {
                 memset(at->table->bss_start, 0, at->table->bss_size);
         }
+
+#if defined(ARCH_posix)
+        /*
+         * Other appsets linked with kernel: the generated program registration of each appset puts
+         * reference of its table in the dnx_appset_tables section (the main appset too). Symbols
+         * are weak: the section does not exist when appsets do not contain references.
+         */
+        extern const _program_table_desc_t *const __start_dnx_appset_tables[] __attribute__((weak));
+        extern const _program_table_desc_t *const __stop_dnx_appset_tables[] __attribute__((weak));
+
+        for (const _program_table_desc_t *const *t = __start_dnx_appset_tables; t and (t < __stop_dnx_appset_tables);
+                t++) {
+
+                if (*t != appset_base.table) {
+                        const void *table[] = {*t};
+                        if (_process_register_appset(table, 1) != ESUCC) {
+                                printk("Unable to register appset @ %p", *t);
+                        }
+                }
+        }
+#endif
 }
 
 //==============================================================================
