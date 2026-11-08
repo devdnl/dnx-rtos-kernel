@@ -97,7 +97,7 @@ API_MOD_INIT(DHT11, void **device_handle, u8_t major, u8_t minor, const void *co
                         hdl->cfg = *cast(DHT11_config_t *, config);
                 }
 
-                sys_device_unlock(&hdl->lock, true);
+                drv_unlock(&hdl->lock, true);
         }
 
         return err;
@@ -116,7 +116,7 @@ API_MOD_RELEASE(DHT11, void *device_handle)
 {
         DHT11_t *hdl = device_handle;
 
-        int err = sys_device_lock(&hdl->lock);
+        int err = drv_lock(&hdl->lock);
         if (!err) {
                 sys_free(&device_handle);
         }
@@ -140,7 +140,7 @@ API_MOD_OPEN(DHT11, void *device_handle, u32_t flags)
 
         DHT11_t *hdl = device_handle;
 
-        return sys_device_lock(&hdl->lock);
+        return drv_lock(&hdl->lock);
 }
 
 //==============================================================================
@@ -157,7 +157,7 @@ API_MOD_CLOSE(DHT11, void *device_handle, bool force)
 {
         DHT11_t *hdl = device_handle;
 
-        return sys_device_unlock(&hdl->lock, force);
+        return drv_unlock(&hdl->lock, force);
 }
 
 //==============================================================================
@@ -218,7 +218,7 @@ API_MOD_READ(DHT11, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, 
         sys_sleep_ms(18);
 
         // lock system scheduler and read bit by bit
-        sys_context_switch_lock();
+        sys_scheduler_lock();
         {
                 // finish start bit
                 set_pin_high(hdl);
@@ -259,7 +259,7 @@ API_MOD_READ(DHT11, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, 
 
                 err = timeout < 0 ? EIO : ESUCC;
         }
-        sys_context_switch_unlock();
+        sys_scheduler_unlock();
 
         if (!err) {
                 *fpos = 0;
@@ -294,8 +294,8 @@ API_MOD_IOCTL(DHT11, void *device_handle, int request, void *arg)
                         break;
 
                 case IOCTL_DHT11__CONFIGURE_STR:
-                        hdl->cfg.port_idx = sys_stropt_get_int(arg, "port", hdl->cfg.port_idx);
-                        hdl->cfg.pin_idx = sys_stropt_get_int(arg, "pin", hdl->cfg.pin_idx);
+                        hdl->cfg.port_idx = sys_opt_get_int(arg, "port", hdl->cfg.port_idx);
+                        hdl->cfg.pin_idx = sys_opt_get_int(arg, "pin", hdl->cfg.pin_idx);
                         err = ESUCC;
                         break;
                 }

@@ -30,7 +30,7 @@
  * @defgroup driver-h "drivers/driver.h"
  *
  * This library is used by each driver and contains driver-specific
- * functions and @subpage sysfunc-h. This is main system library that shall
+ * functions and @subpage sysapi-h. This is main system library that shall
  * be used by drivers.
  *
  * @{
@@ -46,30 +46,22 @@ extern "C" {
 /*==============================================================================
   Include files
 ==============================================================================*/
-#include "config.h"
-#include "lib/sys/types.h"
-#include <string.h>
-#include "kernel/errno.h"
-#include "kernel/sysfunc.h"
-#include "drivers/drvctrl.h"
+#include "kernel/sysapi.h"
 #include "lib/vt100.h"
-#include "lib/cast.h"
 
 /*==============================================================================
   Exported symbolic constants/macros
 ==============================================================================*/
 #undef errno
 
-#ifndef DOXYGEN /* Doxygen documentation in sysfunc.h */
+#ifndef DOXYGEN /* Doxygen documentation in sysapi.h */
 #undef sys_zalloc
-#define sys_zalloc(size_t__size, void__ppmem)                                               \
-        _kzalloc(_MM_MOD, size_t__size, 0, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, void__ppmem, \
-                _module_get_ID(_module_name_))
+#define sys_zalloc(size_t__size, void__ppmem) \
+        drv_mem_alloc(_module_name_, size_t__size, 0, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, true, void__ppmem)
 
 #undef sys_malloc
-#define sys_malloc(size_t__size, void__ppmem)                                               \
-        _kmalloc(_MM_MOD, size_t__size, 0, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, void__ppmem, \
-                _module_get_ID(_module_name_))
+#define sys_malloc(size_t__size, void__ppmem) \
+        drv_mem_alloc(_module_name_, size_t__size, 0, NULL, _MM_FLAG__DMA, _MM_FLAG__DMA, false, void__ppmem)
 
 /*
  * sys_zalloc2()/sys_malloc2(): allocation with selected alignment (power of 2,
@@ -81,55 +73,45 @@ extern "C" {
  */
 #undef sys_zalloc2
 #define sys_zalloc2(size_t__size, size_t__align, prefreg_name, required_features, required_features_mask, void__ppmem) \
-        _kzalloc(_MM_MOD, size_t__size, size_t__align, prefreg_name, required_features, required_features_mask,        \
-                void__ppmem, _module_get_ID(_module_name_))
+        drv_mem_alloc(_module_name_, size_t__size, size_t__align, prefreg_name, required_features,                     \
+                required_features_mask, true, void__ppmem)
 
 #undef sys_malloc2
 #define sys_malloc2(size_t__size, size_t__align, prefreg_name, required_features, required_features_mask, void__ppmem) \
-        _kmalloc(_MM_MOD, size_t__size, size_t__align, prefreg_name, required_features, required_features_mask,        \
-                void__ppmem, _module_get_ID(_module_name_))
+        drv_mem_alloc(_module_name_, size_t__size, size_t__align, prefreg_name, required_features,                     \
+                required_features_mask, false, void__ppmem)
 
 #undef sys_free
-#define sys_free(void__ppmem) _kfree(_MM_MOD, void__ppmem, _module_get_ID(_module_name_))
+#define sys_free(void__ppmem) drv_mem_free(_module_name_, void__ppmem)
 
-#undef sys_get_driver_instance
-#define sys_module_get_instance(u8_t__major, u8_t__minor, void_pp__mem) \
-        _module_get_instance(_module_name_, u8_t__major, u8_t__minor, void_pp__mem)
-
-#undef sys_llist_create
-#define sys_llist_create(llist_cmp_functor_t__functor, llist_obj_dtor_t__obj_dtor, llist_t__pplist)                \
-        _llist_create_mod(_module_get_ID(_module_name_), llist_cmp_functor_t__functor, llist_obj_dtor_t__obj_dtor, \
-                llist_t__pplist);
-
-#undef sys_btree_create
-#define sys_btree_create(size_t__size, btree_cmp_functor_t__functor, btree_obj_dtor_t__obj_dtor, btree_t__pptree) \
-        _btree_create_mod(_module_get_ID(_module_name_), size_t__size, btree_cmp_functor_t__functor,              \
-                btree_obj_dtor_t__obj_dtor, btree_t__pptree)
+#undef drv_get_instance
+#define drv_get_instance(u8_t__major, u8_t__minor, void_pp__mem) \
+        drv_module_get_instance(_module_name_, u8_t__major, u8_t__minor, void_pp__mem)
 #endif /* DOXYGEN */
 
 #ifndef DOXYGEN
 #ifdef __cplusplus
-#define MODULE_NAME(modname)                                           \
-        static const char *_module_name_ = #modname;                   \
-        inline void *operator new(size_t size)                         \
-        {                                                              \
-                void *mem = NULL;                                      \
-                _modmalloc(size, _module_get_ID(_module_name_), &mem); \
-                return mem;                                            \
-        }                                                              \
-        inline void *operator new[](size_t size)                       \
-        {                                                              \
-                void *mem = NULL;                                      \
-                _modmalloc(size, _module_get_ID(_module_name_), &mem); \
-                return mem;                                            \
-        }                                                              \
-        inline void operator delete(void *ptr)                         \
-        {                                                              \
-                _modfree(&ptr, _module_get_ID(_module_name_));         \
-        }                                                              \
-        inline void operator delete[](void *ptr)                       \
-        {                                                              \
-                _modfree(&ptr, _module_get_ID(_module_name_));         \
+#define MODULE_NAME(modname)                         \
+        static const char *_module_name_ = #modname; \
+        inline void *operator new(size_t size)       \
+        {                                            \
+                void *mem = NULL;                    \
+                sys_malloc(size, &mem);              \
+                return mem;                          \
+        }                                            \
+        inline void *operator new[](size_t size)     \
+        {                                            \
+                void *mem = NULL;                    \
+                sys_malloc(size, &mem);              \
+                return mem;                          \
+        }                                            \
+        inline void operator delete(void *ptr)       \
+        {                                            \
+                sys_free(&ptr);                      \
+        }                                            \
+        inline void operator delete[](void *ptr)     \
+        {                                            \
+                sys_free(&ptr);                      \
         }
 #define _MODULE_EXTERN_C extern "C"
 #else
@@ -382,16 +364,17 @@ struct vfs_dev_stat {
 typedef void *dev_lock_t;
 #endif /* DOXYGEN*/
 
+#ifndef DOXYGEN
+/** device lock object */
+typedef pid_t dev_lock_t;
+#endif
+
 /*==============================================================================
   Exported object declarations
 ==============================================================================*/
 
 /*==============================================================================
   Exported function prototypes
-==============================================================================*/
-
-/*==============================================================================
-  Exported inline function
 ==============================================================================*/
 //==============================================================================
 /**
@@ -406,13 +389,10 @@ typedef void *dev_lock_t;
  * @return If device is successfully locked then @ref ESUCC is returned,
  *         otherwise @ref EBUSY.
  *
- * @see sys_device_unlock()
+ * @see drv_unlock()
  */
 //==============================================================================
-static inline int sys_device_lock(dev_lock_t *dev_lock)
-{
-        return _device_lock(dev_lock);
-}
+extern int drv_lock(dev_lock_t *dev_lock);
 
 //==============================================================================
 /**
@@ -426,13 +406,10 @@ static inline int sys_device_lock(dev_lock_t *dev_lock)
  * @return If device is successfully unlocked then @ref ESUCC is returned,
  *         otherwise @ref EBUSY (locked by other process).
  *
- * @see sys_device_lock()
+ * @see drv_lock()
  */
 //==============================================================================
-static inline int sys_device_unlock(dev_lock_t *dev_lock, bool force)
-{
-        return _device_unlock(dev_lock, force);
-}
+extern int drv_unlock(dev_lock_t *dev_lock, bool force);
 
 //==============================================================================
 /**
@@ -447,13 +424,10 @@ static inline int sys_device_unlock(dev_lock_t *dev_lock, bool force)
  * @return If device is successfully locked by this process then @ref ESUCC is
  *         returned, otherwise @ref EBUSY (locked by other process).
  *
- * @see sys_device_lock(), sys_device_unlock()
+ * @see drv_lock(), drv_unlock()
  */
 //==============================================================================
-static inline int sys_device_get_access(dev_lock_t *dev_lock)
-{
-        return _device_get_access(dev_lock);
-}
+extern int drv_check_access(dev_lock_t *dev_lock);
 
 //==============================================================================
 /**
@@ -465,31 +439,145 @@ static inline int sys_device_get_access(dev_lock_t *dev_lock)
  *
  * @return If device is unlocked then @b true is returned, otherwise @b false.
  *
- * @see sys_device_is_unlocked(), sys_device_lock(), sys_device_unlock(), sys_device_get_access()
+ * @see drv_lock(), drv_unlock(), drv_check_access()
  */
 //==============================================================================
-static inline bool sys_device_is_locked(dev_lock_t *dev_lock)
-{
-        return _device_is_locked(dev_lock);
-}
+extern bool drv_is_locked(dev_lock_t *dev_lock);
 
+#ifdef DOXYGEN /* Doxygen documentation only. Macro defined in this file. */
 //==============================================================================
 /**
- * @brief Function checks that device is unlocked.
+ * @brief  Get module allocated memory for specified major and minor number.
+ *
+ * Function get memory instance of module that call this function. The major
+ * and minor numbers specify the instance.
  *
  * @note Function can be used only by driver code.
  *
- * @param dev_lock      pointer to device lock object
+ * @param major         major number
+ * @param minor         minor number
+ * @param mem           driver instance memory
  *
- * @return If device is unlocked then @b true is returned, otherwise @b false.
- *
- * @see sys_device_is_locked(), sys_device_lock(), sys_device_unlock(), sys_device_get_access()
+ * @return One of @ref errno value.
  */
 //==============================================================================
-static inline bool sys_device_is_unlocked(dev_lock_t *dev_lock)
-{
-        return !_device_is_locked(dev_lock);
-}
+int drv_get_instance(u8_t major, u8_t minor, void **mem);
+
+#endif
+
+//==============================================================================
+/**
+ * @brief  Function check if selected address is DMA capable.
+ *
+ * @param  ptr          address to examine
+ *
+ * @return If ptr is DMA capable then true is returned, otherwise false.
+ *         NULL address is not DMA capable.
+ */
+//==============================================================================
+extern bool drv_mem_is_dma_capable(const void *ptr);
+
+//==============================================================================
+/**
+ * @brief Function update all system clock after CPU frequency change.
+ *
+ * Function shall update all devices which base on main clock oscillator.
+ * Function is called after clock/frequency change from clock management driver
+ * (e.g. PLL).
+ *
+ * @note Function can be used only by file system or driver code.
+ */
+//==============================================================================
+extern void drv_clock_changed(void);
+
+//==============================================================================
+/**
+ * @brief  Function register new memory region. There is no possibility to
+ *         remove added region.
+ *
+ * The region descriptor (with copy of region name) is allocated by system.
+ *
+ * @note Function can be used only by driver code.
+ *
+ * @param  start        region start address
+ * @param  size         region size
+ * @param  flags        region features (_MM_FLAG__*)
+ * @param  name         region name
+ *
+ * @return One of errno value.
+ *
+ * @b Example
+ * @code
+        // ...
+
+        int err = drv_mem_register_region((void *)0x20001000, 16384, _MM_FLAG__DMA, "RAM2");
+        if (!err) {
+                // ...
+        }
+
+        // ...
+   @endcode
+ */
+//==============================================================================
+extern int drv_mem_register_region(void *start, size_t size, u32_t flags, const char *name);
+
+//==============================================================================
+/**
+ * @brief  Function checks if memory is cacheable.
+ *
+ * @note Function can be used only by driver code.
+ *
+ * @param ptr       memory to examine
+ *
+ * @return If memory is cacheable then @b true is returned, otherwise @b false.
+ */
+//==============================================================================
+extern bool drv_mem_is_cacheable(const void *ptr);
+
+//==============================================================================
+/**
+ * @brief  Function allocates memory for driver. Used by sys_malloc() family macros.
+ *
+ * @param module_name           module name (memory is accounted to the module)
+ * @param size                  block size
+ * @param align                 block alignment (0: default)
+ * @param prefreg               preferred memory regions (NULL terminated, can be @ref NULL)
+ * @param required_features     required region features (_MM_FLAG__*)
+ * @param required_mask         required features mask (_MM_FLAG__*)
+ * @param zero                  clear allocated memory
+ * @param mem                   allocated memory
+ *
+ * @return One of @ref errno value.
+ */
+//==============================================================================
+extern int drv_mem_alloc(const char *module_name, size_t size, size_t align, const char **prefreg,
+        u32_t required_features, u32_t required_mask, bool zero, void **mem);
+
+//==============================================================================
+/**
+ * @brief  Function frees memory of driver. Used by sys_free() macro.
+ *
+ * @param module_name           module name
+ * @param mem                   memory to free (pointer is cleared)
+ *
+ * @return One of @ref errno value.
+ */
+//==============================================================================
+extern int drv_mem_free(const char *module_name, void **mem);
+
+//==============================================================================
+/**
+ * @brief  Function returns instance of selected module. Used by drv_get_instance() macro.
+ *
+ * @param module_name           module name
+ * @param major                 major number
+ * @param minor                 minor number
+ * @param mem                   driver instance memory
+ *
+ * @return One of @ref errno value.
+ */
+//==============================================================================
+extern int drv_module_get_instance(const char *module_name, u8_t major, u8_t minor, void **mem);
 
 #ifdef __cplusplus
 }

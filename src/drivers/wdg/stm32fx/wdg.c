@@ -140,7 +140,7 @@ API_MOD_OPEN(WDG, void *device_handle, u32_t flags)
         WDG_t *hdl = device_handle;
 
         if (__WDG_DEVICE_LOCK_AT_OPEN__) {
-                return sys_device_lock(&hdl->file_lock);
+                return drv_lock(&hdl->file_lock);
         } else {
                 return ESUCC;
         }
@@ -161,7 +161,7 @@ API_MOD_CLOSE(WDG, void *device_handle, bool force)
         WDG_t *hdl = device_handle;
 
         if (__WDG_DEVICE_LOCK_AT_OPEN__) {
-                return sys_device_unlock(&hdl->file_lock, force);
+                return drv_unlock(&hdl->file_lock, force);
         } else {
                 return ESUCC;
         }
@@ -228,7 +228,7 @@ API_MOD_IOCTL(WDG, void *device_handle, int request, void *arg)
         int err = ESUCC;
 
         if (__WDG_DEVICE_LOCK_AT_OPEN__) {
-                err = sys_device_get_access(&hdl->file_lock);
+                err = drv_check_access(&hdl->file_lock);
         }
 
         if (!err) {

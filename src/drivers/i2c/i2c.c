@@ -131,7 +131,7 @@ API_MOD_INIT(I2C, void **device_handle, u8_t major, u8_t minor, const void *conf
                 }
 
                 if (!err) {
-                        sys_device_unlock(&hdl->lock_dev, true);
+                        drv_unlock(&hdl->lock_dev, true);
 
                         _I2C[major]->dev_cnt++;
                 }
@@ -158,7 +158,7 @@ API_MOD_RELEASE(I2C, void *device_handle)
 {
         I2C_dev_t *hdl = device_handle;
 
-        int err = sys_device_lock(&hdl->lock_dev);
+        int err = drv_lock(&hdl->lock_dev);
         if (!err) {
                 _I2C[hdl->major]->dev_cnt--;
                 release_resources(hdl->major);
@@ -184,7 +184,7 @@ API_MOD_OPEN(I2C, void *device_handle, u32_t flags)
 
         I2C_dev_t *hdl = device_handle;
 
-        return sys_device_lock(&hdl->lock_dev);
+        return drv_lock(&hdl->lock_dev);
 }
 
 //==============================================================================
@@ -201,7 +201,7 @@ API_MOD_CLOSE(I2C, void *device_handle, bool force)
 {
         I2C_dev_t *hdl = device_handle;
 
-        return sys_device_unlock(&hdl->lock_dev, force);
+        return drv_unlock(&hdl->lock_dev, force);
 }
 
 //==============================================================================
@@ -382,11 +382,11 @@ API_MOD_IOCTL(I2C, void *device_handle, int request, void *arg)
                 case IOCTL_I2C__CONFIGURE_STR:
                         err = sys_mutex_lock(_I2C[hdl->major]->lock_mtx, ACCESS_TIMEOUT);
                         if (!err) {
-                                hdl->config.addr_10bit = sys_stropt_get_bool(arg, "addr_10bit", false);
-                                hdl->config.address = sys_stropt_get_int(arg, "address", 0);
-                                hdl->config.mode = sys_stropt_get_bool(arg, "slave", false) ? I2C_MODE__SLAVE
-                                                                                            : I2C_MODE__MASTER;
-                                hdl->config.sub_addr_mode = sys_stropt_get_int(arg, "sub_addr_mode", 0);
+                                hdl->config.addr_10bit = sys_opt_get_bool(arg, "addr_10bit", false);
+                                hdl->config.address = sys_opt_get_int(arg, "address", 0);
+                                hdl->config.mode = sys_opt_get_bool(arg, "slave", false) ? I2C_MODE__SLAVE
+                                                                                         : I2C_MODE__MASTER;
+                                hdl->config.sub_addr_mode = sys_opt_get_int(arg, "sub_addr_mode", 0);
 
                                 err = _I2C_LLD__slave_mode_setup(hdl);
                                 sys_mutex_unlock(_I2C[hdl->major]->lock_mtx);

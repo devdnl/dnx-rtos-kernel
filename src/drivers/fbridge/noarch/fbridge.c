@@ -257,8 +257,8 @@ API_MOD_IOCTL(FBRIDGE, void *device_handle, int request, void *arg)
                         char rd[64], wr[64];
                         FBRIDGE_conf_t cfg = {.read_path = rd, .write_path = wr};
 
-                        if (sys_stropt_get_string_copy(arg, "read_path", rd, sizeof(rd))
-                            && sys_stropt_get_string_copy(arg, "write_path", wr, sizeof(wr))) {
+                        if (sys_opt_get_str_copy(arg, "read_path", rd, sizeof(rd)) &&
+                                sys_opt_get_str_copy(arg, "write_path", wr, sizeof(wr))) {
                                 err = configure(hdl, &cfg);
                         } else {
                                 err = EINVAL;

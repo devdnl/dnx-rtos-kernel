@@ -88,7 +88,7 @@ extern "C" {
  #endif
 
 #else
-#include "fs/vfs.h"
+#include "kernel/sysapi.h"
 #endif
 
 #ifdef __cplusplus

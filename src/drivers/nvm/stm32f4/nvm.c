@@ -359,8 +359,8 @@ API_MOD_IOCTL(NVM, void *device_handle, int request, void *arg)
         case IOCTL_NVM__CONFIGURE_STR:
                 if (arg) {
                         NVM_config_t cfg = {
-                                .start_sector = sys_stropt_get_int(arg, "start_sector", 0),
-                                .number_of_sectors = sys_stropt_get_int(arg, "number_of_sectors", 0),
+                                .start_sector = sys_opt_get_int(arg, "start_sector", 0),
+                                .number_of_sectors = sys_opt_get_int(arg, "number_of_sectors", 0),
                         };
 
                         if (cfg.number_of_sectors > 0) {
@@ -590,11 +590,11 @@ static int FLASH_program_byte(uint32_t address, uint8_t data)
                 FLASH->CR |= FLASH_CR_PSIZE_BYTE;
                 FLASH->CR |= FLASH_CR_PG;
 
-                sys_ISR_disable();
+                sys_critical_section_begin();
                 *cast(__IO uint8_t *, address) = data;
                 while (FLASH->SR & FLASH_SR_BSY) {
                 }
-                sys_ISR_enable();
+                sys_critical_section_end();
 
                 err = FLASH_wait_for_operation_finish();
 

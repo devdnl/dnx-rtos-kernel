@@ -29,7 +29,6 @@ Brief    General usage DMA driver.
 ==============================================================================*/
 #include "drivers/driver.h"
 #include "dma/dma_ioctl.h"
-#include "kernel/khooks.h"
 
 #if defined(ARCH_stm32f1)
 #include "stm32f1/stm32f10x.h"
@@ -558,7 +557,7 @@ void _DMA_DDI_abort(u32_t dmad)
 //==============================================================================
 int _DMA_DDI_memcpy(void *dst, const void *src, size_t size)
 {
-        if (!sys_is_mem_dma_capable(dst) || !sys_is_mem_dma_capable(src)) {
+        if (!drv_mem_is_dma_capable(dst) || !drv_mem_is_dma_capable(src)) {
                 return EIO;
         }
 
@@ -868,7 +867,7 @@ void DMA2_Channel4_5_IRQHandler(void)
         } else if (DMA2->ISR & (DMA_ISR_GIF5 | DMA_ISR_TCIF5 | DMA_ISR_HTIF5 | DMA_ISR_TEIF5)) {
                 IRQ_handle(1, 4);
         } else {
-                _assert(false);
+                sys_assert(false);
         }
 }
 #endif

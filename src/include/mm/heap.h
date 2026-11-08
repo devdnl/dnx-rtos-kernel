@@ -60,6 +60,10 @@
 #ifndef _HEAP_H_
 #define _HEAP_H_
 
+#ifdef __DNX_MODULE__
+#error "Kernel internal header. Drivers include drivers/driver.h, file systems include fs/fs.h."
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif

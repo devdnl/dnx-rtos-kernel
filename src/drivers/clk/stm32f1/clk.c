@@ -184,7 +184,7 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         RCC_SYSCLKConfig(_CLK_CFG__SYSCLK_SRC);
         RCC_MCOConfig(_CLK_CFG__MCO_SRC);
 
-        sys_update_system_clocks();
+        drv_clock_changed();
 
         return err;
 }
@@ -203,7 +203,7 @@ API_MOD_RELEASE(CLK, void *device_handle)
         UNUSED_ARG1(device_handle);
 
         RCC_DeInit();
-        sys_update_system_clocks();
+        drv_clock_changed();
 
         return ESUCC;
 }

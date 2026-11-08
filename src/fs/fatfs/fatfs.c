@@ -116,11 +116,11 @@ static void dummy_free(void *obj);
 API_FS_INIT(fatfs, void **fs_handle, const char *src_path, const char *opts)
 {
         /* FATFS contains sector buffer aligned to FF_BUF_ALIGN */
-        int err = sys_zalloc2(sizeof(struct fatfs), FF_BUF_ALIGN, _cpuctl_preferred_FS_RAM, fs_handle);
+        int err = sys_zalloc2(sizeof(struct fatfs), FF_BUF_ALIGN, NULL, fs_handle);
         if (!err) {
                 struct fatfs *hdl = *fs_handle;
 
-                hdl->read_only = sys_stropt_is_flag(opts, "ro");
+                hdl->read_only = sys_opt_has_flag(opts, "ro");
 
                 err = sys_llist_create(cmp_ptr, dummy_free, &hdl->file_list);
 
@@ -299,7 +299,7 @@ API_FS_OPEN(fatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
         if (!err && !obj) {
                 /* first handle to the file */
                 /* FIL contains sector buffer aligned to FF_BUF_ALIGN */
-                err = sys_zalloc2(sizeof(struct fatobj), FF_BUF_ALIGN, _cpuctl_preferred_FS_RAM, cast(void *, &obj));
+                err = sys_zalloc2(sizeof(struct fatobj), FF_BUF_ALIGN, NULL, cast(void *, &obj));
                 if (!err) {
                         BYTE method = FA_OPEN_EXISTING;
 

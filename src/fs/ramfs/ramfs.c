@@ -309,8 +309,8 @@ API_FS_MKNOD(ramfs, void *fs_handle, const char *path, const dev_t dev)
                         err = copy_basename(hdl, path, &child_name);
                         if (!err) {
                                 node_t *child;
-                                err = new_node(hdl, parent, child_name,
-                                        S_IRWXU | S_IRGRP | S_IROTH | sys_driver_type(dev), NULL, &child);
+                                err = new_node(hdl, parent, child_name, S_IRWXU | S_IRGRP | S_IROTH | fs_dev_type(dev),
+                                        NULL, &child);
                                 if (!err) {
                                         child->data.dev_t = dev;
                                 } else {
@@ -519,7 +519,7 @@ API_FS_READDIR(ramfs, void *fs_handle, kdir_t *dir)
                                 sys_mutex_unlock(hdl->resource_mtx);
 
                                 struct vfs_dev_stat dev_stat;
-                                err = sys_driver_stat(dev, &dev_stat);
+                                err = fs_dev_stat(dev, &dev_stat);
                                 if (!err) {
                                         dir->dirent.size = dev_stat.st_size;
                                 } else if (err == ENODEV) {
@@ -817,7 +817,7 @@ API_FS_FSTAT(ramfs, void *fs_handle, void *extra, struct stat *stat)
                         stat->st_dev = opened_file->child->data.dev_t;
 
                         struct vfs_dev_stat dev_stat;
-                        err = sys_driver_stat(opened_file->child->data.dev_t, &dev_stat);
+                        err = fs_dev_stat(opened_file->child->data.dev_t, &dev_stat);
                         if (!err) {
                                 stat->st_size = dev_stat.st_size;
 
@@ -1031,7 +1031,7 @@ API_FS_OPEN(ramfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
                         }
 
                 } else if (IS_DEVICE(child->mode)) {
-                        err = sys_driver_open(child->data.dev_t, flags);
+                        err = fs_dev_open(child->data.dev_t, flags);
                         if (!err) {
                                 *fpos = 0;
                         } else {
@@ -1077,10 +1077,10 @@ API_FS_CLOSE(ramfs, void *fs_handle, void *fhdl)
 
                         /* close device if file is driver type */
                         if (IS_DEVICE(target->mode)) {
-                                err = sys_driver_close(target->data.dev_t, true);
+                                err = fs_dev_close(target->data.dev_t, true);
 
                         } else if (S_ISFIFO(target->mode)) {
-                                err = sys_pipe_close(target->data.pipe_t);
+                                err = fs_pipe_close(target->data.pipe_t);
 
                         } else {
                                 err = ESUCC;
@@ -1149,16 +1149,16 @@ API_FS_WRITE(ramfs, void *fs_handle, void *fhdl, const u8_t *src, size_t count, 
 
                 if (IS_DEVICE(node->mode)) {
                         dev_t dev = node->data.dev_t;
-                        err = sys_driver_write(dev, src, count, fpos, wrcnt, fattr);
+                        err = fs_dev_write(dev, src, count, fpos, wrcnt, fattr);
 
                 } else if (S_ISFIFO(node->mode)) {
                         pipe_t *pipe = node->data.pipe_t;
 
-                        err = sys_pipe_write(pipe, src, count, wrcnt, fattr.non_blocking_wr);
+                        err = fs_pipe_write(pipe, src, count, wrcnt, fattr.non_blocking_wr);
                         if (!err) {
                                 if (*wrcnt > 0) {
                                         size_t size = 0;
-                                        err = sys_pipe_get_length(pipe, &size);
+                                        err = fs_pipe_get_length(pipe, &size);
                                         node->size = size;
                                 }
                         }
@@ -1203,16 +1203,16 @@ API_FS_READ(ramfs, void *fs_handle, void *fhdl, u8_t *dst, size_t count, fpos_t 
 
                 if (IS_DEVICE(node->mode)) {
                         dev_t dev = node->data.dev_t;
-                        err = sys_driver_read(dev, dst, count, fpos, rdcnt, fattr);
+                        err = fs_dev_read(dev, dst, count, fpos, rdcnt, fattr);
 
                 } else if (S_ISFIFO(node->mode)) {
                         pipe_t *pipe = node->data.pipe_t;
 
-                        err = sys_pipe_read(pipe, dst, count, rdcnt, fattr.non_blocking_rd or fattr.non_strict_rd);
+                        err = fs_pipe_read(pipe, dst, count, rdcnt, fattr.non_blocking_rd or fattr.non_strict_rd);
                         if (!err) {
                                 if (*rdcnt > 0) {
                                         size_t size;
-                                        err = sys_pipe_get_length(pipe, &size);
+                                        err = fs_pipe_get_length(pipe, &size);
                                         node->size = size;
                                 }
                         }
@@ -1251,26 +1251,26 @@ API_FS_IOCTL(ramfs, void *fs_handle, void *fhdl, int request, void *arg)
         if (opened_file && opened_file->child) {
                 if (IS_DEVICE(opened_file->child->mode)) {
                         dev_t dev = opened_file->child->data.dev_t;
-                        err = sys_driver_ioctl(dev, request, arg);
+                        err = fs_dev_ioctl(dev, request, arg);
 
                 } else if (S_ISFIFO(opened_file->child->mode)) {
 
                         switch (request) {
                         case IOCTL_PIPE__CLOSE: {
                                 pipe_t *pipe = opened_file->child->data.pipe_t;
-                                err = sys_pipe_close(pipe);
+                                err = fs_pipe_close(pipe);
                                 break;
                         }
 
                         case IOCTL_PIPE__CLEAR: {
                                 pipe_t *pipe = opened_file->child->data.pipe_t;
-                                err = sys_pipe_clear(pipe);
+                                err = fs_pipe_clear(pipe);
                                 break;
                         }
 
                         case IOCTL_PIPE__PERMANENT: {
                                 pipe_t *pipe = opened_file->child->data.pipe_t;
-                                err = sys_pipe_permanent(pipe);
+                                err = fs_pipe_permanent(pipe);
                                 break;
                         }
 
@@ -1308,7 +1308,7 @@ API_FS_FLUSH(ramfs, void *fs_handle, void *fhdl)
                 if (opened_file && opened_file->child) {
                         if (IS_DEVICE(opened_file->child->mode)) {
                                 sys_mutex_unlock(hdl->resource_mtx);
-                                return sys_driver_flush(opened_file->child->data.dev_t);
+                                return fs_dev_flush(opened_file->child->data.dev_t);
                         } else {
                                 err = ESUCC;
                         }
@@ -1363,7 +1363,7 @@ static int delete_node(struct RAMFS *hdl, node_t *base, node_t *target, u32_t po
 
         } else if (S_ISFIFO(target->mode)) {
                 if (target->data.pipe_t) {
-                        sys_pipe_destroy(target->data.pipe_t);
+                        fs_pipe_destroy(target->data.pipe_t);
                         target->data.pipe_t = NULL;
                         mem_release(hdl, RAMFS_PIPE_COST);
                 }
@@ -1568,7 +1568,7 @@ static int new_node(struct RAMFS *hdl, node_t *parent, char *filename, mode_t mo
                         err = sys_llist_create(NULL, NULL, cast(llist_t **, &node->data));
 
                 } else if (S_ISFIFO(mode)) {
-                        err = sys_pipe_create(cast(pipe_t **, &node->data));
+                        err = fs_pipe_create(cast(pipe_t **, &node->data));
                 }
 
                 if (!err) {
@@ -1587,7 +1587,7 @@ static int new_node(struct RAMFS *hdl, node_t *parent, char *filename, mode_t mo
                                 if (S_ISDIR(mode) && node->data.llist_t) {
                                         sys_llist_destroy(node->data.llist_t);
                                 } else if (S_ISFIFO(mode) && node->data.pipe_t) {
-                                        sys_pipe_destroy(node->data.pipe_t);
+                                        fs_pipe_destroy(node->data.pipe_t);
                                 }
                         }
                 }

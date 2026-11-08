@@ -29,12 +29,17 @@
 #ifndef _MM_H_
 #define _MM_H_
 
+#ifdef __DNX_MODULE__
+#error "Kernel internal header. Drivers include drivers/driver.h, file systems include fs/fs.h."
+#endif
+
 /*==============================================================================
   Include files
 ==============================================================================*/
 #include <stdbool.h>
 #include "lib/sys/types.h"
 #include "heap.h"
+#include "kernel/sysapi.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,10 +49,6 @@ extern "C" {
   Exported macros
 ==============================================================================*/
 #define _mm_align(_size) (((_size) + _HEAP_ALIGN_ - 1) & ~(_HEAP_ALIGN_ - 1))
-
-#define _MM_FLAG__DMA    (1 << 0)
-#define _MM_FLAG__CACHE  (1 << 1)
-#define _MM_FLAG__NOHEAP (1 << 2)
 
 /*==============================================================================
   Exported object types

@@ -255,7 +255,7 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         LL_RCC_SetADCClockSource(__CLK_ADC34_SRC__);
 #endif
 
-        sys_update_system_clocks();
+        drv_clock_changed();
 
         return err;
 }
@@ -274,7 +274,7 @@ API_MOD_RELEASE(CLK, void *device_handle)
         UNUSED_ARG1(device_handle);
 
         LL_RCC_DeInit();
-        sys_update_system_clocks();
+        drv_clock_changed();
 
         return ESUCC;
 }

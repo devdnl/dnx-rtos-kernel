@@ -224,7 +224,7 @@ API_FS_INIT(romfs, void **fs_handle, const char *src_path, const char *opts)
 
         romfs_t *hdl = *fs_handle;
 
-        hdl->exec_reg_files = sys_stropt_get_bool(opts, "exec", __ROMFS_CFG_EXEC_FILES__);
+        hdl->exec_reg_files = sys_opt_get_bool(opts, "exec", __ROMFS_CFG_EXEC_FILES__);
 
         err = sys_mutex_create(KMTX_TYPE_RECURSIVE, &hdl->mtx);
 
@@ -236,7 +236,7 @@ API_FS_INIT(romfs, void **fs_handle, const char *src_path, const char *opts)
                 err = read_image_info(hdl);
         }
 
-        if (not err and sys_stropt_is_flag(opts, "validate")) {
+        if (not err and sys_opt_has_flag(opts, "validate")) {
                 err = file_validity_check(hdl);
         }
 
@@ -673,7 +673,7 @@ API_FS_OPENDIR(romfs, void *fs_handle, const char *path, kdir_t *kdir)
         dir->root[key_len + 1] = '\0';
         dir->root_len = key_len + 1;
 
-        err = sys_strdup("", &dir->item_name);
+        err = fs_strdup("", &dir->item_name);
         if (err) {
                 goto error;
         }
@@ -1254,7 +1254,7 @@ static int lookup(romfs_t *hdl, const char *key, size_t key_len, romfs_item_t *i
 static int dir_reset_item_name(struct fpkg_dir *dir)
 {
         char *empty;
-        int err = sys_strdup("", &empty);
+        int err = fs_strdup("", &empty);
         if (not err) {
                 sys_free(cast(void *, &dir->item_name));
                 dir->item_name = empty;
@@ -1317,7 +1317,7 @@ static int dir_next(romfs_t *hdl, struct fpkg_dir *dir, bool *is_dir, uint32_t *
                 }
 
                 char *name;
-                err = sys_strdup(item_name, &name);
+                err = fs_strdup(item_name, &name);
                 if (err) {
                         dir->seek--;
                         return err;

@@ -359,7 +359,7 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         RCC_I2SCLKConfig(_CLK_CFG__I2S_CLK_SRC);
 #endif
 
-        sys_update_system_clocks();
+        drv_clock_changed();
 
         return err;
 }
@@ -378,7 +378,7 @@ API_MOD_RELEASE(CLK, void *device_handle)
         UNUSED_ARG1(device_handle);
 
         RCC_DeInit();
-        sys_update_system_clocks();
+        drv_clock_changed();
 
         return ESUCC;
 }

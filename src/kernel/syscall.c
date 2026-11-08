@@ -3452,8 +3452,7 @@ static int syscall_cacheflush(syscallrq_t *rq)
 {
         UNUSED_ARG1(rq);
 
-        _cpuctl_clean_icache();
-        _cpuctl_clean_dcache();
+        sys_cache_sync_code(NULL, 0);
 
         return 0;
 }

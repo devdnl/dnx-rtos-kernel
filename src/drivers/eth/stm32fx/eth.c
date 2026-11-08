@@ -735,7 +735,7 @@ static int packet_send(struct eth *hdl, const ETHIF_packet_t *pkt)
 
                         __IO ETH_DMADescTypeDef *DmaTxDesc = hdl->eth.TxDesc;
 
-                        _cpuctl_invalidate_dcache_by_addr((uint32_t *)DmaTxDesc, sizeof(ETH_DMADescTypeDef));
+                        sys_dcache_invalidate((uint32_t *)DmaTxDesc, sizeof(ETH_DMADescTypeDef));
 
                         if ((DmaTxDesc->Status & ETH_DMATXDESC_OWN) != (uint32_t)RESET) {
                                 sys_mutex_unlock(hdl->mutex);
@@ -754,7 +754,7 @@ static int packet_send(struct eth *hdl, const ETHIF_packet_t *pkt)
                         memcpy(buffer, pkt->payload, pkt->length);
                         clear_packet_checksum(buffer);
 
-                        _cpuctl_clean_dcache_by_addr((uint32_t *)buffer, pkt->length);
+                        sys_dcache_clean((uint32_t *)buffer, pkt->length);
 
                         /* Prepare transmit descriptors to give to DMA */
                         err = HAL_ETH_TransmitFrame(&hdl->eth, pkt->length);
@@ -823,7 +823,7 @@ static int packet_receive(struct eth *hdl, ETHIF_packet_t *pkt)
 
                         if (len > 0) {
                                 pkt->length = len;
-                                _cpuctl_invalidate_dcache_by_addr((uint32_t *)buffer, len);
+                                sys_dcache_invalidate((uint32_t *)buffer, len);
                                 memcpy(pkt->payload, buffer, min(pkt->length, len));
                         }
 
@@ -833,7 +833,7 @@ static int packet_receive(struct eth *hdl, ETHIF_packet_t *pkt)
                         /* Set Own bit in Rx descriptors: gives the buffers back to DMA */
                         for (u32_t i = 0; i < hdl->eth.RxFrameInfos.SegCount; i++) {
                                 dmarxdesc->Status |= ETH_DMARXDESC_OWN;
-                                _cpuctl_clean_dcache_by_addr((uint32_t *)dmarxdesc, sizeof(ETH_DMADescTypeDef));
+                                sys_dcache_clean((uint32_t *)dmarxdesc, sizeof(ETH_DMADescTypeDef));
                                 dmarxdesc = (ETH_DMADescTypeDef *)(dmarxdesc->Buffer2NextDescAddr);
                         }
 

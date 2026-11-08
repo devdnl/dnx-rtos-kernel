@@ -29,6 +29,10 @@
 #ifndef _KTYPES_H_
 #define _KTYPES_H_
 
+#ifdef __DNX_MODULE__
+#error "Kernel internal header. Drivers include drivers/driver.h, file systems include fs/fs.h."
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -37,6 +41,7 @@ extern "C" {
   Include files
 ==============================================================================*/
 #include "lib/sys/types.h"
+#include "kernel/kres.h"
 #include <FreeRTOS.h>
 #include <stdbool.h>
 
@@ -51,30 +56,6 @@ extern "C" {
 /*==============================================================================
   Exported types, enums definitions
 ==============================================================================*/
-/** KERNELSPACE: resource type */
-typedef enum {
-        RES_TYPE_UNKNOWN = 0,
-        RES_TYPE_PROCESS = 0x958701BA,
-        RES_TYPE_MUTEX = 0x300C6B74,
-        RES_TYPE_SEMAPHORE = 0x4E59901B,
-        RES_TYPE_QUEUE = 0x83D50ADB,
-        RES_TYPE_FILE = 0x7D129250,
-        RES_TYPE_DIR = 0x19586E97,
-        RES_TYPE_MEMORY = 0x9E834645,
-        RES_TYPE_SOCKET = 0x63ACC316,
-        RES_TYPE_FLAG = 0x18FAEC0D,
-        RES_TYPE_SPINLOCK = 0x3EA49061,
-} res_type_t;
-
-/** KERNELSPACE: object header (must be the first in object) */
-typedef struct res_header {
-        void *self;
-        struct res_header *next;
-        struct res_header *prev;
-        struct _process *proc;
-        res_type_t type;
-} res_header_t;
-
 /** KERNELSPACE: task type */
 typedef void task_t;
 
@@ -82,14 +63,14 @@ typedef void task_t;
 typedef void (*task_func_t)(void *);
 
 /** KERNELSPACE: semaphore type */
-typedef struct {
+typedef struct ksem {
         res_header_t header;
         void *object;
         StaticSemaphore_t buffer;
 } ksem_t;
 
 /** KERNELSPACE: queue type */
-typedef struct {
+typedef struct kqueue {
         res_header_t header;
         void *object;
         StaticQueue_t buffer;
@@ -97,7 +78,7 @@ typedef struct {
 } kqueue_t;
 
 /** KERNELSPACE: mutex type */
-typedef struct {
+typedef struct kmtx {
         res_header_t header;
         void *object;
         StaticSemaphore_t buffer;
@@ -105,18 +86,11 @@ typedef struct {
 } kmtx_t;
 
 /** KERNELSPACE: flag type */
-typedef struct {
+typedef struct kflag {
         res_header_t header;
         void *object;
         StaticEventGroup_t buffer;
 } kflag_t;
-
-/** KERNELSPACE: spinlock type */
-typedef struct {
-        res_header_t header;
-        u32_t loop_delay_ms;
-        task_t *task_lock;
-} kspinlock_t;
 
 /*==============================================================================
    Exported object declarations

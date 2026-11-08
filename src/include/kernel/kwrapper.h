@@ -29,6 +29,10 @@
 #ifndef _KWRAPPER_H_
 #define _KWRAPPER_H_
 
+#ifdef __DNX_MODULE__
+#error "Kernel internal header. Drivers include drivers/driver.h, file systems include fs/fs.h."
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -39,6 +43,7 @@ extern "C" {
 #include "FreeRTOS.h"
 #include "config.h"
 #include "kernel/ktypes.h"
+#include "kernel/sysapi.h"
 #include "lib/sys/types.h"
 #include "queue.h"
 #include "semphr.h"
@@ -59,26 +64,15 @@ extern "C" {
 /** OS BASIC DEFINITIONS */
 #define _THIS_TASK NULL
 
-#define _MAX_DELAY_S     ((portMAX_DELAY - 1000UL) / 1000UL)
-#define _MAX_DELAY_MS    (_MAX_DELAY_S * 1000UL)
-#define _WAIT_FOREVER_MS (_MAX_DELAY_MS + 1)
-
 /** PRIORITIES */
 #define _PRIORITY(prio)    (prio + (configMAX_PRIORITIES / 2))
 #define _PRIORITY_LOWEST   (-(int)((configMAX_PRIORITIES / 2) - 1))
-#define _PRIORITY_NORMAL   0
 #define _PRIORITY_HIGHEST  ((int)((configMAX_PRIORITIES / 2) - 1))
 #define _PRIORITY_REALTIME ((int)(configMAX_PRIORITIES / 2))
 
 /*==============================================================================
   Exported types, enums definitions
 ==============================================================================*/
-/** USERSPACE/KERNELSPACE: mutex type */
-enum kmtx_type {
-        KMTX_TYPE_RECURSIVE,
-        KMTX_TYPE_NORMAL
-};
-
 /*==============================================================================
   Exported object declarations
 ==============================================================================*/
@@ -122,10 +116,6 @@ extern int _mutex_destroy(kmtx_t *);
 extern int _mutex_lock(kmtx_t *, u32_t);
 extern int _mutex_unlock(kmtx_t *);
 extern int _mutex_unlock_from_ISR(kmtx_t *mutex, bool *task_woken);
-extern int _spinlock_create(u32_t loop_delay_ms, kspinlock_t **spinlock);
-extern int _spinlock_destroy(kspinlock_t *spinlock);
-extern int _spinlock_lock(kspinlock_t *spinlock, u32_t blocktime_ms);
-extern int _spinlock_unlock(kspinlock_t *spinlock);
 extern int _flag_create(kflag_t **);
 extern int _flag_destroy(kflag_t *);
 extern int _flag_wait(kflag_t *, u32_t, u32_t);

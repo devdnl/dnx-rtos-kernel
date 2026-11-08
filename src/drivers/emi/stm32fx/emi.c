@@ -673,7 +673,7 @@ static const char *find_opt_region(const char *opts, const char *token, char *na
 {
         size_t len = 0;
 
-        const char *v = sys_stropt_get_string_ref(opts, token, &len);
+        const char *v = sys_opt_get_str_ref(opts, token, &len);
         if (v) {
                 sys_strlcpy(name, v, name_len);
                 char *colon = strchr(name, ':');
@@ -733,17 +733,7 @@ static int register_heap_regions(u32_t mem_addr, size_t mem_size, const char *op
                                         reg_size = (mem_size - (reg_addr - mem_addr));
                                 }
 
-                                mem_region_t *region;
-                                err = sys_zalloc(sizeof(*region) + strsize(name), cast(void **, &region));
-                                if (not err) {
-                                        char *region_name = cast(typeof(region_name), region->extra);
-                                        strcpy(region_name, name);
-                                        err = sys_register_region(region, cast(void *, reg_addr), reg_size,
-                                                region_flags, region_name);
-                                        if (err) {
-                                                sys_free(cast(void **, &region));
-                                        }
-                                }
+                                err = drv_mem_register_region(cast(void *, reg_addr), reg_size, region_flags, name);
 
                                 if (err) {
                                         break;

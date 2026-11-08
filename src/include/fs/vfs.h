@@ -29,6 +29,10 @@
 #ifndef _VFS_H_
 #define _VFS_H_
 
+#ifdef __DNX_MODULE__
+#error "Kernel internal header. Drivers include drivers/driver.h, file systems include fs/fs.h."
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -42,134 +46,11 @@ extern "C" {
 #include "kernel/ktypes.h"
 #include "lib/sys/types.h"
 #include "drivers/ioctl_macros.h"
+#include "kernel/sysapi.h"
 
 /*==============================================================================
   Exported macros
 ==============================================================================*/
-/* set position equal to offset bytes */
-#define VFS_SEEK_SET 0
-
-/* set position to current location plus offset */
-#define VFS_SEEK_CUR 1
-
-/* set position to EOF plus offset */
-#define VFS_SEEK_END 2
-
-/* translate functions to STDC */
-#ifndef SEEK_SET
-#define SEEK_SET VFS_SEEK_SET
-#endif
-
-#ifndef SEEK_CUR
-#define SEEK_CUR VFS_SEEK_CUR
-#endif
-
-#ifndef SEEK_END
-#define SEEK_END VFS_SEEK_END
-#endif
-
-/* file access flags. Doxygen documentation in "fs/fs.h" */
-#ifndef O_RDONLY
-#define O_RDONLY 00
-#endif
-
-#ifndef O_WRONLY
-#define O_WRONLY 01
-#endif
-
-#ifndef O_RDWR
-#define O_RDWR 02
-#endif
-
-#ifndef O_CREAT
-#define O_CREAT 0100
-#endif
-
-#ifndef O_EXCL
-#define O_EXCL 0200
-#endif
-
-#ifndef O_TRUNC
-#define O_TRUNC 01000
-#endif
-
-#ifndef O_APPEND
-#define O_APPEND 02000
-#endif
-
-#ifndef O_NONBLOCK
-#define O_NONBLOCK 04000
-#endif
-
-#ifndef O_DIRECTORY
-#define O_DIRECTORY 0200000
-#endif
-
-#ifndef O_SHARED
-#define O_SHARED 0400000
-#endif
-
-/* mask of access mode bits (O_RDONLY, O_WRONLY, O_RDWR) */
-#ifndef O_ACCMODE
-#define O_ACCMODE 03
-#endif
-
-/* modes */
-#define S_IRWXU 0000700 /* RWX mask for owner */
-#define S_IRUSR 0000400 /* R for owner */
-#define S_IWUSR 0000200 /* W for owner */
-#define S_IXUSR 0000100 /* X for owner */
-
-#define S_IRWXG 0000070 /* RWX mask for group */
-#define S_IRGRP 0000040 /* R for group */
-#define S_IWGRP 0000020 /* W for group */
-#define S_IXGRP 0000010 /* X for group */
-
-#define S_IRWXO 0000007 /* RWX mask for other */
-#define S_IROTH 0000004 /* R for other */
-#define S_IWOTH 0000002 /* W for other */
-#define S_IXOTH 0000001 /* X for other */
-
-#define S_ISUID 0004000 /* set user id on execution */
-#define S_ISGID 0002000 /* set group id on execution */
-#define S_ISVTX 0001000 /* save swapped text even after use */
-
-#define S_IPMT (000777)
-#define S_IFMT (070000)
-
-#define S_ISREG(mode_t_m)  ((mode_t_m & S_IFMT) == S_IFREG)
-#define S_ISDIR(mode_t_m)  ((mode_t_m & S_IFMT) == S_IFDIR)
-#define S_ISCHR(mode_t_m)  ((mode_t_m & S_IFMT) == S_IFCHR)
-#define S_ISLNK(mode_t_m)  ((mode_t_m & S_IFMT) == S_IFLNK)
-#define S_ISPROG(mode_t_m) ((mode_t_m & S_IFMT) == S_IFPROG)
-#define S_ISFIFO(mode_t_m) ((mode_t_m & S_IFMT) == S_IFIFO)
-#define S_ISBLK(mode_t_m)  ((mode_t_m & S_IFMT) == S_IFBLK)
-
-#define S_IFREG  0000000
-#define S_IFDIR  0010000
-#define S_IFCHR  0020000
-#define S_IFLNK  0030000
-#define S_IFPROG 0040000
-#define S_IFIFO  0050000
-#define S_IFBLK  0060000
-
-/* stream definitions */
-#define EOF (-1)
-#define ETX 0x03
-#define EOT 0x04
-
-/* IO operations on files */
-#define IOCTL_PIPE__CLOSE                  0xF0000
-#define IOCTL_PIPE__CLEAR                  0xF0001
-#define IOCTL_PIPE__PERMANENT              0xF0002
-#define IOCTL_VFS__NON_BLOCKING_RD_MODE    0xF0003
-#define IOCTL_VFS__DEFAULT_RD_MODE         0xF0004
-#define IOCTL_VFS__IS_NON_BLOCKING_RD_MODE 0xF0005
-#define IOCTL_VFS__NON_BLOCKING_WR_MODE    0xF0006
-#define IOCTL_VFS__DEFAULT_WR_MODE         0xF0007
-#define IOCTL_VFS__IS_NON_BLOCKING_WR_MODE 0xF0008
-#define IOCTL_VFS__NON_STRICT_RD_MODE      0xF0009
-#define IOCTL_VFS__IS_NON_STRICT_RD_MODE   0xF000A
 
 /* file system identifier */
 #define _VFS_FILE_SYSTEM_MAGIC_NO 0xD9EFD24F
@@ -177,28 +58,6 @@ extern "C" {
 /*==============================================================================
   Exported object types
 ==============================================================================*/
-struct vfs_dir;
-struct vfs_file;
-
-/** device info. Doxygen documentation in drivers/driver.h */
-struct vfs_dev_stat {
-        u64_t st_size;              /**< total size, in bytes */
-        u32_t st_blksize;           /**< block size in bytes (block devices only) */
-        u32_t st_rdbufalign;        /**< required read buffer alignment, power of 2 (block devices only) */
-        u32_t st_wrbufalign;        /**< required write buffer alignment, power of 2 (block devices only) */
-        const char **st_bufregions; /**< allowed memory regions of data buffer, NULL: any (block devices only) */
-        bool st_bufdma;             /**< data buffer must be in DMA capable memory (block devices only) */
-        u8_t st_major;              /**< device major number  */
-        u8_t st_minor;              /**< device minor number  */
-};
-
-/** file write/read attributes. Doxygen documentation in fs/fs.h */
-struct vfs_fattr {
-        bool non_blocking_rd :1; /**< non-blocking file read access */
-        bool non_strict_rd :1;   /**< non-strict file read access */
-        bool non_blocking_wr :1; /**< non-blocking file write access */
-};
-
 /** file system interface */
 typedef struct vfs_FS_itf {
         int (*fs_init)(void **fshdl, const char *path, const char *opts);
@@ -266,18 +125,6 @@ typedef struct vfs_file {
         int references;
         void *FS_entry; //!< VFS mount entry that holds a reference (NULL for direct device files)
 } kfile_t;
-
-/** directory type */
-typedef struct vfs_dir {
-        res_header_t header;
-        void *FS_hdl;
-        const vfs_FS_itf_t *FS_if;
-        void *FS_entry;  //!< VFS mount entry that holds a reference
-        void *d_hdl;     //!< Directory descriptor
-        size_t d_items;  //!< number of items
-        size_t d_seek;   //!< seek
-        dirent_t dirent; //!< directory entry data
-} kdir_t;
 
 /** Path with CWD */
 struct vfs_path {

@@ -164,9 +164,9 @@ uint32_t ext4_dmask_get(void);
 #if CONFIG_HAVE_OWN_ASSERT
 #include <stdio.h>
 
-#define ext4_assert(_v) _assert_hook(_v, "EXT4FS")
+#define ext4_assert(_v) sys_assert_msg(_v, "EXT4FS")
 #else
-#define ext4_assert(_v) _assert_hook(_v, "EXT4FS")
+#define ext4_assert(_v) sys_assert_msg(_v, "EXT4FS")
 #endif
 #else
 #define ext4_assert(_v) ((void)(_v))

@@ -36,6 +36,10 @@ Shared memory management.
 #ifndef _SHM_H_
 #define _SHM_H_
 
+#ifdef __DNX_MODULE__
+#error "Kernel internal header. Drivers include drivers/driver.h, file systems include fs/fs.h."
+#endif
+
 /*==============================================================================
   Include files
 ==============================================================================*/

@@ -177,7 +177,7 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         //----------------------------------------------------------------------
         if (__CLK_LSE_ON__) {
 
-                if (sys_stropt_is_flag(config, "bdrst")) {
+                if (sys_opt_has_flag(config, "bdrst")) {
                         SET_BIT(RCC->BDCR, RCC_BDCR_BDRST);
                         sys_sleep_ms(5);
                         CLEAR_BIT(RCC->BDCR, RCC_BDCR_BDRST);
@@ -410,7 +410,7 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         //----------------------------------------------------------------------
         // Update OS clocks
         //----------------------------------------------------------------------
-        sys_update_system_clocks();
+        drv_clock_changed();
 
 finish:
         return err;
@@ -430,7 +430,7 @@ API_MOD_RELEASE(CLK, void *device_handle)
         UNUSED_ARG1(device_handle);
 
         LL_RCC_DeInit();
-        sys_update_system_clocks();
+        drv_clock_changed();
 
         return ESUCC;
 }

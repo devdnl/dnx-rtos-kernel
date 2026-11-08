@@ -759,7 +759,7 @@ API_MOD_IOCTL(ENC28J60, void *device_handle, int request, void *arg)
 
         case IOCTL_ENC28J60__CONFIGURE_STR:
                 if (arg) {
-                        if (sys_stropt_get_string_copy(arg, "spi_path", hdl->spi_path, sizeof(hdl->spi_path))) {
+                        if (sys_opt_get_str_copy(arg, "spi_path", hdl->spi_path, sizeof(hdl->spi_path))) {
                                 hdl->config.spi_path = hdl->spi_path;
                                 err = 0;
                         }

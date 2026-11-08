@@ -29,6 +29,10 @@
 #ifndef _PROCESS_H_
 #define _PROCESS_H_
 
+#ifdef __DNX_MODULE__
+#error "Kernel internal header. Drivers include drivers/driver.h, file systems include fs/fs.h."
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -38,22 +42,12 @@ extern "C" {
 ==============================================================================*/
 #include "config.h"
 #include "fs/vfs.h"
+#include "kernel/sysapi.h"
 #include "kernel/ktypes.h"
 
 /*==============================================================================
   Exported symbolic constants/macros
 ==============================================================================*/
-/** STANDARD STACK SIZES */
-#define _STACK_DEPTH_MINIMAL    ((1 * (__OS_TASK_MIN_STACK_DEPTH__)) + (__OS_IRQ_STACK_DEPTH__))
-#define _STACK_DEPTH_VERY_LOW   ((2 * (__OS_TASK_MIN_STACK_DEPTH__)) + (__OS_IRQ_STACK_DEPTH__))
-#define _STACK_DEPTH_LOW        ((4 * (__OS_TASK_MIN_STACK_DEPTH__)) + (__OS_IRQ_STACK_DEPTH__))
-#define _STACK_DEPTH_MEDIUM     ((8 * (__OS_TASK_MIN_STACK_DEPTH__)) + (__OS_IRQ_STACK_DEPTH__))
-#define _STACK_DEPTH_LARGE      ((16 * (__OS_TASK_MIN_STACK_DEPTH__)) + (__OS_IRQ_STACK_DEPTH__))
-#define _STACK_DEPTH_VERY_LARGE ((32 * (__OS_TASK_MIN_STACK_DEPTH__)) + (__OS_IRQ_STACK_DEPTH__))
-#define _STACK_DEPTH_HUGE       ((64 * (__OS_TASK_MIN_STACK_DEPTH__)) + (__OS_IRQ_STACK_DEPTH__))
-#define _STACK_DEPTH_VERY_HUGE  ((128 * (__OS_TASK_MIN_STACK_DEPTH__)) + (__OS_IRQ_STACK_DEPTH__))
-#define _STACK_DEPTH_CUSTOM(depth) (depth))
-
 #define _PROCESS_EXIT_FLAG(tid) (1 << (tid))
 
 /** Exit status of killed process (POSIX shell: 128 + SIGKILL), the same as PROCESS_STATUS_KILLED in libc. */

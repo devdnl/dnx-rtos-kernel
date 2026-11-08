@@ -170,7 +170,7 @@ API_MOD_INIT(TTY, void **device_handle, u8_t major, u8_t minor, const void *conf
 
         } else {
                 tty_t *tty0 = NULL;
-                err = sys_module_get_instance(major, 0, (void **)&tty0);
+                err = drv_get_instance(major, 0, (void **)&tty0);
 
                 if (!err) {
                         io = tty0 ? tty0->io : NULL;
@@ -511,9 +511,8 @@ API_MOD_IOCTL(TTY, void *device_handle, int request, void *arg)
                 if (arg) {
                         char in[64], out[64];
                         TTY_config_t cfg = {
-                                .input_file = sys_stropt_get_string_copy(arg, "input_file", in, sizeof(in)) ? in : NULL,
-                                .output_file = sys_stropt_get_string_copy(arg, "output_file", out, sizeof(out)) ? out
-                                                                                                                  : NULL,
+                                .input_file = sys_opt_get_str_copy(arg, "input_file", in, sizeof(in)) ? in : NULL,
+                                .output_file = sys_opt_get_str_copy(arg, "output_file", out, sizeof(out)) ? out : NULL,
                         };
                         err = configure(tty, &cfg);
                 }

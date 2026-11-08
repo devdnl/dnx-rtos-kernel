@@ -411,22 +411,21 @@ API_MOD_IOCTL(UART, void *device_handle, int request, void *arg)
                         static const char *const STOP_BITS[] = {"1", "2"};
 
                         struct UART_config cfg = hdl->config.basic;
-                        int mode = sys_stropt_get_enum(arg, "mode", MODE, ARRAY_SIZE(MODE), cfg.mode);
-                        int parity = sys_stropt_get_enum(arg, "parity", PARITY, ARRAY_SIZE(PARITY), cfg.parity);
-                        int stop = sys_stropt_get_enum(arg, "stop_bits", STOP_BITS, ARRAY_SIZE(STOP_BITS),
-                                cfg.stop_bits);
-                        cfg.tx_enable = sys_stropt_get_bool(arg, "tx_enable", cfg.tx_enable);
-                        cfg.rx_enable = sys_stropt_get_bool(arg, "rx_enable", cfg.rx_enable);
-                        cfg.baud = sys_stropt_get_int(arg, "baud", cfg.baud);
-                        cfg.features = sys_stropt_get_int(arg, "features", cfg.features);
+                        int mode = sys_opt_get_enum(arg, "mode", MODE, ARRAY_SIZE(MODE), cfg.mode);
+                        int parity = sys_opt_get_enum(arg, "parity", PARITY, ARRAY_SIZE(PARITY), cfg.parity);
+                        int stop = sys_opt_get_enum(arg, "stop_bits", STOP_BITS, ARRAY_SIZE(STOP_BITS), cfg.stop_bits);
+                        cfg.tx_enable = sys_opt_get_bool(arg, "tx_enable", cfg.tx_enable);
+                        cfg.rx_enable = sys_opt_get_bool(arg, "rx_enable", cfg.rx_enable);
+                        cfg.baud = sys_opt_get_int(arg, "baud", cfg.baud);
+                        cfg.features = sys_opt_get_int(arg, "features", cfg.features);
 
-                        int single_wire = sys_stropt_get_bool(arg, "single_wire", -1);
+                        int single_wire = sys_opt_get_bool(arg, "single_wire", -1);
                         if (single_wire >= 0) {
                                 cfg.features = single_wire ? (cfg.features | UART_FEATURE__SINGLE_WIRE)
                                                            : (cfg.features & ~UART_FEATURE__SINGLE_WIRE);
                         }
 
-                        int hw_flow = sys_stropt_get_bool(arg, "hw_flow_ctrl", -1);
+                        int hw_flow = sys_opt_get_bool(arg, "hw_flow_ctrl", -1);
                         if (hw_flow >= 0) {
                                 cfg.features = hw_flow ? (cfg.features | UART_FEATURE__HARDWARE_FLOW_CTRL)
                                                        : (cfg.features & ~UART_FEATURE__HARDWARE_FLOW_CTRL);

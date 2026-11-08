@@ -297,7 +297,7 @@ API_MOD_WRITE(SND, void *device_handle, const u8_t *src, size_t count, fpos_t *f
         SND_t *hdl = device_handle;
 
         int err = (not hdl->configured) ? EIO : ESUCC;
-        err = (sys_is_mem_dma_capable(src) ? err : EFAULT);
+        err = (drv_mem_is_dma_capable(src) ? err : EFAULT);
 
         if (!err) {
                 buf_t buf;
@@ -379,10 +379,10 @@ API_MOD_IOCTL(SND, void *device_handle, int request, void *arg)
 
                 if (arg) {
                         SND_config_t conf = hdl->conf;
-                        int ch = sys_stropt_get_enum(arg, "channels", CHANNELS, ARRAY_SIZE(CHANNELS), conf.channels);
-                        int sr = sys_stropt_get_enum(arg, "sample_rate", SAMPLE_RATE, ARRAY_SIZE(SAMPLE_RATE),
+                        int ch = sys_opt_get_enum(arg, "channels", CHANNELS, ARRAY_SIZE(CHANNELS), conf.channels);
+                        int sr = sys_opt_get_enum(arg, "sample_rate", SAMPLE_RATE, ARRAY_SIZE(SAMPLE_RATE),
                                 conf.sample_rate);
-                        int bps = sys_stropt_get_enum(arg, "bits_per_sample", BITS, ARRAY_SIZE(BITS),
+                        int bps = sys_opt_get_enum(arg, "bits_per_sample", BITS, ARRAY_SIZE(BITS),
                                 conf.bits_per_sample);
 
                         if ((ch < 0) || (sr < 0) || (bps < 0)) {

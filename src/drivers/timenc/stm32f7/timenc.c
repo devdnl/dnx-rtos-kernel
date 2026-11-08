@@ -327,10 +327,10 @@ API_MOD_IOCTL(TIMENC, void *device_handle, int request, void *arg)
 
         case IOCTL_TIMENC__CONFIGURE_STR:
                 if (arg) {
-                        hdl->pin_A.port_idx = sys_stropt_get_int(arg, "a_port", hdl->pin_A.port_idx);
-                        hdl->pin_A.pin_idx = sys_stropt_get_int(arg, "a_pin", hdl->pin_A.pin_idx);
-                        hdl->pin_B.port_idx = sys_stropt_get_int(arg, "b_port", hdl->pin_B.port_idx);
-                        hdl->pin_B.pin_idx = sys_stropt_get_int(arg, "b_pin", hdl->pin_B.pin_idx);
+                        hdl->pin_A.port_idx = sys_opt_get_int(arg, "a_port", hdl->pin_A.port_idx);
+                        hdl->pin_A.pin_idx = sys_opt_get_int(arg, "a_pin", hdl->pin_A.pin_idx);
+                        hdl->pin_B.port_idx = sys_opt_get_int(arg, "b_port", hdl->pin_B.port_idx);
+                        hdl->pin_B.pin_idx = sys_opt_get_int(arg, "b_pin", hdl->pin_B.pin_idx);
                         err = ESUCC;
                 } else {
                         err = EINVAL;

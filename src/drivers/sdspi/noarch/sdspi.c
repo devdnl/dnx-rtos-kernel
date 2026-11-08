@@ -330,9 +330,9 @@ API_MOD_IOCTL(SDSPI, void *device_handle, int request, void *arg)
                 char path[64];
                 SDSPI_config_t cfg;
                 cfg.filepath = path;
-                cfg.timeout = sys_stropt_get_int(arg, "timeout", 1000);
+                cfg.timeout = sys_opt_get_int(arg, "timeout", 1000);
 
-                if (arg && sys_stropt_get_string_copy(arg, "spi_path", path, sizeof(path)) && cfg.timeout > 0) {
+                if (arg && sys_opt_get_str_copy(arg, "spi_path", path, sizeof(path)) && cfg.timeout > 0) {
                         err = configure(hdl, &cfg);
                 } else {
                         err = EINVAL;

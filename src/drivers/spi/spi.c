@@ -132,7 +132,7 @@ API_MOD_INIT(SPI, void **device_handle, u8_t major, u8_t minor, const void *conf
                         slave_deselect(hdl);
                 }
 
-                sys_device_unlock(&hdl->lock, true);
+                drv_unlock(&hdl->lock, true);
 
                 _SPI[major]->slave_count++;
         }
@@ -158,7 +158,7 @@ API_MOD_RELEASE(SPI, void *device_handle)
 {
         struct SPI_slave *hdl = device_handle;
 
-        int err = sys_device_lock(&hdl->lock);
+        int err = drv_lock(&hdl->lock);
         if (!err) {
                 _SPI[hdl->major]->slave_count--;
                 release_resources(hdl->major);
@@ -185,7 +185,7 @@ API_MOD_OPEN(SPI, void *device_handle, u32_t flags)
 
         struct SPI_slave *hdl = device_handle;
 
-        return sys_device_lock(&hdl->lock);
+        return drv_lock(&hdl->lock);
 }
 
 //==============================================================================
@@ -202,7 +202,7 @@ API_MOD_CLOSE(SPI, void *device_handle, bool force)
 {
         struct SPI_slave *hdl = device_handle;
 
-        return sys_device_unlock(&hdl->lock, force);
+        return drv_unlock(&hdl->lock, force);
 }
 
 //==============================================================================
@@ -234,11 +234,11 @@ API_MOD_WRITE(SPI, void *device_handle, const u8_t *src, size_t count, fpos_t *f
         clock_t tref = sys_get_uptime_ms();
         bool RAW_mode = false;
 
-        while (sys_device_is_locked(&_SPI[hdl->major]->RAW_mode)) {
+        while (drv_is_locked(&_SPI[hdl->major]->RAW_mode)) {
 
                 RAW_mode = true;
 
-                if (sys_device_get_access(&_SPI[hdl->major]->RAW_mode) == ESUCC) {
+                if (drv_check_access(&_SPI[hdl->major]->RAW_mode) == ESUCC) {
                         break;
                 } else {
                         if (sys_is_time_expired(tref, DEV_LOCK_TIMEOUT)) {
@@ -296,11 +296,11 @@ API_MOD_READ(SPI, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, si
         clock_t tref = sys_get_uptime_ms();
         bool RAW_mode = false;
 
-        while (sys_device_is_locked(&_SPI[hdl->major]->RAW_mode)) {
+        while (drv_is_locked(&_SPI[hdl->major]->RAW_mode)) {
 
                 RAW_mode = true;
 
-                if (sys_device_get_access(&_SPI[hdl->major]->RAW_mode) == ESUCC) {
+                if (drv_check_access(&_SPI[hdl->major]->RAW_mode) == ESUCC) {
                         break;
                 } else {
                         if (sys_is_time_expired(tref, DEV_LOCK_TIMEOUT)) {
@@ -368,12 +368,12 @@ API_MOD_IOCTL(SPI, void *device_handle, int request, void *arg)
         case IOCTL_SPI__CONFIGURE_STR:
                 if (arg) {
                         SPI_config_t cfg = hdl->config;
-                        cfg.clk_divider = sys_stropt_get_int(arg, "clk_divider", cfg.clk_divider);
-                        cfg.mode = sys_stropt_get_int(arg, "mode", cfg.mode);
-                        cfg.msb_first = sys_stropt_get_bool(arg, "msb_first", cfg.msb_first);
-                        cfg.CS_port_idx = sys_stropt_get_int(arg, "cs_port", cfg.CS_port_idx);
-                        cfg.CS_pin_idx = sys_stropt_get_int(arg, "cs_pin", cfg.CS_pin_idx);
-                        cfg.CS_reverse = sys_stropt_get_bool(arg, "cs_reverse", cfg.CS_reverse);
+                        cfg.clk_divider = sys_opt_get_int(arg, "clk_divider", cfg.clk_divider);
+                        cfg.mode = sys_opt_get_int(arg, "mode", cfg.mode);
+                        cfg.msb_first = sys_opt_get_bool(arg, "msb_first", cfg.msb_first);
+                        cfg.CS_port_idx = sys_opt_get_int(arg, "cs_port", cfg.CS_port_idx);
+                        cfg.CS_pin_idx = sys_opt_get_int(arg, "cs_pin", cfg.CS_pin_idx);
+                        cfg.CS_reverse = sys_opt_get_bool(arg, "cs_reverse", cfg.CS_reverse);
 
                         if ((cfg.clk_divider > SPI_CLK_DIV__256) || (cfg.mode > SPI_MODE__3)) {
                                 err = EINVAL;
@@ -399,7 +399,7 @@ API_MOD_IOCTL(SPI, void *device_handle, int request, void *arg)
         case IOCTL_SPI__SELECT:
                 err = sys_mutex_trylock(_SPI[hdl->major]->periph_protect_mtx);
                 if (!err) {
-                        err = sys_device_lock(&_SPI[hdl->major]->RAW_mode);
+                        err = drv_lock(&_SPI[hdl->major]->RAW_mode);
                         if (!err) {
                                 _SPI_LLD__apply_config(hdl);
                                 slave_deselect(hdl);
@@ -415,7 +415,7 @@ API_MOD_IOCTL(SPI, void *device_handle, int request, void *arg)
         case IOCTL_SPI__DESELECT:
                 err = sys_mutex_trylock(_SPI[hdl->major]->periph_protect_mtx);
                 if (!err) {
-                        err = sys_device_unlock(&_SPI[hdl->major]->RAW_mode, false);
+                        err = drv_unlock(&_SPI[hdl->major]->RAW_mode, false);
                         if (!err) {
                                 slave_deselect(hdl);
                                 _SPI_LLD__halt(hdl->major);
@@ -443,11 +443,11 @@ API_MOD_IOCTL(SPI, void *device_handle, int request, void *arg)
                 clock_t tref = sys_get_uptime_ms();
                 bool RAW_mode = false;
 
-                while (sys_device_is_locked(&_SPI[hdl->major]->RAW_mode)) {
+                while (drv_is_locked(&_SPI[hdl->major]->RAW_mode)) {
 
                         RAW_mode = true;
 
-                        if (sys_device_get_access(&_SPI[hdl->major]->RAW_mode) == ESUCC) {
+                        if (drv_check_access(&_SPI[hdl->major]->RAW_mode) == ESUCC) {
                                 break;
                         } else {
                                 if (sys_is_time_expired(tref, DEV_LOCK_TIMEOUT)) {

@@ -30,6 +30,8 @@
   Include files
 ==============================================================================*/
 #include "fs/fs.h"
+#include "kernel/process.h" /* procfs is a kernel view: uses appset table of kernel */
+#include "lib/vsnprintf.h"
 #include <build/vars.h>
 
 /*==============================================================================
@@ -251,7 +253,7 @@ API_FS_OPEN(procfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
                         sys_strtoi32(mpath, 10, &pid);
 
                         _process_stat_t stat = {0};
-                        if ((pid >= 0) && (sys_process_get_stat_pid(pid, &stat) == ESUCC)) {
+                        if ((pid >= 0) && (fs_process_get_stat_pid(pid, &stat) == ESUCC)) {
                                 err = add_file_to_list(hdl, pid, FILE_CONTENT_PID, fhdl);
                         }
                 }
@@ -268,7 +270,8 @@ API_FS_OPEN(procfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
                 i32_t idx = 0;
                 bool found = false;
 
-                for (const appset_table_t *appset = sys_get_program_table(); appset && !found; appset = appset->next) {
+                for (const appset_table_t *appset = _process_get_appset_table(); appset && !found;
+                        appset = appset->next) {
 
                         for (size_t i = 0; i < appset->table->number_of_programs; i++, idx++) {
                                 if (isstreq(mpath, appset->table->program_entry[i].name)) {
@@ -589,13 +592,14 @@ API_FS_OPENDIR(procfs, void *fs_handle, const char *path, kdir_t *dir)
 
                 } else if (isstreq(opath, PATH_ROOT_PID)) {
                         dirinfo->dir_name = PATH_ROOT_PID;
-                        dir->d_items = sys_process_get_count();
+                        dir->d_items = fs_process_get_count();
 
                 } else if (isstreq(opath, PATH_ROOT_BIN)) {
                         dirinfo->dir_name = PATH_ROOT_BIN;
                         dir->d_items = 0;
 
-                        for (const appset_table_t *appset = sys_get_program_table(); appset; appset = appset->next) {
+                        for (const appset_table_t *appset = _process_get_appset_table(); appset;
+                                appset = appset->next) {
                                 dir->d_items += appset->table->number_of_programs;
                         }
 
@@ -838,13 +842,13 @@ static int procfs_readdir_pid(struct procfs *hdl, kdir_t *dir)
         UNUSED_ARG1(hdl);
 
         _process_stat_t stat = {0};
-        int err = sys_process_get_stat_seek(dir->d_seek, &stat);
+        int err = fs_process_get_stat_seek(dir->d_seek, &stat);
         if (!err) {
                 dir->d_seek++;
 
                 struct dir_info *dirinfo = dir->d_hdl;
 
-                sys_scnprintf(dirinfo->name, sizeof(dirinfo->name), "%u", stat.pid);
+                sys_format(dirinfo->name, sizeof(dirinfo->name), "%u", stat.pid);
 
                 dir->dirent.d_name = dirinfo->name;
                 dir->dirent.mode = S_IRUSR | S_IRGRP | S_IROTH | S_IFREG;
@@ -875,7 +879,7 @@ static int procfs_readdir_bin(struct procfs *hdl, kdir_t *dir)
 
         size_t seek = dir->d_seek;
 
-        for (const appset_table_t *appset = sys_get_program_table(); appset; appset = appset->next) {
+        for (const appset_table_t *appset = _process_get_appset_table(); appset; appset = appset->next) {
 
                 if (seek < appset->table->number_of_programs) {
                         dir->dirent.d_name = appset->table->program_entry[seek].name;
@@ -1046,14 +1050,14 @@ static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size, 
         switch (file->content) {
         case FILE_CONTENT_PID: {
                 // cmdline + '\n' + '\0' must fit in a single LINE_LEN line,
-                // otherwise sys_vscnprintf() truncates the line and '\n' is lost
+                // otherwise _vscnprintf() truncates the line and '\n' is lost
                 char cmdline[LINE_LEN - 1];
 
                 _process_stat_t stat = {0};
                 stat.cmdline_buf = cmdline;
                 stat.cmdline_len = sizeof(cmdline);
 
-                if (sys_process_get_stat_pid(file->arg, &stat) == ESUCC) {
+                if (fs_process_get_stat_pid(file->arg, &stat) == ESUCC) {
 
                         if (size) {
                                 buf_snprintf(buff, &size, &clen, &seek, "Command: ");
@@ -1142,7 +1146,7 @@ static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size, 
         case FILE_CONTENT_BIN: {
                 size_t n = file->arg;
 
-                for (const appset_table_t *appset = sys_get_program_table(); appset; appset = appset->next) {
+                for (const appset_table_t *appset = _process_get_appset_table(); appset; appset = appset->next) {
 
                         if (n < appset->table->number_of_programs) {
 
@@ -1182,7 +1186,7 @@ static void buf_snprintf(u8_t *buf, size_t *size, size_t *clen, i32_t *seek, con
 
         va_list arg;
         va_start(arg, fmt);
-        i32_t len = sys_vscnprintf(line, sizeof(line), fmt, arg);
+        i32_t len = _vscnprintf(line, sizeof(line), fmt, arg);
         va_end(arg);
 
         if (len <= 0) {

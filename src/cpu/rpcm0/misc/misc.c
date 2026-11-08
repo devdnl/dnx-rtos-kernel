@@ -34,6 +34,7 @@
 #include "misc.h"
 #include "lib/cast.h"
 #include "lib/misc.h"
+#include "cpu/cpuctl.h"
 #include "hardware/regs/clocks.h"
 #include "hardware/regs/pll.h"
 #include "hardware/regs/addressmap.h"

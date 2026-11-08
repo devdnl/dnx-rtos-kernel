@@ -29,10 +29,15 @@
 #ifndef _PRINTK_H_
 #define _PRINTK_H_
 
+#ifdef __DNX_MODULE__
+#error "Kernel internal header. Drivers include drivers/driver.h, file systems include fs/fs.h."
+#endif
+
 /*==============================================================================
   Include files
 ==============================================================================*/
 #include "config.h"
+#include <stdarg.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -58,6 +63,7 @@ int _printk_init(void);
 size_t _printk_read(char *, size_t, const struct timeval *, struct timeval *);
 void _printk_clear(void);
 void _printk(const char *, ...);
+void _vprintk(const char *, va_list);
 #else
 #define _printk_init()
 #define _printk(...)

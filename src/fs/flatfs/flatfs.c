@@ -304,9 +304,9 @@ API_FS_INIT(flatfs, void **fs_handle, const char *src_path, const char *opts)
         if (!err) {
                 flatfs_t *hdl = *fs_handle;
 
-                hdl->read_only = sys_stropt_is_flag(opts, "ro");
-                hdl->force_check = sys_stropt_is_flag(opts, "check");
-                hdl->noatime = sys_stropt_is_flag(opts, "noatime");
+                hdl->read_only = sys_opt_has_flag(opts, "ro");
+                hdl->force_check = sys_opt_has_flag(opts, "check");
+                hdl->noatime = sys_opt_has_flag(opts, "noatime");
 
                 if (hdl->read_only) {
                         MSG("mounted read-only");
@@ -1110,7 +1110,7 @@ API_FS_OPENDIR(flatfs, void *fs_handle, const char *path, kdir_t *kdir)
 
         dir->dir_root_len = strlen(dir->dir_root);
 
-        err = sys_strdup("", &dir->item_name);
+        err = fs_strdup("", &dir->item_name);
         if (err) {
                 goto error;
         }
@@ -1302,7 +1302,7 @@ API_FS_READDIR(flatfs, void *fs_handle, kdir_t *kdir)
                         goto finish;
                 }
 
-                err = sys_strdup(item_name, &dir->item_name);
+                err = fs_strdup(item_name, &dir->item_name);
                 if (err) {
                         goto finish;
                 }

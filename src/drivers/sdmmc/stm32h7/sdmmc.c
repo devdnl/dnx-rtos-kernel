@@ -1106,7 +1106,7 @@ static int card_write_blocks_DMA(SDMMC_t *hdl, const u8_t *src, uint32_t block_a
         int err = EFAULT;
 
         /* buffer meets DMA requirements (bounce buffer is used by the kernel, see API_MOD_STAT) */
-        _cpuctl_clean_invalidate_dcache_by_addr(const_cast(src), blocks * SDMMC_BLOCKSIZE);
+        sys_dcache_flush(const_cast(src), blocks * SDMMC_BLOCKSIZE);
 
         if (hdl->config.device_type == SDMMC_DEVICE_TYPE__SD) {
 #if SD_ENABLED
@@ -1225,7 +1225,7 @@ static int card_read_blocks_DMA(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
         int err = EFAULT;
 
         /* buffer meets DMA requirements (bounce buffer is used by the kernel, see API_MOD_STAT) */
-        _cpuctl_invalidate_dcache_by_addr(dst, blocks * SDMMC_BLOCKSIZE);
+        sys_dcache_invalidate(dst, blocks * SDMMC_BLOCKSIZE);
 
         if (hdl->config.device_type == SDMMC_DEVICE_TYPE__SD) {
 #if SD_ENABLED
@@ -1250,7 +1250,7 @@ static int card_read_blocks_DMA(SDMMC_t *hdl, u8_t *dst, uint32_t block_address,
         }
 
         if (!err) {
-                _cpuctl_invalidate_dcache_by_addr(dst, blocks * SDMMC_BLOCKSIZE);
+                sys_dcache_invalidate(dst, blocks * SDMMC_BLOCKSIZE);
         }
 
         return err;

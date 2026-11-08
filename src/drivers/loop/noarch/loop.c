@@ -126,7 +126,7 @@ API_MOD_INIT(LOOP, void **device_handle, u8_t major, u8_t minor, const void *con
         if (!err) {
                 loop_t *hdl = *device_handle;
 
-                sys_device_unlock(&hdl->host_lock, true);
+                drv_unlock(&hdl->host_lock, true);
 
                 if (!err) {
                         err = sys_mutex_create(KMTX_TYPE_NORMAL, &hdl->mtx);
@@ -230,7 +230,7 @@ API_MOD_WRITE(LOOP, void *device_handle, const u8_t *src, size_t count, fpos_t *
 
         loop_t *hdl = device_handle;
 
-        if (sys_device_is_unlocked(&hdl->host_lock)) {
+        if (!drv_is_locked(&hdl->host_lock)) {
                 return ESRCH;
         }
 
@@ -283,7 +283,7 @@ API_MOD_READ(LOOP, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, s
 
         loop_t *hdl = device_handle;
 
-        if (sys_device_is_unlocked(&hdl->host_lock)) {
+        if (!drv_is_locked(&hdl->host_lock)) {
                 return ESRCH;
         }
 
@@ -361,19 +361,19 @@ API_MOD_IOCTL(LOOP, void *device_handle, int request, void *arg)
 
         switch (request) {
         case IOCTL_LOOP__HOST_OPEN:
-                err = sys_device_lock(&hdl->host_lock);
+                err = drv_lock(&hdl->host_lock);
                 break;
 
         case IOCTL_LOOP__HOST_CLOSE:
-                err = sys_device_get_access(&hdl->host_lock);
+                err = drv_check_access(&hdl->host_lock);
                 if (!err) {
                         sys_flag_clear(hdl->flag, FLAG_REQUEST | FLAG_RESPONSE);
-                        sys_device_unlock(&hdl->host_lock, false);
+                        drv_unlock(&hdl->host_lock, false);
                 }
                 break;
 
         case IOCTL_LOOP__HOST_WAIT_FOR_REQUEST:
-                err = sys_device_get_access(&hdl->host_lock);
+                err = drv_check_access(&hdl->host_lock);
                 if (arg && !err) {
                         err = wait_for_request(hdl, HOST_REQUEST_TIMEOUT);
                         if (!err) {
@@ -404,7 +404,7 @@ API_MOD_IOCTL(LOOP, void *device_handle, int request, void *arg)
                 break;
 
         case IOCTL_LOOP__HOST_READ_DATA_FROM_CLIENT:
-                err = sys_device_get_access(&hdl->host_lock);
+                err = drv_check_access(&hdl->host_lock);
                 if (arg && !err) {
                         LOOP_buffer_t *buf = cast(LOOP_buffer_t *, arg);
 
@@ -431,7 +431,7 @@ API_MOD_IOCTL(LOOP, void *device_handle, int request, void *arg)
                 break;
 
         case IOCTL_LOOP__HOST_WRITE_DATA_TO_CLIENT:
-                err = sys_device_get_access(&hdl->host_lock);
+                err = drv_check_access(&hdl->host_lock);
                 if (arg && !err) {
                         LOOP_buffer_t *buf = cast(LOOP_buffer_t *, arg);
 
@@ -448,7 +448,7 @@ API_MOD_IOCTL(LOOP, void *device_handle, int request, void *arg)
                 break;
 
         case IOCTL_LOOP__HOST_SET_IOCTL_STATUS:
-                err = sys_device_get_access(&hdl->host_lock);
+                err = drv_check_access(&hdl->host_lock);
                 if (arg && err == ESUCC) {
                         LOOP_ioctl_response_t *res = cast(LOOP_ioctl_response_t *, arg);
 
@@ -459,7 +459,7 @@ API_MOD_IOCTL(LOOP, void *device_handle, int request, void *arg)
                 break;
 
         case IOCTL_LOOP__HOST_SET_DEVICE_STATS:
-                err = sys_device_get_access(&hdl->host_lock);
+                err = drv_check_access(&hdl->host_lock);
                 if (arg && err == ESUCC) {
                         LOOP_stat_response_t *res = cast(LOOP_stat_response_t *, arg);
 
@@ -471,7 +471,7 @@ API_MOD_IOCTL(LOOP, void *device_handle, int request, void *arg)
                 break;
 
         case IOCTL_LOOP__HOST_FLUSH_DONE:
-                err = sys_device_get_access(&hdl->host_lock);
+                err = drv_check_access(&hdl->host_lock);
                 if (arg && err == ESUCC) {
                         hdl->action.err = *cast(int *, arg);
                         err = submit_response(hdl);
@@ -479,7 +479,7 @@ API_MOD_IOCTL(LOOP, void *device_handle, int request, void *arg)
                 break;
 
         default: // IOCTL_LOOP__CLIENT_REQUEST(n)
-                if (sys_device_is_locked(&hdl->host_lock)) {
+                if (drv_is_locked(&hdl->host_lock)) {
                         hdl->action.cmd = LOOP_CMD__IOCTL_REQUEST;
                         hdl->action.arg.ioctl.arg = arg;
                         hdl->action.arg.ioctl.rq = request;
@@ -513,7 +513,7 @@ API_MOD_FLUSH(LOOP, void *device_handle)
         loop_t *hdl = device_handle;
         int err = ESUCC;
 
-        if (sys_device_is_locked(&hdl->host_lock)) {
+        if (drv_is_locked(&hdl->host_lock)) {
 
                 hdl->action.cmd = LOOP_CMD__FLUSH_BUFFERS;
                 submit_request(hdl);
@@ -547,7 +547,7 @@ API_MOD_STAT(LOOP, void *device_handle, struct vfs_dev_stat *device_stat)
         device_stat->st_size = 0;
         device_stat->st_blksize = 1;
 
-        if (sys_device_is_locked(&hdl->host_lock)) {
+        if (drv_is_locked(&hdl->host_lock)) {
 
                 hdl->action.cmd = LOOP_CMD__DEVICE_STAT;
                 submit_request(hdl);

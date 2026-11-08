@@ -307,8 +307,8 @@ int _SPI_LLD__transceive(struct SPI_slave *hdl, const u8_t *txbuf, u8_t *rxbuf, 
 
         spi_mode_t mode = SPI_HW[hdl->major].mode;
 
-        if ((count < 16) or (txbuf and not sys_is_mem_dma_capable(txbuf)) or
-                (rxbuf and not sys_is_mem_dma_capable(rxbuf)) or not _SPI[hdl->major]->hspi.hdmatx.dmad or
+        if ((count < 16) or (txbuf and not drv_mem_is_dma_capable(txbuf)) or
+                (rxbuf and not drv_mem_is_dma_capable(rxbuf)) or not _SPI[hdl->major]->hspi.hdmatx.dmad or
                 not _SPI[hdl->major]->hspi.hdmarx.dmad) {
 
                 if (mode == _SPI_MODE_DMA) {

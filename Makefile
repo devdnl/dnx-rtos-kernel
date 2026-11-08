@@ -493,12 +493,21 @@ endif
 endif
 
 ####################################################################################################
+# drivers and file systems (modules) are compiled with __DNX_MODULE__: kernel internal headers are
+# not available, modules use only drivers/driver.h and fs/fs.h API. Kernel parts located in the
+# drivers and fs directories are excluded.
+####################################################################################################
+MODULE_SRC_EXCLUDE = src/drivers/drvctrl.c src/drivers/drvapi.c src/drivers/class/% \
+                     src/fs/vfs.c src/fs/fsctrl.c src/fs/pipe.c src/fs/fsapi.c src/fs/procfs/%
+module_cflags      = $(if $(filter-out $(MODULE_SRC_EXCLUDE),$(filter src/drivers/% src/fs/%,$(1))),-D__DNX_MODULE__)
+
+####################################################################################################
 # rule used to compile object files from c sources
 ####################################################################################################
 $(OBJ_PATH)/%.$(OBJ_EXT) : %.$(C_EXT) $(THIS_MAKEFILE)
 	@$(ECHO) "Compiling: $<"
 	@$(MKDIR) $(dir $@)
-	@$(CC) $(CFLAGS) $(SEARCHPATH) $< -o $@
+	@$(CC) $(CFLAGS) $(call module_cflags,$<) $(SEARCHPATH) $< -o $@
 
 ####################################################################################################
 # rule used to compile object files that use host headers (POSIX simulator)
@@ -522,7 +531,7 @@ $(OBJECTS_CSRC_HOST_LIB) : $(OBJ_PATH)/%.$(OBJ_EXT) : %.$(C_EXT) $(THIS_MAKEFILE
 $(OBJ_PATH)/%.$(OBJ_EXT) : %.$(CXX_EXT) $(THIS_MAKEFILE)
 	@$(ECHO) "Compiling: $<"
 	@$(MKDIR) $(dir $@)
-	@$(CXX) $(CXXFLAGS) $(SEARCHPATH) $< -o $@
+	@$(CXX) $(CXXFLAGS) $(call module_cflags,$<) $(SEARCHPATH) $< -o $@
 
 ####################################################################################################
 # rule used to compile object files from assembler sources

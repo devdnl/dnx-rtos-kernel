@@ -360,12 +360,12 @@ API_MOD_IOCTL(SPIEE, void *device_handle, int request, void *arg)
                 switch (request) {
                 case IOCTL_SPIEE__CONFIGURE_STR: {
 
-                        size_t pathlen = sys_stropt_get_string_copy(arg, "spi_path", pathbuf, sizeof(pathbuf));
+                        size_t pathlen = sys_opt_get_str_copy(arg, "spi_path", pathbuf, sizeof(pathbuf));
                         cfg.spi_path = pathbuf;
-                        cfg.memory_size = sys_stropt_get_int(arg, "memory_size", 0);
-                        cfg.page_size = sys_stropt_get_int(arg, "page_size", 0);
-                        cfg.address_size = sys_stropt_get_int(arg, "address_size", 0);
-                        cfg.timeout_ms = sys_stropt_get_int(arg, "timeout_ms", 1000);
+                        cfg.memory_size = sys_opt_get_int(arg, "memory_size", 0);
+                        cfg.page_size = sys_opt_get_int(arg, "page_size", 0);
+                        cfg.address_size = sys_opt_get_int(arg, "address_size", 0);
+                        cfg.timeout_ms = sys_opt_get_int(arg, "timeout_ms", 1000);
 
                         if ((pathlen == 0) or (cfg.page_size == 0) or (cfg.memory_size == 0) or
                                 (cfg.address_size == 0) or (cfg.timeout_ms == 0)) {

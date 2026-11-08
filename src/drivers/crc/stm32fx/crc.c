@@ -124,7 +124,7 @@ API_MOD_RELEASE(CRC, void *device_handle)
 {
         CRCM *hdl = device_handle;
 
-        int err = sys_device_lock(&hdl->file_lock);
+        int err = drv_lock(&hdl->file_lock);
         if (!err) {
                 CLEAR_BIT(RCC->AHBxENR, RCC_AHBxENR_CRCEN);
                 sys_free(cast(void **, &hdl));
@@ -149,7 +149,7 @@ API_MOD_OPEN(CRC, void *device_handle, u32_t flags)
 
         CRCM *hdl = device_handle;
 
-        return sys_device_lock(&hdl->file_lock);
+        return drv_lock(&hdl->file_lock);
 }
 
 //==============================================================================
@@ -166,10 +166,10 @@ API_MOD_CLOSE(CRC, void *device_handle, bool force)
 {
         CRCM *hdl = device_handle;
 
-        int err = sys_device_get_access(&hdl->file_lock);
+        int err = drv_check_access(&hdl->file_lock);
 
         if (err == ESUCC) {
-                err = sys_device_unlock(&hdl->file_lock, force);
+                err = drv_unlock(&hdl->file_lock, force);
         }
 
         return err;
@@ -196,7 +196,7 @@ API_MOD_WRITE(CRC, void *device_handle, const u8_t *src, size_t count, fpos_t *f
 
         CRCM *hdl = device_handle;
 
-        int err = sys_device_get_access(&hdl->file_lock);
+        int err = drv_check_access(&hdl->file_lock);
         if (err == ESUCC) {
                 reset_CRC();
 
@@ -233,7 +233,7 @@ API_MOD_READ(CRC, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, si
 
         CRCM *hdl = device_handle;
 
-        int err = sys_device_get_access(&hdl->file_lock);
+        int err = drv_check_access(&hdl->file_lock);
         if (err == ESUCC) {
 
                 u8_t crc[4] = {CRCP->DR, CRCP->DR >> 8, CRCP->DR >> 16, CRCP->DR >> 24};
@@ -272,7 +272,7 @@ API_MOD_IOCTL(CRC, void *device_handle, int request, void *arg)
 
         CRCM *hdl = device_handle;
 
-        int err = sys_device_get_access(&hdl->file_lock);
+        int err = drv_check_access(&hdl->file_lock);
         if (err == ESUCC) {
                 switch (request) {
                 case IOCTL_CRC__SET_INITIAL_VALUE:

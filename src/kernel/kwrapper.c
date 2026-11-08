@@ -50,6 +50,9 @@
 
 #define BLOCK_TIME_MS 250
 
+/* timeout constants of the public API (kernel/sysapi.h) are based on 32-bit tick counter */
+_Static_assert((u32_t)portMAX_DELAY == 0xFFFFFFFFUL, "_MAX_DELAY_S in kernel/sysapi.h requires 32-bit ticks");
+
 /*==============================================================================
   Local types, enums definitions
 ==============================================================================*/
@@ -94,19 +97,6 @@ static bool is_mutex_valid(kmtx_t *mtx)
 {
         return _mm_is_object_in_heap(mtx) && (mtx->header.self == mtx) && (mtx->header.type == RES_TYPE_MUTEX) &&
                 mtx->object;
-}
-
-//==============================================================================
-/**
- * @brief Function check that spinlock is a valid object
- * @param spinlock       mutex object to examine
- * @return If object is valid then true is returned, false otherwise.
- */
-//==============================================================================
-static bool is_spinlock_valid(kspinlock_t *spinlock)
-{
-        return _mm_is_object_in_heap(spinlock) && (spinlock->header.self == spinlock) &&
-                (spinlock->header.type == RES_TYPE_SPINLOCK);
 }
 
 //==============================================================================
@@ -891,123 +881,6 @@ int _mutex_unlock_from_ISR(kmtx_t *mutex, bool *task_woken)
 
         } else {
                 printk("Invalid mutex object @ %p", mutex);
-                return EINVAL;
-        }
-}
-
-//==============================================================================
-/**
- * @brief Function create new spinlock.
- *
- * @param[in]  loop_delay_ms   spinlock loop delay (set o 0 to no delay).
- * @param[out] spinlock         created spinlock handle.
- *
- * @return One of errno values.
- */
-//==============================================================================
-int _spinlock_create(u32_t loop_delay_ms, kspinlock_t **spinlock)
-{
-        int err = EINVAL;
-
-        if (spinlock) {
-                err = _kzalloc(_MM_KRN, sizeof(kspinlock_t), 0, _cpuctl_fast_mem, 0, 0, cast(void **, spinlock));
-                if (not err) {
-                        (*spinlock)->loop_delay_ms = loop_delay_ms;
-                        (*spinlock)->header.self = *spinlock;
-                        (*spinlock)->header.type = RES_TYPE_SPINLOCK;
-                }
-        }
-
-        return err;
-}
-
-//==============================================================================
-/**
- * @brief Function destroy mutex
- *
- * @param[in] *mutex    mutex object
- *
- * @return One of errno values.
- */
-//==============================================================================
-int _spinlock_destroy(kspinlock_t *spinlock)
-{
-        if (is_spinlock_valid(spinlock)) {
-                spinlock->header.self = NULL;
-                spinlock->header.type = RES_TYPE_UNKNOWN;
-                spinlock->loop_delay_ms = 0;
-                spinlock->task_lock = false;
-                return _kfree(_MM_KRN, cast(void **, &spinlock));
-        } else {
-                printk("Invalid spinlock object @ %p", spinlock);
-                return EINVAL;
-        }
-}
-
-//==============================================================================
-/**
- * @brief Function lock spinlock.
- *
- * @param[in] *spinlock    spinlock object
- *
- * @return One of errno values.
- */
-//==============================================================================
-int _spinlock_lock(kspinlock_t *spinlock, u32_t blocktime_ms)
-{
-        task_t *this_task = _task_get_handle();
-        clock_t endtime = _kernel_get_uptime_ms() + blocktime_ms;
-
-        while (_kernel_get_uptime_ms() < endtime) {
-
-                if (is_spinlock_valid(spinlock)) {
-
-                        _critical_section_begin();
-
-                        if (spinlock->task_lock == NULL) {
-                                spinlock->task_lock = this_task;
-                        }
-
-                        _critical_section_end();
-
-                        if (spinlock->task_lock == this_task) {
-                                return ESUCC;
-
-                        } else {
-                                if (spinlock->loop_delay_ms) {
-                                        _sleep_ms(spinlock->loop_delay_ms);
-                                }
-                        }
-
-                } else {
-                        return EINVAL;
-                }
-        }
-
-        return ETIME;
-}
-
-//==============================================================================
-/**
- * @brief Function unlock spinlock.
- *
- * @param[in] *spinlock    spinlock object
- *
- * @return One of errno values.
- */
-//==============================================================================
-int _spinlock_unlock(kspinlock_t *spinlock)
-{
-        if (is_spinlock_valid(spinlock)) {
-
-                if (spinlock->task_lock != _task_get_handle()) {
-                        printk("Spinlock unlocked by other task!");
-                }
-
-                spinlock->task_lock = NULL;
-
-                return ESUCC;
-        } else {
                 return EINVAL;
         }
 }

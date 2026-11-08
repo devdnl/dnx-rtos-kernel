@@ -319,8 +319,8 @@ API_MOD_IOCTL(HOSTDISK, void *device_handle, int request, void *arg)
 
         case IOCTL_HOSTDISK__CONFIGURE_STR:
                 if (arg) {
-                        int bs = sys_stropt_get_int(arg, "block_size", hdl->block_size);
-                        int align = sys_stropt_get_int(arg, "buffer_align", hdl->buffer_align);
+                        int bs = sys_opt_get_int(arg, "block_size", hdl->block_size);
+                        int align = sys_opt_get_int(arg, "buffer_align", hdl->buffer_align);
 
                         if ((bs >= 0) && (align >= 0) && ((align & (align - 1)) == 0)) {
                                 hdl->block_size = bs;

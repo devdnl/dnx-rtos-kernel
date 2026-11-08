@@ -982,7 +982,7 @@ static bool receive_from_DMA_buffer(struct UART_mem *hdl)
 
         bool yield = false;
 
-        _cpuctl_invalidate_dcache_by_addr(uarthdl->DMA->buf, uarthdl->DMA->buflen);
+        sys_dcache_invalidate(uarthdl->DMA->buf, uarthdl->DMA->buflen);
 
         int wr_idx = uarthdl->DMA->buflen - uarthdl->DMA->stream->NDTR;
 

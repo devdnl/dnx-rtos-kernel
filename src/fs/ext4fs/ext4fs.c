@@ -132,14 +132,14 @@ static const struct ext4_lock EXT4_LOCK = {
 API_FS_INIT(ext4fs, void **fs_handle, const char *src_path, const char *opts)
 {
         /* handle contains physical block buffer aligned to D-cache line (DMA) */
-        int err = sys_zalloc2(sizeof(ext4fs_t), _CPUCTL_CACHE_ALIGN, _cpuctl_preferred_FS_RAM, fs_handle);
+        int err = sys_zalloc2(sizeof(ext4fs_t), _CPUCTL_CACHE_ALIGN, NULL, fs_handle);
         if (err) {
                 return err;
         }
 
         ext4fs_t *hdl = *fs_handle;
         bool mounted = false;
-        bool read_only = sys_stropt_is_flag(opts, "ro");
+        bool read_only = sys_opt_has_flag(opts, "ro");
 
         err = sys_fopen(src_path, read_only ? O_RDONLY : O_RDWR, 0, cast(kfile_t **, &hdl->dev));
         if (err) {
@@ -1534,7 +1534,7 @@ void ext4_user_free(void *mem)
 void *ext4_user_io_malloc(size_t size)
 {
         void *mem = NULL;
-        return sys_malloc2(size, _CPUCTL_CACHE_ALIGN, _cpuctl_preferred_FS_RAM, &mem) == ESUCC ? mem : NULL;
+        return sys_malloc2(size, _CPUCTL_CACHE_ALIGN, NULL, &mem) == ESUCC ? mem : NULL;
 }
 
 //==============================================================================

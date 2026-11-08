@@ -391,12 +391,12 @@ API_FS_INIT(eefs, void **fs_handle, const char *src_path, const char *opts)
         EEFS_t *hdl = *fs_handle;
 
         if (!isstrempty(opts)) {
-                if (sys_stropt_is_flag(opts, "ro")) {
+                if (sys_opt_has_flag(opts, "ro")) {
                         hdl->flag |= FLAG_RDONLY;
                         MSG("mounted read-only");
                 }
 
-                if (sys_stropt_is_flag(opts, "check")) {
+                if (sys_opt_has_flag(opts, "check")) {
 #if __EEFS_CHECK_ENABLE__ > 0
                         hdl->flag |= FLAG_CHECK;
                         MSG("enabled file system force check");
@@ -1130,7 +1130,7 @@ API_FS_OPEN(eefs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path, 
                                         if (!err) {
                                                 if (block_is_node(hdl->block)) {
                                                         *fpos = 0;
-                                                        err = sys_driver_open(hdl->block.buf.node.dev, flags);
+                                                        err = fs_dev_open(hdl->block.buf.node.dev, flags);
 
                                                 } else {
                                                         *fpos = !(flags & O_APPEND) ? 0 : hdl->block.buf.file.size;
@@ -1201,7 +1201,7 @@ API_FS_CLOSE(eefs, void *fs_handle, void *fhdl)
                         while (file) {
                                 if (file == fd) {
                                         if (fd->block_file_magic == BLOCK_MAGIC_NODE) {
-                                                err = sys_driver_close(fd->block_dev, true);
+                                                err = fs_dev_close(fd->block_dev, true);
                                         } else {
                                                 err = ESUCC;
                                         }
@@ -1274,7 +1274,7 @@ API_FS_WRITE(eefs, void *fs_handle, void *fhdl, const u8_t *src, size_t count, f
                         dev_t dev = hdl->block.buf.node.dev;
                         sys_mutex_unlock(hdl->lock_mtx);
 
-                        return sys_driver_write(dev, src, count, fpos, wrcnt, fattr);
+                        return fs_dev_write(dev, src, count, fpos, wrcnt, fattr);
 
                 } else if (block_is_file(hdl->block)) {
                         err = file_write(hdl, src, count, fpos, wrcnt);
@@ -1327,7 +1327,7 @@ API_FS_READ(eefs, void *fs_handle, void *fhdl, u8_t *dst, size_t count, fpos_t *
                         dev_t dev = hdl->block.buf.node.dev;
                         sys_mutex_unlock(hdl->lock_mtx);
 
-                        return sys_driver_read(dev, dst, count, fpos, rdcnt, fattr);
+                        return fs_dev_read(dev, dst, count, fpos, rdcnt, fattr);
 
                 } else if (block_is_file(hdl->block)) {
                         err = file_read(hdl, dst, count, fpos, rdcnt);
@@ -1379,7 +1379,7 @@ API_FS_IOCTL(eefs, void *fs_handle, void *fhdl, int request, void *arg)
                         sys_mutex_unlock(hdl->lock_mtx);
 
                         if (node) {
-                                err = sys_driver_ioctl(dev, request, arg);
+                                err = fs_dev_ioctl(dev, request, arg);
                         }
                 }
         }
@@ -1422,7 +1422,7 @@ API_FS_FLUSH(eefs, void *fs_handle, void *fhdl)
                         sys_mutex_unlock(hdl->lock_mtx);
 
                         if (node) {
-                                err = sys_driver_flush(dev);
+                                err = fs_dev_flush(dev);
                         }
                 }
         }
@@ -1850,7 +1850,7 @@ static int block_get_file_stat(EEFS_t *hdl, struct stat *stat)
 
         case BLOCK_MAGIC_NODE: {
                 struct vfs_dev_stat dev_stat;
-                err = sys_driver_stat(hdl->block.buf.node.dev, &dev_stat);
+                err = fs_dev_stat(hdl->block.buf.node.dev, &dev_stat);
 
                 if (!err) {
                         stat->st_size = dev_stat.st_size;
@@ -1861,7 +1861,7 @@ static int block_get_file_stat(EEFS_t *hdl, struct stat *stat)
                 }
 
                 stat->st_dev = hdl->block.buf.node.dev;
-                stat->st_mode = sys_driver_type(hdl->block.buf.node.dev) | hdl->block.buf.node.mode;
+                stat->st_mode = fs_dev_type(hdl->block.buf.node.dev) | hdl->block.buf.node.mode;
                 stat->st_uid = hdl->block.buf.node.uid;
                 stat->st_gid = hdl->block.buf.node.gid;
                 stat->st_ctime = hdl->block.buf.node.ctime;
@@ -3186,10 +3186,10 @@ static int dir_read_entry(EEFS_t *hdl, dir_desc_t *dd, dir_entry_t *eefs_entry, 
 
                 if (!err) {
                         dirent->dev = hdl->tmpblock.buf.node.dev;
-                        dirent->mode = sys_driver_type(hdl->tmpblock.buf.node.dev) | hdl->tmpblock.buf.node.mode;
+                        dirent->mode = fs_dev_type(hdl->tmpblock.buf.node.dev) | hdl->tmpblock.buf.node.mode;
 
                         struct vfs_dev_stat dev_stat;
-                        err = sys_driver_stat(hdl->tmpblock.buf.node.dev, &dev_stat);
+                        err = fs_dev_stat(hdl->tmpblock.buf.node.dev, &dev_stat);
                         if (!err) {
                                 dirent->size = dev_stat.st_size;
                         } else if (err == ENODEV) {

@@ -824,10 +824,10 @@ void get_registers_from_stack(uint32_t *stack_address, int cause)
 
 //==============================================================================
 /**
- * @brief  Function clean/flush ICACHE.
+ * @brief  Function invalidates ICACHE.
  */
 //==============================================================================
-void _cpuctl_clean_icache(void)
+void _cpuctl_invalidate_icache(void)
 {
 #if __ICACHE_PRESENT && __CPU_ICACHE_ENABLE__
         SCB_InvalidateICache();

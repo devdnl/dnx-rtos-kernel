@@ -306,7 +306,7 @@ API_MOD_IOCTL(IRQ, void *device_handle, int request, void *arg)
                                 [IRQ_CONFIG__TRIGGER_ON_HIGH_LEVEL] = "high",
                         };
 
-                        int trigger = sys_stropt_get_enum(arg, "trigger", TRIGGER, ARRAY_SIZE(TRIGGER), -1);
+                        int trigger = sys_opt_get_enum(arg, "trigger", TRIGGER, ARRAY_SIZE(TRIGGER), -1);
                         if (trigger < 0) {
                                 err = EINVAL;
                         } else {

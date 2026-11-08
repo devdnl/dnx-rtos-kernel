@@ -259,17 +259,17 @@ API_MOD_IOCTL(MEMBLOCK, void *device_handle, int request, void *arg)
                                 }
                         }
 
-                        access = sys_stropt_get_enum(arg, "access", ACCESS, ARRAY_SIZE(ACCESS), access);
+                        access = sys_opt_get_enum(arg, "access", ACCESS, ARRAY_SIZE(ACCESS), access);
                         if (access == -1) {
                                 err = EINVAL;
                         } else {
                                 if (access >= 0) {
                                         hdl->config.access = ACCESS_FLAGS[access];
                                 }
-                                hdl->config.memory_address =
-                                        cast(u32_t, sys_stropt_get_int(arg, "memory_address", hdl->config.memory_address));
-                                hdl->config.block_size =
-                                        cast(u32_t, sys_stropt_get_int(arg, "block_size", hdl->config.block_size));
+                                hdl->config.memory_address = cast(u32_t,
+                                        sys_opt_get_int(arg, "memory_address", hdl->config.memory_address));
+                                hdl->config.block_size = cast(u32_t,
+                                        sys_opt_get_int(arg, "block_size", hdl->config.block_size));
                                 err = ESUCC;
                         }
                 } else {

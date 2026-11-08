@@ -108,7 +108,7 @@ API_MOD_INIT(I2CEE, void **device_handle, u8_t major, u8_t minor, const void *co
                         }
                 } else {
                         I2CEE_t *hdl0;
-                        err = sys_module_get_instance(major, 0, cast(void *, &hdl0));
+                        err = drv_get_instance(major, 0, cast(void *, &hdl0));
                         if (!err) {
                                 if (hdl0) {
                                         hdl->main = hdl0->main;
@@ -334,11 +334,11 @@ API_MOD_IOCTL(I2CEE, void *device_handle, int request, void *arg)
                 switch (request) {
                 case IOCTL_I2CEE__CONFIGURE_STR: {
 
-                        size_t pathlen = sys_stropt_get_string_copy(arg, "i2c_path", pathbuf, sizeof(pathbuf));
+                        size_t pathlen = sys_opt_get_str_copy(arg, "i2c_path", pathbuf, sizeof(pathbuf));
                         cfg.i2c_path = pathbuf;
-                        cfg.memory_size = sys_stropt_get_int(arg, "memory_size", 0);
-                        cfg.page_prog_time_ms = sys_stropt_get_int(arg, "page_prog_time_ms", 0);
-                        cfg.page_size = sys_stropt_get_int(arg, "page_size", 0);
+                        cfg.memory_size = sys_opt_get_int(arg, "memory_size", 0);
+                        cfg.page_prog_time_ms = sys_opt_get_int(arg, "page_prog_time_ms", 0);
+                        cfg.page_size = sys_opt_get_int(arg, "page_size", 0);
 
                         if (pathlen == 0 || cfg.page_size == 0 || cfg.memory_size == 0) {
                                 err = EINVAL;

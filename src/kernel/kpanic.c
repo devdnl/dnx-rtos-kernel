@@ -340,7 +340,7 @@ static bool report_kernel_panic(_process_t *proc, enum _kernel_panic_desc_cause 
         kpanic_desc.content.core = _cpuctl_get_cpu_id();
 
         if (exc_num != 0) {
-                sys_scnprintf(kpanic_desc.content.name, sizeof(kpanic_desc.content.name), "<ISR> %u", exc_num);
+                sys_format(kpanic_desc.content.name, sizeof(kpanic_desc.content.name), "<ISR> %u", exc_num);
 
                 kpanic_desc.content.pid = 0;
                 kpanic_desc.content.tid = 0;
@@ -351,8 +351,7 @@ static bool report_kernel_panic(_process_t *proc, enum _kernel_panic_desc_cause 
 
                 is_process = true;
 
-                sys_scnprintf(kpanic_desc.content.name, sizeof(kpanic_desc.content.name), "%s",
-                        _process_get_name(proc));
+                sys_format(kpanic_desc.content.name, sizeof(kpanic_desc.content.name), "%s", _process_get_name(proc));
 
                 kpanic_desc.content.tid = _process_get_active_thread(proc, true);
 
@@ -365,7 +364,7 @@ static bool report_kernel_panic(_process_t *proc, enum _kernel_panic_desc_cause 
         } else {
                 task_t *task = _task_get_handle();
 
-                sys_scnprintf(kpanic_desc.content.name, sizeof(kpanic_desc.content.name), "<task> %p", task);
+                sys_format(kpanic_desc.content.name, sizeof(kpanic_desc.content.name), "<task> %p", task);
 
                 kpanic_desc.content.pid = 0;
                 kpanic_desc.content.tid = 0;

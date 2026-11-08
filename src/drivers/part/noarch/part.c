@@ -285,12 +285,12 @@ API_MOD_IOCTL(PART, void *device_handle, int request, void *arg)
                         char path[64];
                         PART_config_t cfg = {
                                 .path = path,
-                                .block_size = sys_stropt_get_int(arg, "block_size", 512),
-                                .offset_blocks = sys_stropt_get_int(arg, "offset_blocks", 0),
-                                .total_blocks = sys_stropt_get_int(arg, "total_blocks", 0),
+                                .block_size = sys_opt_get_int(arg, "block_size", 512),
+                                .offset_blocks = sys_opt_get_int(arg, "offset_blocks", 0),
+                                .total_blocks = sys_opt_get_int(arg, "total_blocks", 0),
                         };
 
-                        if (sys_stropt_get_string_copy(arg, "path", path, sizeof(path)) && (cfg.block_size > 0)) {
+                        if (sys_opt_get_str_copy(arg, "path", path, sizeof(path)) && (cfg.block_size > 0)) {
                                 err = configure(hdl, &cfg);
                         }
                 }
@@ -430,7 +430,7 @@ static int auto_configure(PART_t *hdl)
                 for (int i = 0; (i <= 3) and !err; i++) {
 
                         PART_t *hdl_sub;
-                        if (sys_module_get_instance(hdl->major, i, cast(void **, &hdl_sub)) == 0) {
+                        if (drv_get_instance(hdl->major, i, cast(void **, &hdl_sub)) == 0) {
 
                                 if (sys_mutex_lock(hdl_sub->mutex, MUTEX_TIMEOUT_ms) == 0) {
 

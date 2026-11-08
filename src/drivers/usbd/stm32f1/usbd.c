@@ -373,7 +373,7 @@ API_MOD_OPEN(USBD, void *device_handle, u32_t flags)
 
         USB_ep_t *hdl = device_handle;
 
-        return sys_device_lock(&hdl->dev_lock);
+        return drv_lock(&hdl->dev_lock);
 }
 
 //==============================================================================
@@ -390,8 +390,8 @@ API_MOD_CLOSE(USBD, void *device_handle, bool force)
 {
         USB_ep_t *hdl = device_handle;
 
-        if (sys_device_get_access(&hdl->dev_lock) == ESUCC || force) {
-                return sys_device_unlock(&hdl->dev_lock, force);
+        if (drv_check_access(&hdl->dev_lock) == ESUCC || force) {
+                return drv_unlock(&hdl->dev_lock, force);
         } else {
                 return EBUSY;
         }
@@ -420,7 +420,7 @@ API_MOD_WRITE(USBD, void *device_handle, const u8_t *src, size_t count, fpos_t *
         USB_ep_t *hdl = device_handle;
         int err;
 
-        if (sys_device_get_access(&hdl->dev_lock) == ESUCC && usb_mem->activated) {
+        if (drv_check_access(&hdl->dev_lock) == ESUCC && usb_mem->activated) {
                 bool IN_enabled = false;
                 size_t ep_size = 0;
 
@@ -546,7 +546,7 @@ API_MOD_READ(USBD, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, s
         USB_ep_t *hdl = device_handle;
         int err;
 
-        if (sys_device_get_access(&hdl->dev_lock) == ESUCC && usb_mem->activated) {
+        if (drv_check_access(&hdl->dev_lock) == ESUCC && usb_mem->activated) {
                 bool OUT_enabled = false;
                 size_t ep_size = 0;
 

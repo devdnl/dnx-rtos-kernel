@@ -583,20 +583,20 @@ API_MOD_IOCTL(CAN, void *device_handle, int request, void *arg)
                 if (arg) {
                         CAN_config_t cfg;
                         memset(&cfg, 0, sizeof(cfg));
-                        cfg.loopback = sys_stropt_get_bool(arg, "loopback", false);
-                        cfg.silent = sys_stropt_get_bool(arg, "silent", false);
-                        cfg.auto_bus_off_management = sys_stropt_get_bool(arg, "auto_bus_off", false);
-                        cfg.auto_wake_up = sys_stropt_get_bool(arg, "auto_wake_up", false);
-                        cfg.auto_retransmission = sys_stropt_get_bool(arg, "auto_retransmission", false);
-                        cfg.nominal_bit_rate.SJW = sys_stropt_get_int(arg, "sjw", 0);
-                        cfg.nominal_bit_rate.TS1 = sys_stropt_get_int(arg, "ts1", 0);
-                        cfg.nominal_bit_rate.TS2 = sys_stropt_get_int(arg, "ts2", 0);
-                        cfg.nominal_bit_rate.prescaler = sys_stropt_get_int(arg, "prescaler", 0);
-                        cfg.data_bit_rate.SJW = sys_stropt_get_int(arg, "data_sjw", cfg.nominal_bit_rate.SJW);
-                        cfg.data_bit_rate.TS1 = sys_stropt_get_int(arg, "data_ts1", cfg.nominal_bit_rate.TS1);
-                        cfg.data_bit_rate.TS2 = sys_stropt_get_int(arg, "data_ts2", cfg.nominal_bit_rate.TS2);
-                        cfg.data_bit_rate.prescaler =
-                                sys_stropt_get_int(arg, "data_prescaler", cfg.nominal_bit_rate.prescaler);
+                        cfg.loopback = sys_opt_get_bool(arg, "loopback", false);
+                        cfg.silent = sys_opt_get_bool(arg, "silent", false);
+                        cfg.auto_bus_off_management = sys_opt_get_bool(arg, "auto_bus_off", false);
+                        cfg.auto_wake_up = sys_opt_get_bool(arg, "auto_wake_up", false);
+                        cfg.auto_retransmission = sys_opt_get_bool(arg, "auto_retransmission", false);
+                        cfg.nominal_bit_rate.SJW = sys_opt_get_int(arg, "sjw", 0);
+                        cfg.nominal_bit_rate.TS1 = sys_opt_get_int(arg, "ts1", 0);
+                        cfg.nominal_bit_rate.TS2 = sys_opt_get_int(arg, "ts2", 0);
+                        cfg.nominal_bit_rate.prescaler = sys_opt_get_int(arg, "prescaler", 0);
+                        cfg.data_bit_rate.SJW = sys_opt_get_int(arg, "data_sjw", cfg.nominal_bit_rate.SJW);
+                        cfg.data_bit_rate.TS1 = sys_opt_get_int(arg, "data_ts1", cfg.nominal_bit_rate.TS1);
+                        cfg.data_bit_rate.TS2 = sys_opt_get_int(arg, "data_ts2", cfg.nominal_bit_rate.TS2);
+                        cfg.data_bit_rate.prescaler = sys_opt_get_int(arg, "data_prescaler",
+                                cfg.nominal_bit_rate.prescaler);
 
                         if (cfg.nominal_bit_rate.SJW && cfg.nominal_bit_rate.TS1 && cfg.nominal_bit_rate.TS2
                             && cfg.nominal_bit_rate.prescaler) {
@@ -1113,9 +1113,9 @@ static int send_msg(CAN_t *hdl, const CAN_msg_t *msg, u32_t timeout_ms)
                 return EILSEQ;
         }
 
-        sys_context_switch_lock();
+        sys_scheduler_lock();
         hdl->txpend_ctr++;
-        sys_context_switch_unlock();
+        sys_scheduler_unlock();
 
         int err = ETIME;
         bool loop = true;
@@ -1185,9 +1185,9 @@ static int send_msg(CAN_t *hdl, const CAN_msg_t *msg, u32_t timeout_ms)
                 }
         }
 
-        sys_context_switch_lock();
+        sys_scheduler_lock();
         hdl->txpend_ctr--;
-        sys_context_switch_unlock();
+        sys_scheduler_unlock();
 
         return err;
 }
@@ -1204,9 +1204,9 @@ static int send_msg(CAN_t *hdl, const CAN_msg_t *msg, u32_t timeout_ms)
 //==============================================================================
 static int recv_msg(CAN_t *hdl, CAN_msg_t *msg, u32_t timeout_ms)
 {
-        sys_context_switch_lock();
+        sys_scheduler_lock();
         hdl->rxpend_ctr++;
-        sys_context_switch_unlock();
+        sys_scheduler_unlock();
 
         CAN_FIFOMailBox_TypeDef mbox;
 
@@ -1232,9 +1232,9 @@ static int recv_msg(CAN_t *hdl, CAN_msg_t *msg, u32_t timeout_ms)
                 msg->data[7] = mbox.RDHR >> 24;
         }
 
-        sys_context_switch_lock();
+        sys_scheduler_lock();
         hdl->rxpend_ctr--;
-        sys_context_switch_unlock();
+        sys_scheduler_unlock();
 
         return err;
 }

@@ -122,7 +122,7 @@ API_FS_INIT(hostfs, void **fs_handle, const char *src_path, const char *opts)
         if (!err) {
                 hostfs_t *hdl = *fs_handle;
 
-                hdl->read_only = sys_stropt_is_flag(opts, "ro");
+                hdl->read_only = sys_opt_has_flag(opts, "ro");
 
                 if (src_path && (src_path[0] != '\0')) {
                         if (src_path[0] != '/') {

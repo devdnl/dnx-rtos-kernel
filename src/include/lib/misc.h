@@ -46,7 +46,6 @@ dnx RTOS miscellaneous macros and functions.
 #include "lib/unarg.h"
 #include "lib/strlcat.h"
 #include "lib/strlcpy.h"
-#include "kernel/syscall.h"
 
 #ifdef __cplusplus
 extern "C" {

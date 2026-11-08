@@ -515,7 +515,7 @@ API_MOD_STAT(GPIO, void *device_handle, struct vfs_dev_stat *device_stat)
 static int pin_set(GPIO_hdl_t *hdl, u8_t port, u8_t pin)
 {
         if (hdl == NULL) {
-                int err = sys_module_get_instance(port, 0, cast(void **, &hdl));
+                int err = drv_get_instance(port, 0, cast(void **, &hdl));
                 if (err) {
                         return err;
                 }
@@ -554,7 +554,7 @@ static int pin_set(GPIO_hdl_t *hdl, u8_t port, u8_t pin)
 static int pin_clear(GPIO_hdl_t *hdl, u8_t port, u8_t pin)
 {
         if (hdl == NULL) {
-                int err = sys_module_get_instance(port, 0, cast(void **, &hdl));
+                int err = drv_get_instance(port, 0, cast(void **, &hdl));
                 if (err) {
                         return err;
                 }
@@ -593,7 +593,7 @@ static int pin_clear(GPIO_hdl_t *hdl, u8_t port, u8_t pin)
 static int pin_toggle(GPIO_hdl_t *hdl, u8_t port, u8_t pin)
 {
         if (hdl == NULL) {
-                int err = sys_module_get_instance(port, 0, cast(void **, &hdl));
+                int err = drv_get_instance(port, 0, cast(void **, &hdl));
                 if (err) {
                         return err;
                 }
@@ -636,7 +636,7 @@ static int pin_toggle(GPIO_hdl_t *hdl, u8_t port, u8_t pin)
 static int pin_get(GPIO_hdl_t *hdl, u8_t port, u8_t pin, int *state)
 {
         if (hdl == NULL) {
-                int err = sys_module_get_instance(port, 0, cast(void **, &hdl));
+                int err = drv_get_instance(port, 0, cast(void **, &hdl));
                 if (err) {
                         return err;
                 }
@@ -670,7 +670,7 @@ static int pin_get(GPIO_hdl_t *hdl, u8_t port, u8_t pin, int *state)
 static int pin_set_conf(GPIO_hdl_t *hdl, const GPIO_pin_in_port_conf_t *conf)
 {
         if (hdl == NULL) {
-                int err = sys_module_get_instance(conf->pin.port_idx, 0, cast(void **, &hdl));
+                int err = drv_get_instance(conf->pin.port_idx, 0, cast(void **, &hdl));
                 if (err) {
                         return err;
                 }
@@ -801,7 +801,7 @@ static int pin_set_conf(GPIO_hdl_t *hdl, const GPIO_pin_in_port_conf_t *conf)
 static int pin_get_conf(GPIO_hdl_t *hdl, GPIO_pin_in_port_conf_t *conf)
 {
         if (hdl == NULL) {
-                int err = sys_module_get_instance(conf->pin.port_idx, 0, cast(void **, &hdl));
+                int err = drv_get_instance(conf->pin.port_idx, 0, cast(void **, &hdl));
                 if (err) {
                         return err;
                 }

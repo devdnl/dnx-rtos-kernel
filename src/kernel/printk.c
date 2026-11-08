@@ -45,8 +45,8 @@
   Local macros
 ==============================================================================*/
 #define SOH 0x01
-#define increment_index(_idx)             \
-        if (++_idx >= sizeof(printk.buf)) \
+#define increment_index(_idx)                 \
+        if (++_idx >= sizeof(printk_log.buf)) \
         _idx = 0
 #define size_of_timestamp_type sizeof(u64_t)
 #define size_of_msg_len_type   sizeof(u16_t)
@@ -71,7 +71,7 @@ typedef struct {
 /*==============================================================================
   Local objects
 ==============================================================================*/
-static printk_log_t printk;
+static printk_log_t printk_log;
 
 /*==============================================================================
   Exported objects
@@ -106,22 +106,22 @@ int _printk_init(void)
 //==============================================================================
 static void put_char(char c)
 {
-        if (printk.non_empty && (printk.tail == printk.head)) {
+        if (printk_log.non_empty && (printk_log.tail == printk_log.head)) {
                 for (size_t i = 0; i < (size_of_timestamp_type + size_of_msg_len_type); i++) {
-                        printk.buf[printk.tail] = '\0';
-                        increment_index(printk.tail);
+                        printk_log.buf[printk_log.tail] = '\0';
+                        increment_index(printk_log.tail);
                 }
 
-                while (printk.buf[printk.tail] != SOH) {
-                        printk.buf[printk.tail] = '\0';
-                        increment_index(printk.tail);
+                while (printk_log.buf[printk_log.tail] != SOH) {
+                        printk_log.buf[printk_log.tail] = '\0';
+                        increment_index(printk_log.tail);
                 }
         }
 
-        printk.buf[printk.head] = c;
-        increment_index(printk.head);
+        printk_log.buf[printk_log.head] = c;
+        increment_index(printk_log.head);
 
-        printk.non_empty = true;
+        printk_log.non_empty = true;
 }
 
 //==============================================================================
@@ -136,7 +136,7 @@ static void put_char(char c)
 static char get_char(size_t *idx)
 {
         size_t i = *idx;
-        char c = printk.buf[i];
+        char c = printk_log.buf[i];
         increment_index(i);
         *idx = i;
         return c;
@@ -152,29 +152,42 @@ static char get_char(size_t *idx)
 //==============================================================================
 void _printk(const char *format, ...)
 {
+        va_list args;
+        va_start(args, format);
+        _vprintk(format, args);
+        va_end(args);
+}
+
+//==============================================================================
+/**
+ * @brief Function send kernel message on terminal
+ *
+ * @param *format             formated text
+ * @param args                format arguments
+ */
+//==============================================================================
+void _vprintk(const char *format, va_list args)
+{
         if (not format) {
                 return;
         }
 
         _kernel_scheduler_lock();
         {
-                va_list args;
-                va_start(args, format);
-                int len = _vscnprintf(printk.line, sizeof(printk.line), format, args);
-                va_end(args);
+                int len = _vscnprintf(printk_log.line, sizeof(printk_log.line), format, args);
 
-                if ((len >= 1) and (printk.line[len - 1] == '\n')) {
-                        printk.line[len - 1] = '\0';
+                if ((len >= 1) and (printk_log.line[len - 1] == '\n')) {
+                        printk_log.line[len - 1] = '\0';
                         len--;
                 }
 
                 u64_t now_us = _kernel_get_uptime_ms() * 1000;
-                if (now_us == printk.last_timestamp_os) {
-                        printk.last_timestamp += 1;
-                        now_us = printk.last_timestamp;
+                if (now_us == printk_log.last_timestamp_os) {
+                        printk_log.last_timestamp += 1;
+                        now_us = printk_log.last_timestamp;
                 } else {
-                        printk.last_timestamp_os = now_us;
-                        printk.last_timestamp = now_us;
+                        printk_log.last_timestamp_os = now_us;
+                        printk_log.last_timestamp = now_us;
                 }
 
                 // start of message
@@ -196,7 +209,7 @@ void _printk(const char *format, ...)
 
                 // message
                 for (int i = 0; i < len; i++) {
-                        put_char(printk.line[i]);
+                        put_char(printk_log.line[i]);
                 }
         }
         _kernel_scheduler_unlock();
@@ -226,7 +239,7 @@ size_t _printk_read(char *str, size_t len, const struct timeval *from_time, stru
         {
                 u64_t from_us = (from_time->tv_sec * 1000000ULL) + from_time->tv_usec;
 
-                size_t tail = printk.tail;
+                size_t tail = printk_log.tail;
 
                 do {
                         char c = get_char(&tail);
@@ -261,7 +274,7 @@ size_t _printk_read(char *str, size_t len, const struct timeval *from_time, stru
 
                                 } else {
                                         tail += msg_len;
-                                        tail %= sizeof(printk.buf);
+                                        tail %= sizeof(printk_log.buf);
                                 }
 
                         } else {
@@ -269,7 +282,7 @@ size_t _printk_read(char *str, size_t len, const struct timeval *from_time, stru
                                 break;
                         }
 
-                } while (tail != printk.tail);
+                } while (tail != printk_log.tail);
         }
         _kernel_scheduler_unlock();
 
@@ -285,8 +298,8 @@ void _printk_clear(void)
 {
         _kernel_scheduler_lock();
         {
-                memset(&printk, 0, sizeof(printk));
-                printk.non_empty = false;
+                memset(&printk_log, 0, sizeof(printk_log));
+                printk_log.non_empty = false;
         }
         _kernel_scheduler_unlock();
 }

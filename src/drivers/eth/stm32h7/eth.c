@@ -693,7 +693,7 @@ static int packet_send(struct eth *hdl, const ETHIF_packet_t *pkt)
                 uint8_t *buffer = hdl->tx_buff + (hdl->eth.TxDescList.CurTxDesc * ETH_TX_BUF_SIZE_ALIGN);
                 memcpy(buffer, pkt->payload, pkt->length);
                 clear_packet_checksum(buffer);
-                _cpuctl_clean_dcache_by_addr((uint32_t *)buffer, pkt->length);
+                sys_dcache_clean((uint32_t *)buffer, pkt->length);
 
                 ETH_BufferTypeDef tx_buffer;
                 tx_buffer.buffer = buffer;
@@ -749,7 +749,7 @@ static int packet_receive(struct eth *hdl, ETHIF_packet_t *pkt)
                                 pkt->length = min(pkt->length, *rx_buff);
                                 uint8_t *buffer = cast(typeof(buffer), &rx_buff[1]);
 
-                                _cpuctl_invalidate_dcache_by_addr((uint32_t *)buffer, pkt->length);
+                                sys_dcache_invalidate((uint32_t *)buffer, pkt->length);
                                 memcpy(pkt->payload, buffer, pkt->length);
 
                                 /* update statistics */

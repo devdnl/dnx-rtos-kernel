@@ -888,9 +888,9 @@ i8_t _GPIO_DDI_get_pin(u8_t port_idx, u8_t pin_idx)
 //==============================================================================
 int _GPIO_DDI_set_pin_conf(const GPIO_pin_in_port_conf_t *conf)
 {
-        sys_ISR_disable();
+        sys_critical_section_begin();
         int err = set_pin_conf(conf);
-        sys_ISR_enable();
+        sys_critical_section_end();
         return err;
 }
 
@@ -903,9 +903,9 @@ int _GPIO_DDI_set_pin_conf(const GPIO_pin_in_port_conf_t *conf)
 //==============================================================================
 int _GPIO_DDI_get_pin_conf(GPIO_pin_in_port_conf_t *conf)
 {
-        sys_ISR_disable();
+        sys_critical_section_begin();
         int err = get_pin_conf(conf);
-        sys_ISR_enable();
+        sys_critical_section_end();
         return err;
 }
 

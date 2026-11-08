@@ -278,16 +278,16 @@ API_MOD_IOCTL(LTDC, void *device_handle, int request, void *arg)
                 if (arg) {
                         char region[32];
                         LTDC_config_t cfg = hdl->config;
-                        int fmt = sys_stropt_get_enum(arg, "pixel_format", PIXEL_FORMAT, ARRAY_SIZE(PIXEL_FORMAT),
+                        int fmt = sys_opt_get_enum(arg, "pixel_format", PIXEL_FORMAT, ARRAY_SIZE(PIXEL_FORMAT),
                                 cfg.pixel_format);
 
-                        if (sys_stropt_get_string_copy(arg, "mem_region", region, sizeof(region))) {
+                        if (sys_opt_get_str_copy(arg, "mem_region", region, sizeof(region))) {
                                 cfg.mem_region_name = region;
                         }
 
-                        cfg.background_color_R = sys_stropt_get_int(arg, "bg_r", cfg.background_color_R);
-                        cfg.background_color_G = sys_stropt_get_int(arg, "bg_g", cfg.background_color_G);
-                        cfg.background_color_B = sys_stropt_get_int(arg, "bg_b", cfg.background_color_B);
+                        cfg.background_color_R = sys_opt_get_int(arg, "bg_r", cfg.background_color_R);
+                        cfg.background_color_G = sys_opt_get_int(arg, "bg_g", cfg.background_color_G);
+                        cfg.background_color_B = sys_opt_get_int(arg, "bg_b", cfg.background_color_B);
 
                         if (fmt < 0) {
                                 err = EINVAL;

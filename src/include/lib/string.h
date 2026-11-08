@@ -49,7 +49,6 @@ extern "C" {
 #ifndef DOXYGEN
 #define __need_size_t
 #include <stddef.h>
-#include "kernel/syscall.h"
 #include "lib/strlcpy.h"
 #endif
 

@@ -436,8 +436,8 @@ API_MOD_IOCTL(PWM, void *device_handle, int request, void *arg)
                         u32_t prescaler = TIM[hdl->timer].reg->PSC + 1;
                         u32_t reload = TIM[hdl->timer].reg->ARR;
 
-                        prescaler = sys_stropt_get_int(arg, "prescaler", prescaler);
-                        reload = sys_stropt_get_int(arg, "reload", reload);
+                        prescaler = sys_opt_get_int(arg, "prescaler", prescaler);
+                        reload = sys_opt_get_int(arg, "reload", reload);
 
                         if ((prescaler > UINT16_MAX + 1) || (reload > UINT16_MAX)) {
                                 err = EINVAL;

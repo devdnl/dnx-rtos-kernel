@@ -610,15 +610,15 @@ int _DMA_DDI_transfer(u32_t dmad, _DMA_DDI_config_t *config)
                         NVIC_SetPriority(IRQn, config->IRQ_priority);
                         NVIC_EnableIRQ(IRQn);
 
-                        RT_stream->flush_cache = (_mm_is_cacheable((void *)config->memory_address[0]) ||
-                                _mm_is_cacheable((void *)config->memory_address[1]));
+                        RT_stream->flush_cache = (drv_mem_is_cacheable((void *)config->memory_address[0]) ||
+                                drv_mem_is_cacheable((void *)config->memory_address[1]));
 
                         if (RT_stream->flush_cache) {
 
                                 if ((config->transfer_direction == _DMA_DDI_TRANSFER_DIRECTION_MEMORY_TO_PERIPHERAL) ||
                                         (config->transfer_direction == _DMA_DDI_TRANSFER_DIRECTION_MEMORY_TO_MEMORY)) {
 
-                                        _cpuctl_clean_dcache();
+                                        sys_dcache_clean(NULL, 0);
                                         RT_stream->flush_cache = false;
                                 }
                         }
@@ -659,7 +659,7 @@ int _DMA_DDI_memcpy(void *dst, const void *src, size_t size)
                 return EINVAL;
         }
 
-        if (!sys_is_mem_dma_capable(dst) || !sys_is_mem_dma_capable(src)) {
+        if (!drv_mem_is_dma_capable(dst) || !drv_mem_is_dma_capable(src)) {
                 return EIO;
         }
 
@@ -845,7 +845,7 @@ static void IRQ_handle(u8_t major, u8_t stream)
         DMA_RT_stream_t *RT_stream = &DMA_mem->DMA[major].stream[stream];
 
         if (RT_stream->flush_cache) {
-                _cpuctl_clean_invalidate_dcache();
+                sys_dcache_flush(NULL, 0);
         }
 
         bool yield = false;

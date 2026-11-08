@@ -37,7 +37,9 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
+#ifndef __DNX_MODULE__
 #include "mm/mm.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -62,6 +64,103 @@ extern "C" {
 
 // list iterator
 #define _llist_foreach_iterator _iterator
+
+/**
+ * @brief List's @b foreach loop.
+ *
+ * Macro creates foreach loop of linked-list object.
+ *
+ * @note Macro can be used only by file system or driver code.
+ *
+ * @param type                  object type (in most cases pointer type)
+ * @param element               element name of type @b type
+ * @param list                  [<b>llist_t</b>] list object
+ *
+ * @b Example
+ * @code
+        // ...
+
+        llist_t *list = NULL;
+        if (sys_llist_create(NULL, NULL, &list) == ESUCC) {
+                // ...
+
+                int var = 1;
+                sys_llist_push_emplace_back(list, sizeof(int), &var);
+
+                var = 2;
+                sys_llist_push_emplace_back(list, sizeof(int), &var);
+
+                var = 3;
+                sys_llist_push_emplace_back(list, sizeof(int), &var);
+
+                // ...
+
+                sys_llist_foreach(int *, var, list) {
+                        print("Value: %d\n", *var);
+                }
+
+                // ...
+        }
+
+        // ...
+   @endcode
+ *
+ * @see sys_llist_foreach_reverse()
+ */
+#ifdef DOXYGEN
+#define sys_llist_foreach(type, element, list)
+#else
+#define sys_llist_foreach(type, element, _sys_llist_t__list) _llist_foreach(type, element, _sys_llist_t__list)
+#endif
+
+/**
+ * @brief List's reverse @b foreach loop.
+ *
+ * Macro creates reverse foreach loop of linked-list object.
+ *
+ * @note Macro can be used only by file system or driver code.
+ *
+ * @param type                  object type (in most cases pointer type)
+ * @param element               element name of type @b type
+ * @param list                  [<b>llist_t</b>] list object
+ *
+ * @b Example
+ * @code
+        // ...
+
+        llist_t *list = NULL;
+        if (sys_llist_create(NULL, NULL, &list) == ESUCC) {
+                // ...
+
+                int var = 1;
+                sys_llist_push_emplace_back(list, sizeof(int), &var);
+
+                var = 2;
+                sys_llist_push_emplace_back(list, sizeof(int), &var);
+
+                var = 3;
+                sys_llist_push_emplace_back(list, sizeof(int), &var);
+
+                // ...
+
+                sys_llist_foreach_reverse(int *, var, list) {
+                        print("Value: %d\n", *var);
+                }
+
+                // ...
+        }
+
+        // ...
+   @endcode
+ *
+ * @see sys_llist_foreach()
+ */
+#ifdef DOXYGEN
+#define sys_llist_foreach_reverse(type, element, list)
+#else
+#define sys_llist_foreach_reverse(type, element, _sys_llist_t__list) \
+        _llist_foreach_reverse(type, element, _sys_llist_t__list)
+#endif
 
 /*==============================================================================
   Exported object types
@@ -128,6 +227,7 @@ typedef struct {
 /*==============================================================================
   Exported functions
 ==============================================================================*/
+#ifndef __DNX_MODULE__ /* kernel internal constructors, file systems use sys_llist_create() */
 //==============================================================================
 /**
  * @brief  List constructor for userland
@@ -170,6 +270,7 @@ extern int _llist_create_krn(enum _mm_mem mem, llist_cmp_functor_t cmp_functor, 
  */
 //==============================================================================
 extern int _llist_create_mod(size_t modid, llist_cmp_functor_t cmp_functor, llist_obj_dtor_t obj_dtor, llist_t **list);
+#endif
 
 //==============================================================================
 /**

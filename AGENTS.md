@@ -24,7 +24,7 @@ Development happens on the `develop` branch.
 - `src/init/main.c` — kernel entry point (`main()`, `low_level_init_*`).
 - `src/kernel/` — core: `process.c` (processes, threads, appset table),
   `syscall.c` (syscall table and version string), `kworker.c`, `kpanic.c`,
-  `printk.c`, `sysfunc.c`, `time.c`, `khooks.c`, `kwrapper.c`.
+  `printk.c`, `sysapi.c`, `time.c`, `khooks.c`, `kwrapper.c`.
   - `src/kernel/FreeRTOS/` — FreeRTOS sources and `FreeRTOSConfig.h` (third party).
   - `src/kernel/dnx-ports/` — dnx-specific FreeRTOS ports (RP2040 SMP).
 - `src/cpu/<arch>/` — CPU ports: startup, CPU control, vendor headers.
@@ -41,7 +41,7 @@ Development happens on the `develop` branch.
 - `src/lib/`, `src/include/lib/` — kernel-internal libraries (printf family,
   llist, crc32, stropt, …). These are not the user-space libc.
 - `src/include/` — kernel headers (`drivers/driver.h`, `fs/fs.h`,
-  `kernel/sysfunc.h`, `kernel/errno.h`, …).
+  `kernel/sysapi.h`, `kernel/sysfunc.h`, `kernel/errno.h`, …).
 - `config/` — default kernel configuration (used only for standalone builds).
 - `tools/` — `configtool-cli` (Lua TUI configurator), `configtool.sh`,
   `adddriver.sh` / `addfilesystem.sh` (templates for new modules), `mkfpkg.py`,
@@ -158,15 +158,36 @@ both the C preprocessor and make**:
 
 - Kernel functions return an errno value (`ESUCC` on success, see
   `src/include/kernel/errno.h`), not -1/0.
-- Drivers and file systems use only kernel services from
-  `src/include/kernel/sysfunc.h`:
-  - memory: `sys_malloc`, `sys_zalloc`, `sys_free`,
+- Drivers and file systems use only the kernel API: `drivers/driver.h`
+  (drivers) or `fs/fs.h` (file systems). Both include the common API
+  `kernel/sysapi.h`:
+  - memory: `sys_malloc`, `sys_zalloc`, `sys_malloc2`, `sys_zalloc2`, `sys_free`,
   - synchronization: `sys_mutex_*`, `sys_semaphore_*`, `sys_queue_*`,
-    `sys_flag_*`, `sys_spinlock_*`,
-  - time: `sys_sleep_ms`, `sys_sleep_us`,
-  - locking: `sys_critical_section_*`,
-  - file and driver access: `sys_fopen`/`sys_fread`/`sys_fwrite`/`sys_fclose` and
-    `sys_driver_*`.
+    `sys_flag_*`,
+  - time: `sys_sleep_ms`, `sys_sleep_us`, `sys_get_uptime_ms`,
+  - locking: `sys_critical_section_begin/end` (interrupts masked),
+    `sys_scheduler_lock/unlock` (no context switch), `sys_spinlock_*`
+    (`kspinlock_t` embedded in driver data, for short non-waiting code instead
+    of mutex; `_irq` variant for data shared with interrupts),
+  - caches: `sys_dcache_clean/invalidate/flush` (DMA buffers),
+    `sys_icache_invalidate`, `sys_cache_sync_code` (new code in memory); no-op
+    on CPUs without cache,
+  - file access: `sys_fopen`/`sys_fread`/`sys_fwrite`/`sys_fclose`/`sys_ioctl`,
+  - text: `sys_format` (scnprintf semantics), `sys_sscanf`, `sys_opt_*`
+    (option strings), `printk`.
+- Prefix tells who can use the function: `sys_` drivers and file systems,
+  `drv_` only drivers (`drv_lock`, `drv_get_instance`, `drv_mem_*`,
+  `drv_clock_changed`, …), `fs_` only file systems (`fs_dev_*` access to the
+  device under file system, `fs_pipe_*`, `fs_mkdir`, `fs_stat`, …).
+  `sys_llist_*` is a library available in file systems and kernel.
+- Driver and file system sources are compiled with `__DNX_MODULE__` (kernel
+  `Makefile`, `module_cflags`). Kernel internal headers (`kernel/sysfunc.h`,
+  `kernel/kwrapper.h`, `kernel/process.h`, `fs/vfs.h`, `drivers/drvctrl.h`,
+  `mm/*.h`, …) stop the build with `#error` there. Kernel parts in these
+  directories (`drvctrl.c`, `drvapi.c`, `vfs.c`, `fsapi.c`, `fsctrl.c`, `pipe.c`,
+  `procfs`) are excluded. Kernel internal code includes `kernel/sysfunc.h`.
+  When a module needs a kernel service, add it to the API (`sysapi.h`/`sysapi.c`,
+  `driver.h`/`drvapi.c` or `fs.h`/`fsapi.c`) instead of using kernel internals.
 - Never call user-space libc or raw FreeRTOS APIs from drivers or file
   systems. In interrupts, use the `*_from_ISR` variants.
 - Mark unused arguments with `UNUSED_ARG1/2/…`. Kernel log messages go through
@@ -191,7 +212,7 @@ both the C preprocessor and make**:
     (read by `src/drivers/adddriver.sh`) and reports `st_blksize` in
     `API_MOD_STAT` (stacked drivers such as `part` and `loop` report 1, the
     underlying device handles alignment). File systems get the type with
-    `sys_driver_type(dev)`.
+    `fs_dev_type(dev)`.
   - Requests to block devices not aligned to `st_blksize` are split by
     `drvctrl.c` (read-modify-write), so block drivers get only aligned
     requests. Data buffer requirements (e.g. DMA) are declared in

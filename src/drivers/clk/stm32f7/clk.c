@@ -124,7 +124,7 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         //----------------------------------------------------------------------
         // LSE OSCILLATOR
         //----------------------------------------------------------------------
-        bool lseoff = sys_stropt_is_flag(config, "lseoff");
+        bool lseoff = sys_opt_has_flag(config, "lseoff");
 
         if (__CLK_LSE_ON__ && !lseoff) {
 
@@ -352,7 +352,7 @@ API_MOD_INIT(CLK, void **device_handle, u8_t major, u8_t minor, const void *conf
         LL_RCC_SetSAIClockSource(__CLK_SAI1_SRC__);
         LL_RCC_SetSAIClockSource(__CLK_SAI2_SRC__);
 
-        sys_update_system_clocks();
+        drv_clock_changed();
 
         return err;
 }
@@ -371,7 +371,7 @@ API_MOD_RELEASE(CLK, void *device_handle)
         UNUSED_ARG1(device_handle);
 
         LL_RCC_DeInit();
-        sys_update_system_clocks();
+        drv_clock_changed();
 
         return ESUCC;
 }

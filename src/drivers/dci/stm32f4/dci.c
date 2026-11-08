@@ -96,7 +96,7 @@ API_MOD_INIT(DCI, void **device_handle, u8_t major, u8_t minor, const void *conf
                 err = sys_zalloc(sizeof(DCI_t), device_handle);
                 if (!err) {
                         DCI = *device_handle;
-                        sys_device_unlock(&DCI->lock, true);
+                        drv_unlock(&DCI->lock, true);
 
                         err = sys_semaphore_create(1, 0, &DCI->event);
                         if (!err) {
@@ -172,7 +172,7 @@ API_MOD_RELEASE(DCI, void *device_handle)
 {
         DCI_t *hdl = device_handle;
 
-        int err = sys_device_lock(&hdl->lock);
+        int err = drv_lock(&hdl->lock);
         if (!err) {
                 SET_BIT(RCC->AHB2RSTR, RCC_AHB2RSTR_DCMIRST);
                 CLEAR_BIT(RCC->AHB2RSTR, RCC_AHB2RSTR_DCMIRST);
@@ -200,7 +200,7 @@ API_MOD_OPEN(DCI, void *device_handle, u32_t flags)
 
         DCI_t *hdl = device_handle;
 
-        return sys_device_lock(&hdl->lock);
+        return drv_lock(&hdl->lock);
 }
 
 //==============================================================================
@@ -217,7 +217,7 @@ API_MOD_CLOSE(DCI, void *device_handle, bool force)
 {
         DCI_t *hdl = device_handle;
 
-        return sys_device_unlock(&hdl->lock, force);
+        return drv_unlock(&hdl->lock, force);
 }
 
 //==============================================================================
@@ -275,7 +275,7 @@ API_MOD_READ(DCI, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, si
                 return ESPIPE;
         }
 
-        if (not sys_is_mem_dma_capable(dst)) {
+        if (not drv_mem_is_dma_capable(dst)) {
                 printk("DCI: destination address not DMA capable");
                 return EFAULT;
         }

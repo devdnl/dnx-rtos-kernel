@@ -653,7 +653,7 @@ int _I2C_LLD__master_receive(I2C_dev_t *hdl, u8_t *dst, size_t count, size_t *rd
 
         if (count >= 3) {
 #if USE_DMA > 0
-                if (I2C_HW[hdl->major].use_DMA && sys_is_mem_dma_capable(dst)) {
+                if (I2C_HW[hdl->major].use_DMA && drv_mem_is_dma_capable(dst)) {
 
                         u32_t dmad = _DMA_DDI_reserve(_DMA_DDI_DMA1, I2C_HW[hdl->major].DMA_rx_stream_pri);
                         if (dmad == 0) {
@@ -854,7 +854,7 @@ int _I2C_LLD__master_transmit(I2C_dev_t *hdl, const u8_t *src, size_t count, siz
         clear_address_event(hdl);
 
 #if USE_DMA > 0
-        if ((count >= 3) && I2C_HW[hdl->major].use_DMA && sys_is_mem_dma_capable(src)) {
+        if ((count >= 3) && I2C_HW[hdl->major].use_DMA && drv_mem_is_dma_capable(src)) {
 
                 u32_t dmad = _DMA_DDI_reserve(_DMA_DDI_DMA1, I2C_HW[hdl->major].DMA_tx_stream_pri);
                 if (dmad == 0) {
