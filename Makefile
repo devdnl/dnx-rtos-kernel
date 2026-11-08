@@ -497,7 +497,7 @@ endif
 # not available, modules use only drivers/driver.h and fs/fs.h API. Kernel parts located in the
 # drivers and fs directories are excluded.
 ####################################################################################################
-MODULE_SRC_EXCLUDE = src/drivers/drvctrl.c src/drivers/drvapi.c src/drivers/class/% \
+MODULE_SRC_EXCLUDE = src/drivers/drvctrl.c src/drivers/drvapi.c src/drivers/drvset.c src/drivers/class/% \
                      src/fs/vfs.c src/fs/fsctrl.c src/fs/pipe.c src/fs/fsapi.c src/fs/procfs/%
 module_cflags      = $(if $(filter-out $(MODULE_SRC_EXCLUDE),$(filter src/drivers/% src/fs/%,$(1))),-D__DNX_MODULE__)
 

@@ -329,6 +329,7 @@ typedef struct {
         NETM_INET_IPv4_t mask;    /*!< Connection network mask.*/
         NETM_INET_IPv4_t gateway; /*!< Connection gateway.*/
         u8_t hw_addr[6];          /*!< MAC address.*/
+        u16_t MTU;                /*!< Maximal Transfer Unit (IP packet size) [B].*/
         u64_t tx_bytes;           /*!< Number of transmitted bytes.*/
         u64_t rx_bytes;           /*!< Number of received bytes.*/
         u64_t tx_packets;         /*!< Number of transmitted packets.*/
@@ -412,6 +413,7 @@ typedef struct {
 /** UDS status. */
 typedef struct {
         NETM_UDS_state_t state; /*!< Connection state.*/
+        u16_t MTU;              /*!< Maximal datagram size [B] (stream sockets are not limited).*/
         u64_t tx_bytes;         /*!< Number of transmitted bytes.*/
         u64_t rx_bytes;         /*!< Number of received bytes.*/
         u64_t tx_packets;       /*!< Number of transmitted packets.*/

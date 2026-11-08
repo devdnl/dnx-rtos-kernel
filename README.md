@@ -153,7 +153,8 @@ Other targets:
 - `make doc` – create Doxygen documentation,
 - `make check`, `make quickcheck` – static code analysis by using cppcheck,
 - `./tools/tests.sh` – build the kernel for all test configurations
-  (`tools/test_bsp`); the current configuration is restored afterwards,
+  (`tools/test_bsp`, also configurations with drvset partition support);
+  the current configuration is restored afterwards,
 - `make help` – list of all targets.
 
 Required tools: GNU make, `arm-none-eabi-` toolchain, Python 3, Lua 5.4 or newer

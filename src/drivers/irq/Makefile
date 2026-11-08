@@ -14,6 +14,9 @@ ifeq ($(__ENABLE_IRQ__), _YES_)
    else ifeq ($(TARGET), stm32f7)
       CSRC_ARCH   += drivers/irq/stm32fx/irq.c
       CXXSRC_ARCH += 
+   else ifeq ($(TARGET), stm32h7)
+      CSRC_ARCH   += drivers/irq/stm32fx/irq.c
+      CXXSRC_ARCH += 
    else
       UNSUPPORTED_MODULES += IRQ
    endif

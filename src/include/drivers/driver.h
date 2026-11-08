@@ -47,6 +47,7 @@ extern "C" {
   Include files
 ==============================================================================*/
 #include "kernel/sysapi.h"
+#include "drivers/drvif.h"
 #include "lib/vt100.h"
 
 /*==============================================================================
@@ -324,6 +325,50 @@ extern "C" {
 #define API_MOD_STAT(modname, device_handle, device_stat)
 #else
 #define API_MOD_STAT(modname, ...) _MODULE_EXTERN_C int _##modname##_stat(__VA_ARGS__)
+#endif
+
+#ifdef DOXYGEN
+/**
+ * @brief Macro registers shared interrupt handler.
+ *
+ * Handler is called with other handlers registered for the same interrupt
+ * (also by other drivers), so it shall check interrupt flags of own device
+ * and return without action if interrupt is not requested by its device.
+ * Handlers are stored in flash (8 bytes per handler), RAM is not used.
+ * Exclusive handler has the name of the vector table (e.g. USART1_IRQHandler)
+ * and does not need this macro.
+ *
+ * @note Macro can be used only by drivers of the drvset partition (drivers
+ *       built separately from the kernel). The interrupt shall not be handled
+ *       by the kernel image (checked at partition start).
+ *
+ * @param irqn          IRQ number (e.g. EXTI15_10_IRQn)
+ * @param handler       handler function: void handler(void)
+ *
+ * @b Example
+ * @code
+        static void button_irq(void)
+        {
+                if (EXTI_D1->PR1 & EXTI_PR1_PR13) {
+                        EXTI_D1->PR1 = EXTI_PR1_PR13;
+                        // ...
+                }
+        }
+
+        DRV_IRQ_SHARED(EXTI15_10_IRQn, button_irq);
+   @endcode
+ */
+#define DRV_IRQ_SHARED(irqn, handler)
+#elif defined(__DNX_DRVSET__)
+#define _DRV_IRQ_SHARED_NAME2(_handler, _line) _drv_irq_shared_##_handler##_##_line
+#define _DRV_IRQ_SHARED_NAME(_handler, _line)  _DRV_IRQ_SHARED_NAME2(_handler, _line)
+#define DRV_IRQ_SHARED(_irqn, _handler)                                                                                \
+        static const struct _drv_irq_shared _DRV_IRQ_SHARED_NAME(_handler, __LINE__)                                   \
+                __attribute__((section(".drvset_irq_shared"), used, aligned(4))) = {.irq = (u32_t)(_irqn),             \
+                        .handler = _handler}
+#else
+#define DRV_IRQ_SHARED(_irqn, _handler) \
+        _Static_assert(0, "DRV_IRQ_SHARED(): shared interrupt handlers are supported only by drvset partition")
 #endif
 
 #define dev_dbg(_hdl, format, ...) \

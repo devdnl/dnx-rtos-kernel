@@ -41,6 +41,7 @@
 #include "kernel/sysfunc.h"
 #include "kernel/khooks.h"
 #include "net/netm.h"
+#include "drivers/drvset.h"
 
 /*==============================================================================
   Local symbolic constants/macros
@@ -91,6 +92,10 @@ int main(void)
         _shm_init();
 #endif
         _vfs_init();
+
+#if __OS_ENABLE_DRVSET__ > 0
+        _drvset_init();
+#endif
 #if _ENABLE_NETWORK_
         _net_init();
 #endif

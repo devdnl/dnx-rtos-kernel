@@ -35,6 +35,7 @@
 #include "fs/fsctrl.h"
 #include "fs/vfs.h"
 #include "kernel/sysfunc.h"
+#include "drivers/drvset.h"
 
 /*==============================================================================
   Local macros
@@ -82,25 +83,35 @@ int _mount(const char *FS_name, const struct vfs_path *src_path, const struct vf
         int err = EINVAL;
 
         if (FS_name && mount_point && mount_point->PATH && src_path && src_path->PATH) {
-                err = ENOENT;
+                const struct vfs_FS_itf *FS_if = NULL;
 
-                for (uint i = 0; i < _FS_table_size; i++) {
+                for (uint i = 0; (FS_if == NULL) && (i < _FS_table_size); i++) {
                         if (strcmp(_FS_table[i].FS_name, FS_name) == 0) {
-                                err = _vfs_mount(src_path, mount_point, &_FS_table[i].FS_if, opts);
-
-                                if (!err) {
-                                        printk("Filesystem '%s' on '%s' mounted in %s", FS_name, src_path->PATH,
-                                                mount_point->PATH);
-                                } else {
-                                        printk("Filesystem '%s' on '%s' mount error (%d)", FS_name, src_path->PATH,
-                                                err);
-                                }
-
-                                break;
+                                FS_if = &_FS_table[i].FS_if;
                         }
                 }
 
-                if (err == ENOENT) {
+#if (__OS_ENABLE_DRVSET__ > 0)
+                /* file systems of drvset partition (drivers/drvset.h) */
+                if (FS_if == NULL) {
+                        FS_if = _drvset_get_filesystem(FS_name);
+                }
+#endif
+
+                err = ENOENT;
+
+                if (FS_if) {
+                        err = _vfs_mount(src_path, mount_point, FS_if, opts);
+
+                        if (!err) {
+                                printk("Filesystem '%s' on '%s' mounted in %s", FS_name, src_path->PATH,
+                                        mount_point->PATH);
+                        } else {
+                                printk("Filesystem '%s' on '%s' mount error (%d)", FS_name, src_path->PATH, err);
+                        }
+                }
+
+                if (FS_if == NULL) {
                         printk("Filesystem '%s' not exist", FS_name);
                 }
         }

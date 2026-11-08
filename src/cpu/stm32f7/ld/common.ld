@@ -76,8 +76,6 @@ SECTIONS
       . = ALIGN(4);
       KEEP(*(.vectors));
       . = ALIGN(4);
-      KEEP(*(.syscall));
-      . = ALIGN(4);
       *(.text .text.* .gnu.linkonce.t.*);
       . = ALIGN(4);
       *(.glue_7t .glue_7);
@@ -132,6 +130,15 @@ SECTIONS
    . = ALIGN(4);
    __exidx_end = .;
    PROVIDE(__exidx_end = __exidx_end);
+
+   .drvset_ram (NOLOAD) :                      /* RAM of drvset partition (drivers/drvset.h) */
+   {
+      . = ALIGN(8);
+      __drvset_ram_start = .;
+      KEEP(*(.drvset_ram));
+      . = ALIGN(8);
+      __drvset_ram_end = .;
+   } > ram1 AT > ram1
 
    .data :
    {

@@ -1220,6 +1220,40 @@ void sys_cache_sync_code(void *addr, size_t size)
         sys_dcache_clean(addr, size);
         sys_icache_invalidate(addr, size);
 }
+#elif (__OS_ENABLE_DRVSET__ > 0)
+#undef sys_dcache_clean
+#undef sys_dcache_invalidate
+#undef sys_dcache_flush
+#undef sys_icache_invalidate
+#undef sys_cache_sync_code
+/*
+ * CPU without cache: functions do nothing. Defined only to keep symbols
+ * of kernel symbol table (drvset).
+ */
+void sys_dcache_clean(void *addr, size_t size)
+{
+        UNUSED_ARG2(addr, size);
+}
+
+void sys_dcache_invalidate(void *addr, size_t size)
+{
+        UNUSED_ARG2(addr, size);
+}
+
+void sys_dcache_flush(void *addr, size_t size)
+{
+        UNUSED_ARG2(addr, size);
+}
+
+void sys_icache_invalidate(void *addr, size_t size)
+{
+        UNUSED_ARG2(addr, size);
+}
+
+void sys_cache_sync_code(void *addr, size_t size)
+{
+        UNUSED_ARG2(addr, size);
+}
 #endif
 
 #if (__OS_SYSTEM_MSG_ENABLE__ > 0)
@@ -1238,9 +1272,23 @@ void printk(const char *format, ...)
         _vprintk(format, args);
         va_end(args);
 }
+#elif (__OS_ENABLE_DRVSET__ > 0)
+#undef printk
+//==============================================================================
+/**
+ * @brief Function put message to kernel log (messages disabled, symbol exported).
+ *
+ * @param format        formatting string
+ * @param ...           argument sequence
+ */
+//==============================================================================
+void printk(const char *format, ...)
+{
+        UNUSED_ARG1(format);
+}
 #endif
 
-#if (__OS_ENABLE_SYS_ASSERT__ > 0)
+#if (__OS_ENABLE_SYS_ASSERT__ > 0) || (__OS_ENABLE_DRVSET__ > 0)
 //==============================================================================
 /**
  * @brief Assertion hook.
@@ -1251,7 +1299,11 @@ void printk(const char *format, ...)
 //==============================================================================
 void sys_assert_hook(bool assert, const char *msg)
 {
+#if (__OS_ENABLE_SYS_ASSERT__ > 0)
         _assert_hook(assert, msg);
+#else
+        UNUSED_ARG2(assert, msg);
+#endif
 }
 #endif
 
@@ -1374,6 +1426,7 @@ size_t sys_get_mem_size(void)
 {
         return _mm_get_mem_size();
 }
+
 
 /*==============================================================================
   End of file

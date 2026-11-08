@@ -310,6 +310,8 @@ int UDS_ifstatus(void *ctx, NETM_UDS_status_t *status, size_t status_size)
         }
         sys_critical_section_end();
 
+        status->MTU = (MAX_DATAGRAM_SIZE > UINT16_MAX) ? UINT16_MAX : MAX_DATAGRAM_SIZE;
+
         return ESUCC;
 }
 

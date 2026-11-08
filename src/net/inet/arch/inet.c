@@ -50,8 +50,8 @@ Brief    Network management.
 #undef sys_mutex_lock
 #undef sys_mutex_unlock
 
-#define MTU                      1500
-#define MAXIMUM_SAFE_UDP_PAYLOAD (MTU - 28)
+#define ETH_MTU                  1500
+#define MAXIMUM_SAFE_UDP_PAYLOAD (ETH_MTU - 28)
 
 /*
  * Blocking socket operations wait in slices. After each slice the state of
@@ -543,7 +543,7 @@ static err_t netif_configure(struct netif *netif)
         netif->name[1] = 'T';
         netif->output = etharp_output;
         netif->linkoutput = _inetdrv_handle_output;
-        netif->mtu = MTU;
+        netif->mtu = ETH_MTU;
         netif->hwaddr_len = ETHARP_HWADDR_LEN;
         netif->flags = NETIF_FLAG_ETHERNET | NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_IGMP;
 
@@ -800,6 +800,8 @@ int INET_ifstatus(void *ctx, NETM_INET_status_t *status, size_t status_size)
         status->rx_bytes = inet->rx_bytes;
         status->tx_packets = inet->tx_packets;
         status->tx_bytes = inet->tx_bytes;
+
+        status->MTU = inet->netif.mtu;
 
         status->state = NETM_INET_STATE__NOT_CONFIGURED;
 

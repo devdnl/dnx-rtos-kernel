@@ -86,8 +86,10 @@ different GCC or modify the Makefiles to work around it. Say that the build
 could not be verified.
 
 `tools/tests.sh` builds the kernel for every configuration in
-`tools/test_bsp/` (stm32f1, stm32f3, stm32f4, stm32f7, stm32h7, rpcm0) and
-restores the current `config/` at the end. Use it to check changes in shared
+`tools/test_bsp/` (stm32f1, stm32f3, stm32f4, stm32f7, stm32h7, rpcm0 and
+drvset variants `stm32h7+stm32h7-drvset`, `rpcm0+drvset`: test configuration
+with overlay BSP imported after it) and restores the current `config/` at the
+end. Use it to check changes in shared
 code across architectures. The configtool (`tools/configtool.sh`) needs `lua`
 with `lfs` and the `dialog` command (the import fails without them).
 
@@ -175,6 +177,41 @@ both the C preprocessor and make**:
   - file access: `sys_fopen`/`sys_fread`/`sys_fwrite`/`sys_fclose`/`sys_ioctl`,
   - text: `sys_strfmt` (scnprintf semantics), `sys_sscanf`, `sys_opt_*`
     (option strings), `printk`.
+- Fixed kernel entry points are the last vector table entries
+  (`kernel/kvectors.h`): 255 syscall entry (used by libc,
+  `__LIBC_DNX_RTOS_ADDRESS__` is the kernel vector table address), 254 kernel
+  symbol table. Vector tables always have 256 entries.
+- Kernel symbol table (`kernel/ksymtab.h`, `src/kernel/ksymtab.c`, enabled by
+  `__OS_ENABLE_DRVSET__`): function addresses in flash for drivers built
+  separately (drvset). Its pointer is stored in vector table entry 254.
+  drvset links `src/drvset/ksymstub.S` (one stub per symbol, no RAM). When a
+  function is added to the module API, append it at the end of
+  `_KSYMTAB_LIST`; never remove or reorder entries; increment
+  `_KSYMTAB_VERSION` when an exported function changes incompatibly.
+- drvset partition (`drivers/drvset.h`, `src/drivers/drvset.c`): header
+  `_drvset_header_t` at `__OS_DRVSET_FLASH_ADDRESS__` (binary interface:
+  change only with `_DRVSET_HEADER_VERSION`), RAM `.drvset_ram` at the start
+  of the main RAM region (kernel linker scripts), modules registered after
+  built-in modules (`_MODULES_MAX`). Interrupts: unhandled vectors go to
+  `__Default_Handler` of the vector table, which calls
+  `_drvset_irq_dispatch()` (IRQ table of the partition, indexed by IRQ
+  number, and shared handlers of `DRV_IRQ_SHARED()`, no RAM); the partition
+  may use only IRQs whose kernel vector is `__Default_Handler`. Driver
+  interfaces of kernel drivers (`_GPIO_DDI_*`, `_DMA_DDI_*`, `_MDMA_DDI_*`,
+  `_IRQ_DDI_*` for EXTI lines) are exported in the symbol table as optional
+  symbols (`_KSYMTAB_OPTIONAL_LIST`, weak fallbacks in `drivers/drvset.c`
+  return an error when the driver is not built); a new optional symbol needs
+  entries in both lists. Build parts used by the workspace drvset build
+  (`tools/drvset`): `src/drvset/` (`ksymstub.S`, `drvset_header.c`,
+  `drvset.ld`, `mkirqtab.awk`); they are not compiled into the kernel.
+  File systems of the partition: table of `struct _FS_entry` (public
+  `fs/fsif.h`, interface layout depends on `__OS_ENABLE_*__`, `fs_magic`
+  checked at start), `_mount()` looks up kernel file systems first, then
+  `_drvset_get_filesystem()`.
+  POSIX simulator: the image (option `--drvset`) and its RAM are mapped by
+  `_host_drvset_map()` (RAM after the partition flash), the first RAM word
+  holds the symbol table address (`__ksymtab_vector`), interrupts are not
+  supported (header with interrupt tables is rejected).
 - Prefix tells who can use the function: `sys_` drivers and file systems,
   `drv_` only drivers (`drv_lock`, `drv_get_instance`, `drv_mem_*`,
   `drv_clock_changed`, …), `fs_` only file systems (`fs_dev_*` access to the

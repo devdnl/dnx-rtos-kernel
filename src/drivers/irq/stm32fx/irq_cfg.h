@@ -44,6 +44,8 @@ typedef enum IRQn IRQn_Type;
 #include "stm32f4/stm32f4xx.h"
 #elif defined(ARCH_stm32f7)
 #include "stm32f7/stm32f7xx.h"
+#elif defined(ARCH_stm32h7)
+#include "stm32h7/stm32h7xx.h"
 #endif
 
 /*==============================================================================
@@ -81,7 +83,7 @@ enum _IRQ_MODE {
 #define _IRQ_LINE_15_MODE __IRQ_LINE_15_MODE__
 
 /**
- * EXTI0 PORT SELECTION: 0-6 for PA-PG
+ * EXTI0 PORT SELECTION: 0-10 for PA-PK (depends on CPU)
  */
 #define _IRQ_EXTI0_PORT __IRQ_EXTI0_PORT__
 

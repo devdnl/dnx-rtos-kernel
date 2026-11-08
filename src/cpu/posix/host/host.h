@@ -144,6 +144,7 @@ extern const char *_host_get_fault_info(void);
 
 /* memory */
 extern void *_host_get_ram(size_t *size);
+extern int _host_drvset_map(void *flash, size_t flash_size, void *ram, size_t ram_size);
 
 /* time */
 extern uint64_t _host_get_monotonic_us(void);

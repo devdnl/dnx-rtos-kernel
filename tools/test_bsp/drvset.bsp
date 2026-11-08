@@ -1,0 +1,5 @@
+{
+	["config/os/os_flags.h"]={
+		["__OS_ENABLE_DRVSET__"]="_YES_";
+	};
+}

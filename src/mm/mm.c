@@ -89,7 +89,7 @@ static const char *REGISTRATION_ERROR_STR = "Memory %s registration error (%d) [
 #endif
 static _mm_region_t *regions;
 static i32_t memory_usage[_MM_COUNT - 1];
-static i32_t module_memory_usage[_drvreg_number_of_modules];
+static i32_t module_memory_usage[_MODULES_MAX];
 
 /*==============================================================================
   Exported objects
@@ -280,7 +280,7 @@ int _kfree(enum _mm_mem mpur, void **mem, ...)
                 switch (mpur) {
                 case _MM_MOD: {
                         size_t modid = cast(size_t, arg);
-                        if (modid < _drvreg_number_of_modules) {
+                        if (modid < _MODULES_MAX) {
                                 usage = &module_memory_usage[modid];
                                 err = ESUCC;
                         }
@@ -366,7 +366,7 @@ int _mm_get_mem_usage_details(_mm_mem_usage_t *mem_usage)
                 mem_usage->cached_memory_usage = memory_usage[_MM_CACHE];
                 mem_usage->modules_memory_usage = 0;
 
-                for (size_t i = 0; i < _drvreg_number_of_modules; i++) {
+                for (size_t i = 0; i < _MODULES_MAX; i++) {
                         mem_usage->modules_memory_usage += module_memory_usage[i];
                 }
 
@@ -388,7 +388,7 @@ int _mm_get_mem_usage_details(_mm_mem_usage_t *mem_usage)
 //==============================================================================
 int _mm_get_module_mem_usage(uint module, i32_t *usage)
 {
-        if (module < _drvreg_number_of_modules && usage) {
+        if (module < _MODULES_MAX && usage) {
                 *usage = module_memory_usage[module];
                 return ESUCC;
         } else {
@@ -738,7 +738,7 @@ static int kalloc(enum _mm_mem mpur, size_t size, size_t align, bool clear, cons
                 switch (mpur) {
                 case _MM_MOD: {
                         size_t modid = cast(size_t, arg);
-                        if (modid >= _drvreg_number_of_modules) {
+                        if (modid >= _MODULES_MAX) {
                                 return EINVAL;
 
                         } else {

@@ -43,59 +43,22 @@ extern "C" {
 #include <stdbool.h>
 #include "fs/vfs.h"
 #include "drivers/driver_registration.h"
+#include "drivers/drvif.h"
 
 /*==============================================================================
   Exported macros
 ==============================================================================*/
-#define _MODULE_NAME(module_name) #module_name
 
-#define _MODULE_INTERFACE(_modname, _type)                    \
-        {                                                     \
-                .name = #_modname,                            \
-                .type = _type,                                \
-                .IF = {.drv_init = _##_modname##_init,        \
-                        .drv_release = _##_modname##_release, \
-                        .drv_open = _##_modname##_open,       \
-                        .drv_close = _##_modname##_close,     \
-                        .drv_write = _##_modname##_write,     \
-                        .drv_read = _##_modname##_read,       \
-                        .drv_ioctl = _##_modname##_ioctl,     \
-                        .drv_stat = _##_modname##_stat,       \
-                        .drv_flush = _##_modname##_flush}     \
-        }
-
-#define _IMPORT_MODULE_INTERFACE(_modname)                                                                  \
-        extern API_MOD_INIT(_modname, void **, u8_t, u8_t, const void *config);                             \
-        extern API_MOD_RELEASE(_modname, void *);                                                           \
-        extern API_MOD_OPEN(_modname, void *, u32_t);                                                       \
-        extern API_MOD_CLOSE(_modname, void *, bool);                                                       \
-        extern API_MOD_WRITE(_modname, void *, const u8_t *, size_t, fpos_t *, size_t *, struct vfs_fattr); \
-        extern API_MOD_READ(_modname, void *, u8_t *, size_t, fpos_t *, size_t *, struct vfs_fattr);        \
-        extern API_MOD_IOCTL(_modname, void *, int, void *);                                                \
-        extern API_MOD_FLUSH(_modname, void *);                                                             \
-        extern API_MOD_STAT(_modname, void *, struct vfs_dev_stat *)
+/** maximum number of modules (static modules and modules of drvset partition) */
+#if (__OS_ENABLE_DRVSET__ > 0)
+#define _MODULES_MAX (_drvreg_number_of_modules + __OS_DRVSET_MAX_MODULES__)
+#else
+#define _MODULES_MAX _drvreg_number_of_modules
+#endif
 
 /*==============================================================================
   Exported object types
 ==============================================================================*/
-struct _module_if {
-        int (*drv_init)(void **drvhdl, u8_t major, u8_t minor, const void *config);
-        int (*drv_release)(void *drvhdl);
-        int (*drv_open)(void *drvhdl, u32_t flags);
-        int (*drv_close)(void *drvhdl, bool force);
-        int (*drv_write)(void *drvhdl, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
-                struct vfs_fattr attr);
-        int (*drv_read)(void *drvhdl, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt, struct vfs_fattr attr);
-        int (*drv_ioctl)(void *drvhdl, int iorq, void *arg);
-        int (*drv_flush)(void *drvhdl);
-        int (*drv_stat)(void *drvhdl, struct vfs_dev_stat *info);
-};
-
-struct _module_entry {
-        const char *name;
-        const mode_t type; /* S_IFCHR or S_IFBLK */
-        const struct _module_if IF;
-};
 
 /*
  * To lock device, system uses PID of syscall's client.

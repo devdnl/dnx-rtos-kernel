@@ -31,31 +31,55 @@ Brief   This driver support external interrupts (EXTI).
 #include "drivers/driver.h"
 #include "stm32fx/irq_cfg.h"
 #include "../irq_ioctl.h"
+#include "../irq_ddi.h"
 
 #if defined(ARCH_stm32f1)
-#define RCC_APB2ENR_IRQEN RCC_APB2ENR_AFIOEN
-#define IRQCFG            AFIO
-#elif defined(ARCH_stm32f3)
-#define RCC_APB2ENR_IRQEN RCC_APB2ENR_SYSCFGEN
-#define IRQCFG            SYSCFG
-#elif defined(ARCH_stm32f4)
-#define RCC_APB2ENR_IRQEN RCC_APB2ENR_SYSCFGEN
-#define IRQCFG            SYSCFG
-#elif defined(ARCH_stm32f7)
-#define RCC_APB2ENR_IRQEN RCC_APB2ENR_SYSCFGEN
-#define IRQCFG            SYSCFG
+#define IRQ_CLOCK_ENABLE() SET_BIT(RCC->APB2ENR, RCC_APB2ENR_AFIOEN)
+#define IRQCFG             AFIO
+#elif defined(ARCH_stm32f3) || defined(ARCH_stm32f4) || defined(ARCH_stm32f7)
+#define IRQ_CLOCK_ENABLE() SET_BIT(RCC->APB2ENR, RCC_APB2ENR_SYSCFGEN)
+#define IRQCFG             SYSCFG
+#elif defined(ARCH_stm32h7)
+#define IRQ_CLOCK_ENABLE() SET_BIT(RCC->APB4ENR, RCC_APB4ENR_SYSCFGEN)
+#define IRQCFG             SYSCFG
+#endif
+
+/* EXTI registers of lines 0-15 (STM32H7: registers of CPU1 core) */
+#if defined(ARCH_stm32h7)
+#define EXTI_RTSR  EXTI->RTSR1
+#define EXTI_FTSR  EXTI->FTSR1
+#define EXTI_SWIER EXTI->SWIER1
+#define EXTI_IMR   EXTI_D1->IMR1
+#define EXTI_EMR   EXTI_D1->EMR1
+#define EXTI_PR    EXTI_D1->PR1
+#else
+#define EXTI_RTSR  EXTI->RTSR
+#define EXTI_FTSR  EXTI->FTSR
+#define EXTI_SWIER EXTI->SWIER
+#define EXTI_IMR   EXTI->IMR
+#define EXTI_EMR   EXTI->EMR
+#define EXTI_PR    EXTI->PR
 #endif
 
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define NUMBER_OF_IRQs 16
+#define NUMBER_OF_IRQs   16
+#define NUMBER_OF_PORTS  11 /* PA-PK, 4 bits of EXTICR field */
+#define LINE(minor)      (1UL << (minor))
+#define LINES_9_5_MASK   (0x1FUL << 5)
+#define LINES_15_10_MASK (0x3FUL << 10)
+#define PRIORITY_KEEP    0xFF
 
 /*==============================================================================
   Local types, enums definitions
 ==============================================================================*/
 typedef struct {
-        ksem_t *sem[NUMBER_OF_IRQs];
+        union {
+                ksem_t *sem; /* semaphore of IRQ device (driver_init()) */
+                void *arg;   /* argument of callback (_IRQ_DDI_attach()) */
+        } line[NUMBER_OF_IRQs];
+        _IRQ_DDI_cb_t cb[NUMBER_OF_IRQs]; /* callback, line is used by other driver */
         u32_t counter[NUMBER_OF_IRQs];
 } IRQ_t;
 
@@ -69,6 +93,8 @@ typedef struct {
 static IRQn_Type IRQ_minor_to_NVIC_IRQn(u8_t minor);
 static int IRQ_configure(u8_t minor, enum _IRQ_MODE mode, u8_t priority);
 static bool IRQ_handler(u8_t minor);
+static int IRQ_alloc(void);
+static void IRQ_free_if_unused(void);
 
 /*==============================================================================
   Local object definitions
@@ -108,28 +134,14 @@ API_MOD_INIT(IRQ, void **device_handle, u8_t major, u8_t minor, const void *conf
         int err = ENODEV;
 
         if (major == 0 && minor < NUMBER_OF_IRQs) {
-                if (IRQ == NULL) {
-                        err = sys_zalloc(sizeof(IRQ_t), cast(void *, &IRQ));
+                err = IRQ_alloc();
 
-                        if (!err) {
-                                SET_BIT(RCC->APB2ENR, RCC_APB2ENR_IRQEN);
-
-                                IRQCFG->EXTICR[0] |= _IRQ_EXTI0_PORT | _IRQ_EXTI1_PORT | _IRQ_EXTI2_PORT |
-                                        _IRQ_EXTI3_PORT;
-
-                                IRQCFG->EXTICR[1] |= _IRQ_EXTI4_PORT | _IRQ_EXTI5_PORT | _IRQ_EXTI6_PORT |
-                                        _IRQ_EXTI7_PORT;
-
-                                IRQCFG->EXTICR[2] |= _IRQ_EXTI8_PORT | _IRQ_EXTI9_PORT | _IRQ_EXTI10_PORT |
-                                        _IRQ_EXTI11_PORT;
-
-                                IRQCFG->EXTICR[3] |= _IRQ_EXTI12_PORT | _IRQ_EXTI13_PORT | _IRQ_EXTI14_PORT |
-                                        _IRQ_EXTI15_PORT;
-                        }
+                if (!err && IRQ->cb[minor]) {
+                        err = EADDRINUSE; // line used by other driver (_IRQ_DDI_attach())
                 }
 
-                if (IRQ) {
-                        err = sys_semaphore_create(1, 0, &IRQ->sem[minor]);
+                if (!err) {
+                        err = sys_semaphore_create(1, 0, &IRQ->line[minor].sem);
                         if (!err) {
                                 // device's minor number is used as identifier
                                 *device_handle = cast(void *, cast(u32_t, minor));
@@ -142,6 +154,8 @@ API_MOD_INIT(IRQ, void **device_handle, u8_t major, u8_t minor, const void *conf
                                 }
 
                                 IRQ_configure(minor, mode, _CPU_IRQ_SAFE_PRIORITY_);
+                        } else {
+                                IRQ_free_if_unused();
                         }
                 }
         }
@@ -162,18 +176,12 @@ API_MOD_RELEASE(IRQ, void *device_handle)
 {
         u8_t minor = cast(u32_t, device_handle);
 
-        int err = sys_semaphore_destroy(IRQ->sem[minor]);
+        IRQ_configure(minor, _IRQ_MODE_DISABLED, PRIORITY_KEEP);
+
+        int err = sys_semaphore_destroy(IRQ->line[minor].sem);
         if (!err) {
-                IRQ_configure(minor, _IRQ_MODE_DISABLED, -1);
-
-                bool free_module_mem = true;
-                for (int i = 0; i < NUMBER_OF_IRQs && free_module_mem; i++) {
-                        free_module_mem = IRQ->sem[i] == NULL;
-                }
-
-                if (free_module_mem) {
-                        sys_free(cast(void *, &IRQ));
-                }
+                IRQ->line[minor].sem = NULL;
+                IRQ_free_if_unused();
         }
 
         return err;
@@ -276,8 +284,8 @@ API_MOD_IOCTL(IRQ, void *device_handle, int request, void *arg)
                 switch (request) {
                 case IOCTL_IRQ__CATCH: {
                         const u32_t *timeout = arg;
-                        if (IRQ->sem[minor]) {
-                                err = sys_semaphore_wait(IRQ->sem[minor], *timeout);
+                        if (IRQ->line[minor].sem) {
+                                err = sys_semaphore_wait(IRQ->line[minor].sem, *timeout);
                         } else {
                                 err = ENODEV;
                         }
@@ -285,14 +293,14 @@ API_MOD_IOCTL(IRQ, void *device_handle, int request, void *arg)
                 }
 
                 case IOCTL_IRQ__TRIGGER: {
-                        WRITE_REG(EXTI->SWIER, EXTI_SWIER_SWIER0 << minor);
+                        WRITE_REG(EXTI_SWIER, LINE(minor));
                         err = ESUCC;
                         break;
                 }
 
                 case IOCTL_IRQ__CONFIGURE: {
                         const IRQ_config_t *cfg = arg;
-                        err = IRQ_configure(minor, cast(enum _IRQ_MODE, *cfg), -1);
+                        err = IRQ_configure(minor, cast(enum _IRQ_MODE, *cfg), PRIORITY_KEEP);
                         break;
                 }
 
@@ -310,7 +318,7 @@ API_MOD_IOCTL(IRQ, void *device_handle, int request, void *arg)
                         if (trigger < 0) {
                                 err = EINVAL;
                         } else {
-                                err = IRQ_configure(minor, cast(enum _IRQ_MODE, trigger), -1);
+                                err = IRQ_configure(minor, cast(enum _IRQ_MODE, trigger), PRIORITY_KEEP);
                         }
                         break;
                 }
@@ -394,7 +402,7 @@ static IRQn_Type IRQ_minor_to_NVIC_IRQn(u8_t minor)
  *
  * @param minor         IRQ minor number (0-15)
  * @param mode          IRQ mode (edge detector configuration)
- * @param priority      IRQ priority (-1 to ignore)
+ * @param priority      IRQ priority (PRIORITY_KEEP: not changed)
  *
  * @return None
  */
@@ -406,29 +414,21 @@ static int IRQ_configure(u8_t minor, enum _IRQ_MODE mode, u8_t priority)
 
         if (IRQn != 0) {
                 if (mode == _IRQ_MODE_DISABLED) {
-                        CLEAR_BIT(EXTI->IMR, EXTI_IMR_MR0 << minor);
-                        CLEAR_BIT(EXTI->EMR, EXTI_EMR_MR0 << minor);
+                        CLEAR_BIT(EXTI_IMR, LINE(minor));
+                        CLEAR_BIT(EXTI_EMR, LINE(minor));
 
                         switch (IRQn) {
-                        case EXTI9_5_IRQn: {
-                                static const u32_t IRQ9_5_MASK = EXTI_IMR_MR5 | EXTI_IMR_MR6 | EXTI_IMR_MR7 |
-                                        EXTI_IMR_MR8 | EXTI_IMR_MR9;
-
-                                if ((EXTI->IMR & IRQ9_5_MASK) == 0) {
+                        case EXTI9_5_IRQn:
+                                if ((EXTI_IMR & LINES_9_5_MASK) == 0) {
                                         NVIC_DisableIRQ(IRQn);
                                 }
                                 break;
-                        }
 
-                        case EXTI15_10_IRQn: {
-                                static const u32_t IRQ15_10_MASK = EXTI_IMR_MR10 | EXTI_IMR_MR11 | EXTI_IMR_MR12 |
-                                        EXTI_IMR_MR13 | EXTI_IMR_MR14 | EXTI_IMR_MR15;
-
-                                if ((EXTI->IMR & IRQ15_10_MASK) == 0) {
+                        case EXTI15_10_IRQn:
+                                if ((EXTI_IMR & LINES_15_10_MASK) == 0) {
                                         NVIC_DisableIRQ(IRQn);
                                 }
                                 break;
-                        }
 
                         default:
                                 NVIC_DisableIRQ(IRQn);
@@ -439,20 +439,20 @@ static int IRQ_configure(u8_t minor, enum _IRQ_MODE mode, u8_t priority)
                 } else {
                         switch (mode) {
                         case _IRQ_MODE_FALLING_EDGE:
-                                SET_BIT(EXTI->FTSR, EXTI_FTSR_TR0 << minor);
-                                CLEAR_BIT(EXTI->RTSR, EXTI_RTSR_TR0 << minor);
+                                SET_BIT(EXTI_FTSR, LINE(minor));
+                                CLEAR_BIT(EXTI_RTSR, LINE(minor));
                                 err = ESUCC;
                                 break;
 
                         case _IRQ_MODE_RISING_EDGE:
-                                CLEAR_BIT(EXTI->FTSR, EXTI_FTSR_TR0 << minor);
-                                SET_BIT(EXTI->RTSR, EXTI_RTSR_TR0 << minor);
+                                CLEAR_BIT(EXTI_FTSR, LINE(minor));
+                                SET_BIT(EXTI_RTSR, LINE(minor));
                                 err = ESUCC;
                                 break;
 
                         case _IRQ_MODE_FALLING_AND_RISING_EDGE:
-                                SET_BIT(EXTI->FTSR, EXTI_FTSR_TR0 << minor);
-                                SET_BIT(EXTI->RTSR, EXTI_RTSR_TR0 << minor);
+                                SET_BIT(EXTI_FTSR, LINE(minor));
+                                SET_BIT(EXTI_RTSR, LINE(minor));
                                 err = ESUCC;
                                 break;
 
@@ -462,11 +462,13 @@ static int IRQ_configure(u8_t minor, enum _IRQ_MODE mode, u8_t priority)
                         }
 
                         if (err == ESUCC) {
-                                SET_BIT(EXTI->IMR, EXTI_IMR_MR0 << minor);
-                                SET_BIT(EXTI->EMR, EXTI_EMR_MR0 << minor);
+                                SET_BIT(EXTI_IMR, LINE(minor));
+                                SET_BIT(EXTI_EMR, LINE(minor));
 
+                                if (priority != PRIORITY_KEEP) {
+                                        NVIC_SetPriority(IRQn, priority);
+                                }
                                 NVIC_EnableIRQ(IRQn);
-                                NVIC_SetPriority(IRQn, priority);
                         }
                 }
         }
@@ -485,18 +487,151 @@ static int IRQ_configure(u8_t minor, enum _IRQ_MODE mode, u8_t priority)
 //==============================================================================
 static bool IRQ_handler(u8_t minor)
 {
-        if (IRQ && (EXTI->PR & (EXTI_PR_PR0 << minor))) {
+        if (IRQ && (EXTI_PR & LINE(minor))) {
 
-                WRITE_REG(EXTI->PR, EXTI_PR_PR0 << minor);
+                WRITE_REG(EXTI_PR, LINE(minor));
 
                 IRQ->counter[minor]++;
 
+                if (IRQ->cb[minor]) {
+                        return IRQ->cb[minor](minor, IRQ->line[minor].arg);
+                }
+
                 bool woken = false;
-                sys_semaphore_signal_from_ISR(IRQ->sem[minor], &woken);
+                if (IRQ->line[minor].sem) {
+                        sys_semaphore_signal_from_ISR(IRQ->line[minor].sem, &woken);
+                }
                 return woken;
         }
 
         return false;
+}
+
+//==============================================================================
+/**
+ * @brief Function allocates module memory and configures EXTI ports
+ *        (configuration of IRQ module) when module is used first time.
+ *
+ * @return One of errno value (errno.h)
+ */
+//==============================================================================
+static int IRQ_alloc(void)
+{
+        if (IRQ) {
+                return ESUCC;
+        }
+
+        int err = sys_zalloc(sizeof(IRQ_t), cast(void *, &IRQ));
+        if (!err) {
+                IRQ_CLOCK_ENABLE();
+
+                IRQCFG->EXTICR[0] = _IRQ_EXTI0_PORT | _IRQ_EXTI1_PORT | _IRQ_EXTI2_PORT | _IRQ_EXTI3_PORT;
+                IRQCFG->EXTICR[1] = _IRQ_EXTI4_PORT | _IRQ_EXTI5_PORT | _IRQ_EXTI6_PORT | _IRQ_EXTI7_PORT;
+                IRQCFG->EXTICR[2] = _IRQ_EXTI8_PORT | _IRQ_EXTI9_PORT | _IRQ_EXTI10_PORT | _IRQ_EXTI11_PORT;
+                IRQCFG->EXTICR[3] = _IRQ_EXTI12_PORT | _IRQ_EXTI13_PORT | _IRQ_EXTI14_PORT | _IRQ_EXTI15_PORT;
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief Function releases module memory when no line is used.
+ */
+//==============================================================================
+static void IRQ_free_if_unused(void)
+{
+        if (IRQ) {
+                for (int i = 0; i < NUMBER_OF_IRQs; i++) {
+                        if (IRQ->line[i].sem || IRQ->cb[i]) {
+                                return;
+                        }
+                }
+
+                sys_free(cast(void *, &IRQ));
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Function attaches callback to EXTI line and enables the line
+ *         (driver interface, irq_ddi.h).
+ *
+ * @param  line         EXTI line (0-15)
+ * @param  port         GPIO port of line: 0 for PA, 1 for PB, ...
+ * @param  mode         trigger
+ * @param  cb           callback
+ * @param  arg          callback argument
+ *
+ * @return One of errno value (errno.h)
+ */
+//==============================================================================
+int _IRQ_DDI_attach(u8_t line, u8_t port, IRQ_config_t mode, _IRQ_DDI_cb_t cb, void *arg)
+{
+        if ((line >= NUMBER_OF_IRQs) || (port >= NUMBER_OF_PORTS) || (cb == NULL) ||
+                (mode == IRQ_CONFIG__IRQ_DISABLED) || (mode > IRQ_CONFIG__TRIGGER_ON_BOTH_EDGES)) {
+                return EINVAL;
+        }
+
+        int err = IRQ_alloc();
+        if (err) {
+                return err;
+        }
+
+        sys_critical_section_begin();
+        {
+                if (IRQ->cb[line] || IRQ->line[line].sem) {
+                        err = EADDRINUSE;
+                } else {
+                        IRQ->line[line].arg = arg;
+                        IRQ->cb[line] = cb;
+
+                        u32_t shift = (line % 4) * 4;
+                        IRQCFG->EXTICR[line / 4] = (IRQCFG->EXTICR[line / 4] & ~(0xFUL << shift)) | ((u32_t)port << shift);
+                }
+        }
+        sys_critical_section_end();
+
+        if (!err) {
+                err = IRQ_configure(line, cast(enum _IRQ_MODE, mode), _CPU_IRQ_SAFE_PRIORITY_);
+                if (err) {
+                        _IRQ_DDI_detach(line);
+                }
+        } else {
+                IRQ_free_if_unused();
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Function disables EXTI line and detaches its callback (driver
+ *         interface, irq_ddi.h).
+ *
+ * @param  line         EXTI line (0-15)
+ *
+ * @return One of errno value (errno.h)
+ */
+//==============================================================================
+int _IRQ_DDI_detach(u8_t line)
+{
+        if ((line >= NUMBER_OF_IRQs) || (IRQ == NULL) || (IRQ->cb[line] == NULL)) {
+                return EINVAL;
+        }
+
+        IRQ_configure(line, _IRQ_MODE_DISABLED, PRIORITY_KEEP);
+
+        sys_critical_section_begin();
+        {
+                IRQ->cb[line] = NULL;
+                IRQ->line[line].arg = NULL;
+        }
+        sys_critical_section_end();
+
+        IRQ_free_if_unused();
+
+        return ESUCC;
 }
 
 //==============================================================================

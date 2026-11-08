@@ -47,61 +47,17 @@ extern "C" {
 #include "lib/sys/types.h"
 #include "drivers/ioctl_macros.h"
 #include "kernel/sysapi.h"
+#include "fs/fsif.h"
 
 /*==============================================================================
   Exported macros
 ==============================================================================*/
-
-/* file system identifier */
-#define _VFS_FILE_SYSTEM_MAGIC_NO 0xD9EFD24F
+/* _VFS_FILE_SYSTEM_MAGIC_NO: fs/fsif.h */
 
 /*==============================================================================
   Exported object types
 ==============================================================================*/
-/** file system interface */
-typedef struct vfs_FS_itf {
-        int (*fs_init)(void **fshdl, const char *path, const char *opts);
-        int (*fs_release)(void *fshdl);
-        int (*fs_open)(void *fshdl, void **fhdl, fpos_t *fpos, const char *path, u32_t flags);
-        int (*fs_close)(void *fshdl, void *fhdl);
-        int (*fs_write)(void *fshdl, void *fhdl, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
-                struct vfs_fattr attr);
-        int (*fs_read)(void *fshdl, void *fhdl, u8_t *dst, size_t count, fpos_t *fpos, size_t *rdcnt,
-                struct vfs_fattr attr);
-        int (*fs_ioctl)(void *fshdl, void *fhdl, int iroq, void *arg);
-        int (*fs_fstat)(void *fshdl, void *fhdl, struct stat *stat);
-        int (*fs_flush)(void *fshdl, void *fhdl);
-        int (*fs_mknod)(void *fshdl, const char *path, const dev_t dev);
-        int (*fs_sync)(void *fshdl);
-        int (*fs_opendir)(void *fshdl, const char *path, struct vfs_dir *dir);
-        int (*fs_closedir)(void *fshdl, struct vfs_dir *dir);
-        int (*fs_readdir)(void *fshdl, struct vfs_dir *dir);
-#if __OS_ENABLE_FSTAT__ == _YES_
-        int (*fs_stat)(void *fshdl, const char *path, struct stat *stat);
-#endif
-#if __OS_ENABLE_STATFS__ == _YES_
-        int (*fs_statfs)(void *fshdl, struct statfs *statfs);
-#endif
-#if __OS_ENABLE_MKDIR__ == _YES_
-        int (*fs_mkdir)(void *fshdl, const char *path, mode_t);
-#endif
-#if __OS_ENABLE_MKFIFO__ == _YES_
-        int (*fs_mkfifo)(void *fshdl, const char *path, mode_t);
-#endif
-#if __OS_ENABLE_REMOVE__ == _YES_
-        int (*fs_remove)(void *fshdl, const char *path);
-#endif
-#if __OS_ENABLE_RENAME__ == _YES_
-        int (*fs_rename)(void *fshdl, const char *old_name, const char *new_name);
-#endif
-#if __OS_ENABLE_CHMOD__ == _YES_
-        int (*fs_chmod)(void *fshdl, const char *path, mode_t mode);
-#endif
-#if __OS_ENABLE_CHOWN__ == _YES_
-        int (*fs_chown)(void *fshdl, const char *path, uid_t owner, gid_t group);
-#endif
-        uint32_t fs_magic;
-} vfs_FS_itf_t;
+/* file system interface (vfs_FS_itf_t): fs/fsif.h */
 
 /** file flags */
 typedef struct vfs_file_flags {

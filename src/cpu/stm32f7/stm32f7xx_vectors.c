@@ -25,6 +25,8 @@ Brief    STM32F7xx family vectors.
 
 ==============================================================================*/
 #include "config.h"
+#include "kernel/ksymtab.h"
+#include "kernel/kvectors.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wattributes"
@@ -39,9 +41,15 @@ Brief    STM32F7xx family vectors.
  * own handler defined.
  */
 /*============================================================================*/
-static void __Default_Handler(void) __attribute__((interrupt));
-static void __Default_Handler(void)
+void __Default_Handler(void) __attribute__((interrupt));
+void __Default_Handler(void)
 {
+#if (__OS_ENABLE_DRVSET__ > 0)
+        /* interrupts of drivers from the drvset partition (drivers/drvset.h) */
+        if (_drvset_irq_dispatch()) {
+                return;
+        }
+#endif
         while (1)
                 ;
 }
@@ -181,6 +189,7 @@ Vector table
 ==================================================================================================*/
 extern const char __main_stack_end; /* imported main stack end (from linker script)      */
 
+void syscall(void); /* syscall entry (kernel/syscall.c), prototype is not needed here */
 void Reset_Handler(void); /* import the address of Reset_Handler()             */
 
 void (*const vectors[256])(void) __attribute__((section(".vectors"))) = {
@@ -310,6 +319,14 @@ void (*const vectors[256])(void) __attribute__((section(".vectors"))) = {
         CAN3_SCE_IRQHandler,               // 107:CAN3 SCE Interrupt
         JPEG_IRQHandler,                   // 108:JPEG global Interrupt
         MDIOS_IRQHandler,                  // 109:MDIO Slave global Interrupt
+
+        /* syscall entry used by programs (libc) */
+        [_KVECTOR_SYSCALL] = syscall,
+
+#if (__OS_ENABLE_DRVSET__ > 0)
+        /* kernel symbol table used by drivers built separately (drvset) */
+        [_KVECTOR_KSYMTAB] = (void (*)(void))(const void *)&_ksymtab,
+#endif
 };
 
 #pragma GCC diagnostic pop

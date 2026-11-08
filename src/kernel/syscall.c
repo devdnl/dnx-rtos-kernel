@@ -519,8 +519,8 @@ int _syscall_init(void)
 /**
  * @brief  Function call selected syscall [USERSPACE].
  *
- * @note   This function is accessible at address: 0x08000400 if start vector is set to
- * 0x08000000.
+ * @note   Function address is stored in the vector table entry _KVECTOR_SYSCALL
+ *         (kernel/kvectors.h). Programs (libc) call the function by this entry.
  *
  * @param  syscall      syscall number
  * @param  ...          additional arguments
@@ -535,7 +535,7 @@ int _syscall_init(void)
 #define syscall_entry syscall
 #endif
 
-__attribute__((section(".syscall"))) int syscall_entry(syscall_t syscall, va_list args)
+int syscall_entry(syscall_t syscall, va_list args)
 {
         int err = ENOSYS;
         u8_t cpuid = _cpuctl_get_cpu_id();

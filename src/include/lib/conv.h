@@ -50,23 +50,28 @@ extern "C" {
 /*==============================================================================
   Exported objects
 ==============================================================================*/
+#ifndef __DNX_MODULE__
 extern struct tm _tmbuf;
 extern int _ltimeoff_sec;
+#endif
 
 /*==============================================================================
   Exported functions
 ==============================================================================*/
+extern char *sys_strtoi32(const char *, int, i32_t *);
+extern char *sys_strtou32(const char *, int, u32_t *);
+
+#ifndef __DNX_MODULE__
 extern char *_itoa(i64_t, char *, u8_t, bool, u8_t);
 extern int _dtoa(double, char *, int, int);
 extern double sys_strtod(const char *, char **);
 extern float _strtof(const char *, char **);
 extern i32_t sys_atoi(const char *);
-extern char *sys_strtoi32(const char *, int, i32_t *);
-extern char *sys_strtou32(const char *, int, u32_t *);
 extern double sys_atof(const char *);
 extern time_t _mktime(struct tm *);
 extern struct tm *_gmtime_r(const time_t *, struct tm *);
 extern struct tm *_localtime_r(const time_t *, struct tm *);
+#endif
 
 /*==============================================================================
   Exported inline functions

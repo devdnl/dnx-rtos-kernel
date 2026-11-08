@@ -44,8 +44,10 @@ dnx RTOS miscellaneous macros and functions.
 #include <stdbool.h>
 #include "lib/cast.h"
 #include "lib/unarg.h"
+#ifndef __DNX_DRVSET__
 #include "lib/strlcat.h"
 #include "lib/strlcpy.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -666,10 +668,14 @@ extern "C" {
  *         tried to create. For sys_strlcpy() that means the length of src.
  */
 //==============================================================================
+#if defined(__DNX_DRVSET__) || defined(DOXYGEN)
+extern size_t sys_strlcpy(char *dst, const char *src, size_t size);
+#else
 static inline size_t sys_strlcpy(char *dst, const char *src, size_t size)
 {
         return _strlcpy(dst, src, size);
 }
+#endif
 
 //==============================================================================
 /**
@@ -689,57 +695,14 @@ static inline size_t sys_strlcpy(char *dst, const char *src, size_t size)
  *         was done to make truncation detection simple.
  */
 //==============================================================================
+#if defined(__DNX_DRVSET__) || defined(DOXYGEN)
+extern size_t sys_strlcat(char *dst, const char *src, size_t size);
+#else
 static inline size_t sys_strlcat(char *dst, const char *src, size_t size)
 {
         return _strlcat(dst, src, size);
 }
-
-//==============================================================================
-/**
- * @brief  Function check if selected object is allocated in heap.
- *
- * @param  ptr          object's pointer
- *
- * @return If object is in heap then true is returned, otherwise false.
- */
-//==============================================================================
-static inline bool sys_is_object_in_heap(const void *ptr)
-{
-        extern bool _mm_is_object_in_heap(const void *ptr);
-        return _mm_is_object_in_heap(ptr);
-}
-
-//==============================================================================
-/**
- * @brief  Function check if selected address is in .text section.
- *
- * @param  ptr          object's pointer
- *
- * @return If object is in heap then true is returned, otherwise false.
- */
-//==============================================================================
-static inline bool sys_is_rom_address(const void *ptr)
-{
-        extern bool _mm_is_rom_address(const void *ptr);
-        return _mm_is_rom_address(ptr);
-}
-
-//==============================================================================
-/**
- * @brief  Function replace characters in string.
- *
- * @param  str          string (in/out buffer)
- * @param  from         find character
- * @param  to           replace character
- *
- * @return Number of replaced characters.
- */
-//==============================================================================
-static inline int sys_strchrrep(char *str, char from, char to)
-{
-        extern int _strchrrep(char *str, char from, char to);
-        return _strchrrep(str, from, to);
-}
+#endif
 
 /*==============================================================================
   Exported inline functions

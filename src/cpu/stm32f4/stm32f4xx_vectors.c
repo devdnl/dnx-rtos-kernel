@@ -25,6 +25,8 @@ Brief    STM32F4xx family vectors.
 
 ==============================================================================*/
 #include "config.h"
+#include "kernel/ksymtab.h"
+#include "kernel/kvectors.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wattributes"
@@ -39,9 +41,15 @@ Brief    STM32F4xx family vectors.
  * own handler defined.
  */
 /*============================================================================*/
-static void __Default_Handler(void) __attribute__((interrupt));
-static void __Default_Handler(void)
+void __Default_Handler(void) __attribute__((interrupt));
+void __Default_Handler(void)
 {
+#if (__OS_ENABLE_DRVSET__ > 0)
+        /* interrupts of drivers from the drvset partition (drivers/drvset.h) */
+        if (_drvset_irq_dispatch()) {
+                return;
+        }
+#endif
         while (1)
                 ;
 }
@@ -159,14 +167,14 @@ WEAK_DEFAULT void DMA2D_IRQHandler(void);
 WEAK_DEFAULT void SAI2_QUADSPI_IRQHandler(void);
 WEAK_DEFAULT void QUADSPI_DSI_IRQHandler(void);
 WEAK_DEFAULT void CEC_IRQHandler(void);
-WEAK_DEFAULT void SPDIF_RX_IRQn(void);
-WEAK_DEFAULT void FMPI2C1_EV_IRQn(void);
-WEAK_DEFAULT void FMPI2C1_ER_IRQn(void);
-WEAK_DEFAULT void LPTIM1_IRQn(void);
-WEAK_DEFAULT void DFSDM2_FLT0_IRQn(void);
-WEAK_DEFAULT void DFSDM2_FLT1_IRQn(void);
-WEAK_DEFAULT void DFSDM2_FLT2_IRQn(void);
-WEAK_DEFAULT void DFSDM2_FLT3_IRQn(void);
+WEAK_DEFAULT void SPDIF_RX_IRQHandler(void);
+WEAK_DEFAULT void FMPI2C1_EV_IRQHandler(void);
+WEAK_DEFAULT void FMPI2C1_ER_IRQHandler(void);
+WEAK_DEFAULT void LPTIM1_IRQHandler(void);
+WEAK_DEFAULT void DFSDM2_FLT0_IRQHandler(void);
+WEAK_DEFAULT void DFSDM2_FLT1_IRQHandler(void);
+WEAK_DEFAULT void DFSDM2_FLT2_IRQHandler(void);
+WEAK_DEFAULT void DFSDM2_FLT3_IRQHandler(void);
 
 #if defined(STM32F407xx) || defined(STM32F417xx) || defined(STM32F427xx) || defined(STM32F429xx) || \
         defined(STM32F437xx) || defined(STM32F439xx) || defined(STM32F469xx) || defined(STM32F479xx)
@@ -184,6 +192,7 @@ Vector table
 ==================================================================================================*/
 extern const char __main_stack_end; /* imported main stack end (from linker script)      */
 
+void syscall(void); /* syscall entry (kernel/syscall.c), prototype is not needed here */
 void Reset_Handler(void); /* import the address of Reset_Handler()             */
 
 void (*const vectors[256])(void) __attribute__((section(".vectors"))) = {
@@ -306,14 +315,22 @@ void (*const vectors[256])(void) __attribute__((section(".vectors"))) = {
         SAI2_QUADSPI_IRQHandler,           // 91:SAI2, QUADSPI global Interrupt
         QUADSPI_DSI_IRQHandler,            // 92:QUADSPI, DSI global Interrupt
         CEC_IRQHandler,                    // 93:CEC
-        SPDIF_RX_IRQn,                     // 94:SPDIF_RX_IRQn
-        FMPI2C1_EV_IRQn,                   // 95:FMPI2C1_EV_IRQn
-        FMPI2C1_ER_IRQn,                   // 96:FMPI2C1_ER_IRQn
-        LPTIM1_IRQn,                       // 97:LPTIM1_IRQn
-        DFSDM2_FLT0_IRQn,                  // 98:DFSDM2_FLT0_IRQn
-        DFSDM2_FLT1_IRQn,                  // 99:DFSDM2_FLT1_IRQn
-        DFSDM2_FLT2_IRQn,                  // 100:DFSDM2_FLT2_IRQn
-        DFSDM2_FLT3_IRQn,                  // 101:DFSDM2_FLT3_IRQn
+        SPDIF_RX_IRQHandler,               // 94:SPDIF_RX_IRQn
+        FMPI2C1_EV_IRQHandler,             // 95:FMPI2C1_EV_IRQn
+        FMPI2C1_ER_IRQHandler,             // 96:FMPI2C1_ER_IRQn
+        LPTIM1_IRQHandler,                 // 97:LPTIM1_IRQn
+        DFSDM2_FLT0_IRQHandler,            // 98:DFSDM2_FLT0_IRQn
+        DFSDM2_FLT1_IRQHandler,            // 99:DFSDM2_FLT1_IRQn
+        DFSDM2_FLT2_IRQHandler,            // 100:DFSDM2_FLT2_IRQn
+        DFSDM2_FLT3_IRQHandler,            // 101:DFSDM2_FLT3_IRQn
+
+        /* syscall entry used by programs (libc) */
+        [_KVECTOR_SYSCALL] = syscall,
+
+#if (__OS_ENABLE_DRVSET__ > 0)
+        /* kernel symbol table used by drivers built separately (drvset) */
+        [_KVECTOR_KSYMTAB] = (void (*)(void))(const void *)&_ksymtab,
+#endif
 };
 
 #pragma GCC diagnostic pop

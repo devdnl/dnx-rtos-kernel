@@ -32,11 +32,18 @@
 \section drv-irq-desc Description
 Driver handles external IRQ controller.
 
+Other drivers (also drivers of the drvset partition) can attach a callback
+to an EXTI line by using the driver interface (irq_ddi.h: _IRQ_DDI_attach(),
+_IRQ_DDI_detach()). Lines of shared interrupts (EXTI9_5, EXTI15_10) can be used
+by many drivers in this way. A line attached by a driver cannot be used by an
+IRQ device and vice versa.
+
 \section drv-irq-sup-arch Supported architectures
 \li stm32f1
 \li stm32f3
 \li stm32f4
 \li stm32f7
+\li stm32h7
 
 \section drv-irq-ddesc Details
 \subsection drv-irq-ddesc-num Meaning of major and minor numbers

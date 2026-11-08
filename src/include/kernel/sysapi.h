@@ -2367,7 +2367,6 @@ extern size_t sys_get_free_mem(void);
 //==============================================================================
 extern size_t sys_get_mem_size(void);
 
-#if (__OS_ENABLE_SYS_ASSERT__ > 0) || defined(DOXYGEN)
 //==============================================================================
 /**
  * @brief Assertion hook: when <i>assert</i> is false, the system reports the
@@ -2378,7 +2377,6 @@ extern size_t sys_get_mem_size(void);
  */
 //==============================================================================
 extern void sys_assert_hook(bool assert, const char *msg);
-#endif
 
 //==============================================================================
 /**

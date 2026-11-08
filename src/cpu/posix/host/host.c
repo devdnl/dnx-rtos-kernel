@@ -47,6 +47,7 @@
 #include <linux/if_tun.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
@@ -125,6 +126,7 @@ static struct {
         const char *panel_socket;
         bool board;
         int tap_fd;
+        char *drvset_path;
 } host;
 
 /*==============================================================================
@@ -406,6 +408,9 @@ static void show_usage(const char *name)
         printf("                           to the microcontroller, e.g. GPIO and I2C devices)\n");
         printf("      --panel <socket>     create socket of the board panel (visualization in\n");
         printf("                           a web browser by tools/simpanel.py), needs --board\n");
+        printf("      --drvset <file>      drvset partition image (drivers built separately from\n");
+        printf("                           the kernel, tools/drvset), needs drvset enabled in\n");
+        printf("                           the kernel configuration\n");
         printf("  -h, --help               show this help\n\n");
         printf("Press Ctrl+\\ to terminate simulator.\n");
 }
@@ -746,6 +751,16 @@ static bool parse_args(int argc, char *argv[])
                         host.panel_socket = val;
                         i++;
 
+                } else if (strcmp(opt, "--drvset") == 0) {
+                        char *path = val ? realpath(val, NULL) : NULL;
+                        if (!path) {
+                                fprintf(stderr, "Invalid drvset image: %s\n", val ? val : "");
+                                return false;
+                        }
+                        free(host.drvset_path);
+                        host.drvset_path = path;
+                        i++;
+
                 } else if (strcmp(opt, "--hostfs") == 0) {
                         char *root = val ? realpath(val, NULL) : NULL;
                         struct stat st;
@@ -935,6 +950,85 @@ void *_host_get_ram(size_t *size)
 {
         *size = host.ram_size;
         return host.ram;
+}
+
+//==============================================================================
+/**
+ * @brief  Map drvset partition image (option --drvset) and its RAM at fixed
+ *         addresses (kernel drivers/drvset.c). Flash is filled by the image
+ *         (rest is erased: 0xFF) and is read-only and executable, RAM is zeroed.
+ *
+ * @param  flash        flash address
+ * @param  flash_size   flash size
+ * @param  ram          RAM address
+ * @param  ram_size     RAM size
+ *
+ * @return 0 on success, 1 when partition is not used (no --drvset option),
+ *         -1 on error (message is printed).
+ */
+//==============================================================================
+int _host_drvset_map(void *flash, size_t flash_size, void *ram, size_t ram_size)
+{
+#ifndef MAP_FIXED_NOREPLACE
+#define MAP_FIXED_NOREPLACE 0x100000
+#endif
+        if (!host.drvset_path) {
+                return 1;
+        }
+
+        int fd = open(host.drvset_path, O_RDONLY);
+        struct stat st;
+        if ((fd < 0) || (fstat(fd, &st) != 0)) {
+                fprintf(stderr, "drvset: %s: %s\r\n", host.drvset_path, strerror(errno));
+                if (fd >= 0) {
+                        close(fd);
+                }
+                return -1;
+        }
+
+        if ((size_t)st.st_size > flash_size) {
+                fprintf(stderr, "drvset: image larger than partition (%lu > %lu bytes)\r\n",
+                        (unsigned long)st.st_size, (unsigned long)flash_size);
+                close(fd);
+                return -1;
+        }
+
+        void *f = mmap(flash, flash_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE,
+                       -1, 0);
+        void *r = mmap(ram, ram_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1,
+                       0);
+
+        if ((f != flash) || (r != ram)) {
+                fprintf(stderr, "drvset: address range %p-%p is not available\r\n", flash,
+                        (void *)((char *)ram + ram_size));
+                close(fd);
+                return -1;
+        }
+
+        memset(flash, 0xFF, flash_size);
+
+        size_t n = 0;
+        while (n < (size_t)st.st_size) {
+                ssize_t rd = read(fd, (char *)flash + n, (size_t)st.st_size - n);
+                if ((rd < 0) && (errno == EINTR)) {
+                        continue;
+                }
+                if (rd <= 0) {
+                        fprintf(stderr, "drvset: %s: read error\r\n", host.drvset_path);
+                        close(fd);
+                        return -1;
+                }
+                n += (size_t)rd;
+        }
+
+        close(fd);
+
+        if (mprotect(flash, flash_size, PROT_READ | PROT_EXEC) != 0) {
+                fprintf(stderr, "drvset: %s\r\n", strerror(errno));
+                return -1;
+        }
+
+        return 0;
 }
 
 //==============================================================================
