@@ -2,6 +2,7 @@
 CSRC_CORE   += kernel/syscall.c
 CSRC_CORE   += kernel/sysapi.c
 CSRC_CORE   += kernel/ksymtab.c
+CSRC_CORE   += kernel/kirq.c
 CSRC_CORE   += kernel/process.c
 CSRC_CORE   += kernel/time.c
 CSRC_CORE   += kernel/khooks.c

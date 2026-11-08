@@ -44,9 +44,9 @@ Brief    STM32F7xx family vectors.
 void __Default_Handler(void) __attribute__((interrupt));
 void __Default_Handler(void)
 {
-#if (__OS_ENABLE_DRVSET__ > 0)
-        /* interrupts of drivers from the drvset partition (drivers/drvset.h) */
-        if (_drvset_irq_dispatch()) {
+#if defined(_KIRQ_SHARED_DISPATCH)
+        /* shared interrupts of kernel drivers and interrupts of drvset partition (kernel/kirq.c) */
+        if (_irq_shared_dispatch()) {
                 return;
         }
 #endif

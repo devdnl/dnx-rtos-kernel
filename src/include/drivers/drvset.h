@@ -115,8 +115,8 @@ extern int _drvset_init(void);
 extern size_t _drvset_get_module_count(void);
 extern const struct _module_entry *_drvset_get_module(size_t n);
 extern const struct vfs_FS_itf *_drvset_get_filesystem(const char *name);
+extern int _drvset_irq_dispatch(u32_t irq);
 #endif
-/* _drvset_irq_dispatch() is declared in kernel/kvectors.h (used by vector tables) */
 
 #ifdef __cplusplus
 }

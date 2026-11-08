@@ -88,7 +88,8 @@ CFLAGS   = -c -MMD -MP \
            -include $(CONFIG) \
            -I./build \
            -I$(CONFIG_DIR) \
-           $(CPUCONFIG_CFLAGS)
+           $(CPUCONFIG_CFLAGS) \
+           $(IRQ_SHARED_FLAGS)
 
 CXXFLAGS = -c -MMD -MP \
            -g \
@@ -116,7 +117,12 @@ CXXFLAGS = -c -MMD -MP \
            -include $(CONFIG) \
            -I./build \
            -I$(CONFIG_DIR) \
-           $(CPUCONFIG_CXXFLAGS)
+           $(CPUCONFIG_CXXFLAGS) \
+           $(IRQ_SHARED_FLAGS)
+
+# IRQ_SHARED: drivers using shared interrupt handlers (DRV_IRQ_SHARED() of drivers/driver.h), set by
+# Makefiles of drivers, the kernel is built with the shared interrupt dispatcher (kernel/kirq.c)
+IRQ_SHARED_FLAGS = $(if $(strip $(IRQ_SHARED)),-D__KERNEL_IRQ_SHARED__)
 
 LFLAGS   = -g \
            $(CPUCONFIG_LDFLAGS) \

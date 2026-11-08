@@ -47,13 +47,28 @@
 /** first vector of interrupts (IRQ 0), previous vectors are CPU exceptions */
 #define _KVECTOR_IRQ0 16
 
-#if (__OS_ENABLE_DRVSET__ > 0) && !defined(__DNX_MODULE__) && !defined(__ASSEMBLER__)
-/**
- * Called by the default handler of the vector table: calls the interrupt
- * handler of the drvset partition (drivers/drvset.h). Returns 1 if interrupt
- * is handled, 0 if not (unexpected interrupt or exception).
+/*
+ * Shared interrupt dispatcher (kernel/kirq.c): built when the drvset partition
+ * is enabled or kernel drivers use shared interrupt handlers (IRQ_SHARED of
+ * driver Makefile, DRV_IRQ_SHARED() of drivers/driver.h).
  */
-extern int _drvset_irq_dispatch(void);
+#if ((__OS_ENABLE_DRVSET__ > 0) || defined(__KERNEL_IRQ_SHARED__)) && !defined(ARCH_posix)
+#define _KIRQ_SHARED_DISPATCH 1
+#endif
+
+#if defined(_KIRQ_SHARED_DISPATCH) && !defined(__DNX_MODULE__) && !defined(__ASSEMBLER__)
+/**
+ * Called by the default handler of the vector table: calls shared interrupt
+ * handlers of kernel drivers and handlers of the drvset partition. Returns 1
+ * if interrupt is handled, 0 if not (unexpected interrupt or exception).
+ */
+extern int _irq_shared_dispatch(void);
+
+/**
+ * Reports shared interrupt handlers of kernel drivers that are not called
+ * (interrupt with exclusive handler in the vector table).
+ */
+extern void _irq_shared_init(void);
 #endif
 
 #endif /* _KVECTORS_H_ */

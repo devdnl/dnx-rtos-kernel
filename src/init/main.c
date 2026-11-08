@@ -96,6 +96,9 @@ int main(void)
 #if __OS_ENABLE_DRVSET__ > 0
         _drvset_init();
 #endif
+#if defined(__KERNEL_IRQ_SHARED__) && !defined(ARCH_posix)
+        _irq_shared_init();
+#endif
 #if _ENABLE_NETWORK_
         _net_init();
 #endif

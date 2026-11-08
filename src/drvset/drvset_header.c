@@ -42,8 +42,8 @@
  *
  * Interrupt handlers are weak references: handlers that are not defined by
  * drivers are NULL in the table, the interrupt is not used by the partition.
- * Shared handlers (DRV_IRQ_SHARED()) are collected by the linker script in
- * the .drvset_irq_shared section.
+ * Shared handlers (DRV_IRQ_SHARED()) are collected by the linker script from
+ * the .irq_shared section.
  */
 
 /*==============================================================================

@@ -476,28 +476,20 @@ const struct vfs_FS_itf *_drvset_get_filesystem(const char *name)
 //==============================================================================
 /**
  * @brief  Function calls interrupt handlers of drvset partition (exclusive
- *         handler and shared handlers of the interrupt). Function is
- *         called by the default handler of the kernel vector table (interrupts
- *         and exceptions that are not handled by the kernel image).
+ *         handler and shared handlers of the interrupt). Function is called
+ *         by the shared interrupt dispatcher (kernel/kirq.c).
  *
- * @return 1 if interrupt is handled, 0 if not (unexpected interrupt or
- *         exception).
+ * @param  irq          IRQ number
+ *
+ * @return 1 if interrupt is handled, otherwise 0.
  */
 //==============================================================================
-int _drvset_irq_dispatch(void)
+int _drvset_irq_dispatch(u32_t irq)
 {
-#if defined(__arm__)
         const _drvset_header_t *hdr = drvset;
+        int handled = 0;
 
         if (hdr) {
-                uint32_t ipsr;
-                __asm volatile("mrs %0, ipsr" : "=r"(ipsr));
-
-                /* exceptions (vectors 0..15) give big numbers and are not handled */
-                uint32_t irq = (ipsr & 0x1FF) - _KVECTOR_IRQ0;
-
-                int handled = 0;
-
                 if (irq < hdr->irq_count) {
                         _drvset_irq_handler_t handler = hdr->irq_table[irq];
 
@@ -514,11 +506,9 @@ int _drvset_irq_dispatch(void)
                                 handled = 1;
                         }
                 }
-
-                return handled;
         }
-#endif
-        return 0;
+
+        return handled;
 }
 
 #endif /* __OS_ENABLE_DRVSET__ */

@@ -59,7 +59,7 @@ SECTIONS
       KEEP(*(.drvset_header));                  /* partition header, the first object */
       . = ALIGN(4);
       __drvset_irq_shared_start = .;            /* shared interrupt handlers (DRV_IRQ_SHARED()) */
-      KEEP(*(.drvset_irq_shared));
+      KEEP(*(.irq_shared));
       __drvset_irq_shared_end = .;
       . = ALIGN(4);
       *(.text .text.* .gnu.linkonce.t.*);

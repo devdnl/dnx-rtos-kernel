@@ -105,6 +105,10 @@ SECTIONS
       *(.glue_7t .glue_7);
       . = ALIGN(4);
       *(.rodata .rodata.* .gnu.linkonce.r.*);
+      . = ALIGN(4);
+      __irq_shared_start = .;                    /* shared interrupt handlers (DRV_IRQ_SHARED()) */
+      KEEP(*(.irq_shared));
+      __irq_shared_end = .;
 
       . = ALIGN(4);
       *(.ARM.extab* .gnu.linkonce.armextab.*);   /* exception unwinding information */

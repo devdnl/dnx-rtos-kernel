@@ -194,9 +194,10 @@ both the C preprocessor and make**:
   of the main RAM region (kernel linker scripts), modules registered after
   built-in modules (`_MODULES_MAX`). Interrupts: unhandled vectors go to
   `__Default_Handler` of the vector table, which calls
-  `_drvset_irq_dispatch()` (IRQ table of the partition, indexed by IRQ
-  number, and shared handlers of `DRV_IRQ_SHARED()`, no RAM); the partition
-  may use only IRQs whose kernel vector is `__Default_Handler`. Driver
+  `_irq_shared_dispatch()` (`src/kernel/kirq.c`): shared handlers of kernel
+  drivers, then `_drvset_irq_dispatch()` (IRQ table of the partition, indexed
+  by IRQ number, and shared handlers of `DRV_IRQ_SHARED()`, no RAM); the
+  partition may use only IRQs whose kernel vector is `__Default_Handler`. Driver
   interfaces of kernel drivers (`_GPIO_DDI_*`, `_DMA_DDI_*`, `_MDMA_DDI_*`,
   `_IRQ_DDI_*` for EXTI lines) are exported in the symbol table as optional
   symbols (`_KSYMTAB_OPTIONAL_LIST`, weak fallbacks in `drivers/drvset.c`
@@ -212,6 +213,17 @@ both the C preprocessor and make**:
   `_host_drvset_map()` (RAM after the partition flash), the first RAM word
   holds the symbol table address (`__ksymtab_vector`), interrupts are not
   supported (header with interrupt tables is rejected).
+- Shared interrupts of kernel drivers (`DRV_IRQ_SHARED()` of
+  `drivers/driver.h`, many drivers on one IRQ line, e.g. `TIM6_DAC`,
+  `SAI2_QUADSPI`): the driver Makefile adds the driver to `IRQ_SHARED`
+  (`IRQ_SHARED += <drv>`), the kernel is then built with `__KERNEL_IRQ_SHARED__`
+  and `src/kernel/kirq.c`. Entries (8 B flash each, no RAM) are collected in
+  `.irq_shared` (`__irq_shared_start/end`, kernel linker scripts), dispatched
+  from `__Default_Handler`; the IRQ must not have a handler in the vector
+  table (`_irq_shared_init()` prints a warning at start). Kernel and drvset
+  drivers can share one IRQ. Each handler checks flags of its own device; a
+  driver must not disable the shared NVIC line on release. Without drvset
+  and without `IRQ_SHARED` the dispatcher is not built (no cost).
 - Prefix tells who can use the function: `sys_` drivers and file systems,
   `drv_` only drivers (`drv_lock`, `drv_get_instance`, `drv_mem_*`,
   `drv_clock_changed`, …), `fs_` only file systems (`fs_dev_*` access to the
