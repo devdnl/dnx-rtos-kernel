@@ -848,7 +848,7 @@ static int procfs_readdir_pid(struct procfs *hdl, kdir_t *dir)
 
                 struct dir_info *dirinfo = dir->d_hdl;
 
-                sys_format(dirinfo->name, sizeof(dirinfo->name), "%u", stat.pid);
+                sys_strfmt(dirinfo->name, sizeof(dirinfo->name), "%u", stat.pid);
 
                 dir->dirent.d_name = dirinfo->name;
                 dir->dirent.mode = S_IRUSR | S_IRGRP | S_IROTH | S_IFREG;

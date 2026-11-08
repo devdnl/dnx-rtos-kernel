@@ -1993,7 +1993,7 @@ static int received_first_frame(cannet_t *cannet, CANNET_socket_t *socket, const
 #if __NETWORK_CANNET_DEBUG_ON__
         char buf[32];
         for (size_t i = 0; i < sizeof(frame->data); i++) {
-                sys_format(buf + (i * 3), sizeof(buf) - (i * 3), "%02X ", frame->data[i]);
+                sys_strfmt(buf + (i * 3), sizeof(buf) - (i * 3), "%02X ", frame->data[i]);
         }
         DEBUG("Payload [ %s]", buf);
 #endif
@@ -2030,7 +2030,7 @@ static int received_next_frame(cannet_t *cannet, CANNET_socket_t *socket, const 
 #if __NETWORK_CANNET_DEBUG_ON__
         char buf[32];
         for (size_t i = 0; i < sizeof(frame->data); i++) {
-                sys_format(buf + (i * 3), sizeof(buf) - (i * 3), "%02X ", frame->data[i]);
+                sys_strfmt(buf + (i * 3), sizeof(buf) - (i * 3), "%02X ", frame->data[i]);
         }
         DEBUG("Payload [ %s]", buf);
 #endif
@@ -2064,7 +2064,7 @@ static int received_last_frame(cannet_t *cannet, CANNET_socket_t *socket, const 
 #if __NETWORK_CANNET_DEBUG_ON__
         char buf[32];
         for (size_t i = 0; i < len; i++) {
-                sys_format(buf + (i * 3), sizeof(buf) - (i * 3), "%02X ", frame->data[i]);
+                sys_strfmt(buf + (i * 3), sizeof(buf) - (i * 3), "%02X ", frame->data[i]);
         }
         DEBUG("Payload [ %s]", buf);
 #endif
@@ -2110,7 +2110,7 @@ static int received_single_frame(cannet_t *cannet, CANNET_socket_t *socket, cons
 #if __NETWORK_CANNET_DEBUG_ON__
         char buf[32];
         for (size_t i = 0; i < len; i++) {
-                sys_format(buf + (i * 3), sizeof(buf) - (i * 3), "%02X ", frame->data[i]);
+                sys_strfmt(buf + (i * 3), sizeof(buf) - (i * 3), "%02X ", frame->data[i]);
         }
         DEBUG("Payload [ %s]", buf);
 #endif

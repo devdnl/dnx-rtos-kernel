@@ -787,7 +787,7 @@ extern int sys_fflush(kfile_t *file);
         // ...
    @endcode
  *
- * @see sys_format()
+ * @see sys_strfmt()
  */
 //==============================================================================
 #if (__OS_SYSTEM_MSG_ENABLE__ > 0) || defined(DOXYGEN)
@@ -842,7 +842,7 @@ extern void printk(const char *format, ...);
         char buffer[20];
         int foo = 12;
         int bar = 0x12;
-        sys_format(buffer, 20, "foo is %d; bar is 0x%x\n", foo, bar);
+        sys_strfmt(buffer, 20, "foo is %d; bar is 0x%x\n", foo, bar);
 
         // ...
    @endcode
@@ -850,7 +850,7 @@ extern void printk(const char *format, ...);
  * @see sys_sscanf()
  */
 //==============================================================================
-extern int sys_format(char *bfr, size_t size, const char *format, ...);
+extern int sys_strfmt(char *bfr, size_t size, const char *format, ...);
 
 //==============================================================================
 /**
@@ -905,7 +905,7 @@ extern int sys_format(char *bfr, size_t size, const char *format, ...);
         // ...
    @endcode
  *
- * @see sys_format()
+ * @see sys_strfmt()
  */
 //==============================================================================
 extern int sys_sscanf(const char *str, const char *format, ...);

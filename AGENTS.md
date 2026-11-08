@@ -173,7 +173,7 @@ both the C preprocessor and make**:
     `sys_icache_invalidate`, `sys_cache_sync_code` (new code in memory); no-op
     on CPUs without cache,
   - file access: `sys_fopen`/`sys_fread`/`sys_fwrite`/`sys_fclose`/`sys_ioctl`,
-  - text: `sys_format` (scnprintf semantics), `sys_sscanf`, `sys_opt_*`
+  - text: `sys_strfmt` (scnprintf semantics), `sys_sscanf`, `sys_opt_*`
     (option strings), `printk`.
 - Prefix tells who can use the function: `sys_` drivers and file systems,
   `drv_` only drivers (`drv_lock`, `drv_get_instance`, `drv_mem_*`,

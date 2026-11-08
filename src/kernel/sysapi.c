@@ -447,7 +447,7 @@ int sys_fflush(kfile_t *file)
  * POSIX snprintf(), the function works as scnprintf() in Linux kernel.
  */
 //==============================================================================
-int sys_format(char *bfr, size_t size, const char *format, ...)
+int sys_strfmt(char *bfr, size_t size, const char *format, ...)
 {
         va_list arg;
         va_start(arg, format);
