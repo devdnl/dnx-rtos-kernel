@@ -38,6 +38,7 @@
 #include "drivers/drvctrl.h"
 #include "kernel/syscall.h"
 #include "kernel/kwrapper.h"
+#include "cpu/cpuctl.h"
 #include "kernel/printk.h"
 #include "kernel/kpanic.h"
 #include "kernel/errno.h"
@@ -76,6 +77,28 @@
 #define STDIN_FD  0
 #define STDOUT_FD 1
 #define STDERR_FD 2
+
+/*
+ * Atomic test and set of libc (futex, heap) is done by the kernel (SYSCALL_ATOMICTAS) on CPUs
+ * without exclusive access instructions (Cortex-M0+, compiler generates not atomic code for
+ * atomic_flag) and on CPUs whose exclusive access does not work between cores (SoC without
+ * global exclusive monitor): __DNX_ATOMIC_KERNEL__ in CPUCONFIG_CFLAGS of the CPU (kernel and
+ * programs). The same condition is in libc/source/atomic.h of the workspace.
+ */
+#if defined(__arm__) && (!defined(__ARM_FEATURE_LDREX) || defined(__DNX_ATOMIC_KERNEL__))
+#define SYSCALL_ATOMIC_TAS 1
+#endif
+
+/*
+ * Multicore port: exclusive access instructions (ldrex/strex) protect futex and heap of libc
+ * only when the SoC has global exclusive monitor and shared memory is not cached (MPU). Select
+ * one in CPUCONFIG_CFLAGS of the CPU: -D__DNX_ATOMIC_KERNEL__ (kernel critical section, shall
+ * be atomic between cores, e.g. hardware spinlock) or -D__DNX_ATOMIC_LDREX_SMP__ (ldrex/strex
+ * work between cores).
+ */
+#if (_CPUCTL_CORE_NUM > 1) && !defined(SYSCALL_ATOMIC_TAS) && !defined(__DNX_ATOMIC_LDREX_SMP__)
+#error "Multicore CPU: select atomic operations of libc (__DNX_ATOMIC_KERNEL__ or __DNX_ATOMIC_LDREX_SMP__)"
+#endif
 
 /*==============================================================================
   Local object types
@@ -210,6 +233,7 @@ typedef enum {
         SYSCALL_GETCURRENTCORE,         // int errno (u8_t *core)
         SYSCALL_GETCPUCORECOUNT,        // int errno (u8_t *core_count)
         SYSCALL_SYSCONF,                // int errno (const int *name, long *value)
+        SYSCALL_ATOMICTAS,              // int errno (u8_t *flag): 0 when flag set by caller, EBUSY when flag already set
         _SYSCALL_COUNT,
 } syscall_t;
 // clang-format on
@@ -486,6 +510,7 @@ static const syscallfunc_t syscalltab[] = {
         [SYSCALL_GETCURRENTCORE] = syscall_getcurrentcore,
         [SYSCALL_GETCPUCORECOUNT] = syscall_getcpucorecount,
         [SYSCALL_SYSCONF] = syscall_sysconf,
+        [SYSCALL_ATOMICTAS] = NULL,
 };
 
 /*==============================================================================
@@ -563,6 +588,31 @@ int syscall_entry(syscall_t syscall, va_list args)
                         _errno[cpuid] = err;
                 }
 
+        } else if (syscall == SYSCALL_ATOMICTAS) {
+#if defined(SYSCALL_ATOMIC_TAS)
+                /*
+                 * NOTE: atomic test and set of a flag (futex, heap of libc),
+                 *       see SYSCALL_ATOMIC_TAS.
+                 *       Critical section is atomic also between cores of SMP
+                 *       port (RP2040: interrupts disabled and hardware spinlock).
+                 *       The flag is written only when cleared, because owner
+                 *       clears the flag without the syscall.
+                 */
+                volatile u8_t *flag = va_arg(args, volatile u8_t *);
+                err = EBUSY;
+
+                _critical_section_begin();
+                __atomic_thread_fence(__ATOMIC_SEQ_CST);
+                if (*flag == 0) {
+                        *flag = 1;
+                        err = 0;
+                }
+                __atomic_thread_fence(__ATOMIC_SEQ_CST);
+                _critical_section_end();
+#else
+                /* libc uses exclusive access instructions (checked by libc) */
+                err = ENOSYS;
+#endif
         } else if (syscall < _SYSCALL_COUNT) {
                 _process_clean_up_killed_processes();
 

@@ -224,6 +224,14 @@ both the C preprocessor and make**:
   drivers can share one IRQ. Each handler checks flags of its own device; a
   driver must not disable the shared NVIC line on release. Without drvset
   and without `IRQ_SHARED` the dispatcher is not built (no cost).
+- Atomic operations of libc (futex, heap lock): `SYSCALL_ATOMICTAS` (fast
+  path of `syscall()`, critical section) is built on CPUs without
+  `__ARM_FEATURE_LDREX` (Cortex-M0+) or with `__DNX_ATOMIC_KERNEL__` in
+  `CPUCONFIG_CFLAGS`. A multicore CPU (`_CPUCTL_CORE_NUM > 1`) with ldrex/strex
+  does not build until `__DNX_ATOMIC_KERNEL__` (critical section atomic between
+  cores, e.g. hardware spinlock) or `__DNX_ATOMIC_LDREX_SMP__` (global
+  exclusive monitor, shared memory not cached) is selected; the same flag is
+  needed in `project_flags.h` of appsets (libc `source/atomic.h`).
 - Prefix tells who can use the function: `sys_` drivers and file systems,
   `drv_` only drivers (`drv_lock`, `drv_get_instance`, `drv_mem_*`,
   `drv_clock_changed`, …), `fs_` only file systems (`fs_dev_*` access to the
