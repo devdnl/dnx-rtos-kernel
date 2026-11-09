@@ -53,7 +53,7 @@ extern "C" {
   Exported macros
 ==============================================================================*/
 /** version of board interface */
-#define _HOST_BOARD_INTERFACE_VERSION 5
+#define _HOST_BOARD_INTERFACE_VERSION 6
 
 /** I2C address flag: 10-bit address */
 #define _HOST_BOARD_I2C_ADDR_10BIT 0x8000
@@ -66,6 +66,9 @@ extern "C" {
 /** SPI transfer flags: bits 0-1 SPI mode (CPOL, CPHA) */
 #define _HOST_BOARD_SPI_MODE_MASK  0x03
 #define _HOST_BOARD_SPI_LSB_FIRST  0x04 /*!< LSB first bit order */
+
+/** number of UARTs that can be connected to board models */
+#define _HOST_BOARD_UART_PORTS     8
 
 /*==============================================================================
   Exported functions
@@ -188,6 +191,63 @@ extern void _host_board_i2c_stop(int bus);
  */
 extern int _host_board_spi_transfer(int bus, const uint8_t *tx, uint8_t *rx, size_t count, uint8_t fill,
                                     unsigned flags);
+
+/**
+ * @brief  Allow connection of UART to board model (uart.attach() of board
+ *         script). Called before _host_board_init() for UARTs that are not
+ *         connected to the terminal, PTY or host serial port.
+ *
+ * @param  port         UART index (0: UART1, /dev/ttyS0)
+ * @param  allowed      true: board model can be connected
+ */
+extern void _host_board_uart_allow(int port, bool allowed);
+
+/**
+ * @brief  Check if UART is connected to board model.
+ *
+ * @param  port         UART index
+ *
+ * @return true if board model is attached to UART.
+ */
+extern bool _host_board_uart_attached(int port);
+
+/**
+ * @brief  UART configuration changed by system (model is notified).
+ *
+ * @param  port         UART index
+ * @param  baud         baud rate
+ * @param  parity       0: none, 1: odd, 2: even
+ * @param  stop_bits    1 or 2
+ *
+ * @return 0 on success, otherwise errno value.
+ */
+extern int _host_board_uart_configure(int port, uint32_t baud, int parity, int stop_bits);
+
+/**
+ * @brief  UART: data received by system (sent by board model). With
+ *         transmission timing bytes are available at time of their reception
+ *         (baud rate).
+ *
+ * @param  port         UART index
+ * @param  buf          buffer
+ * @param  len          buffer length
+ *
+ * @return Number of read bytes (0: no data).
+ */
+extern int _host_board_uart_read(int port, void *buf, size_t len);
+
+/**
+ * @brief  UART: data transmitted by system (received by board model). With
+ *         transmission timing bytes are accepted at baud rate (0: transmitter
+ *         busy, the system tries again).
+ *
+ * @param  port         UART index
+ * @param  buf          data
+ * @param  len          number of bytes
+ *
+ * @return Number of accepted bytes.
+ */
+extern int _host_board_uart_write(int port, const void *buf, size_t len);
 
 #ifdef __cplusplus
 }

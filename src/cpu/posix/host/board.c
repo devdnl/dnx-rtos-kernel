@@ -72,6 +72,10 @@
 #define LCD_SIZE_MAX    4096 /* max width and height of LCD of board model */
 #define LCD_FORMATS     8
 #define LCD_METATABLE   "board.lcd"
+#define UART_PORTS      _HOST_BOARD_UART_PORTS
+#define UART_FIFO_SIZE  4096 /* bytes waiting for reception (both directions) */
+#define UART_TX_WINDOW  10.0 /* ms: transmitter accepts bytes sent in this time (driver polls UART) */
+#define UART_OVERRUN_MS 200.0 /* ms: received byte not read by system in this time is lost */
 
 /*==============================================================================
   Local object types
@@ -81,6 +85,7 @@ typedef enum {
         EVENT__PANEL_CONNECT,
         EVENT__PANEL_MESSAGE,
         EVENT__PANEL_DISCONNECT,
+        EVENT__UART_CONFIG,
 } event_type_t;
 
 typedef struct {
@@ -143,6 +148,31 @@ typedef struct {
         int slot;
 } lcd_ref_t;
 
+/* bytes with time of their reception */
+typedef struct {
+        uint8_t data[UART_FIFO_SIZE];
+        double at[UART_FIFO_SIZE];
+        size_t head;
+        size_t tail;
+} uart_fifo_t;
+
+/* UART connected to board model */
+typedef struct {
+        bool allowed;             /* host allows connection of model */
+        bool attached;            /* model is attached */
+        bool timing;              /* transmission time of characters */
+        uint32_t baud;
+        int parity;               /* 0: none, 1: odd, 2: even */
+        int stop_bits;
+        double char_ms;           /* time of one character */
+        double rx_line;           /* time when the last byte sent by model is received */
+        double tx_line;           /* time when the last byte sent by system is transmitted */
+        uart_fifo_t rx;           /* model -> system */
+        uart_fifo_t tx;           /* system -> model */
+        size_t overrun;           /* bytes not read by system (lost) */
+        bool overrun_reported;    /* overrun reported (until system reads data) */
+} uart_port_t;
+
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
@@ -179,6 +209,11 @@ static struct {
         int ref_spi_request;
         int ref_run_exit;
         int ref_panel_event;
+        int ref_uart_event;
+
+        pthread_mutex_t uart_mtx;         /* UART ports */
+        uart_port_t uart[UART_PORTS];
+        bool uart_kick;                   /* board thread: new data for model */
 
         const char *panel_path;           /* panel socket path (NULL: no panel) */
         pthread_t panel_thread;
@@ -207,6 +242,7 @@ static struct {
         .panel_listen = -1,
         .panel_client = -1,
         .panel_send_mtx = PTHREAD_MUTEX_INITIALIZER,
+        .uart_mtx = PTHREAD_MUTEX_INITIALIZER,
         .lcd = {.mtx = PTHREAD_MUTEX_INITIALIZER, .slot = {[0] = {.id = "ltdc", .used = true}}},
 };
 
@@ -578,6 +614,74 @@ static const char PRELUDE[] =
         "    return res\n"
         "end\n"
         "\n"
+        "-- uart ------------------------------------------------------------------\n"
+        "uart = {}\n"
+        "\n"
+        "local uart_devs = {}\n"
+        "local uart_full = {}\n"
+        "local PARITY = {[0] = 'none', 'odd', 'even'}\n"
+        "\n"
+        "-- UART name in STM32 style: UART1 (/dev/ttyS0, simulator option --uart 0) ..\n"
+        "local function uart_index(name)\n"
+        "    local n = tonumber(string.match(tostring(name), '^UART(%d+)$'))\n"
+        "    if not n or n < 1 or n > B.UART_PORTS then\n"
+        "        error('invalid UART name: ' .. tostring(name), 3)\n"
+        "    end\n"
+        "    return n - 1\n"
+        "end\n"
+        "\n"
+        "-- attach device model to UART: dev:receive(data) gets data sent by the system,\n"
+        "-- dev:configure(cfg) the configuration set by the system; opts.timing = false:\n"
+        "-- data is transferred immediately (default: transmission time of characters)\n"
+        "function uart.attach(name, dev, opts)\n"
+        "    local idx = uart_index(name)\n"
+        "    if type(dev) ~= 'table' then error('uart.attach: device table expected', 2) end\n"
+        "    local ok, err = B.uart_attach(idx, not (opts and opts.timing == false))\n"
+        "    if not ok then error('uart.attach: ' .. tostring(name) .. ': ' .. err, 2) end\n"
+        "    uart_devs[idx] = dev\n"
+        "    return dev\n"
+        "end\n"
+        "\n"
+        "-- UART can be attached (not connected by simulator option --uart, not used)\n"
+        "function uart.available(name)\n"
+        "    return B.uart_available(uart_index(name))\n"
+        "end\n"
+        "\n"
+        "-- send data to the system, returns number of queued bytes\n"
+        "function uart.send(name, data)\n"
+        "    local idx = uart_index(name)\n"
+        "    data = tostring(data)\n"
+        "    local n = B.uart_send(idx, data)\n"
+        "    if n < #data and not uart_full[idx] then\n"
+        "        print(string.format('%s: model sends data faster than baud rate, buffer full, '\n"
+        "                            .. 'data is lost', name))\n"
+        "    end\n"
+        "    if n < #data then uart_full[idx] = true elseif B.uart_pending(idx) == 0 then uart_full[idx] = false end\n"
+        "    return n\n"
+        "end\n"
+        "\n"
+        "-- configuration set by the system: {baud = , parity = 'none'|'odd'|'even', stop_bits = }\n"
+        "function uart.config(name)\n"
+        "    local baud, parity, stop = B.uart_config(uart_index(name))\n"
+        "    return {baud = baud, parity = PARITY[parity] or 'none', stop_bits = stop}\n"
+        "end\n"
+        "\n"
+        "-- number of bytes sent by model and not yet received by the system\n"
+        "function uart.pending(name)\n"
+        "    return B.uart_pending(uart_index(name))\n"
+        "end\n"
+        "\n"
+        "-- UART event: 0 data sent by the system, 1 configuration changed\n"
+        "local function uart_event(kind, idx, data)\n"
+        "    local dev = uart_devs[idx]\n"
+        "    if not dev then return end\n"
+        "    if kind == 0 then\n"
+        "        dcall(dev, 'receive', data)\n"
+        "    else\n"
+        "        dcall(dev, 'configure', uart.config('UART' .. (idx + 1)))\n"
+        "    end\n"
+        "end\n"
+        "\n"
         "-- panel -----------------------------------------------------------------\n"
         "panel = {}\n"
         "\n"
@@ -810,7 +914,7 @@ static const char PRELUDE[] =
         "    end\n"
         "end\n"
         "\n"
-        "return next_timeout, run_timers, gpio_event, i2c_request, run_exit, spi_request, panel_event\n";
+        "return next_timeout, run_timers, gpio_event, i2c_request, run_exit, spi_request, panel_event, uart_event\n";
 
 /*==============================================================================
   Function definitions
@@ -1420,6 +1524,287 @@ static bool call_ref(int ref, int nargs, int nres)
 
 //==============================================================================
 /**
+ * @brief  Number of bytes in FIFO.
+ */
+//==============================================================================
+static size_t fifo_count(const uart_fifo_t *f)
+{
+        return (f->head + UART_FIFO_SIZE - f->tail) % UART_FIFO_SIZE;
+}
+
+//==============================================================================
+/**
+ * @brief  Put byte to FIFO.
+ *
+ * @return true if byte was queued (false: FIFO is full).
+ */
+//==============================================================================
+static bool fifo_put(uart_fifo_t *f, uint8_t byte, double at)
+{
+        size_t next = (f->head + 1) % UART_FIFO_SIZE;
+        if (next == f->tail) {
+                return false;
+        }
+        f->data[f->head] = byte;
+        f->at[f->head] = at;
+        f->head = next;
+        return true;
+}
+
+//==============================================================================
+/**
+ * @brief  Get bytes received until selected time.
+ *
+ * @return Number of bytes.
+ */
+//==============================================================================
+static size_t fifo_get(uart_fifo_t *f, uint8_t *dst, size_t len, double now)
+{
+        size_t n = 0;
+        while ((n < len) && (f->tail != f->head) && (f->at[f->tail] <= now)) {
+                dst[n++] = f->data[f->tail];
+                f->tail = (f->tail + 1) % UART_FIFO_SIZE;
+        }
+        return n;
+}
+
+//==============================================================================
+/**
+ * @brief  Receiver overrun: drop bytes received by system that are not read in
+ *         UART_OVERRUN_MS (system does not read UART). Called with locked UART
+ *         mutex.
+ */
+//==============================================================================
+static void uart_overrun(uart_port_t *u, double now)
+{
+        uart_fifo_t *f = &u->rx;
+        while ((f->tail != f->head) && (f->at[f->tail] < now - UART_OVERRUN_MS)) {
+                f->tail = (f->tail + 1) % UART_FIFO_SIZE;
+                u->overrun++;
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Set UART configuration (called with locked UART mutex).
+ */
+//==============================================================================
+static void uart_set_config(uart_port_t *u, uint32_t baud, int parity, int stop_bits)
+{
+        u->baud = baud;
+        u->parity = parity;
+        u->stop_bits = stop_bits;
+        /* start bit, 8 data bits, parity, stop bits */
+        u->char_ms = (double)(1 + 8 + (parity ? 1 : 0) + stop_bits) * 1000.0 / (double)baud;
+}
+
+//==============================================================================
+/**
+ * @brief  Get UART of Lua argument (index).
+ */
+//==============================================================================
+static int check_uart(lua_State *L, int arg)
+{
+        int port = (int)luaL_checkinteger(L, arg);
+        luaL_argcheck(L, (port >= 0) && (port < UART_PORTS), arg, "invalid UART");
+        return port;
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: B.uart_attach(port, timing) -> true or nil, message
+ */
+//==============================================================================
+static int l_uart_attach(lua_State *L)
+{
+        int port = check_uart(L, 1);
+        bool timing = lua_toboolean(L, 2);
+        const char *err = NULL;
+
+        pthread_mutex_lock(&board.uart_mtx);
+        uart_port_t *u = &board.uart[port];
+        if (!u->allowed) {
+                err = "UART is connected to the terminal, PTY or serial port (simulator option --uart)";
+        } else if (u->attached) {
+                err = "model is already attached";
+        } else {
+                u->attached = true;
+                u->timing = timing;
+        }
+        pthread_mutex_unlock(&board.uart_mtx);
+
+        if (err) {
+                luaL_pushfail(L);
+                lua_pushstring(L, err);
+                return 2;
+        }
+
+        lua_pushboolean(L, true);
+        return 1;
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: B.uart_available(port) -> boolean
+ */
+//==============================================================================
+static int l_uart_available(lua_State *L)
+{
+        int port = check_uart(L, 1);
+
+        pthread_mutex_lock(&board.uart_mtx);
+        bool available = board.uart[port].allowed && !board.uart[port].attached;
+        pthread_mutex_unlock(&board.uart_mtx);
+
+        lua_pushboolean(L, available);
+        return 1;
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: B.uart_send(port, data) -> number of queued bytes
+ */
+//==============================================================================
+static int l_uart_send(lua_State *L)
+{
+        int port = check_uart(L, 1);
+        size_t len;
+        const uint8_t *data = (const uint8_t *)luaL_checklstring(L, 2, &len);
+        size_t n = 0;
+
+        pthread_mutex_lock(&board.uart_mtx);
+        uart_port_t *u = &board.uart[port];
+        if (u->attached) {
+                double now = time_ms();
+                uart_overrun(u, now);
+                if (u->rx_line < now) {
+                        u->rx_line = now;
+                }
+                for (; n < len; n++) {
+                        double at = u->timing ? (u->rx_line + u->char_ms) : now;
+                        if (!fifo_put(&u->rx, data[n], at)) {
+                                break;
+                        }
+                        if (u->timing) {
+                                u->rx_line = at;
+                        }
+                }
+        }
+        pthread_mutex_unlock(&board.uart_mtx);
+
+        lua_pushinteger(L, (lua_Integer)n);
+        return 1;
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: B.uart_config(port) -> baud, parity, stop_bits
+ */
+//==============================================================================
+static int l_uart_config(lua_State *L)
+{
+        int port = check_uart(L, 1);
+
+        pthread_mutex_lock(&board.uart_mtx);
+        uint32_t baud = board.uart[port].baud;
+        int parity = board.uart[port].parity;
+        int stop_bits = board.uart[port].stop_bits;
+        pthread_mutex_unlock(&board.uart_mtx);
+
+        lua_pushinteger(L, baud);
+        lua_pushinteger(L, parity);
+        lua_pushinteger(L, stop_bits);
+        return 3;
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: B.uart_pending(port) -> bytes not received by system yet
+ */
+//==============================================================================
+static int l_uart_pending(lua_State *L)
+{
+        int port = check_uart(L, 1);
+
+        pthread_mutex_lock(&board.uart_mtx);
+        uart_overrun(&board.uart[port], time_ms());
+        size_t n = fifo_count(&board.uart[port].rx);
+        pthread_mutex_unlock(&board.uart_mtx);
+
+        lua_pushinteger(L, (lua_Integer)n);
+        return 1;
+}
+
+//==============================================================================
+/**
+ * @brief  Time to the next byte transmitted by system (board thread).
+ *
+ * @return Time in milliseconds or negative value if there is no data.
+ */
+//==============================================================================
+static double uart_next_timeout(void)
+{
+        double tmo = -1;
+        double now = time_ms();
+
+        pthread_mutex_lock(&board.uart_mtx);
+        for (int i = 0; i < UART_PORTS; i++) {
+                uart_fifo_t *f = &board.uart[i].tx;
+                if (f->tail != f->head) {
+                        double d = f->at[f->tail] - now;
+                        d = (d < 0) ? 0 : d;
+                        if ((tmo < 0) || (d < tmo)) {
+                                tmo = d;
+                        }
+                }
+        }
+        pthread_mutex_unlock(&board.uart_mtx);
+
+        return tmo;
+}
+
+//==============================================================================
+/**
+ * @brief  Deliver bytes transmitted by system to models (board thread).
+ */
+//==============================================================================
+static void uart_deliver(void)
+{
+        static uint8_t buf[UART_FIFO_SIZE];
+
+        for (int i = 0; i < UART_PORTS; i++) {
+                pthread_mutex_lock(&board.uart_mtx);
+                uart_port_t *u = &board.uart[i];
+                double now = time_ms();
+                size_t n = fifo_get(&u->tx, buf, sizeof(buf), now);
+                uart_overrun(u, now);
+                size_t lost = 0;
+                if ((u->overrun > 0) && !u->overrun_reported) {
+                        lost = u->overrun;
+                        u->overrun_reported = true;
+                }
+                pthread_mutex_unlock(&board.uart_mtx);
+
+                if (lost) {
+                        char msg[128];
+                        snprintf(msg, sizeof(msg),
+                                "UART%d: system does not read received data, bytes are lost "
+                                "(receiver overrun)",
+                                i + 1);
+                        board_log(msg);
+                }
+
+                if (n > 0) {
+                        lua_pushinteger(board.L, 0);
+                        lua_pushinteger(board.L, i);
+                        lua_pushlstring(board.L, (const char *)buf, n);
+                        call_ref(board.ref_uart_event, 3, 0);
+                }
+        }
+}
+
+//==============================================================================
+/**
  * @brief  Get time to the next timer.
  *
  * @return Time in milliseconds or negative value if there is no timer.
@@ -1630,6 +2015,11 @@ static bool board_load(void)
                 {"level", l_level},
                 {"panel_send", l_panel_send},
                 {"lcd_new", l_lcd_new},
+                {"uart_attach", l_uart_attach},
+                {"uart_available", l_uart_available},
+                {"uart_send", l_uart_send},
+                {"uart_config", l_uart_config},
+                {"uart_pending", l_uart_pending},
                 {NULL, NULL},
         };
 
@@ -1644,6 +2034,8 @@ static bool board_load(void)
         lua_setfield(L, -2, "I2C_BUSES");
         lua_pushinteger(L, SPI_BUSES);
         lua_setfield(L, -2, "SPI_BUSES");
+        lua_pushinteger(L, UART_PORTS);
+        lua_setfield(L, -2, "UART_PORTS");
         lua_pushinteger(L, _HOST_BOARD_SPI_LSB_FIRST);
         lua_setfield(L, -2, "SPI_LSB_FIRST");
         lua_pushinteger(L, _HOST_BOARD_I2C_ADDR_10BIT);
@@ -1653,11 +2045,12 @@ static bool board_load(void)
         lcd_metatable(L);
         lua_setfield(L, -2, "LCD_METHODS");
 
-        if (lua_pcall(L, 1, 7, 1) != LUA_OK) {
+        if (lua_pcall(L, 1, 8, 1) != LUA_OK) {
                 board_log(lua_tostring(L, -1));
                 return false;
         }
 
+        board.ref_uart_event = luaL_ref(L, LUA_REGISTRYINDEX);
         board.ref_panel_event = luaL_ref(L, LUA_REGISTRYINDEX);
         board.ref_spi_request = luaL_ref(L, LUA_REGISTRYINDEX);
         board.ref_run_exit = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -1709,12 +2102,16 @@ static void *board_thread(void *arg)
 
         for (;;) {
                 double tmo = next_timeout();
+                double uart_tmo = uart_next_timeout();
+                if ((uart_tmo >= 0) && ((tmo < 0) || (uart_tmo < tmo))) {
+                        tmo = uart_tmo;
+                }
 
                 pthread_mutex_lock(&board.mtx);
 
                 bool request = board.req.pending && !board.req.taken;
 
-                if (!board.stop && (board.head == board.tail) && !request) {
+                if (!board.stop && (board.head == board.tail) && !request && !board.uart_kick) {
                         if (tmo < 0) {
                                 pthread_cond_wait(&board.cond, &board.mtx);
                         } else if (tmo > 0) {
@@ -1736,6 +2133,7 @@ static void *board_thread(void *arg)
                 size_t lost = board.lost;
                 board.lost = 0;
                 bool stop = board.stop;
+                board.uart_kick = false;
 
                 if (stop) {
                         board.running = false;
@@ -1784,6 +2182,13 @@ static void *board_thread(void *arg)
                                 lua_pushstring(board.L, events[i].text ? events[i].text : "");
                                 call_ref(board.ref_panel_event, 2, 0);
                                 break;
+
+                        case EVENT__UART_CONFIG:
+                                lua_pushinteger(board.L, 1);
+                                lua_pushinteger(board.L, events[i].port);
+                                lua_pushnil(board.L);
+                                call_ref(board.ref_uart_event, 3, 0);
+                                break;
                         }
 
                         free(events[i].text);
@@ -1797,6 +2202,7 @@ static void *board_thread(void *arg)
                 }
                 pthread_mutex_unlock(&board.mtx);
 
+                uart_deliver();
                 call_ref(board.ref_run_timers, 0, 0);
         }
 
@@ -2461,6 +2867,168 @@ void _host_board_i2c_stop(int bus)
                 request_t req = {.type = REQUEST__I2C_STOP, .bus = bus};
                 request(&req);
         }
+}
+
+//==============================================================================
+/**
+ * @brief  Allow connection of UART to board model.
+ *
+ * @param  port         UART index
+ * @param  allowed      true: board model can be connected
+ */
+//==============================================================================
+void _host_board_uart_allow(int port, bool allowed)
+{
+        if ((port >= 0) && (port < UART_PORTS)) {
+                pthread_mutex_lock(&board.uart_mtx);
+                board.uart[port].allowed = allowed;
+                uart_set_config(&board.uart[port], 115200, 0, 1);
+                pthread_mutex_unlock(&board.uart_mtx);
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Check if UART is connected to board model.
+ *
+ * @param  port         UART index
+ *
+ * @return true if board model is attached to UART.
+ */
+//==============================================================================
+bool _host_board_uart_attached(int port)
+{
+        bool attached = false;
+
+        if ((port >= 0) && (port < UART_PORTS)) {
+                pthread_mutex_lock(&board.uart_mtx);
+                attached = board.uart[port].attached;
+                pthread_mutex_unlock(&board.uart_mtx);
+        }
+
+        return attached;
+}
+
+//==============================================================================
+/**
+ * @brief  UART configuration changed by system (model is notified).
+ *
+ * @param  port         UART index
+ * @param  baud         baud rate
+ * @param  parity       0: none, 1: odd, 2: even
+ * @param  stop_bits    1 or 2
+ *
+ * @return 0 on success, otherwise errno value.
+ */
+//==============================================================================
+int _host_board_uart_configure(int port, uint32_t baud, int parity, int stop_bits)
+{
+        if ((port < 0) || (port >= UART_PORTS) || (baud == 0) || (parity < 0) || (parity > 2) || (stop_bits < 1) ||
+                (stop_bits > 2)) {
+                return EINVAL;
+        }
+
+        pthread_mutex_lock(&board.uart_mtx);
+        uart_set_config(&board.uart[port], baud, parity, stop_bits);
+        bool attached = board.uart[port].attached;
+        pthread_mutex_unlock(&board.uart_mtx);
+
+        if (attached) {
+                event_t ev = {.type = EVENT__UART_CONFIG, .port = port};
+                pthread_mutex_lock(&board.mtx);
+                if (board.running) {
+                        queue_event(&ev);
+                }
+                pthread_mutex_unlock(&board.mtx);
+        }
+
+        return 0;
+}
+
+//==============================================================================
+/**
+ * @brief  UART: data received by system (sent by board model).
+ *
+ * @param  port         UART index
+ * @param  buf          buffer
+ * @param  len          buffer length
+ *
+ * @return Number of read bytes (0: no data).
+ */
+//==============================================================================
+int _host_board_uart_read(int port, void *buf, size_t len)
+{
+        if ((port < 0) || (port >= UART_PORTS)) {
+                return 0;
+        }
+
+        pthread_mutex_lock(&board.uart_mtx);
+        uart_port_t *u = &board.uart[port];
+        double now = time_ms();
+        uart_overrun(u, now);
+        size_t n = fifo_get(&u->rx, buf, len, now);
+        if (n > 0) {
+                u->overrun = 0;
+                u->overrun_reported = false;
+        }
+        pthread_mutex_unlock(&board.uart_mtx);
+
+        return (int)n;
+}
+
+//==============================================================================
+/**
+ * @brief  UART: data transmitted by system (received by board model).
+ *
+ * @param  port         UART index
+ * @param  buf          data
+ * @param  len          number of bytes
+ *
+ * @return Number of accepted bytes.
+ */
+//==============================================================================
+int _host_board_uart_write(int port, const void *buf, size_t len)
+{
+        if ((port < 0) || (port >= UART_PORTS)) {
+                return (int)len;
+        }
+
+        const uint8_t *src = buf;
+        size_t n = 0;
+
+        pthread_mutex_lock(&board.uart_mtx);
+        uart_port_t *u = &board.uart[port];
+        if (!u->attached) {
+                n = len; /* not connected: data is dropped */
+        } else {
+                double now = time_ms();
+                if (u->tx_line < now) {
+                        u->tx_line = now;
+                }
+                for (; n < len; n++) {
+                        if (u->timing && (u->tx_line >= now + UART_TX_WINDOW)) {
+                                break; /* transmitter busy */
+                        }
+                        double at = u->timing ? (u->tx_line + u->char_ms) : now;
+                        if (!fifo_put(&u->tx, src[n], at)) {
+                                break;
+                        }
+                        if (u->timing) {
+                                u->tx_line = at;
+                        }
+                }
+        }
+        bool kick = u->attached && (n > 0);
+        pthread_mutex_unlock(&board.uart_mtx);
+
+        if (kick) {
+                pthread_mutex_lock(&board.mtx);
+                board.uart_kick = true;
+                pthread_cond_broadcast(&board.cond);
+                pthread_mutex_unlock(&board.mtx);
+        }
+
+        return (int)n;
 }
 
 /*==============================================================================

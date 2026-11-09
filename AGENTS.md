@@ -310,6 +310,12 @@ repositories, so the interface between them must stay consistent:
   each table in the `dnx_appset_tables` section, `_process_init()` registers
   them after the main table (weak `__start_/__stop_dnx_appset_tables`, the
   section may not exist).
+- **Board API of the POSIX simulator** (`src/cpu/posix/host/board.c`, Lua
+  functions `gpio`, `i2c`, `spi`, `uart`, `panel`, `host`) is used by board
+  scripts and device models in the workspace `sim-env` (described in
+  `sim-env/README.md`); keep it backward compatible. UARTs not selected by
+  `--uart` can be attached by board scripts (`uart.attach("UART<n+1>", dev)`),
+  `host.c` passes UART calls of such ports to `_host_board_uart_*()`.
 - **TTY raw mode** (`IOCTL_TTY__RAW_MODE_ON/OFF`) is used by the workspace
   `libtui` library (nano, mc, dialog). In raw mode input bytes go directly to
   the reader and output bypasses the screen buffer; `dsh` switches the

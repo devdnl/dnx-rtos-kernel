@@ -87,6 +87,7 @@ typedef enum {
         UART_TYPE__STDIO,  /* simulator terminal */
         UART_TYPE__PTY,    /* pseudo terminal */
         UART_TYPE__DEVICE, /* host serial port */
+        UART_TYPE__BOARD,  /* board model (uart.attach() of board script) */
 } uart_type_t;
 
 typedef struct {
@@ -101,6 +102,7 @@ typedef struct {
 ==============================================================================*/
 static void lock(void);
 static void unlock(void);
+static bool uart_board(int port);
 static void terminal_restore(void);
 static void host_cleanup(void);
 
@@ -397,11 +399,13 @@ static void show_usage(const char *name)
         printf("                           disk is available by the HOSTDISK driver\n");
         printf("      --hostfs <dir>       host directory available by the hostfs file system,\n");
         printf("                           the siminit mounts it in /host\n");
-        printf("  -u, --uart <n>=pty[:<link>]|<device>\n");
+        printf("  -u, --uart <n>=pty[:<link>]|<device>|board\n");
         printf("                           connect UART <n> (0-%d) to the new pseudo terminal\n", _HOST_UART_COUNT - 1);
-        printf("                           (optional symbolic link to the terminal is created)\n");
-        printf("                           or to the host serial port; UART0 is connected to\n");
-        printf("                           the simulator terminal by default\n");
+        printf("                           (optional symbolic link to the terminal is created),\n");
+        printf("                           to the host serial port or to the board model (UART\n");
+        printf("                           <n> is UART<n+1> of board script); UART0 is connected\n");
+        printf("                           to the simulator terminal by default, other UARTs not\n");
+        printf("                           selected by this option can be used by board models\n");
         printf("      --tap <name>         connect Ethernet interface (ETH driver) to the host\n");
         printf("                           TAP interface (e.g. tap0)\n");
         printf("      --board <script>     board model (Lua script describing hardware connected\n");
@@ -485,6 +489,10 @@ static bool parse_uart(char *arg)
 
         if (strcmp(val, "pty") == 0) {
                 uart->type = UART_TYPE__PTY;
+                uart->path = NULL;
+
+        } else if (strcmp(val, "board") == 0) {
+                uart->type = UART_TYPE__BOARD;
                 uart->path = NULL;
 
         } else if (strncmp(val, "pty:", 4) == 0) {
@@ -832,6 +840,13 @@ int main(int argc, char *argv[])
                 return EXIT_FAILURE;
         }
 
+        for (int i = 0; i < _HOST_UART_COUNT; i++) {
+                if ((host.uart[i].type == UART_TYPE__BOARD) && !host.board_script) {
+                        fprintf(stderr, "Option --uart %d=board requires --board\n", i);
+                        return EXIT_FAILURE;
+                }
+        }
+
         host.ram = aligned_alloc(64, host.ram_size);
         if (!host.ram) {
                 perror("RAM");
@@ -847,12 +862,26 @@ int main(int argc, char *argv[])
                 return EXIT_FAILURE;
         }
 
+        _Static_assert(_HOST_UART_COUNT <= _HOST_BOARD_UART_PORTS, "too many UARTs for board models");
+
         if (host.board_script) {
+                /* UARTs not connected by option --uart can be used by board models */
+                for (int i = 0; i < _HOST_UART_COUNT; i++) {
+                        uart_type_t type = host.uart[i].type;
+                        _host_board_uart_allow(i, (type == UART_TYPE__NONE) || (type == UART_TYPE__BOARD));
+                }
+
                 if (_host_board_init(host.board_script, host.panel_socket) != 0) {
                         host_cleanup();
                         return EXIT_FAILURE;
                 }
                 host.board = true;
+
+                for (int i = 0; i < _HOST_UART_COUNT; i++) {
+                        if ((host.uart[i].type == UART_TYPE__BOARD) && !_host_board_uart_attached(i)) {
+                                fprintf(stderr, "UART%d: board script does not attach model to UART%d\n", i, i + 1);
+                        }
+                }
         }
 
         if (host.uart[0].type == UART_TYPE__STDIO) {
@@ -1291,6 +1320,23 @@ bool _host_uart_is_available(int port)
 
 //==============================================================================
 /**
+ * @brief  Check if UART is connected to board model (option --uart <n>=board
+ *         or UART not selected by option --uart and attached by board script).
+ *
+ * @param  port         UART number
+ *
+ * @return true if UART is connected to board model.
+ */
+//==============================================================================
+static bool uart_board(int port)
+{
+        uart_type_t type = host.uart[port].type;
+        return host.board && ((type == UART_TYPE__BOARD) || (type == UART_TYPE__NONE)) &&
+                _host_board_uart_attached(port);
+}
+
+//==============================================================================
+/**
  * @brief  Configure UART (host serial port only, other UARTs ignore
  *         configuration).
  *
@@ -1309,6 +1355,13 @@ int _host_uart_configure(int port, uint32_t baud, int parity, int stop_bits)
         }
 
         uart_t *uart = &host.uart[port];
+
+        if (uart_board(port)) {
+                lock();
+                int err = _host_board_uart_configure(port, baud, parity, stop_bits);
+                unlock();
+                return err;
+        }
 
         if (uart->type != UART_TYPE__DEVICE) {
                 return 0;
@@ -1406,7 +1459,14 @@ int _host_uart_read(int port, void *buf, size_t len)
 
         uart_t *uart = &host.uart[port];
 
-        if (uart->type == UART_TYPE__NONE) {
+        if (uart_board(port)) {
+                lock();
+                int n = _host_board_uart_read(port, buf, len);
+                unlock();
+                return n;
+        }
+
+        if ((uart->type == UART_TYPE__NONE) || (uart->type == UART_TYPE__BOARD)) {
                 return 0;
         }
 
@@ -1459,10 +1519,18 @@ int _host_uart_write(int port, const void *buf, size_t len)
         uart_t *uart = &host.uart[port];
         int n = -1;
 
+        if (uart_board(port)) {
+                lock();
+                n = _host_board_uart_write(port, buf, len);
+                unlock();
+                return n;
+        }
+
         lock();
 
         switch (uart->type) {
         case UART_TYPE__NONE:
+        case UART_TYPE__BOARD:
                 n = (int)len;
                 break;
 
