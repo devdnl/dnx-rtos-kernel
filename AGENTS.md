@@ -322,8 +322,11 @@ repositories, so the interface between them must stay consistent:
   functions `gpio`, `i2c`, `spi`, `uart`, `panel`, `host`) is used by board
   scripts and device models in the workspace `sim-env` (described in
   `sim-env/README.md`); keep it backward compatible. UARTs not selected by
-  `--uart` can be attached by board scripts (`uart.attach("UART<n+1>", dev)`),
-  `host.c` passes UART calls of such ports to `_host_board_uart_*()`.
+  `--uart` can be attached by board scripts (`uart.attach("UART:<n>", dev)`).
+  Buses and UARTs are named as in `driver_init()`: `"<driver>:<major>"`
+  (`"I2C:0"`, `"SPI:1"`, `"UART:2"` is `/dev/ttyS2`).
+  `host.c` passes UART calls of ports attached by board to
+  `_host_board_uart_*()`.
 - **TTY raw mode** (`IOCTL_TTY__RAW_MODE_ON/OFF`) is used by the workspace
   `libtui` library (nano, mc, dialog). In raw mode input bytes go directly to
   the reader and output bypasses the screen buffer; `dsh` switches the

@@ -403,7 +403,7 @@ static void show_usage(const char *name)
         printf("                           connect UART <n> (0-%d) to the new pseudo terminal\n", _HOST_UART_COUNT - 1);
         printf("                           (optional symbolic link to the terminal is created),\n");
         printf("                           to the host serial port or to the board model (UART\n");
-        printf("                           <n> is UART<n+1> of board script); UART0 is connected\n");
+        printf("                           <n> is \"UART:<n>\" of board script); UART 0 is connected\n");
         printf("                           to the simulator terminal by default, other UARTs not\n");
         printf("                           selected by this option can be used by board models\n");
         printf("      --tap <name>         connect Ethernet interface (ETH driver) to the host\n");

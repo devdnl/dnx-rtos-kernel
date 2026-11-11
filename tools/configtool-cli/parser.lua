@@ -184,7 +184,7 @@ local function ManageGUI(self, startEntry)
 
                 menu = menu .. '"' .. w.text .. '" "' .. FormatValue(w.flag, item) .. '" '
             elseif w.WidgetType == "Submenu" then
-                menu = menu .. '"' .. w.text .. '" "" '
+                menu = menu .. '"' .. w.text .. '" "' .. w.info .. '" '
             elseif w.WidgetType == "Editline" then
                 menu = menu .. "'" .. w.text .. "' '" .. FormatValue(w.flag, w.flag:GetValue()) .. "' "
             elseif w.WidgetType == "Spinbox" then
@@ -490,9 +490,10 @@ end
 -- @param  FLAG         flag object
 -- @param  text         widget text
 -- @param  path         script path
+-- @param  info         additional text shown next to the submenu (optional)
 -- @return None
 --------------------------------------------------------------------------------
-local function GenericAddSubmenu(self, FLAG, text, link)
+local function GenericAddSubmenu(self, FLAG, text, link, info)
     ParserAssert(
         self,
         type(text) == "string",
@@ -515,7 +516,18 @@ local function GenericAddSubmenu(self, FLAG, text, link)
             .. " instead."
     )
 
-    AddToWindow(self, { WidgetType = "Submenu", text = text, flag = FLAG, link = link })
+    ParserAssert(
+        self,
+        info == nil or type(info) == "string",
+        "In one of following methods:\n"
+            .. '1. this:AddWidget("Submenu", text, link[, info])\n'
+            .. '2. this:AddExtraWidget("Submenu", "widgetName", text, link[, info])\n'
+            .. "Argument 'info' must be a string or nil; got "
+            .. type(info)
+            .. " instead."
+    )
+
+    AddToWindow(self, { WidgetType = "Submenu", text = text, flag = FLAG, link = link, info = info or "" })
 end
 
 --------------------------------------------------------------------------------
@@ -665,7 +677,7 @@ local function GenericAddWidget(self, widgetType, widgetName, Arg1, Arg2, Arg3, 
                 .. "  Combobox, {widget name}, text\n"
                 .. "  Label, {widget name}, text\n"
                 .. "  Value, {widget name} (no GUI widget)\n"
-                .. "  Submenu, {widget name}, text\n"
+                .. "  Submenu, {widget name}, text, link[, info]\n"
                 .. "  Editline {widget name}, quotation, text\n"
                 .. "  Spinbox {widget name}, minValue, maxValue, text\n"
                 .. "\n"

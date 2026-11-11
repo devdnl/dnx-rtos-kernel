@@ -129,7 +129,7 @@ extern uint32_t _host_board_gpio_input(int port, uint32_t *level);
 /**
  * @brief  I2C master: START or repeated START condition.
  *
- * @param  bus          bus index (0: I2C1)
+ * @param  bus          bus index (I2C driver major, board script name "I2C:<major>")
  *
  * @return _HOST_BOARD_I2C_ACK or _HOST_BOARD_I2C_ERROR.
  */
@@ -138,7 +138,7 @@ extern int _host_board_i2c_start(int bus);
 /**
  * @brief  I2C master: send device address.
  *
- * @param  bus          bus index (0: I2C1)
+ * @param  bus          bus index (I2C driver major, board script name "I2C:<major>")
  * @param  address      7-bit address or 10-bit address with _HOST_BOARD_I2C_ADDR_10BIT flag
  * @param  read         true: read transfer, false: write transfer
  *
@@ -149,7 +149,7 @@ extern int _host_board_i2c_address(int bus, uint16_t address, bool read);
 /**
  * @brief  I2C master: transmit bytes to selected device.
  *
- * @param  bus          bus index (0: I2C1)
+ * @param  bus          bus index (I2C driver major, board script name "I2C:<major>")
  * @param  src          data
  * @param  count        number of bytes
  * @param  written      number of acknowledged bytes
@@ -161,7 +161,7 @@ extern int _host_board_i2c_write(int bus, const uint8_t *src, size_t count, size
 /**
  * @brief  I2C master: receive bytes from selected device.
  *
- * @param  bus          bus index (0: I2C1)
+ * @param  bus          bus index (I2C driver major, board script name "I2C:<major>")
  * @param  dst          data destination
  * @param  count        number of bytes
  *
@@ -172,7 +172,7 @@ extern int _host_board_i2c_read(int bus, uint8_t *dst, size_t count);
 /**
  * @brief  I2C master: STOP condition.
  *
- * @param  bus          bus index (0: I2C1)
+ * @param  bus          bus index (I2C driver major, board script name "I2C:<major>")
  */
 extern void _host_board_i2c_stop(int bus);
 
@@ -180,7 +180,7 @@ extern void _host_board_i2c_stop(int bus);
  * @brief  SPI master: full duplex transfer. Devices are selected by CS pins
  *         (GPIO events sent before transfer).
  *
- * @param  bus          bus index (0: SPI1)
+ * @param  bus          bus index (SPI driver major, board script name "SPI:<major>")
  * @param  tx           data to transmit (NULL: fill byte is transmitted)
  * @param  rx           received data (can be NULL)
  * @param  count        number of bytes
@@ -197,7 +197,7 @@ extern int _host_board_spi_transfer(int bus, const uint8_t *tx, uint8_t *rx, siz
  *         script). Called before _host_board_init() for UARTs that are not
  *         connected to the terminal, PTY or host serial port.
  *
- * @param  port         UART index (0: UART1, /dev/ttyS0)
+ * @param  port         UART index (UART driver major: /dev/ttyS<n>, board script name "UART:<n>")
  * @param  allowed      true: board model can be connected
  */
 extern void _host_board_uart_allow(int port, bool allowed);
