@@ -40,7 +40,9 @@ Brief   Application set file system (programs of appset as executable files)
   (IOCTL_VFS__GET_PROGRAM) or found in __OS_PROGRAM_PATH__. Appset of memblock
   device is attached to the kernel at mount (data and bss initialized), it can
   be mounted once; unmount is refused while program of the appset is used by
-  a process (EBUSY).
+  a process (EBUSY). File system size (statfs, df) is the partition size
+  (memblock region or __PROJ_APPSET_TABLE_SIZE__ of the main appset), used
+  space is the appset image size.
 ==============================================================================*/
 
 /*==============================================================================
@@ -61,6 +63,7 @@ Brief   Application set file system (programs of appset as executable files)
 typedef struct {
         const _program_table_desc_t *table; //!< program table
         kfile_t *src;                       //!< source device (NULL: main appset)
+        u32_t size;                         //!< partition size (0: unknown)
         bool attached;                      //!< table attached to the kernel
 } appsetfs_t;
 
@@ -72,6 +75,7 @@ static int open_source(appsetfs_t *hdl, const char *src_path);
 static int find_program(appsetfs_t *hdl, const char *path, const _program_entry_t **entry);
 static bool is_root(const char *path);
 static bool is_main_appset_source(const char *src_path);
+static u32_t get_image_size(appsetfs_t *hdl);
 
 /*==============================================================================
   Local objects
@@ -113,6 +117,13 @@ API_FS_INIT(appsetfs, void **fs_handle, const char *src_path, const char *opts)
 
         if (is_main_appset_source(src_path)) {
                 hdl->table = _process_get_appset_table()->table;
+
+#if !defined(ARCH_posix)
+                // partition size of kernel configuration (unknown when appset is just after kernel)
+                if (__PROJ_APPSET_TABLE_ADDRESS__ != UINT32_MAX) {
+                        hdl->size = __PROJ_APPSET_TABLE_SIZE__;
+                }
+#endif
         } else {
                 err = open_source(hdl, src_path);
 
@@ -351,9 +362,17 @@ API_FS_STATFS(appsetfs, void *fs_handle, struct statfs *statfs)
 {
         appsetfs_t *hdl = fs_handle;
 
+        /*
+         * Size: partition size (memblock region or kernel configuration of the
+         * main appset), used: image size. Unknown image size: whole partition
+         * is used. Unknown partition size: image size without free space.
+         */
+        u32_t image = get_image_size(hdl);
+        u32_t size = hdl->size ? hdl->size : image;
+
         statfs->f_bsize = 1;
-        statfs->f_blocks = 0;
-        statfs->f_bfree = 0;
+        statfs->f_blocks = size;
+        statfs->f_bfree = (image and (image <= size)) ? (size - image) : 0;
         statfs->f_ffree = 0;
         statfs->f_files = hdl->table->number_of_programs;
         statfs->f_type = SYS_FS_TYPE__SOLID;
@@ -626,6 +645,7 @@ static int open_source(appsetfs_t *hdl, const char *src_path)
         }
 
         hdl->table = table;
+        hdl->size = cfg.block_size;
 
         return ESUCC;
 #else
@@ -680,6 +700,34 @@ static int find_program(appsetfs_t *hdl, const char *path, const _program_entry_
 static bool is_root(const char *path)
 {
         return path[strspn(path, "/")] == '\0';
+}
+
+//==============================================================================
+/**
+ * @brief  Return size of the appset image: the table is at the start of the
+ *         image and initial values of .data are at its end (appset linker
+ *         script, tools/appset/memory_layout.ld of the workspace).
+ *
+ * @param  hdl          FS handler
+ *
+ * @return Image size, 0 when unknown (e.g. appset linked with the simulator).
+ */
+//==============================================================================
+static u32_t get_image_size(appsetfs_t *hdl)
+{
+#if defined(ARCH_posix)
+        UNUSED_ARG1(hdl);
+        return 0;
+#else
+        uintptr_t start = cast(uintptr_t, hdl->table);
+        uintptr_t end = cast(uintptr_t, hdl->table->data_init_start) + hdl->table->data_size;
+
+        if (not hdl->table->data_init_start or (end <= start) or (hdl->size and ((end - start) > hdl->size))) {
+                return 0;
+        }
+
+        return end - start;
+#endif
 }
 
 //==============================================================================

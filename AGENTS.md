@@ -310,7 +310,11 @@ both the C preprocessor and make**:
   directories of `__OS_PROGRAM_PATH__` (`:` separated, empty: no search;
   programs read it by `confstr(_CS_PATH)`, `SYSCALL_CONFSTR`, e.g. `dsh`
   completes program names from these directories). Both
-  are built only with `__ENABLE_APPSETFS__`. Programs of the main appset are
+  are built only with `__ENABLE_APPSETFS__`. `statfs` size is the partition
+  size (memblock `block_size`, `__PROJ_APPSET_TABLE_SIZE__` [B] of the kernel
+  configuration for the main appset, 0: unknown), used space is the image size
+  (initial values of `.data` end the image, workspace
+  `tools/appset/memory_layout.ld`). Programs of the main appset are
   listed by `appsetfs` mounted with empty source (`/bin` by `initd` and
   `siminit`); procfs has no program directory.
 
