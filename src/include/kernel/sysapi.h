@@ -189,6 +189,7 @@ extern "C" {
 #define IOCTL_VFS__IS_NON_BLOCKING_WR_MODE 0xF0008
 #define IOCTL_VFS__NON_STRICT_RD_MODE      0xF0009
 #define IOCTL_VFS__IS_NON_STRICT_RD_MODE   0xF000A
+#define IOCTL_VFS__GET_PROGRAM             0xF000B /* const void **: program entry of file (appsetfs) */
 
 /** maximum timeout in seconds */
 #define _MAX_DELAY_S ((0xFFFFFFFFUL - 1000UL) / 1000UL)

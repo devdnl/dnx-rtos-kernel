@@ -1020,6 +1020,21 @@ static int switch_terminal(tty_io_t *io, int term_no)
                         err = ttycmd_is_idle(tty->vtcmd) ? ESUCC : EBUSY;
                 }
 
+                /*
+                 * Output of the current terminal is finished before switch: its
+                 * writer checks current terminal when secure_mtx is locked
+                 * (switch by F key is done with the mutex locked already,
+                 * IOCTL_TTY__SWITCH_TTY_TO is not). Recursive mutexes, order:
+                 * io_mtx, old terminal, new terminal (only here).
+                 */
+                tty_t *old = tty;
+                if (!err && old) {
+                        err = sys_mutex_lock(old->secure_mtx, _WAIT_FOREVER_MS);
+                        if (err) {
+                                old = NULL;
+                        }
+                }
+
                 if (!err) {
                         io->current_tty = term_no;
 
@@ -1054,6 +1069,10 @@ static int switch_terminal(tty_io_t *io, int term_no)
 
                                 sys_mutex_unlock(tty->secure_mtx);
                         }
+                }
+
+                if (old) {
+                        sys_mutex_unlock(old->secure_mtx);
                 }
         }
 

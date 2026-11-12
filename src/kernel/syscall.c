@@ -63,6 +63,9 @@
 #define SYSCONF_NPROCESSORS_ONLN       84
 #define SYSCONF_LEVEL1_DCACHE_LINESIZE 190
 
+/* confstr() variables (values compatible with glibc) */
+#define CONFSTR_PATH 0
+
 #define GETARG(type, var)    type var = va_arg(rq->args, type)
 #define LOADARG(type)        va_arg(rq->args, type)
 #define GETRETURN(type, var) type var = rq->retptr
@@ -227,13 +230,13 @@ typedef enum {
         SYSCALL_CACHEFLUSH,             // int errno (void)
         SYSCALL_REBOOTTOADDR,           // int errno (const void *addr)
         SYSCALL_LOWPOWERMODE,           // int errno (const int *mode)
-        SYSCALL_REGISTERAPPSET,         // int errno (const void **appset_array, const size_t *array_size)
         SYSCALL_MEMREGIONINFO,          // int errno (size_t idx, _mm_region_info_t *region_info)
         SYSCALL_PINTHREADTOCORE,        // int errno (pid_t *pid , tid_t *tid, u32_t *core_mask)
         SYSCALL_GETCURRENTCORE,         // int errno (u8_t *core)
         SYSCALL_GETCPUCORECOUNT,        // int errno (u8_t *core_count)
         SYSCALL_SYSCONF,                // int errno (const int *name, long *value)
         SYSCALL_ATOMICTAS,              // int errno (u8_t *flag): 0 when flag set by caller, EBUSY when flag already set
+        SYSCALL_CONFSTR,                // int errno (const int *name, const char **ref)
         _SYSCALL_COUNT,
 } syscall_t;
 // clang-format on
@@ -371,12 +374,12 @@ static int syscall_isheapaddr(syscallrq_t *rq);
 static int syscall_cacheflush(syscallrq_t *rq);
 static int syscall_reboottoaddr(syscallrq_t *rq);
 static int syscall_lowpowermode(syscallrq_t *rq);
-static int syscall_registerappset(syscallrq_t *rq);
 static int syscall_memregioninfo(syscallrq_t *rq);
 static int syscall_pinthreadtocore(syscallrq_t *rq);
 static int syscall_getcurrentcore(syscallrq_t *rq);
 static int syscall_getcpucorecount(syscallrq_t *rq);
 static int syscall_sysconf(syscallrq_t *rq);
+static int syscall_confstr(syscallrq_t *rq);
 
 /*==============================================================================
   Local objects
@@ -504,13 +507,13 @@ static const syscallfunc_t syscalltab[] = {
         [SYSCALL_CACHEFLUSH] = syscall_cacheflush,
         [SYSCALL_REBOOTTOADDR] = syscall_reboottoaddr,
         [SYSCALL_LOWPOWERMODE] = syscall_lowpowermode,
-        [SYSCALL_REGISTERAPPSET] = syscall_registerappset,
         [SYSCALL_MEMREGIONINFO] = syscall_memregioninfo,
         [SYSCALL_PINTHREADTOCORE] = syscall_pinthreadtocore,
         [SYSCALL_GETCURRENTCORE] = syscall_getcurrentcore,
         [SYSCALL_GETCPUCORECOUNT] = syscall_getcpucorecount,
         [SYSCALL_SYSCONF] = syscall_sysconf,
         [SYSCALL_ATOMICTAS] = NULL,
+        [SYSCALL_CONFSTR] = syscall_confstr,
 };
 
 /*==============================================================================
@@ -3548,22 +3551,6 @@ static int syscall_lowpowermode(syscallrq_t *rq)
 
 //==============================================================================
 /**
- * @brief  Function register new appset.
- *
- * @param  rq                   syscall request
- *
- * @return One of errno value.
- */
-//==============================================================================
-static int syscall_registerappset(syscallrq_t *rq)
-{
-        GETARG(const void **, appset_address_array);
-        GETARG(const size_t *, array_size);
-        return _process_register_appset(appset_address_array, *array_size);
-}
-
-//==============================================================================
-/**
  * @brief  Function get memory region information.
  *
  * @param  rq                   syscall request
@@ -3667,6 +3654,38 @@ static int syscall_sysconf(syscallrq_t *rq)
 
         case SYSCONF_LEVEL1_DCACHE_LINESIZE:
                 *value = (_CPUCTL_CACHE_ALIGN > 1) ? _CPUCTL_CACHE_ALIGN : 0;
+                return 0;
+
+        default:
+                return EINVAL;
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  This syscall returns string of system configuration variable
+ *         (confstr()): CONFSTR_PATH is the program search path
+ *         (__OS_PROGRAM_PATH__, programs of appsetfs).
+ *
+ * @param  rq                   syscall request
+ */
+//==============================================================================
+static int syscall_confstr(syscallrq_t *rq)
+{
+        GETARG(const int *, name);
+        GETARG(const char **, ref);
+
+        if (!name || !ref) {
+                return EINVAL;
+        }
+
+        switch (*name) {
+        case CONFSTR_PATH:
+#if (__ENABLE_APPSETFS__ == _YES_)
+                *ref = __OS_PROGRAM_PATH__;
+#else
+                *ref = "";
+#endif
                 return 0;
 
         default:

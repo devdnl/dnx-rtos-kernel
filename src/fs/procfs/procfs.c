@@ -30,7 +30,7 @@
   Include files
 ==============================================================================*/
 #include "fs/fs.h"
-#include "kernel/process.h" /* procfs is a kernel view: uses appset table of kernel */
+#include "kernel/process.h" /* procfs is a kernel view */
 #include "lib/vsnprintf.h"
 #include <build/vars.h>
 
@@ -40,7 +40,6 @@
 #define CLK_FILE_PATH "/dev/clk"
 
 #define PATH_ROOT         "/"
-#define PATH_ROOT_BIN     "/bin"
 #define PATH_ROOT_PID     "/pid"
 #define PATH_ROOT_CPUINFO "/cpuinfo"
 
@@ -59,7 +58,6 @@ struct procfs {
 
 enum path_content {
         FILE_CONTENT_ROOT,
-        FILE_CONTENT_BIN,
         FILE_CONTENT_PID,
         FILE_CONTENT_CPUINFO,
         _FILE_CONTENT_COUNT
@@ -80,7 +78,6 @@ struct dir_info {
 ==============================================================================*/
 static int procfs_readdir_root(struct procfs *hdl, kdir_t *dir);
 static int procfs_readdir_pid(struct procfs *hdl, kdir_t *dir);
-static int procfs_readdir_bin(struct procfs *hdl, kdir_t *dir);
 static int add_file_to_list(struct procfs *hdl, i32_t arg, enum path_content content, void **object);
 static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size, i32_t seek);
 static void buf_snprintf(u8_t *buf, size_t *size, size_t *clen, i32_t *seek, const char *fmt, ...);
@@ -143,8 +140,7 @@ API_FS_INIT(procfs, void **fs_handle, const char *src_path, const char *opts)
                                 // offset "/" is equal to no offset
                                 sys_free(cast(void *, &procfs->offset_path));
 
-                        } else if (!(isstreq(procfs->offset_path, PATH_ROOT_BIN) ||
-                                           isstreq(procfs->offset_path, PATH_ROOT_PID))) {
+                        } else if (!isstreq(procfs->offset_path, PATH_ROOT_PID)) {
                                 err = ENOENT;
                                 goto finish;
                         }
@@ -255,30 +251,6 @@ API_FS_OPEN(procfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
                         _process_stat_t stat = {0};
                         if ((pid >= 0) && (fs_process_get_stat_pid(pid, &stat) == ESUCC)) {
                                 err = add_file_to_list(hdl, pid, FILE_CONTENT_PID, fhdl);
-                        }
-                }
-
-        } else if (isstreq(opath, PATH_ROOT_BIN)) {
-                // "/bin" path
-                err = add_file_to_list(hdl, -1, FILE_CONTENT_BIN, fhdl);
-
-        } else if (isstreqn(opath, PATH_ROOT_BIN "/", strlen(PATH_ROOT_BIN) + 1)) {
-                // "/bin/<prog>" path
-                const char *mpath = opath + strlen(PATH_ROOT_BIN) + 1;
-
-                // global program index (across all application sets)
-                i32_t idx = 0;
-                bool found = false;
-
-                for (const appset_table_t *appset = _process_get_appset_table(); appset && !found;
-                        appset = appset->next) {
-
-                        for (size_t i = 0; i < appset->table->number_of_programs; i++, idx++) {
-                                if (isstreq(mpath, appset->table->program_entry[i].name)) {
-                                        err = add_file_to_list(hdl, idx, FILE_CONTENT_BIN, fhdl);
-                                        found = true;
-                                        break;
-                                }
                         }
                 }
 
@@ -465,11 +437,6 @@ API_FS_FSTAT(procfs, void *fs_handle, void *fhdl, struct stat *stat)
                                 stat->st_mtime = t;
                                 stat->st_ctime = t;
                         }
-
-                        if (file->content == FILE_CONTENT_BIN) {
-                                stat->st_mode |= S_IFPROG;
-                                stat->st_mode |= S_IXUSR;
-                        }
                 } else {
                         stat->st_mode |= S_IFDIR;
                 }
@@ -588,20 +555,11 @@ API_FS_OPENDIR(procfs, void *fs_handle, const char *path, kdir_t *dir)
 
                 if (isstreq(opath, PATH_ROOT)) {
                         dirinfo->dir_name = PATH_ROOT;
-                        dir->d_items = 3;
+                        dir->d_items = 2;
 
                 } else if (isstreq(opath, PATH_ROOT_PID)) {
                         dirinfo->dir_name = PATH_ROOT_PID;
                         dir->d_items = fs_process_get_count();
-
-                } else if (isstreq(opath, PATH_ROOT_BIN)) {
-                        dirinfo->dir_name = PATH_ROOT_BIN;
-                        dir->d_items = 0;
-
-                        for (const appset_table_t *appset = _process_get_appset_table(); appset;
-                                appset = appset->next) {
-                                dir->d_items += appset->table->number_of_programs;
-                        }
 
                 } else {
                         sys_free(&dir->d_hdl);
@@ -657,8 +615,6 @@ API_FS_READDIR(procfs, void *fs_handle, kdir_t *dir)
                 } else if (isstreq(dirinfo->dir_name, PATH_ROOT_PID)) {
                         err = procfs_readdir_pid(fs_handle, dir);
 
-                } else if (isstreq(dirinfo->dir_name, PATH_ROOT_BIN)) {
-                        err = procfs_readdir_bin(fs_handle, dir);
                 }
         }
 
@@ -798,16 +754,11 @@ static int procfs_readdir_root(struct procfs *hdl, kdir_t *dir)
 
         switch (dir->d_seek) {
         case 0:
-                dir->dirent.d_name = "bin";
-                dir->dirent.mode = S_IRUSR | S_IRGRP | S_IROTH | S_IFDIR;
-                break;
-
-        case 1:
                 dir->dirent.d_name = "pid";
                 dir->dirent.mode = S_IRUSR | S_IRGRP | S_IROTH | S_IFDIR;
                 break;
 
-        case 2: {
+        case 1: {
                 struct file_info file = {.content = FILE_CONTENT_CPUINFO, .arg = 0};
                 dir->dirent.d_name = "cpuinfo";
                 dir->dirent.mode = S_IRUSR | S_IRGRP | S_IROTH | S_IFREG;
@@ -856,50 +807,6 @@ static int procfs_readdir_pid(struct procfs *hdl, kdir_t *dir)
 
                 struct file_info file = {.arg = stat.pid, .content = FILE_CONTENT_PID};
                 dir->dirent.size = get_file_size(&file);
-        }
-
-        return err;
-}
-
-//==============================================================================
-/**
- * @brief Read /bin directory
- *
- * @param[in ]          *hdl                    file system allocated memory
- * @param[in,out]       *dir                    directory object
- *
- * @return One of errno value (errno.h)
- */
-//==============================================================================
-static int procfs_readdir_bin(struct procfs *hdl, kdir_t *dir)
-{
-        UNUSED_ARG1(hdl);
-
-        int err = ENOENT;
-
-        size_t seek = dir->d_seek;
-
-        for (const appset_table_t *appset = _process_get_appset_table(); appset; appset = appset->next) {
-
-                if (seek < appset->table->number_of_programs) {
-                        dir->dirent.d_name = appset->table->program_entry[seek].name;
-                        dir->dirent.mode = S_IRUSR | S_IRGRP | S_IROTH | S_IXUSR | S_IFPROG;
-                        dir->dirent.dev = 0;
-
-                        // global index is required by get_file_content()
-                        struct file_info file = {
-                                .arg = cast(i32_t, dir->d_seek),
-                                .content = FILE_CONTENT_BIN,
-                        };
-                        dir->dirent.size = get_file_size(&file);
-
-                        dir->d_seek++;
-
-                        err = ESUCC;
-                        break;
-                } else {
-                        seek -= appset->table->number_of_programs;
-                }
         }
 
         return err;
@@ -1141,25 +1048,6 @@ static size_t get_file_content(struct file_info *file, u8_t *buff, size_t size, 
                 }
                 break;
         }
-
-#if __OS_SYSTEM_SHEBANG_ENABLE__ > 0
-        case FILE_CONTENT_BIN: {
-                size_t n = file->arg;
-
-                for (const appset_table_t *appset = _process_get_appset_table(); appset; appset = appset->next) {
-
-                        if (n < appset->table->number_of_programs) {
-
-                                buf_snprintf(buff, &size, &clen, &seek, "#!%s\n", appset->table->program_entry[n].name);
-                                break;
-
-                        } else {
-                                n -= appset->table->number_of_programs;
-                        }
-                }
-                break;
-        }
-#endif
 
         default:
                 break;

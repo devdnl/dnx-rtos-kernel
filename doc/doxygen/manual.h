@@ -136,7 +136,7 @@ Created programs are compiled in the project building time and are integral part
 of the system, but have different functionality. Each program can be started in
 many instances and at any time. The user decides which program will be started.
 Programs integrated in the system are called built-in programs, and can be listed
-by using procfs file system (typically localized in the /proc/bin directory).
+by using appsetfs file system (typically mounted in the /bin directory).
 The variables of each program are localized in the RAM and are dynamically
 allocated at program setup. The program code is compiled and is stored in the
 ROM memory of the microcontroller.
@@ -315,6 +315,8 @@ file system. In the system there are few file systems:
         than \c ramfs, but does not provide many features,
 \arg \c procfs – the file system is a special file system that provides the
         system information in form of the files,
+\arg \c appsetfs – the file system presents programs of an application set as
+        executable files (main appset or appset partition of memblock device),
 \arg \c fatfs – the file system is used to read all storages that contains FAT12,
         FAT16, and FAT32 file systems.
 \arg \c eefs – the file system is used for small devices e.g. 24CXX memory.

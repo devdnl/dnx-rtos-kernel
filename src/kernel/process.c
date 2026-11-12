@@ -66,6 +66,20 @@
 
 #define SHEBANGLEN 64
 
+#define APPSET_TABLE_MAGIC 0x32565341
+
+/*
+ * Programs started from files of file system (appsetfs): command in path form and program search
+ * in directories of __OS_PROGRAM_PATH__ (file returns program entry by IOCTL_VFS__GET_PROGRAM).
+ */
+#if (__ENABLE_APPSETFS__ == _YES_)
+#define PROGRAM_FILES 1
+#endif
+
+#if (__OS_SYSTEM_SHEBANG_ENABLE__ > 0) || defined(PROGRAM_FILES)
+#define CMD_PATHS 1
+#endif
+
 #define is_proc_valid(proc) \
         (_mm_is_object_in_heap(proc) && (proc->header.self == proc) && (proc->header.type == RES_TYPE_PROCESS))
 
@@ -123,9 +137,21 @@ static tid_t get_own_tid(_process_t *proc);
 static int get_pid(pid_t *pid);
 static void destroy_all_tasks(_process_t *proc, bool with_zero);
 
-#if __OS_SYSTEM_SHEBANG_ENABLE__ > 0
+static bool is_appset_table_valid(const _program_table_desc_t *table);
+static bool is_program_entry_known(const _program_entry_t *entry);
+
+#if defined(CMD_PATHS)
 static bool is_cmd_path(const char *cmd);
+#endif
+
+#if __OS_SYSTEM_SHEBANG_ENABLE__ > 0
 static int analyze_shebang(_process_t *proc, const char *cmd, char **cmdarg);
+#endif
+
+#if defined(PROGRAM_FILES)
+static int open_program_path(_process_t *proc, const char *filename, kfile_t **file);
+static int open_program_file(_process_t *proc, const char *cmd, kfile_t **file);
+static int find_program_in_path(_process_t *proc, const char *name, kfile_t **file);
 #endif
 
 /*==============================================================================
@@ -199,27 +225,6 @@ void _process_init(void)
         if (at->table->bss_start and at->table->bss_size) {
                 memset(at->table->bss_start, 0, at->table->bss_size);
         }
-
-#if defined(ARCH_posix)
-        /*
-         * Other appsets linked with kernel: the generated program registration of each appset puts
-         * reference of its table in the dnx_appset_tables section (the main appset too). Symbols
-         * are weak: the section does not exist when appsets do not contain references.
-         */
-        extern const _program_table_desc_t *const __start_dnx_appset_tables[] __attribute__((weak));
-        extern const _program_table_desc_t *const __stop_dnx_appset_tables[] __attribute__((weak));
-
-        for (const _program_table_desc_t *const *t = __start_dnx_appset_tables; t and (t < __stop_dnx_appset_tables);
-                t++) {
-
-                if (*t != appset_base.table) {
-                        const void *table[] = {*t};
-                        if (_process_register_appset(table, 1) != ESUCC) {
-                                printk("Unable to register appset @ %p", *t);
-                        }
-                }
-        }
-#endif
 }
 
 //==============================================================================
@@ -254,6 +259,8 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
         char *cmdarg = NULL;
         _process_t *proc = NULL;
         task_args_t *task_args = NULL;
+        kfile_t *prog_file = NULL;
+        UNUSED_ARG1(prog_file);
 
         int err = _kzalloc(_MM_KRN, sizeof(_process_t), 0, _cpuctl_fast_mem, 0, 0, cast(void **, &proc));
         if (err) {
@@ -268,11 +275,23 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
                 goto finish;
         }
 
-#if __OS_SYSTEM_SHEBANG_ENABLE__ > 0
+#if defined(CMD_PATHS)
         u8_t level = 8;
         const char *c = cmd;
         while (c && level-- && is_cmd_path(c)) {
 
+#if defined(PROGRAM_FILES)
+                /*
+                 * NOTE: file with program (appsetfs) stays open until the process
+                 *       is created, so the file system cannot be unmounted before
+                 *       (the program is protected by the appset table later).
+                 */
+                if (open_program_file(proc, c, &prog_file) == ESUCC) {
+                        break;
+                }
+#endif
+
+#if __OS_SYSTEM_SHEBANG_ENABLE__ > 0
                 char *next = NULL;
                 err = analyze_shebang(proc, c, &next);
                 if (err) {
@@ -290,6 +309,9 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
 
                 cmdarg = next;
                 c = cmdarg;
+#else
+                break;
+#endif
         }
 #endif
 
@@ -302,9 +324,16 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
                 _kfree(_MM_KRN, cast(void **, &cmdarg));
         }
 
-        err = find_program(proc->argv[0], &proc->pdata);
-        if (err) {
-                goto finish;
+        if (not proc->pdata) {
+                err = find_program(proc->argv[0], &proc->pdata);
+#if defined(PROGRAM_FILES)
+                if (err == ENOENT) {
+                        err = find_program_in_path(proc, proc->argv[0], &prog_file);
+                }
+#endif
+                if (err) {
+                        goto finish;
+                }
         }
 
         err = allocate_process_globals(proc, attr->app_ctx_size, proc->pdata);
@@ -402,6 +431,12 @@ finish:
                         _kfree(_MM_KRN, cast(void **, &proc));
                 }
         }
+
+#if defined(PROGRAM_FILES)
+        if (prog_file) {
+                _vfs_fclose(prog_file);
+        }
+#endif
 
         return err;
 }
@@ -2254,14 +2289,7 @@ bool _process_is_consistent(bool isr)
                         goto end;
                 }
 
-                bool found = (p->pdata->main == _kworker_process);
-
-                for (appset_table_t *appset = &appset_base; appset; appset = appset->next) {
-
-                        for (size_t i = 0; (i < appset->table->number_of_programs) && !found; i++) {
-                                found = (p->pdata == &appset->table->program_entry[i]);
-                        }
-                }
+                bool found = (p->pdata->main == _kworker_process) or is_program_entry_known(p->pdata);
                 if (not found) {
                         if (not isr) {
                                 _printk("PID %u: pdata not found!", p->pid);
@@ -3569,7 +3597,7 @@ static int resource_destroy(res_header_t *resource)
  * @return True if command is in path form, otherwise false.
  */
 //==============================================================================
-#if __OS_SYSTEM_SHEBANG_ENABLE__ > 0
+#if defined(CMD_PATHS)
 static bool is_cmd_path(const char *cmd)
 {
         cmd += strspn(cmd, " ");
@@ -3690,6 +3718,167 @@ finish:
         }
 
         return err;
+}
+#endif
+
+#if defined(PROGRAM_FILES)
+//==============================================================================
+/**
+ * @brief  Function call ioctl of the file.
+ *
+ * @param  file         file
+ * @param  request      request
+ * @param  ...          argument
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int file_ioctl(kfile_t *file, int request, ...)
+{
+        va_list arg;
+        va_start(arg, request);
+        int err = _vfs_vfioctl(file, request, arg);
+        va_end(arg);
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Function open file with program (appsetfs: IOCTL_VFS__GET_PROGRAM)
+ *         and set program of the process. The file is regular and executable.
+ *
+ * @param  proc         process
+ * @param  filename     file name
+ * @param  file         opened file (closed by caller after process creation)
+ *
+ * @return One of errno value: ENOEXEC when the file is not a program.
+ */
+//==============================================================================
+static int open_program_path(_process_t *proc, const char *filename, kfile_t **file)
+{
+        kfile_t *f = NULL;
+
+        struct vfs_path path;
+        path.CWD = proc->cwd;
+        path.PATH = filename;
+
+        int err = _vfs_fopen(&path, O_RDONLY, 0, &f);
+        if (err) {
+                return err;
+        }
+
+        struct stat st;
+        st.st_mode = 0;
+        err = _vfs_fstat(f, &st);
+
+        if (not err and (not S_ISREG(st.st_mode) or not(st.st_mode & S_IXUSR))) {
+                err = ENOEXEC;
+        }
+
+        const void *entry = NULL;
+        if (not err) {
+                if ((file_ioctl(f, IOCTL_VFS__GET_PROGRAM, &entry) != ESUCC) or not is_program_entry_known(entry)) {
+                        err = ENOEXEC;
+                }
+        }
+
+        if (not err) {
+                proc->pdata = entry;
+
+                if (*file) {
+                        _vfs_fclose(*file);
+                }
+
+                *file = f;
+        } else {
+                _vfs_fclose(f);
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Function open file with program, command in path form with arguments.
+ *
+ * @param  proc         process
+ * @param  cmd          command (file path and arguments)
+ * @param  file         opened file (closed by caller after process creation)
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int open_program_file(_process_t *proc, const char *cmd, kfile_t **file)
+{
+        cmd += strspn(cmd, " ");
+
+        size_t len = strcspn(cmd, " ");
+        char *filename = NULL;
+
+        int err = _kmalloc(_MM_KRN, len + 1, 0, NULL, 0, 0, cast(void **, &filename));
+        if (not err) {
+                memcpy(filename, cmd, len);
+                filename[len] = '\0';
+
+                err = open_program_path(proc, filename, file);
+
+                _kfree(_MM_KRN, cast(void **, &filename));
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Function search program in directories of __OS_PROGRAM_PATH__
+ *         (separated by ':'), used when program is not found by name.
+ *
+ * @param  proc         process
+ * @param  name         program name (without '/')
+ * @param  file         opened file (closed by caller after process creation)
+ *
+ * @return One of errno value: ENOENT when program is not found.
+ */
+//==============================================================================
+static int find_program_in_path(_process_t *proc, const char *name, kfile_t **file)
+{
+        static const char program_path[] = __OS_PROGRAM_PATH__;
+
+        if ((sizeof(program_path) <= 1) or strchr(name, '/')) {
+                return ENOENT;
+        }
+
+        size_t name_len = strlen(name);
+
+        for (const char *dir = program_path; *dir;) {
+
+                size_t dir_len = strcspn(dir, ":");
+
+                if (dir_len > 0) {
+                        char *filename = NULL;
+                        int err = _kmalloc(_MM_KRN, dir_len + name_len + 2, 0, NULL, 0, 0, cast(void **, &filename));
+                        if (err) {
+                                return err;
+                        }
+
+                        memcpy(filename, dir, dir_len);
+                        filename[dir_len] = '/';
+                        memcpy(&filename[dir_len + 1], name, name_len + 1);
+
+                        err = open_program_path(proc, filename, file);
+
+                        _kfree(_MM_KRN, cast(void **, &filename));
+
+                        if (not err) {
+                                return ESUCC;
+                        }
+                }
+
+                dir += dir_len;
+                dir += (*dir == ':') ? 1 : 0;
+        }
+
+        return ENOENT;
 }
 #endif
 
@@ -3892,54 +4081,162 @@ const appset_table_t *_process_get_appset_table(void)
 
 //==============================================================================
 /**
- * @brief  Register new appset(s).
+ * @brief  Attach appset (program table of mounted appsetfs). Data of the appset
+ *         is initialized. Programs of the appset are not found by name, they
+ *         are started by path of the file system (or __OS_PROGRAM_PATH__).
  *
- * @param  appset_address_array         appset address array
- * @param  appset_count                 number of addresses
+ * @param  table        program table
  *
- * @return One of errno value.
+ * @return One of errno value: EBUSY when the table is attached already (also
+ *         the main appset), EINVAL when the table is not valid.
  */
 //==============================================================================
-int _process_register_appset(const void **appset_address_array, size_t appset_count)
+int _process_appset_attach(const _program_table_desc_t *table)
 {
-        int err = EINVAL;
+        if (not is_appset_table_valid(table)) {
+                return EINVAL;
+        }
 
-        if (not appset_address_array or not appset_count) {
+        appset_table_t *at = NULL;
+        int err = _kzalloc(_MM_KRN, sizeof(*at), 0, _cpuctl_fast_mem, 0, 0, cast(void **, &at));
+        if (err) {
                 return err;
         }
 
-        appset_table_t *appset = &appset_base;
+        at->table = table;
 
-        for (; appset; appset = appset->next) {
-                if (not appset->next) {
-                        break;
+        err = EBUSY;
+
+        ATOMIC (process_mtx) {
+                appset_table_t *last = &appset_base;
+                bool attached = false;
+
+                for (appset_table_t *appset = &appset_base; appset and not attached; appset = appset->next) {
+                        attached = (appset->table == table);
+                        last = appset;
+                }
+
+                if (not attached) {
+                        if (table->data_init_start and table->data_start and table->data_size) {
+                                memcpy(table->data_start, table->data_init_start, table->data_size);
+                        }
+
+                        if (table->bss_start and table->bss_size) {
+                                memset(table->bss_start, 0, table->bss_size);
+                        }
+
+                        last->next = at;
+                        err = ESUCC;
                 }
         }
 
-        for (size_t i = 0; i < appset_count; i++) {
-
-                appset_table_t *at = NULL;
-                err = _kmalloc(_MM_KRN, sizeof(*at), 0, _cpuctl_fast_mem, 0, 0, cast(void **, &at));
-                if (err) {
-                        break;
-                }
-
-                at->table = appset_address_array[i];
-                at->next = NULL;
-
-                if (at->table->data_init_start and at->table->data_start and at->table->data_size) {
-                        memcpy(at->table->data_start, at->table->data_init_start, at->table->data_size);
-                }
-
-                if (at->table->bss_start and at->table->bss_size) {
-                        memset(at->table->bss_start, 0, at->table->bss_size);
-                }
-
-                appset->next = at;
-                appset = appset->next;
+        if (err) {
+                _kfree(_MM_KRN, cast(void **, &at));
         }
 
         return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Detach appset attached by _process_appset_attach().
+ *
+ * @param  table        program table
+ *
+ * @return One of errno value: EBUSY when program of the appset is used by a
+ *         process (also finished process that was not waited for yet).
+ */
+//==============================================================================
+int _process_appset_detach(const _program_table_desc_t *table)
+{
+        appset_table_t *at = NULL;
+        int err = ENOENT;
+
+        ATOMIC (process_mtx) {
+                appset_table_t *prev = &appset_base;
+
+                for (appset_table_t *appset = appset_base.next; appset; prev = appset, appset = appset->next) {
+                        if (appset->table == table) {
+                                at = appset;
+                                break;
+                        }
+                }
+
+                if (not at) {
+                        break;
+                }
+
+                _process_t *const lists[] = {
+                        active_process_list,
+                        terminate_process_list,
+                        destroy_process_list,
+                        release_process_list,
+                        zombie_process_list,
+                };
+
+                const _program_entry_t *first = &table->program_entry[0];
+                const _program_entry_t *end = &table->program_entry[table->number_of_programs];
+
+                err = ESUCC;
+
+                for (size_t l = 0; (l < ARRAY_SIZE(lists)) and not err; l++) {
+                        foreach_process (proc, lists[l]) {
+                                if ((proc->pdata >= first) and (proc->pdata < end)) {
+                                        err = EBUSY;
+                                        break;
+                                }
+                        }
+                }
+
+                if (not err) {
+                        prev->next = at->next;
+                }
+        }
+
+        if (not err) {
+                _kfree(_MM_KRN, cast(void **, &at));
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Check that program table is valid.
+ *
+ * @param  table        program table
+ *
+ * @return True when table is valid.
+ */
+//==============================================================================
+static bool is_appset_table_valid(const _program_table_desc_t *table)
+{
+        return table and (table->magic == APPSET_TABLE_MAGIC) and (table->number_of_programs > 0) and
+                (table->number_of_programs != UINT32_MAX);
+}
+
+//==============================================================================
+/**
+ * @brief  Check that program entry belongs to the main or attached appset.
+ *
+ * @param  entry        program entry
+ *
+ * @return True when entry is known.
+ */
+//==============================================================================
+static bool is_program_entry_known(const _program_entry_t *entry)
+{
+        for (appset_table_t *appset = &appset_base; appset; appset = appset->next) {
+
+                const _program_entry_t *first = &appset->table->program_entry[0];
+                const _program_entry_t *end = &appset->table->program_entry[appset->table->number_of_programs];
+
+                if ((entry >= first) and (entry < end)) {
+                        return true;
+                }
+        }
+
+        return false;
 }
 
 //==============================================================================
@@ -3969,16 +4266,14 @@ static int find_program(const char *name, const _program_entry_t **prog)
                 return ESUCC;
         }
 
-        for (appset_table_t *appset = &appset_base; appset; appset = appset->next) {
+        // programs of attached appsets (appsetfs) are started by path
+        const _program_table_desc_t *table = appset_base.table;
 
-                if ((appset->table->magic == 0x32565341) and (appset->table->number_of_programs > 0) and
-                        (appset->table->number_of_programs != UINT32_MAX)) {
-
-                        for (size_t i = 0; i < appset->table->number_of_programs; i++) {
-                                if (strncmp(appset->table->program_entry[i].name, name, 128) == 0) {
-                                        *prog = &appset->table->program_entry[i];
-                                        return ESUCC;
-                                }
+        if (is_appset_table_valid(table)) {
+                for (size_t i = 0; i < table->number_of_programs; i++) {
+                        if (strncmp(table->program_entry[i].name, name, 128) == 0) {
+                                *prog = &table->program_entry[i];
+                                return ESUCC;
                         }
                 }
         }

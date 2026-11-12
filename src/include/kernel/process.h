@@ -198,7 +198,8 @@ extern void _task_get_process_container(task_t *, _process_t **, tid_t *);
 extern void _task_get_process_container_unprotected(task_t *, _process_t **);
 extern int _process_thread_create(_process_t *, thread_func_t, const _thread_attr_t *, void *, tid_t *);
 extern const appset_table_t *_process_get_appset_table(void);
-extern int _process_register_appset(const void **, size_t);
+extern int _process_appset_attach(const _program_table_desc_t *);
+extern int _process_appset_detach(const _program_table_desc_t *);
 
 /*==============================================================================
   Exported inline functions

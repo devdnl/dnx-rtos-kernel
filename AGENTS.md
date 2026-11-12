@@ -33,7 +33,7 @@ Development happens on the `develop` branch.
   per-arch subdirectories (`noarch/`, `stm32f4/`, `stm32fx/`, …).
   `src/drivers/adddriver.sh` is the build-time driver registration generator.
 - `src/fs/<name>/` — file systems (ramfs, procfs, romfs, fatfs, ext4fs, eefs,
-  flatfs) plus `vfs.c`, `pipe.c`, `fsctrl.c`. `src/fs/addfs.sh` is the
+  flatfs, appsetfs) plus `vfs.c`, `pipe.c`, `fsctrl.c`. `src/fs/addfs.sh` is the
   registration generator.
 - `src/net/` — `netm.c` and network families: `inet` (lwIP, third party under
   `inet/lwip`), `cannet`, `sipc`, `uds`.
@@ -295,8 +295,24 @@ both the C preprocessor and make**:
     `config/filesystems/`.
   - Use `tools/adddriver.sh` / `tools/addfilesystem.sh` or copy `drivers/zero`
     / `fs/ramfs`.
-- Programs are not linked with the kernel. The kernel finds them through the
-  appset table at `__PROJ_APPSET_TABLE_ADDRESS__`.
+- Programs are not linked with the kernel. The kernel finds them by name in
+  the main appset table at `__PROJ_APPSET_TABLE_ADDRESS__`. Other appsets are
+  mounted by `src/fs/appsetfs` (kernel part like procfs, not compiled with
+  `__DNX_MODULE__`): source is a `MEMBLOCK` device (table address and region
+  size by `IOCTL_MEMBLOCK__GET_CONFIGURATION`, image executed in place) or
+  empty (main appset). Mount attaches the table to the kernel
+  (`_process_appset_attach()`: data/bss initialized, `EBUSY` when attached),
+  unmount detaches it (`_process_appset_detach()`: `EBUSY` while a process,
+  also a zombie, uses its program). A command in path form opens the file and
+  gets the program by `IOCTL_VFS__GET_PROGRAM` (regular executable file, entry
+  of a known table; the file stays open until the process is created), then
+  shebang is analyzed; a name not found in the main appset is searched in the
+  directories of `__OS_PROGRAM_PATH__` (`:` separated, empty: no search;
+  programs read it by `confstr(_CS_PATH)`, `SYSCALL_CONFSTR`, e.g. `dsh`
+  completes program names from these directories). Both
+  are built only with `__ENABLE_APPSETFS__`. Programs of the main appset are
+  listed by `appsetfs` mounted with empty source (`/bin` by `initd` and
+  `siminit`); procfs has no program directory.
 
 ## Compatibility with the workspace (important)
 
@@ -314,10 +330,8 @@ repositories, so the interface between them must stay consistent:
 - **Appset table format** (`_program_table_desc_t`, magic value in
   `process.c`) is shared with the appset build. In the POSIX simulator the
   main table is `_program_table_desc` and the workspace may link more appsets
-  (`SIM_APPSETS`): their generated program registration puts a reference of
-  each table in the `dnx_appset_tables` section, `_process_init()` registers
-  them after the main table (weak `__start_/__stop_dnx_appset_tables`, the
-  section may not exist).
+  (`SIM_APPSETS`): `siminit` mounts them by `appsetfs` (memblock device of
+  each table, references in the `dnx_appset_tables` section of the appsets).
 - **Board API of the POSIX simulator** (`src/cpu/posix/host/board.c`, Lua
   functions `gpio`, `i2c`, `spi`, `uart`, `panel`, `host`) is used by board
   scripts and device models in the workspace `sim-env` (described in
