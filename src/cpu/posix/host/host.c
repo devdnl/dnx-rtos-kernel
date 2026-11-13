@@ -103,6 +103,7 @@ typedef struct {
 static void lock(void);
 static void unlock(void);
 static bool uart_board(int port);
+static bool eth_board(void);
 static void terminal_restore(void);
 static void host_cleanup(void);
 
@@ -407,7 +408,8 @@ static void show_usage(const char *name)
         printf("                           to the simulator terminal by default, other UARTs not\n");
         printf("                           selected by this option can be used by board models\n");
         printf("      --tap <name>         connect Ethernet interface (ETH driver) to the host\n");
-        printf("                           TAP interface (e.g. tap0)\n");
+        printf("                           TAP interface (e.g. tap0); Ethernet models of board\n");
+        printf("                           script are connected with the system and TAP (hub)\n");
         printf("      --board <script>     board model (Lua script describing hardware connected\n");
         printf("                           to the microcontroller, e.g. GPIO and I2C devices)\n");
         printf("      --panel <socket>     create socket of the board panel (visualization in\n");
@@ -1564,25 +1566,42 @@ int _host_uart_write(int port, const void *buf, size_t len)
 
 //==============================================================================
 /**
- * @brief  Check if Ethernet interface (TAP) is available.
+ * @brief  Check if Ethernet models of board script are connected.
+ *
+ * @return true if board script attached Ethernet model.
+ */
+//==============================================================================
+static bool eth_board(void)
+{
+        return host.board && _host_board_eth_attached();
+}
+
+//==============================================================================
+/**
+ * @brief  Check if Ethernet interface (TAP or board models) is available.
  *
  * @return If interface is available true is returned.
  */
 //==============================================================================
 bool _host_eth_is_available(void)
 {
-        return host.tap_fd >= 0;
+        return (host.tap_fd >= 0) || eth_board();
 }
 
 //==============================================================================
 /**
- * @brief  Check if Ethernet link is connected (TAP interface is up on the host).
+ * @brief  Check if Ethernet link is connected (TAP interface is up on the host
+ *         or models of board script are connected).
  *
  * @return If link is connected true is returned.
  */
 //==============================================================================
 bool _host_eth_is_link_up(void)
 {
+        if (eth_board()) {
+                return true;
+        }
+
         if (host.tap_fd < 0) {
                 return false;
         }
@@ -1611,7 +1630,10 @@ bool _host_eth_is_link_up(void)
 
 //==============================================================================
 /**
- * @brief  Receive Ethernet frame (non-blocking).
+ * @brief  Receive Ethernet frame (non-blocking). Network of the simulator is a
+ *         hub of the system, host TAP interface and board models: frames sent
+ *         by models are received by the system and sent to TAP, frames
+ *         received by TAP go to the system and to models.
  *
  * @param  buf          buffer
  * @param  len          buffer length
@@ -1621,23 +1643,46 @@ bool _host_eth_is_link_up(void)
 //==============================================================================
 int _host_eth_read(void *buf, size_t len)
 {
-        if (host.tap_fd < 0) {
+        bool board = eth_board();
+
+        if ((host.tap_fd < 0) && !board) {
                 return -1;
         }
 
-        lock();
-        int n = (int)read(host.tap_fd, buf, len);
-        if ((n < 0) && ((errno == EAGAIN) || (errno == EINTR))) {
-                n = 0;
+        if (board) {
+                int n = _host_board_eth_output(buf, len);
+                if (n > 0) {
+                        if (host.tap_fd >= 0) {
+                                lock();
+                                ssize_t r = write(host.tap_fd, buf, (size_t)n);
+                                (void)r; /* host does not receive frame: frame is lost (as in network) */
+                                unlock();
+                        }
+                        return n;
+                }
         }
-        unlock();
+
+        int n = 0;
+
+        if (host.tap_fd >= 0) {
+                lock();
+                n = (int)read(host.tap_fd, buf, len);
+                if ((n < 0) && ((errno == EAGAIN) || (errno == EINTR))) {
+                        n = 0;
+                }
+                unlock();
+
+                if ((n > 0) && board) {
+                        _host_board_eth_input(buf, (size_t)n);
+                }
+        }
 
         return n;
 }
 
 //==============================================================================
 /**
- * @brief  Send Ethernet frame.
+ * @brief  Send Ethernet frame to host TAP interface and board models.
  *
  * @param  buf          frame
  * @param  len          frame length
@@ -1648,16 +1693,34 @@ int _host_eth_read(void *buf, size_t len)
 //==============================================================================
 int _host_eth_write(const void *buf, size_t len)
 {
-        if (host.tap_fd < 0) {
+        bool board = eth_board();
+
+        if ((host.tap_fd < 0) && !board) {
                 return -1;
         }
 
-        lock();
-        int n = (int)write(host.tap_fd, buf, len);
-        if ((n < 0) && ((errno == EAGAIN) || (errno == EINTR))) {
-                n = 0;
+        int n = (int)len;
+
+        if (host.tap_fd >= 0) {
+                lock();
+                n = (int)write(host.tap_fd, buf, len);
+                if ((n < 0) && ((errno == EAGAIN) || (errno == EINTR))) {
+                        n = 0;
+                }
+                unlock();
+
+                if (n == 0) {
+                        return 0; /* TAP busy: system sends the frame again */
+                }
+
+                if ((n < 0) && board) {
+                        n = (int)len; /* TAP is down: models receive the frame */
+                }
         }
-        unlock();
+
+        if (board) {
+                _host_board_eth_input(buf, len);
+        }
 
         return n;
 }

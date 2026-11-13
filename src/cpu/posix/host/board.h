@@ -53,7 +53,7 @@ extern "C" {
   Exported macros
 ==============================================================================*/
 /** version of board interface */
-#define _HOST_BOARD_INTERFACE_VERSION 6
+#define _HOST_BOARD_INTERFACE_VERSION 7
 
 /** I2C address flag: 10-bit address */
 #define _HOST_BOARD_I2C_ADDR_10BIT 0x8000
@@ -248,6 +248,34 @@ extern int _host_board_uart_read(int port, void *buf, size_t len);
  * @return Number of accepted bytes.
  */
 extern int _host_board_uart_write(int port, const void *buf, size_t len);
+
+/**
+ * @brief  Check if Ethernet model is attached by board script (eth.attach()).
+ *         Models, the system and host TAP interface are connected as hub: each
+ *         frame is delivered to all other parts.
+ *
+ * @return true if Ethernet model is attached.
+ */
+extern bool _host_board_eth_attached(void);
+
+/**
+ * @brief  Ethernet: frame of the network (sent by system or received by host
+ *         TAP interface) is delivered to models (frame is copied).
+ *
+ * @param  frame        frame (without FCS)
+ * @param  len          frame length
+ */
+extern void _host_board_eth_input(const void *frame, size_t len);
+
+/**
+ * @brief  Ethernet: frame sent by models to the network.
+ *
+ * @param  buf          buffer
+ * @param  len          buffer length
+ *
+ * @return Frame length (0: no frame).
+ */
+extern int _host_board_eth_output(void *buf, size_t len);
 
 #ifdef __cplusplus
 }

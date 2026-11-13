@@ -76,6 +76,8 @@
 #define UART_FIFO_SIZE  4096 /* bytes waiting for reception (both directions) */
 #define UART_TX_WINDOW  10.0 /* ms: transmitter accepts bytes sent in this time (driver polls UART) */
 #define UART_OVERRUN_MS 200.0 /* ms: received byte not read by system in this time is lost */
+#define ETH_FRAME_MAX   1514  /* Ethernet frame without FCS */
+#define ETH_QUEUE_LEN   256   /* frames waiting for models or for the network */
 
 /*==============================================================================
   Local object types
@@ -173,6 +175,20 @@ typedef struct {
         bool overrun_reported;    /* overrun reported (until system reads data) */
 } uart_port_t;
 
+/* Ethernet frame */
+typedef struct {
+        uint16_t len;
+        uint8_t data[ETH_FRAME_MAX];
+} eth_frame_t;
+
+/* queue of Ethernet frames */
+typedef struct {
+        eth_frame_t frame[ETH_QUEUE_LEN];
+        size_t head;
+        size_t tail;
+        size_t lost;              /* frames lost (queue full), reported by board thread */
+} eth_queue_t;
+
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
@@ -210,10 +226,17 @@ static struct {
         int ref_run_exit;
         int ref_panel_event;
         int ref_uart_event;
+        int ref_eth_event;
 
         pthread_mutex_t uart_mtx;         /* UART ports */
         uart_port_t uart[UART_PORTS];
         bool uart_kick;                   /* board thread: new data for model */
+
+        pthread_mutex_t eth_mtx;          /* Ethernet queues */
+        bool eth_attached;                /* Ethernet model is attached */
+        eth_queue_t eth_in;               /* network (system, TAP) -> models */
+        eth_queue_t eth_out;              /* models -> network */
+        bool eth_kick;                    /* board thread: new frame for models */
 
         const char *panel_path;           /* panel socket path (NULL: no panel) */
         pthread_t panel_thread;
@@ -243,6 +266,7 @@ static struct {
         .panel_client = -1,
         .panel_send_mtx = PTHREAD_MUTEX_INITIALIZER,
         .uart_mtx = PTHREAD_MUTEX_INITIALIZER,
+        .eth_mtx = PTHREAD_MUTEX_INITIALIZER,
         .lcd = {.mtx = PTHREAD_MUTEX_INITIALIZER, .slot = {[0] = {.id = "ltdc", .used = true}}},
 };
 
@@ -682,6 +706,66 @@ static const char PRELUDE[] =
         "    end\n"
         "end\n"
         "\n"
+        "-- eth -------------------------------------------------------------------\n"
+        "eth = {}\n"
+        "\n"
+        "local eth_devs = {}\n"
+        "local eth_local, eth_busy = {}, false\n"
+        "\n"
+        "-- deliver frames sent by models to other models (in order, without recursion)\n"
+        "local function eth_flush()\n"
+        "    if eth_busy then return end\n"
+        "    eth_busy = true\n"
+        "    while #eth_local > 0 do\n"
+        "        local f = table.remove(eth_local, 1)\n"
+        "        for _, d in ipairs({table.unpack(eth_devs)}) do\n"
+        "            if d ~= f.from then dcall(d, 'receive', f.frame) end\n"
+        "        end\n"
+        "    end\n"
+        "    eth_busy = false\n"
+        "end\n"
+        "\n"
+        "-- attach device model to Ethernet: dev:receive(frame) gets frames of the network\n"
+        "-- (system, host TAP interface, other models); call it when the script is loaded\n"
+        "-- (the system checks the interface at start)\n"
+        "function eth.attach(dev)\n"
+        "    if type(dev) ~= 'table' then error('eth.attach: device table expected', 2) end\n"
+        "    for _, d in ipairs(eth_devs) do\n"
+        "        if d == dev then return dev end\n"
+        "    end\n"
+        "    table.insert(eth_devs, dev)\n"
+        "    B.eth_attach()\n"
+        "    return dev\n"
+        "end\n"
+        "\n"
+        "-- detach device model (frames are not delivered)\n"
+        "function eth.detach(dev)\n"
+        "    for i, d in ipairs(eth_devs) do\n"
+        "        if d == dev then table.remove(eth_devs, i) return true end\n"
+        "    end\n"
+        "    return false\n"
+        "end\n"
+        "\n"
+        "-- send Ethernet frame (destination MAC, source MAC, type, payload; without FCS)\n"
+        "-- to the system, host TAP interface and other models (except `from`), returns\n"
+        "-- false if the frame is lost (system does not receive frames)\n"
+        "function eth.send(frame, from)\n"
+        "    frame = tostring(frame)\n"
+        "    if #frame < 14 or #frame > B.ETH_FRAME_MAX then\n"
+        "        error('eth.send: invalid frame length: ' .. #frame, 2)\n"
+        "    end\n"
+        "    local ok = B.eth_send(frame)\n"
+        "    table.insert(eth_local, {frame = frame, from = from})\n"
+        "    eth_flush()\n"
+        "    return ok\n"
+        "end\n"
+        "\n"
+        "-- frame sent by the system or received by host TAP interface\n"
+        "local function eth_event(frame)\n"
+        "    for _, d in ipairs({table.unpack(eth_devs)}) do dcall(d, 'receive', frame) end\n"
+        "    eth_flush()\n"
+        "end\n"
+        "\n"
         "-- panel -----------------------------------------------------------------\n"
         "panel = {}\n"
         "\n"
@@ -914,7 +998,8 @@ static const char PRELUDE[] =
         "    end\n"
         "end\n"
         "\n"
-        "return next_timeout, run_timers, gpio_event, i2c_request, run_exit, spi_request, panel_event, uart_event\n";
+        "return next_timeout, run_timers, gpio_event, i2c_request, run_exit, spi_request, panel_event, uart_event,\n"
+        "       eth_event\n";
 
 /*==============================================================================
   Function definitions
@@ -1737,6 +1822,134 @@ static int l_uart_pending(lua_State *L)
 
 //==============================================================================
 /**
+ * @brief  Put frame to queue (called with locked Ethernet mutex).
+ *
+ * @param  q            queue
+ * @param  data         frame
+ * @param  len          frame length
+ *
+ * @return true if frame was queued, false if queue is full (frame is lost).
+ */
+//==============================================================================
+static bool eth_put(eth_queue_t *q, const void *data, size_t len)
+{
+        size_t next = (q->head + 1) % ETH_QUEUE_LEN;
+        if ((next == q->tail) || (len > ETH_FRAME_MAX)) {
+                q->lost++;
+                return false;
+        }
+
+        q->frame[q->head].len = (uint16_t)len;
+        memcpy(q->frame[q->head].data, data, len);
+        q->head = next;
+        return true;
+}
+
+//==============================================================================
+/**
+ * @brief  Get frame from queue (called with locked Ethernet mutex).
+ *
+ * @param  q            queue
+ * @param  buf          buffer
+ * @param  len          buffer length
+ *
+ * @return Frame length, 0 if queue is empty. Too long frame is dropped.
+ */
+//==============================================================================
+static size_t eth_get(eth_queue_t *q, void *buf, size_t len)
+{
+        while (q->tail != q->head) {
+                eth_frame_t *f = &q->frame[q->tail];
+                q->tail = (q->tail + 1) % ETH_QUEUE_LEN;
+                if (f->len <= len) {
+                        memcpy(buf, f->data, f->len);
+                        return f->len;
+                }
+                q->lost++;
+        }
+
+        return 0;
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: B.eth_attach() -- Ethernet model is attached
+ */
+//==============================================================================
+static int l_eth_attach(lua_State *L)
+{
+        (void)L;
+
+        pthread_mutex_lock(&board.eth_mtx);
+        board.eth_attached = true;
+        pthread_mutex_unlock(&board.eth_mtx);
+
+        return 0;
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: B.eth_send(frame) -> true if frame is queued for the network
+ */
+//==============================================================================
+static int l_eth_send(lua_State *L)
+{
+        size_t len;
+        const char *frame = luaL_checklstring(L, 1, &len);
+
+        pthread_mutex_lock(&board.eth_mtx);
+        bool ok = eth_put(&board.eth_out, frame, len);
+        pthread_mutex_unlock(&board.eth_mtx);
+
+        lua_pushboolean(L, ok);
+        return 1;
+}
+
+//==============================================================================
+/**
+ * @brief  Deliver frames of the network to models (board thread).
+ */
+//==============================================================================
+static void eth_deliver(void)
+{
+        static uint8_t buf[ETH_FRAME_MAX];
+        static double reported = -1e9; /* lost frames are reported at most every 10 s */
+
+        for (;;) {
+                double now = time_ms();
+                bool report = (now - reported) >= 10000.0;
+
+                pthread_mutex_lock(&board.eth_mtx);
+                size_t n = eth_get(&board.eth_in, buf, sizeof(buf));
+                size_t lost_in = board.eth_in.lost;
+                size_t lost_out = board.eth_out.lost;
+                if (report) {
+                        board.eth_in.lost = 0;
+                        board.eth_out.lost = 0;
+                }
+                pthread_mutex_unlock(&board.eth_mtx);
+
+                if (report && (lost_in || lost_out)) {
+                        char msg[160];
+                        snprintf(msg, sizeof(msg),
+                                 "ETH: frames lost: %zu to models (models are too slow), %zu to network "
+                                 "(system does not receive frames)",
+                                 lost_in, lost_out);
+                        board_log(msg);
+                        reported = now;
+                }
+
+                if (n == 0) {
+                        break;
+                }
+
+                lua_pushlstring(board.L, (const char *)buf, n);
+                call_ref(board.ref_eth_event, 1, 0);
+        }
+}
+
+//==============================================================================
+/**
  * @brief  Time to the next byte transmitted by system (board thread).
  *
  * @return Time in milliseconds or negative value if there is no data.
@@ -2020,6 +2233,8 @@ static bool board_load(void)
                 {"uart_send", l_uart_send},
                 {"uart_config", l_uart_config},
                 {"uart_pending", l_uart_pending},
+                {"eth_attach", l_eth_attach},
+                {"eth_send", l_eth_send},
                 {NULL, NULL},
         };
 
@@ -2036,6 +2251,8 @@ static bool board_load(void)
         lua_setfield(L, -2, "SPI_BUSES");
         lua_pushinteger(L, UART_PORTS);
         lua_setfield(L, -2, "UART_PORTS");
+        lua_pushinteger(L, ETH_FRAME_MAX);
+        lua_setfield(L, -2, "ETH_FRAME_MAX");
         lua_pushinteger(L, _HOST_BOARD_SPI_LSB_FIRST);
         lua_setfield(L, -2, "SPI_LSB_FIRST");
         lua_pushinteger(L, _HOST_BOARD_I2C_ADDR_10BIT);
@@ -2045,11 +2262,12 @@ static bool board_load(void)
         lcd_metatable(L);
         lua_setfield(L, -2, "LCD_METHODS");
 
-        if (lua_pcall(L, 1, 8, 1) != LUA_OK) {
+        if (lua_pcall(L, 1, 9, 1) != LUA_OK) {
                 board_log(lua_tostring(L, -1));
                 return false;
         }
 
+        board.ref_eth_event = luaL_ref(L, LUA_REGISTRYINDEX);
         board.ref_uart_event = luaL_ref(L, LUA_REGISTRYINDEX);
         board.ref_panel_event = luaL_ref(L, LUA_REGISTRYINDEX);
         board.ref_spi_request = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -2111,7 +2329,7 @@ static void *board_thread(void *arg)
 
                 bool request = board.req.pending && !board.req.taken;
 
-                if (!board.stop && (board.head == board.tail) && !request && !board.uart_kick) {
+                if (!board.stop && (board.head == board.tail) && !request && !board.uart_kick && !board.eth_kick) {
                         if (tmo < 0) {
                                 pthread_cond_wait(&board.cond, &board.mtx);
                         } else if (tmo > 0) {
@@ -2134,6 +2352,7 @@ static void *board_thread(void *arg)
                 board.lost = 0;
                 bool stop = board.stop;
                 board.uart_kick = false;
+                board.eth_kick = false;
 
                 if (stop) {
                         board.running = false;
@@ -2203,6 +2422,7 @@ static void *board_thread(void *arg)
                 pthread_mutex_unlock(&board.mtx);
 
                 uart_deliver();
+                eth_deliver();
                 call_ref(board.ref_run_timers, 0, 0);
         }
 
@@ -3027,6 +3247,65 @@ int _host_board_uart_write(int port, const void *buf, size_t len)
                 pthread_cond_broadcast(&board.cond);
                 pthread_mutex_unlock(&board.mtx);
         }
+
+        return (int)n;
+}
+
+//==============================================================================
+/**
+ * @brief  Check if Ethernet model is attached by board script.
+ *
+ * @return true if board script attached Ethernet model.
+ */
+//==============================================================================
+bool _host_board_eth_attached(void)
+{
+        pthread_mutex_lock(&board.eth_mtx);
+        bool attached = board.eth_attached;
+        pthread_mutex_unlock(&board.eth_mtx);
+
+        return attached;
+}
+
+//==============================================================================
+/**
+ * @brief  Ethernet: frame of the network (sent by system or received by host
+ *         TAP interface) is delivered to models.
+ *
+ * @param  frame        frame
+ * @param  len          frame length
+ */
+//==============================================================================
+void _host_board_eth_input(const void *frame, size_t len)
+{
+        pthread_mutex_lock(&board.eth_mtx);
+        bool queued = board.eth_attached && eth_put(&board.eth_in, frame, len);
+        pthread_mutex_unlock(&board.eth_mtx);
+
+        if (queued) {
+                pthread_mutex_lock(&board.mtx);
+                board.eth_kick = true;
+                pthread_cond_broadcast(&board.cond);
+                pthread_mutex_unlock(&board.mtx);
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Ethernet: frame sent by models to the network (system and host TAP
+ *         interface).
+ *
+ * @param  buf          buffer
+ * @param  len          buffer length
+ *
+ * @return Frame length, 0 if there is no frame.
+ */
+//==============================================================================
+int _host_board_eth_output(void *buf, size_t len)
+{
+        pthread_mutex_lock(&board.eth_mtx);
+        size_t n = eth_get(&board.eth_out, buf, len);
+        pthread_mutex_unlock(&board.eth_mtx);
 
         return (int)n;
 }

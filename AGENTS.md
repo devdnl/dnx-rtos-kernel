@@ -344,7 +344,9 @@ repositories, so the interface between them must stay consistent:
   Buses and UARTs are named as in `driver_init()`: `"<driver>:<major>"`
   (`"I2C:0"`, `"SPI:1"`, `"UART:2"` is `/dev/ttyS2`).
   `host.c` passes UART calls of ports attached by board to
-  `_host_board_uart_*()`.
+  `_host_board_uart_*()`. Ethernet models (`eth.attach()`) make `/dev/eth`
+  available without `--tap`; `host.c` connects the system, the TAP interface
+  and models as a hub (`_host_board_eth_attached/input/output()`).
 - **TTY raw mode** (`IOCTL_TTY__RAW_MODE_ON/OFF`) is used by the workspace
   `libtui` library (nano, mc, dialog). In raw mode input bytes go directly to
   the reader and output bypasses the screen buffer; `dsh` switches the
