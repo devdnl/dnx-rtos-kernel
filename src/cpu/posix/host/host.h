@@ -56,7 +56,7 @@ extern "C" {
   Exported macros
 ==============================================================================*/
 /** maximal number of simulated UARTs */
-#define _HOST_UART_COUNT 4
+#define _HOST_UART_COUNT 16
 
 /** maximal number of host disks */
 #define _HOST_DISK_COUNT 8

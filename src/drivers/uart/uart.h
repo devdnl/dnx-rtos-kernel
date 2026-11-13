@@ -237,6 +237,18 @@ enum {
         _UART1,
         _UART2,
         _UART3,
+        _UART4,
+        _UART5,
+        _UART6,
+        _UART7,
+        _UART8,
+        _UART9,
+        _UART10,
+        _UART11,
+        _UART12,
+        _UART13,
+        _UART14,
+        _UART15,
         _UART_COUNT
 };
 #endif

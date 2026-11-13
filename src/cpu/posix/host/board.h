@@ -68,7 +68,7 @@ extern "C" {
 #define _HOST_BOARD_SPI_LSB_FIRST  0x04 /*!< LSB first bit order */
 
 /** number of UARTs that can be connected to board models */
-#define _HOST_BOARD_UART_PORTS     8
+#define _HOST_BOARD_UART_PORTS     16
 
 /*==============================================================================
   Exported functions

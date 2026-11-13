@@ -105,7 +105,7 @@ static const uint16_t RX_BUF_LEN[] = {
         __UART_MAJOR10_RX_BUFFER_LEN__,
 #endif
 #ifdef __UART_MAJOR11_RX_BUFFER_LEN__
-        __UART_MAJOR111_RX_BUFFER_LEN__,
+        __UART_MAJOR11_RX_BUFFER_LEN__,
 #endif
 #ifdef __UART_MAJOR12_RX_BUFFER_LEN__
         __UART_MAJOR12_RX_BUFFER_LEN__,
@@ -157,7 +157,7 @@ static const uint16_t TX_BUF_LEN[] = {
         __UART_MAJOR10_TX_BUFFER_LEN__,
 #endif
 #ifdef __UART_MAJOR11_TX_BUFFER_LEN__
-        __UART_MAJOR111_TX_BUFFER_LEN__,
+        __UART_MAJOR11_TX_BUFFER_LEN__,
 #endif
 #ifdef __UART_MAJOR12_TX_BUFFER_LEN__
         __UART_MAJOR12_TX_BUFFER_LEN__,
@@ -172,6 +172,10 @@ static const uint16_t TX_BUF_LEN[] = {
         __UART_MAJOR15_TX_BUFFER_LEN__,
 #endif
 };
+
+/* buffer length of each UART is required (configuration file of the CPU) */
+_Static_assert(ARRAY_SIZE(RX_BUF_LEN) >= _UART_COUNT, "missing __UART_MAJOR<n>_RX_BUFFER_LEN__ flags");
+_Static_assert(ARRAY_SIZE(TX_BUF_LEN) >= _UART_COUNT, "missing __UART_MAJOR<n>_TX_BUFFER_LEN__ flags");
 
 /*==============================================================================
   Function definitions
