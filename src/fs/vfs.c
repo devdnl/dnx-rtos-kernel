@@ -91,6 +91,7 @@ static int get_path_FS(const char *path, size_t len, int *position, FS_entry_t *
 static int get_mount_root_FS(const char *path, size_t len, FS_entry_t **fs_entry);
 static int get_path_base_FS(const char *path, bool mnt_root, const char **ext_path, FS_entry_t **fs_entry);
 static int new_absolute_path(const struct vfs_path *path, enum path_correction corr, char **new_path);
+static int new_source_path(const struct vfs_path *path, char **new_path);
 static int open_device_file(const char *path, int flags, kfile_t *file_obj);
 static int direct_devfs_close(void *fshdl, void *fhdl);
 static int direct_devfs_write(void *fshdl, void *fhdl, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
@@ -148,6 +149,8 @@ int _vfs_init(void)
  * @brief Function mount file system in VFS.
  *
  * @param[in] *src_path         path to source file when file system load data
+ *                              or URI ("<scheme>://...", e.g. "host://www")
+ *                              passed to file system without CWD correction
  * @param[in] *mount_point      path when dir shall be mounted
  * @param[in] *fsif             pointer to file system interface
  * @param[in] *opts             options
@@ -197,7 +200,7 @@ int _vfs_mount(const struct vfs_path *src_path, const struct vfs_path *mount_poi
 
         int err = new_absolute_path(mount_point, ADD_SLASH, &cwd_mount_point);
         if (!err) {
-                err = new_absolute_path(src_path, SUB_SLASH, &cwd_src_path);
+                err = new_source_path(src_path, &cwd_src_path);
         }
 
         if (!err) {
@@ -1957,6 +1960,43 @@ static int new_absolute_path(const struct vfs_path *path, enum path_correction c
                 }
 
                 *new_path = abspath;
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief Function create source path of mounted file system. URI in format
+ *        "<scheme>://..." (scheme: a-z, 0-9, e.g. "host://www") is copied
+ *        without changes, other paths are corrected by CWD.
+ *
+ * @param[in]  path             source path
+ * @param[out] new_path         new path
+ *
+ * @return One of errno value (errno.h)
+ */
+//==============================================================================
+static int new_source_path(const struct vfs_path *path, char **new_path)
+{
+        /* scheme: lower case letters and digits, starts with letter */
+        const char *p = path->PATH;
+        while (((*p >= 'a') && (*p <= 'z')) || ((p != path->PATH) && (*p >= '0') && (*p <= '9'))) {
+                p++;
+        }
+
+        if ((p == path->PATH) || (strncmp(p, "://", 3) != 0)) {
+                return new_absolute_path(path, SUB_SLASH, new_path);
+        }
+
+        size_t len = strsize(path->PATH);
+        if (len > PATH_MAX_LEN) {
+                return ENAMETOOLONG;
+        }
+
+        int err = _kzalloc(_MM_KRN, len, 0, _cpuctl_fast_mem, 0, 0, cast(void *, new_path));
+        if (!err) {
+                strcpy(*new_path, path->PATH);
         }
 
         return err;

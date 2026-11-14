@@ -97,6 +97,11 @@ typedef struct {
         bool link_created;
 } uart_t;
 
+typedef struct {
+        char *name;  /* directory name used as hostfs source path */
+        char *root;  /* host directory (real path) */
+} hostfs_dir_t;
+
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
@@ -123,7 +128,8 @@ static struct {
         disk_t disk[_HOST_DISK_COUNT];
         uart_t uart[_HOST_UART_COUNT];
         char fault_info[128];
-        char *fs_root;
+        hostfs_dir_t *fs_dir;
+        size_t fs_dir_count;
         const char *tap_name;
         char *board_script;
         const char *panel_socket;
@@ -384,6 +390,60 @@ static void signals_configure(void)
 
 //==============================================================================
 /**
+ * @brief  Add host directory selected by the --hostfs <name>=<dir> option.
+ *
+ * @param  arg          option argument
+ *
+ * @return On success true is returned.
+ */
+//==============================================================================
+static bool hostfs_dir_add(const char *arg)
+{
+        const char *eq = arg ? strchr(arg, '=') : NULL;
+        size_t namelen = eq ? (size_t)(eq - arg) : 0;
+
+        if ((namelen == 0) || memchr(arg, '/', namelen) || (strncmp(arg, "..", namelen) == 0)) {
+                fprintf(stderr, "Invalid hostfs argument (<name>=<dir>): %s\n", arg ? arg : "");
+                return false;
+        }
+
+        for (size_t i = 0; i < host.fs_dir_count; i++) {
+                if ((strlen(host.fs_dir[i].name) == namelen) && (strncmp(host.fs_dir[i].name, arg, namelen) == 0)) {
+                        fprintf(stderr, "Duplicated hostfs name: %.*s\n", (int)namelen, arg);
+                        return false;
+                }
+        }
+
+        char *root = realpath(eq + 1, NULL);
+        struct stat st;
+        if (!root || (stat(root, &st) != 0) || !S_ISDIR(st.st_mode)) {
+                fprintf(stderr, "Invalid hostfs directory: %s\n", eq + 1);
+                free(root);
+                return false;
+        }
+
+        char *name = strndup(arg, namelen);
+        hostfs_dir_t *dir = realloc(host.fs_dir, (host.fs_dir_count + 1) * sizeof(hostfs_dir_t));
+        if (dir) {
+                host.fs_dir = dir;
+        }
+
+        if (!dir || !name) {
+                fprintf(stderr, "Out of memory\n");
+                free(name);
+                free(root);
+                return false;
+        }
+
+        dir[host.fs_dir_count].name = name;
+        dir[host.fs_dir_count].root = root;
+        host.fs_dir_count++;
+
+        return true;
+}
+
+//==============================================================================
+/**
  * @brief  Show program usage.
  *
  * @param  name         program name
@@ -398,8 +458,10 @@ static void show_usage(const char *name)
         printf("  -d, --disk <n>=<file>[:ro]\n");
         printf("                           connect file to the host disk <n> (0-%d),\n", _HOST_DISK_COUNT - 1);
         printf("                           disk is available by the HOSTDISK driver\n");
-        printf("      --hostfs <dir>       host directory available by the hostfs file system,\n");
-        printf("                           the siminit mounts it in /host\n");
+        printf("      --hostfs <name>=<dir>\n");
+        printf("                           host directory available by the hostfs file system\n");
+        printf("                           as <name> (mount source path), option can be used\n");
+        printf("                           many times; siminit mounts directory \"host\" in /host\n");
         printf("  -u, --uart <n>=pty[:<link>]|<device>|board\n");
         printf("                           connect UART <n> (0-%d) to the new pseudo terminal\n", _HOST_UART_COUNT - 1);
         printf("                           (optional symbolic link to the terminal is created),\n");
@@ -772,15 +834,9 @@ static bool parse_args(int argc, char *argv[])
                         i++;
 
                 } else if (strcmp(opt, "--hostfs") == 0) {
-                        char *root = val ? realpath(val, NULL) : NULL;
-                        struct stat st;
-                        if (!root || (stat(root, &st) != 0) || !S_ISDIR(st.st_mode)) {
-                                fprintf(stderr, "Invalid hostfs directory: %s\n", val ? val : "");
-                                free(root);
+                        if (!hostfs_dir_add(val)) {
                                 return false;
                         }
-                        free(host.fs_root);
-                        host.fs_root = root;
                         i++;
 
                 } else {
@@ -1955,41 +2011,59 @@ static int fs_err(int err)
 //==============================================================================
 /**
  * @brief  Create host path from dnx path. The dnx path must be absolute and
- *         cannot contain ".." elements (path cannot leave the root directory).
+ *         its first element selects host directory ("/<name>[/...]"). Path
+ *         cannot contain ".." elements (path cannot leave host directory).
  *
- * @param  path         dnx path (relative to hostfs root)
+ * @param  path         dnx path ("/<name>[/...]")
  * @param  buf          host path buffer (_HOST_FS_PATH_MAX)
+ * @param  is_root      true if path selects host directory itself (can be NULL)
  *
  * @return Host error code.
  */
 //==============================================================================
-static int fs_path(const char *path, char *buf)
+static int fs_path(const char *path, char *buf, bool *is_root)
 {
-        if (!host.fs_root || !path) {
-                return _HOST_ENOENT;
-        }
-
-        if ((path[0] != '/') && (path[0] != '\0')) {
+        if (!path || (path[0] != '/')) {
                 return _HOST_EINVAL;
         }
 
+        /* host directory selected by name */
+        const char *name = path + 1;
+        size_t namelen = strcspn(name, "/");
+        const char *root = NULL;
+
+        for (size_t i = 0; i < host.fs_dir_count; i++) {
+                if ((strlen(host.fs_dir[i].name) == namelen) && (strncmp(host.fs_dir[i].name, name, namelen) == 0)) {
+                        root = host.fs_dir[i].root;
+                        break;
+                }
+        }
+
+        if (!root) {
+                return _HOST_ENOENT;
+        }
+
         /* reject ".." elements */
-        for (const char *p = path; *p; p++) {
-                if ((p[0] == '.') && (p[1] == '.') && ((p == path) || (p[-1] == '/')) &&
-                        ((p[2] == '/') || (p[2] == '\0'))) {
+        const char *rest = name + namelen;
+        for (const char *p = rest; *p; p++) {
+                if ((p[0] == '.') && (p[1] == '.') && (p[-1] == '/') && ((p[2] == '/') || (p[2] == '\0'))) {
                         return _HOST_EACCES;
                 }
         }
 
-        int len = snprintf(buf, _HOST_FS_PATH_MAX, "%s%s", host.fs_root, path);
+        int len = snprintf(buf, _HOST_FS_PATH_MAX, "%s%s", root, rest);
         if ((len < 0) || (len >= _HOST_FS_PATH_MAX)) {
                 return _HOST_ENAMETOOLONG;
         }
 
         /* remove trailing slashes */
-        size_t rootlen = strlen(host.fs_root);
+        size_t rootlen = strlen(root);
         while (((size_t)len > rootlen) && (buf[len - 1] == '/')) {
                 buf[--len] = '\0';
+        }
+
+        if (is_root) {
+                *is_root = ((size_t)len == rootlen);
         }
 
         return _HOST_ESUCC;
@@ -2021,18 +2095,6 @@ static void fs_stat_convert(const struct stat *st, struct _host_stat *stat)
 
 //==============================================================================
 /**
- * @brief  Check if host file system is available (--hostfs option).
- *
- * @return If available true is returned.
- */
-//==============================================================================
-bool _host_fs_is_available(void)
-{
-        return host.fs_root != NULL;
-}
-
-//==============================================================================
-/**
  * @brief  Open file.
  *
  * @param  path         file path
@@ -2046,7 +2108,7 @@ bool _host_fs_is_available(void)
 int _host_fs_open(const char *path, uint32_t flags, uint32_t perm, int *fd)
 {
         char hpath[_HOST_FS_PATH_MAX];
-        int err = fs_path(path, hpath);
+        int err = fs_path(path, hpath, NULL);
         if (err) {
                 return err;
         }
@@ -2215,19 +2277,22 @@ int _host_fs_sync(int fd)
  * @brief  Synchronize host file system of the shared directory. Some file
  *         systems (e.g. btrfs) update free space statistics after commit only.
  *
+ * @param  path         directory path ("/<name>[/...]")
+ *
  * @return Host error code.
  */
 //==============================================================================
-int _host_fs_syncfs(void)
+int _host_fs_syncfs(const char *path)
 {
-        if (!host.fs_root) {
-                return _HOST_ENOENT;
+        char hpath[_HOST_FS_PATH_MAX];
+        int err = fs_path(path, hpath, NULL);
+        if (err) {
+                return err;
         }
 
         lock();
 
-        int err = _HOST_ESUCC;
-        int fd = open(host.fs_root, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+        int fd = open(hpath, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
         if (fd >= 0) {
                 if (syncfs(fd) != 0) {
                         err = fs_err(errno);
@@ -2280,7 +2345,7 @@ int _host_fs_fstat(int fd, struct _host_stat *stat)
 int _host_fs_stat(const char *path, struct _host_stat *info)
 {
         char hpath[_HOST_FS_PATH_MAX];
-        int err = fs_path(path, hpath);
+        int err = fs_path(path, hpath, NULL);
         if (err) {
                 return err;
         }
@@ -2311,7 +2376,7 @@ int _host_fs_stat(const char *path, struct _host_stat *info)
 int _host_fs_mkdir(const char *path, uint32_t perm)
 {
         char hpath[_HOST_FS_PATH_MAX];
-        int err = fs_path(path, hpath);
+        int err = fs_path(path, hpath, NULL);
         if (err) {
                 return err;
         }
@@ -2342,12 +2407,13 @@ int _host_fs_mkdir(const char *path, uint32_t perm)
 int _host_fs_remove(const char *path)
 {
         char hpath[_HOST_FS_PATH_MAX];
-        int err = fs_path(path, hpath);
+        bool is_root;
+        int err = fs_path(path, hpath, &is_root);
         if (err) {
                 return err;
         }
 
-        if (strcmp(hpath, host.fs_root) == 0) {
+        if (is_root) {
                 return _HOST_EBUSY;
         }
 
@@ -2385,9 +2451,9 @@ int _host_fs_rename(const char *old_path, const char *new_path)
         char hold[_HOST_FS_PATH_MAX];
         char hnew[_HOST_FS_PATH_MAX];
 
-        int err = fs_path(old_path, hold);
+        int err = fs_path(old_path, hold, NULL);
         if (!err) {
-                err = fs_path(new_path, hnew);
+                err = fs_path(new_path, hnew, NULL);
         }
 
         if (!err) {
@@ -2412,7 +2478,7 @@ int _host_fs_rename(const char *old_path, const char *new_path)
 int _host_fs_chmod(const char *path, uint32_t perm)
 {
         char hpath[_HOST_FS_PATH_MAX];
-        int err = fs_path(path, hpath);
+        int err = fs_path(path, hpath, NULL);
         if (err) {
                 return err;
         }
@@ -2437,7 +2503,7 @@ int _host_fs_chmod(const char *path, uint32_t perm)
 int _host_fs_opendir(const char *path, void **dir)
 {
         char hpath[_HOST_FS_PATH_MAX];
-        int err = fs_path(path, hpath);
+        int err = fs_path(path, hpath, NULL);
         if (err) {
                 return err;
         }
@@ -2542,21 +2608,24 @@ int _host_fs_closedir(void *dir)
 /**
  * @brief  Return host file system information.
  *
+ * @param  path         directory path ("/<name>[/...]")
  * @param  statfs       file system information
  *
  * @return Host error code.
  */
 //==============================================================================
-int _host_fs_statfs(struct _host_statfs *statfs)
+int _host_fs_statfs(const char *path, struct _host_statfs *statfs)
 {
-        if (!host.fs_root) {
-                return _HOST_ENOENT;
+        char hpath[_HOST_FS_PATH_MAX];
+        int err = fs_path(path, hpath, NULL);
+        if (err) {
+                return err;
         }
 
         struct statvfs st;
 
         lock();
-        int err = (statvfs(host.fs_root, &st) == 0) ? _HOST_ESUCC : fs_err(errno);
+        err = (statvfs(hpath, &st) == 0) ? _HOST_ESUCC : fs_err(errno);
         unlock();
 
         if (!err) {

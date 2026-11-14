@@ -192,13 +192,12 @@ extern int _host_disk_write(int disk, uint64_t offset, const void *buf, size_t l
 extern int _host_disk_sync(int disk);
 
 /* host file system (directory shared with simulator) */
-extern bool _host_fs_is_available(void);
 extern int _host_fs_open(const char *path, uint32_t flags, uint32_t perm, int *fd);
 extern int _host_fs_close(int fd);
 extern int _host_fs_read(int fd, uint64_t offset, void *buf, size_t len, size_t *rdcnt);
 extern int _host_fs_write(int fd, uint64_t offset, const void *buf, size_t len, size_t *wrcnt);
 extern int _host_fs_sync(int fd);
-extern int _host_fs_syncfs(void);
+extern int _host_fs_syncfs(const char *path);
 extern int _host_fs_fstat(int fd, struct _host_stat *stat);
 extern int _host_fs_stat(const char *path, struct _host_stat *stat);
 extern int _host_fs_mkdir(const char *path, uint32_t perm);
@@ -209,7 +208,7 @@ extern int _host_fs_opendir(const char *path, void **dir);
 extern int _host_fs_readdir(void *dir, char *name, size_t name_len, struct _host_stat *stat);
 extern void _host_fs_rewinddir(void *dir);
 extern int _host_fs_closedir(void *dir);
-extern int _host_fs_statfs(struct _host_statfs *statfs);
+extern int _host_fs_statfs(const char *path, struct _host_statfs *statfs);
 
 #ifdef __cplusplus
 }

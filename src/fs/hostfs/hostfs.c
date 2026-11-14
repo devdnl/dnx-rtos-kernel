@@ -4,7 +4,8 @@
 @author  Daniel Zorychta
 
 @brief   Host file system (POSIX simulator). File system gives access to the
-         host directory selected by the simulator --hostfs option.
+         host directories selected by the simulator --hostfs <name>=<dir>
+         options.
 
 @note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
@@ -28,12 +29,13 @@
 ==============================================================================*/
 
 /*
- * Mount example:
- *      mount("hostfs", "", "/host", "");          - whole --hostfs directory
- *      mount("hostfs", "/sub/dir", "/mnt", "ro");  - subdirectory, read only
+ * Mount example (simulator option --hostfs www=sim-env/www):
+ *      mount("hostfs", "host://www", "/mnt/www", "");           - whole directory
+ *      mount("hostfs", "host://www/sub/dir", "/mnt", "ro");     - subdirectory, read only
  *
- * Source path selects subdirectory of the host directory. Option "ro" mounts
- * file system in read only mode.
+ * Source "host://<name>[/subdir]" selects host directory by name and
+ * optionally its subdirectory. Option "ro" mounts file system in read only
+ * mode.
  */
 
 /*==============================================================================
@@ -45,11 +47,11 @@
 /*==============================================================================
   Local macros
 ==============================================================================*/
+/* source path protocol */
+#define HOST_PROTOCOL "host://"
+
 /* maximal size of single host operation (task switching latency) */
 #define MAX_CHUNK_SIZE (64 * 1024)
-
-/* maximal length of source path (subdirectory) */
-#define PREFIX_MAX 256
 
 /*==============================================================================
   Local object types
@@ -57,7 +59,7 @@
 typedef struct {
         bool read_only;
         u32_t opened;
-        char prefix[PREFIX_MAX];
+        char prefix[];          /* "/<name>[/subdir]" */
 } hostfs_t;
 
 typedef struct {
@@ -101,7 +103,7 @@ static void opened_dec(hostfs_t *hdl);
  * @brief Initialize file system
  *
  * @param[out]          **fs_handle             file system allocated memory
- * @param[in ]           *src_path              subdirectory of host directory
+ * @param[in ]           *src_path              host directory: "host://<name>[/subdir]"
  * @param[in ]           *opts                  file system options (can be NULL)
  *
  * @return One of errno value (errno.h)
@@ -109,27 +111,27 @@ static void opened_dec(hostfs_t *hdl);
 //==============================================================================
 API_FS_INIT(hostfs, void **fs_handle, const char *src_path, const char *opts)
 {
-        if (!_host_fs_is_available()) {
-                printk("HOSTFS: host directory not selected (use --hostfs <dir>)");
-                return ENODEV;
+        const size_t protolen = sizeof(HOST_PROTOCOL) - 1;
+        if (!src_path || (strncmp(src_path, HOST_PROTOCOL, protolen) != 0) ||
+                (src_path[protolen] == '\0') || (src_path[protolen] == '/')) {
+                printk("HOSTFS: source path format: " HOST_PROTOCOL "<name>[/subdir]");
+                return EINVAL;
         }
 
-        if (src_path && (strlen(src_path) >= PREFIX_MAX)) {
+        src_path += protolen;
+
+        size_t len = strlen(src_path) + 2;      /* '/' + path + '\0' */
+        if (len > _HOST_FS_PATH_MAX) {
                 return ENAMETOOLONG;
         }
 
-        int err = sys_zalloc(sizeof(hostfs_t), fs_handle);
+        int err = sys_zalloc(sizeof(hostfs_t) + len, fs_handle);
         if (!err) {
                 hostfs_t *hdl = *fs_handle;
 
                 hdl->read_only = sys_opt_has_flag(opts, "ro");
-
-                if (src_path && (src_path[0] != '\0')) {
-                        if (src_path[0] != '/') {
-                                hdl->prefix[0] = '/';
-                        }
-                        sys_strlcat(hdl->prefix, src_path, sizeof(hdl->prefix));
-                }
+                hdl->prefix[0] = '/';
+                sys_strlcat(hdl->prefix, src_path, len);
 
                 /* source directory must exist */
                 struct _host_stat hstat;
@@ -144,6 +146,7 @@ API_FS_INIT(hostfs, void **fs_handle, const char *src_path, const char *opts)
                 }
 
                 if (err) {
+                        printk("HOSTFS: %s: host directory not available (--hostfs <name>=<dir>)", src_path);
                         sys_free(fs_handle);
                 }
         }
@@ -752,10 +755,10 @@ API_FS_STAT(hostfs, void *fs_handle, const char *path, struct stat *stat)
 //==============================================================================
 API_FS_STATFS(hostfs, void *fs_handle, struct statfs *statfs)
 {
-        UNUSED_ARG1(fs_handle);
+        hostfs_t *hdl = fs_handle;
 
         struct _host_statfs hstatfs;
-        int err = host_errno(_host_fs_statfs(&hstatfs));
+        int err = host_errno(_host_fs_statfs(hdl->prefix, &hstatfs));
         if (!err) {
                 u64_t bsize = hstatfs.bsize ? hstatfs.bsize : 512;
                 u64_t blocks = hstatfs.blocks;
@@ -791,13 +794,13 @@ API_FS_STATFS(hostfs, void *fs_handle, struct statfs *statfs)
 //==============================================================================
 API_FS_SYNC(hostfs, void *fs_handle)
 {
-        UNUSED_ARG1(fs_handle);
+        hostfs_t *hdl = fs_handle;
 
         /*
          * Data is written directly to the host (host cache). Host file system
          * is synchronized to update e.g. free space statistics (btrfs).
          */
-        return host_errno(_host_fs_syncfs());
+        return host_errno(_host_fs_syncfs(hdl->prefix));
 }
 
 //==============================================================================
