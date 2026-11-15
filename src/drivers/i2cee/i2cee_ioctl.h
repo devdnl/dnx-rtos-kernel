@@ -170,7 +170,9 @@ typedef struct {
         const char *i2c_path;    /*!< I2C device file*/
         u32_t memory_size;       /*!< Memory size in bytes*/
         u16_t page_size;         /*!< EEPROM page size in bytes*/
-        u16_t page_prog_time_ms; /*!< Time of programming single page in milliseconds*/
+        u16_t page_prog_time_ms; /*!< Time of programming single page in milliseconds (waited after page
+                                      write, longer write cycle: access is repeated while the memory does not
+                                      acknowledge its address, acknowledge polling)*/
 } I2CEE_config_t;
 
 /*==============================================================================

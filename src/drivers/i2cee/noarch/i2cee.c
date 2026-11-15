@@ -38,6 +38,9 @@
 ==============================================================================*/
 #define MUTEX_TIMEOUT 10000
 
+/* acknowledge polling after the page program time (memory busy) */
+#define ACK_POLL_TIMEOUT_MS     20
+
 /*==============================================================================
   Local object types
 ==============================================================================*/
@@ -60,6 +63,7 @@ typedef struct {
   Local function prototypes
 ==============================================================================*/
 static int configure(I2CEE_t *hdl, const I2CEE_config_t *cfg);
+static int i2c_access(I2CEE_t *hdl, u32_t addr, bool write, void *buf, size_t count, size_t *n);
 
 /*==============================================================================
   Local objects
@@ -241,7 +245,6 @@ API_MOD_WRITE(I2CEE, void *device_handle, const u8_t *src, size_t count, fpos_t 
 
                 if (*fpos < hdl->memory_size) {
                         u32_t addr = *fpos;
-                        err = sys_fseek(hdl->i2c_dev, addr, VFS_SEEK_SET);
 
                         count = min(count, hdl->memory_size - *fpos);
 
@@ -250,7 +253,7 @@ API_MOD_WRITE(I2CEE, void *device_handle, const u8_t *src, size_t count, fpos_t 
                                 size_t wrsz = min(count, pbleft);
                                 size_t wrb = 0;
 
-                                err = sys_fwrite(src, wrsz, &wrb, hdl->i2c_dev);
+                                err = i2c_access(hdl, addr, true, (void *)src, wrsz, &wrb);
                                 if (!err) {
                                         sys_sleep_ms(hdl->page_prog_time_ms);
                                         addr += wrsz;
@@ -296,10 +299,7 @@ API_MOD_READ(I2CEE, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, 
                 if (*fpos < hdl->memory_size) {
                         count = min(count, hdl->memory_size - *fpos);
 
-                        err = sys_fseek(hdl->i2c_dev, *fpos, VFS_SEEK_SET);
-                        if (!err) {
-                                err = sys_fread(dst, count, rdcnt, hdl->i2c_dev);
-                        }
+                        err = i2c_access(hdl, *fpos, false, dst, count, rdcnt);
                 } else {
                         dev_dbg(hdl, "read out of range 0x%02X", (u32_t)*fpos);
                         *rdcnt = 0;
@@ -426,6 +426,55 @@ static int configure(I2CEE_t *hdl, const I2CEE_config_t *cfg)
                 }
 
                 sys_mutex_unlock(hdl->main->mtx);
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Access of memory with acknowledge polling. The memory does not
+ *         acknowledge its address during the write cycle, the access is
+ *         repeated until the cycle ends: the page program time is waited after
+ *         every page write, but the cycle can be longer (device, temperature,
+ *         resolution of system timer). I2C drivers report not acknowledged
+ *         address by ENXIO or ENODEV.
+ *
+ * @param  hdl          device handle
+ * @param  addr         memory address
+ * @param  write        true: write, false: read
+ * @param  buf          data buffer
+ * @param  count        number of bytes
+ * @param  n            number of transferred bytes
+ *
+ * @return One of errno value (errno.h)
+ */
+//==============================================================================
+static int i2c_access(I2CEE_t *hdl, u32_t addr, bool write, void *buf, size_t count, size_t *n)
+{
+        clock_t tref = sys_get_uptime_ms();
+        int err;
+
+        for (;;) {
+                err = sys_fseek(hdl->i2c_dev, addr, VFS_SEEK_SET);
+                if (!err) {
+                        size_t cnt = 0;
+
+                        if (write) {
+                                err = sys_fwrite(buf, count, &cnt, hdl->i2c_dev);
+                        } else {
+                                err = sys_fread(buf, count, &cnt, hdl->i2c_dev);
+                        }
+
+                        *n = cnt;
+                }
+
+                if (  ((err == ENXIO) || (err == ENODEV))
+                   && !sys_is_time_expired(tref, ACK_POLL_TIMEOUT_MS + hdl->page_prog_time_ms)) {
+                        sys_sleep_ms(1);
+                } else {
+                        break;
+                }
         }
 
         return err;

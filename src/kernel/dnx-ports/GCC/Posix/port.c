@@ -458,14 +458,18 @@ static void vPortSystemTickHandler( int sig )
      * the timer. Signals are merged when the thread blocks signals (critical
      * section) and the timer thread accumulates the wake-up latency of each
      * sleep, without correction the system time is 15-20% slower than the
-     * host time (timeouts, baud rates and models of simulated devices). */
+     * host time (timeouts, baud rates and models of simulated devices).
+     * The tick count never runs ahead of the host time: a signal that comes
+     * before the next tick period (e.g. after merged signals were caught up)
+     * does not increment the tick, otherwise delays (vTaskDelay) would be
+     * shorter than the host time (e.g. EEPROM write cycle of a model). */
     xExpectedTicks = ( prvGetTimeNs() - prvStartTimeNs ) / ( portTICK_RATE_MICROSECONDS * 1000 );
 
-    do
+    while( prvTickCount < xExpectedTicks )
     {
         xTaskIncrementTick();
         prvTickCount++;
-    } while( prvTickCount < xExpectedTicks );
+    }
 
     #if ( configUSE_PREEMPTION == 1 )
         /* Select Next Task. */
