@@ -54,6 +54,7 @@
 #include "lua/lualib.h"
 
 #include "board.h"
+#include "board_gfx.h"
 
 /*==============================================================================
   Local macros
@@ -1469,6 +1470,31 @@ static int l_lcd_fill(lua_State *L)
 
 //==============================================================================
 /**
+ * @brief  Pixel value in LCD format (components 0..255, l8/al44/al88:
+ *         luminance).
+ */
+//==============================================================================
+static uint32_t lcd_color_value(int format, uint32_t r, uint32_t g, uint32_t b, uint32_t a)
+{
+        uint32_t l = (r * 77 + g * 150 + b * 29) >> 8;
+        uint32_t v = 0;
+
+        switch (format) {
+        case 0: v = (a << 24) | (r << 16) | (g << 8) | b; break;                                 /* argb8888 */
+        case 1: v = (r << 16) | (g << 8) | b; break;                                             /* rgb888 */
+        case 2: v = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3); break;                        /* rgb565 */
+        case 3: v = ((a >> 7) << 15) | ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3); break;     /* argb1555 */
+        case 4: v = ((a >> 4) << 12) | ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4); break;      /* argb4444 */
+        case 5: v = l; break;                                                                    /* l8 */
+        case 6: v = ((a >> 4) << 4) | (l >> 4); break;                                           /* al44 */
+        case 7: v = (a << 8) | l; break;                                                         /* al88 */
+        }
+
+        return v;
+}
+
+//==============================================================================
+/**
  * @brief  Lua: lcd:color(r, g, b [, a]) -> pixel value in LCD format
  *         (components 0..255, l8/al44/al88: luminance)
  */
@@ -1482,23 +1508,66 @@ static int l_lcd_color(lua_State *L)
                 c[i] = (uint32_t)luaL_optinteger(L, 2 + i, 255) & 0xFF;
         }
 
-        uint32_t r = c[0], g = c[1], b = c[2], a = c[3];
-        uint32_t l = (r * 77 + g * 150 + b * 29) >> 8;
-        uint32_t v = 0;
+        lua_pushinteger(L, lcd_color_value(lcd->format, c[0], c[1], c[2], c[3]));
+        return 1;
+}
 
-        switch (lcd->format) {
-        case 0: v = (a << 24) | (r << 16) | (g << 8) | b; break;                                 /* argb8888 */
-        case 1: v = (r << 16) | (g << 8) | b; break;                                             /* rgb888 */
-        case 2: v = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3); break;                        /* rgb565 */
-        case 3: v = ((a >> 7) << 15) | ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3); break;     /* argb1555 */
-        case 4: v = ((a >> 4) << 12) | ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4); break;      /* argb4444 */
-        case 5: v = l; break;                                                                    /* l8 */
-        case 6: v = ((a >> 4) << 4) | (l >> 4); break;                                           /* al44 */
-        case 7: v = (a << 8) | l; break;                                                         /* al88 */
+//==============================================================================
+/**
+ * @brief  Write rows of canvas (0xRRGGBB pixels) to LCD object at stack index
+ *         idx (gfx canvas:push): pixels are converted to LCD format, only
+ *         changed rows are written (common part of canvas and LCD).
+ *
+ * @return Number of written rows.
+ */
+//==============================================================================
+int board_lcd_write_canvas(lua_State *L, int idx, const uint32_t *px, int width, int height)
+{
+        lcd_ref_t *ref = luaL_checkudata(L, idx, LCD_METATABLE);
+        luaL_argcheck(L, ref->slot > 0, idx, "LCD is released");
+        lcd_t *lcd = &board.lcd.slot[ref->slot];
+
+        int ps = LCD_PIXEL_SIZE[lcd->format];
+        int w = (width < lcd->width) ? width : lcd->width;
+        int h = (height < lcd->height) ? height : lcd->height;
+        size_t line = (size_t)lcd->width * ps;
+        int rows = 0;
+
+        uint8_t *buf = malloc((size_t)w * ps);
+        if (!buf) {
+                return luaL_error(L, "canvas:push: not enough memory");
         }
 
-        lua_pushinteger(L, v);
-        return 1;
+        for (int y = 0; y < h; y++) {
+                const uint32_t *src = &px[(size_t)y * width];
+                uint8_t *d = buf;
+
+                if (lcd->format == 2) { /* rgb565: the most used format */
+                        for (int x = 0; x < w; x++, d += 2) {
+                                uint32_t p = src[x];
+                                uint32_t v = ((p >> 8) & 0xF800) | ((p >> 5) & 0x07E0) | ((p >> 3) & 0x001F);
+                                d[0] = (uint8_t)v;
+                                d[1] = (uint8_t)(v >> 8);
+                        }
+                } else {
+                        for (int x = 0; x < w; x++, d += ps) {
+                                uint32_t p = src[x];
+                                uint32_t r = (p >> 16) & 0xFF, g = (p >> 8) & 0xFF, b = p & 0xFF;
+                                lcd_put(d, lcd_color_value(lcd->format, r, g, b, 255), ps);
+                        }
+                }
+
+                uint8_t *dst = lcd->own + (size_t)y * line;
+                if (memcmp(dst, buf, (size_t)w * ps) != 0) {
+                        pthread_mutex_lock(&board.lcd.mtx);
+                        memcpy(dst, buf, (size_t)w * ps);
+                        pthread_mutex_unlock(&board.lcd.mtx);
+                        rows++;
+                }
+        }
+
+        free(buf);
+        return rows;
 }
 
 //==============================================================================
@@ -2315,6 +2384,10 @@ static bool board_load(void)
         board.ref_run_timers = luaL_ref(L, LUA_REGISTRYINDEX);
         board.ref_next_timeout = luaL_ref(L, LUA_REGISTRYINDEX);
         lua_settop(L, 0);
+
+        /* graphics helpers of models (memory buffers, canvases) */
+        board_gfx_open(L);
+        lua_setglobal(L, "gfx");
 
         /* board description */
         lua_pushcfunction(L, traceback);
