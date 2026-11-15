@@ -83,6 +83,16 @@ Brief   Daniel Zorychta
 
 #define FIND_ANY_NODE UINT32_MAX
 
+/* Maximum number of blocks of block cache (option cache=N) */
+#define CACHE_MAX_BLOCKS 64
+
+/* Option async is enabled (see __FLATFS_ASYNC_ENABLE__) */
+#if __FLATFS_ASYNC_ENABLE__ > 0
+#define IS_ASYNC(_hdl) ((_hdl)->async)
+#else
+#define IS_ASYNC(_hdl) false
+#endif
+
 #define INDEX_HIT_MAX (100 * __OS_SYSTEM_CACHE_SYNC_PERIOD__)
 #define INDEX_HIT_MIN (-INDEX_HIT_MAX)
 
@@ -157,10 +167,17 @@ typedef struct {
 } blk_bitmap_t;
 
 /*
- * File handle.
+ * File handle. Option "async": size and modification time of file are not
+ * written to file descriptor block by write(), they are stored in all handles
+ * of node (dirty) and written by close(), flush() and sync().
  */
 typedef struct {
         u32_t node_num;
+#if __FLATFS_ASYNC_ENABLE__ > 0
+        bool dirty;
+        u32_t size;
+        u64_t mtime;
+#endif
 } file_t;
 
 /*
@@ -184,6 +201,17 @@ typedef struct {
 } path_index_t;
 
 /*
+ * Write-through block cache entry (option cache=N). Blocks of file nodes are
+ * cached: read requests of single block are served from cache, written blocks
+ * are written to medium and updated (single block is added) in cache.
+ */
+typedef struct {
+        u32_t address; // block address, UINT32_MAX: empty entry
+        u32_t used;    // last use tick (LRU)
+        u8_t data[BLOCK_SIZE];
+} cache_t;
+
+/*
  * File system handle.
  */
 typedef struct {
@@ -194,6 +222,9 @@ typedef struct {
         bool read_only;
         bool force_check;
         bool noatime;
+#if __FLATFS_ASYNC_ENABLE__ > 0
+        bool async;
+#endif
         u32_t total_files;
         u32_t total_volume_blocks;
         u32_t file_node_blocks;
@@ -202,6 +233,12 @@ typedef struct {
         u32_t bitmap_address_secondary;
         u32_t first_file_node_address;
         blk_bitmap_t bitmap;
+        u16_t *name_hash; // name hash of each node (0: unknown), lookup skips nodes with other hash
+#if __FLATFS_CACHE_ENABLE__ > 0
+        cache_t *cache;   // block cache (NULL: disabled)
+        u32_t cache_size; // number of cache entries
+        u32_t cache_tick; // LRU tick
+#endif
         char tmp_path[MAX_FILE_NAME_LEN];
         u8_t block[2][BLOCK_SIZE] __attribute__((aligned(8))); // casted to blk_file_t (u64_t fields)
 
@@ -238,6 +275,13 @@ static void index_remove(flatfs_t *hdl, u32_t node_num);
 static bool index_find(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t *blk, u32_t *node_num);
 static bool index_get(flatfs_t *hdl, u32_t node_num, blk_file_t *blk);
 static void index_add(flatfs_t *hdl, u32_t node_num, const blk_file_t *blk);
+static void pending_apply(flatfs_t *hdl, u32_t node_num, blk_file_t *blk);
+static void pending_set(flatfs_t *hdl, u32_t node_num, u32_t size, u64_t mtime, bool dirty);
+static int pending_flush(flatfs_t *hdl, file_t *file);
+static u16_t name_hash(const char *name);
+static void name_hash_set(flatfs_t *hdl, u32_t node_num, const blk_file_t *blk);
+static cache_t *cache_find(flatfs_t *hdl, u32_t address);
+static void cache_put(flatfs_t *hdl, u32_t address, const void *src, size_t blocks, bool add);
 
 /*==============================================================================
   Local objects
@@ -291,6 +335,16 @@ static const u32_t CRC32_TAB[] = {0x00000000, 0x04c11db7, 0x09823b6e, 0x0d4326d9
 /**
  * @brief Initialize file system.
  *
+ * Options (async and cache only if enabled in configuration, otherwise ignored):
+ *      ro      read only mode,
+ *      check   check all used nodes at mount,
+ *      noatime modification time is not updated when file size is not changed,
+ *      async   file size and modification time are written to file descriptor
+ *              by close(), flush() and sync() (also periodic sync of system),
+ *              not by every write() (2x less writes when file is extended),
+ *      cache=N write-through cache of N blocks (N x 520 B of RAM, up to 64),
+ *              e.g. reads of partially written block are not needed.
+ *
  * @param[out]          **fs_handle             file system allocated memory
  * @param[in ]           *src_path              file source path
  * @param[in ]           *opts                  file system options (can be NULL)
@@ -316,6 +370,32 @@ API_FS_INIT(flatfs, void **fs_handle, const char *src_path, const char *opts)
                         MSG("enabled file system force check");
                 }
 
+#if __FLATFS_ASYNC_ENABLE__ > 0
+                hdl->async = sys_opt_has_flag(opts, "async");
+                if (hdl->async) {
+                        MSG("asynchronous update of file size");
+                }
+#endif
+
+#if __FLATFS_CACHE_ENABLE__ > 0
+                int cache_size = sys_opt_get_int(opts, "cache", 0);
+                hdl->cache_size = min(max(cache_size, 0), CACHE_MAX_BLOCKS);
+
+                if (hdl->cache_size > 0) {
+                        err = sys_zalloc(hdl->cache_size * sizeof(cache_t), cast(void **, &hdl->cache));
+                        if (err) {
+                                sys_free(fs_handle);
+                                return err;
+                        }
+
+                        for (u32_t i = 0; i < hdl->cache_size; i++) {
+                                hdl->cache[i].address = UINT32_MAX;
+                        }
+
+                        MSG("block cache: %lu blocks", cast(unsigned long, hdl->cache_size));
+                }
+#endif
+
 #if __FLATFS_INDEX_SIZE__ > 0
                 MSG("indexing enabled");
 
@@ -338,6 +418,7 @@ API_FS_INIT(flatfs, void **fs_handle, const char *src_path, const char *opts)
                                                 return err;
                                         }
 
+                                        sys_free(cast(void **, &hdl->name_hash));
                                         sys_fclose(hdl->disc);
                                 }
 
@@ -347,6 +428,9 @@ API_FS_INIT(flatfs, void **fs_handle, const char *src_path, const char *opts)
                         sys_mutex_destroy(hdl->mtx);
                 }
 
+#if __FLATFS_CACHE_ENABLE__ > 0
+                sys_free(cast(void **, &hdl->cache));
+#endif
                 sys_free(fs_handle);
         }
 
@@ -374,6 +458,10 @@ API_FS_RELEASE(flatfs, void *fs_handle)
 
                         hdl->mtx = NULL;
                         sys_llist_destroy(hdl->open_files);
+                        sys_free(cast(void **, &hdl->name_hash));
+#if __FLATFS_CACHE_ENABLE__ > 0
+                        sys_free(cast(void **, &hdl->cache));
+#endif
 
                         sys_fflush(hdl->disc);
                         sys_fclose(hdl->disc);
@@ -436,22 +524,16 @@ API_FS_OPEN(flatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
                         }
 
                         /*
-                         * Check if path is a directory
+                         * Try to open/create file in selected directory (single
+                         * lookup of file or directory with the same name)
                          */
-                        err = node_find(hdl, make_dir_path(hdl, path), S_IFDIR, blk, &node_num);
-                        if (err == ESUCC) {
+                        err = node_find_any(hdl, path, blk, &node_num);
+
+                        if ((err == ESUCC) and S_ISDIR(blk->mode)) {
                                 err = EISDIR;
                                 goto finish;
-                        } else if (err != ENOENT) {
-                                goto finish;
-                        }
 
-                        /*
-                         * Try to open/create file in selected directory
-                         */
-                        err = node_find(hdl, path, S_IFREG, blk, &node_num);
-
-                        if (err == ESUCC) {
+                        } else if (err == ESUCC) {
 #ifdef O_EXCL
                                 if ((flags & O_CREAT) and (flags & O_EXCL)) {
                                         err = EEXIST;
@@ -530,9 +612,10 @@ API_FS_CLOSE(flatfs, void *fs_handle, void *fhdl)
 
                 int pos = sys_llist_find_begin(hdl->open_files, file);
                 if (pos >= 0) {
+                        err = pending_flush(hdl, file);
+
                         // NOTE: list created with NULL destructor - erase releases object by default
                         sys_llist_erase(hdl->open_files, pos);
-                        err = ESUCC;
 
                 } else {
                         MSG("no such file descriptor!");
@@ -680,16 +763,21 @@ API_FS_WRITE(flatfs, void *fs_handle, void *fhdl, const u8_t *src, size_t count,
         /*
          * Update file descriptor. Option noatime is used here to reduce
          * medium wear: descriptor is not updated (mtime) when data was
-         * overwritten in place without file size change.
+         * overwritten in place without file size change. Option async
+         * defers descriptor update (close, flush, sync).
          */
         if (*wrctr > 0) {
                 if ((blk->size < seek) or (not hdl->noatime)) {
                         blk->mtime = now;
                         blk->size = max(blk->size, seek);
 
-                        int wrerr = file_block_write(hdl, file->node_num, blk);
-                        if (!err) {
-                                err = wrerr;
+                        if (IS_ASYNC(hdl)) {
+                                pending_set(hdl, file->node_num, blk->size, blk->mtime, true);
+                        } else {
+                                int wrerr = file_block_write(hdl, file->node_num, blk);
+                                if (!err) {
+                                        err = wrerr;
+                                }
                         }
                 }
         }
@@ -805,8 +893,15 @@ API_FS_IOCTL(flatfs, void *fs_handle, void *fhdl, int request, void *arg)
 //==============================================================================
 API_FS_FLUSH(flatfs, void *fs_handle, void *fhdl)
 {
-        UNUSED_ARG2(fs_handle, fhdl);
-        return ESUCC;
+        flatfs_t *hdl = fs_handle;
+
+        int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
+        if (!err) {
+                err = pending_flush(hdl, fhdl);
+                sys_mutex_unlock(hdl->mtx);
+        }
+
+        return err;
 }
 
 //==============================================================================
@@ -991,31 +1086,21 @@ API_FS_MKDIR(flatfs, void *fs_handle, const char *path, mode_t mode)
                 }
 
                 /*
-                 * Regular file with the same name cannot exist
+                 * File or directory with the same name cannot exist (single
+                 * lookup, path without trailing slash is found as file and
+                 * with slash as directory)
                  */
-                sys_strlcpy(hdl->tmp_path, path, sizeof(hdl->tmp_path));
-                size_t len = strlen(hdl->tmp_path);
-                if (hdl->tmp_path[len - 1] == '/') {
-                        hdl->tmp_path[--len] = '\0';
+                char *name = cast(char *, hdl->block[1]); // not used by lookup and create
+                sys_strlcpy(name, path, BLOCK_SIZE);
+                size_t len = strlen(name);
+                if (name[len - 1] == '/') {
+                        name[--len] = '\0';
                 }
 
-                err = node_find(hdl, hdl->tmp_path, S_IFREG, blk, &node_num);
-                if (err == ESUCC) {
-                        err = EEXIST;
-                        goto finish;
-                } else if (err != ENOENT) {
-                        goto finish;
-                }
-
-                /*
-                 * Directory cannot exist
-                 */
-                hdl->tmp_path[len++] = '/';
-                hdl->tmp_path[len] = '\0';
-
-                err = node_find(hdl, hdl->tmp_path, FIND_ANY_NODE, blk, &node_num);
+                err = node_find_any(hdl, name, blk, &node_num);
                 if (err == ENOENT) {
-                        err = node_create(hdl, hdl->tmp_path, (mode & S_IPMT) | S_IFDIR, blk, &node_num, now);
+                        err = node_create(hdl, make_dir_path(hdl, name), (mode & S_IPMT) | S_IFDIR, blk, &node_num,
+                                now);
 
                 } else if (err == ESUCC) {
                         err = EEXIST;
@@ -1674,32 +1759,44 @@ API_FS_CHOWN(flatfs, void *fs_handle, const char *path, uid_t owner, gid_t group
 //==============================================================================
 API_FS_SYNC(flatfs, void *fs_handle)
 {
+        flatfs_t *hdl = fs_handle;
+
+        int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
+        if (err) {
+                return err;
+        }
+
+#if __FLATFS_ASYNC_ENABLE__ > 0
+        /*
+         * Write deferred file descriptors.
+         */
+        sys_llist_foreach (file_t *, file, hdl->open_files) {
+                int flerr = pending_flush(hdl, file);
+                if (!err) {
+                        err = flerr;
+                }
+        }
+#endif
+
 #if __FLATFS_INDEX_SIZE__ > 0
         /*
          * Decrease index cache usage points.
          */
-        flatfs_t *hdl = fs_handle;
+        for (size_t i = 0; i < ARRAY_SIZE(hdl->path_index); i++) {
 
-        int err = sys_mutex_lock(hdl->mtx, MTX_TIMEOUT);
-        if (!err) {
-                for (size_t i = 0; i < ARRAY_SIZE(hdl->path_index); i++) {
+                path_index_t *index = &hdl->path_index[i];
 
-                        path_index_t *index = &hdl->path_index[i];
-
-                        if (index->node != UINT32_MAX) {
-                                if (index->hit > (INDEX_HIT_MIN + __OS_SYSTEM_CACHE_SYNC_PERIOD__)) {
-                                        index->hit -= __OS_SYSTEM_CACHE_SYNC_PERIOD__;
-                                }
+                if (index->node != UINT32_MAX) {
+                        if (index->hit > (INDEX_HIT_MIN + __OS_SYSTEM_CACHE_SYNC_PERIOD__)) {
+                                index->hit -= __OS_SYSTEM_CACHE_SYNC_PERIOD__;
                         }
                 }
-
-                sys_mutex_unlock(hdl->mtx);
         }
-#else
-        UNUSED_ARG1(fs_handle);
 #endif
 
-        return ESUCC;
+        sys_mutex_unlock(hdl->mtx);
+
+        return err;
 }
 
 //==============================================================================
@@ -1740,12 +1837,24 @@ static u32_t calc_crc32(const void *buf, size_t buflen, u32_t init)
 //==============================================================================
 static int block_read(flatfs_t *hdl, u32_t address, void *dst, size_t blocks)
 {
+        if (blocks == 1) {
+                cache_t *entry = cache_find(hdl, address);
+                if (entry) {
+                        memcpy(dst, entry->data, BLOCK_SIZE);
+                        return ESUCC;
+                }
+        }
+
         int err = sys_fseek(hdl->disc, cast(i64_t, address) * BLOCK_SIZE, VFS_SEEK_SET);
         if (!err) {
                 size_t rdctr = 0;
                 err = sys_fread(dst, BLOCK_SIZE * blocks, &rdctr, hdl->disc);
                 if (!err and (rdctr != BLOCK_SIZE * blocks)) {
                         err = EIO;
+                }
+
+                if (!err and (blocks == 1)) {
+                        cache_put(hdl, address, dst, 1, true);
                 }
 
                 if (err) {
@@ -1784,6 +1893,9 @@ static int block_write(flatfs_t *hdl, u32_t address, const void *src, size_t blo
                         err = EIO;
                 }
 
+                /* medium state is unknown on error: blocks are removed from cache */
+                cache_put(hdl, address, err ? NULL : src, blocks, (blocks == 1));
+
                 if (err) {
                         DBG("block_write: disc write error %d @ %lu", err, cast(unsigned long, address));
                 }
@@ -1806,13 +1918,17 @@ static int block_write(flatfs_t *hdl, u32_t address, const void *src, size_t blo
 static int mount(flatfs_t *hdl)
 {
         int err = check_first_sector_coherency(hdl);
+        if (err) {
+                DBG("fs descriptor not coherent");
+                return err;
+        }
+
+        err = sys_zalloc(hdl->total_files * sizeof(u16_t), cast(void **, &hdl->name_hash));
         if (!err) {
                 err = check_bitmaps_coherency_and_repair(hdl);
                 if (err) {
                         DBG("fs bitmap not coherent");
                 }
-        } else {
-                DBG("fs descriptor not coherent");
         }
 
         return err;
@@ -2001,6 +2117,8 @@ static int check_bitmaps_coherency_and_repair(flatfs_t *hdl)
                                 }
                         }
 
+                        name_hash_set(hdl, node, file);
+
                 } else {
                         if (pri) {
                                 bmp_pri->word[i] &= ~mask;
@@ -2126,26 +2244,36 @@ static int node_find(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t *b
          */
         bool found = index_find(hdl, name, mode, blk, node_num);
         if (found) {
+                pending_apply(hdl, *node_num, blk);
                 return ESUCC;
         }
 
         /*
-         * Try to find path in storage
+         * Try to find path in storage (nodes with known different name are skipped)
          */
+        u16_t hash = name_hash(name);
+
         foreach_used_file_node(hdl, 0)
         {
+                if (hdl->name_hash[node] and (hdl->name_hash[node] != hash)) {
+                        continue;
+                }
+
                 int err = block_read(hdl, node_get_blkaddr(hdl, node), blk, 1);
                 if (err) {
                         return err;
                 }
 
                 if (check_file_block_coherency(hdl, node, blk) == ESUCC) {
+                        name_hash_set(hdl, node, blk);
+
                         if (isstreq(name, blk->name) and (((blk->mode & S_IFMT) == mode) or (mode == FIND_ANY_NODE))) {
 
                                 DBG("found file '%s' in node %lu in block %lu", name, cast(unsigned long, node),
                                         cast(unsigned long, node_get_blkaddr(hdl, node)));
 
                                 index_add(hdl, node, blk);
+                                pending_apply(hdl, node, blk);
 
                                 *node_num = node;
 
@@ -2181,19 +2309,31 @@ static int node_find_any(flatfs_t *hdl, const char *path, blk_file_t *blk, u32_t
         const char *dir_path = make_dir_path(hdl, path);
 
         if (index_find(hdl, path, FIND_ANY_NODE, blk, node_num) or index_find(hdl, dir_path, S_IFDIR, blk, node_num)) {
+                pending_apply(hdl, *node_num, blk);
                 return ESUCC;
         }
 
+        u16_t hash = name_hash(path);
+        u16_t dir_hash = name_hash(dir_path);
+
         foreach_used_file_node(hdl, 0)
         {
+                u16_t h = hdl->name_hash[node];
+                if (h and (h != hash) and (h != dir_hash)) {
+                        continue;
+                }
+
                 int err = block_read(hdl, node_get_blkaddr(hdl, node), blk, 1);
                 if (err) {
                         return err;
                 }
 
                 if (check_file_block_coherency(hdl, node, blk) == ESUCC) {
+                        name_hash_set(hdl, node, blk);
+
                         if (isstreq(blk->name, path) or (S_ISDIR(blk->mode) and isstreq(blk->name, dir_path))) {
                                 index_add(hdl, node, blk);
+                                pending_apply(hdl, node, blk);
                                 *node_num = node;
                                 return ESUCC;
                         }
@@ -2287,6 +2427,7 @@ static int node_create(flatfs_t *hdl, const char *name, mode_t mode, blk_file_t 
 static int node_remove(flatfs_t *hdl, u32_t node_num)
 {
         index_remove(hdl, node_num);
+        hdl->name_hash[node_num] = 0;
 
         memset(hdl->block[0], 0xFF, sizeof(hdl->block[0]));
 
@@ -2463,14 +2604,18 @@ static u32_t calc_blk_crc(const void *blk)
 //==============================================================================
 static int file_block_read(flatfs_t *hdl, u32_t node_num, blk_file_t *blk)
 {
-        bool found = index_get(hdl, node_num, blk);
-        if (found) {
-                return ESUCC;
+        int err = ESUCC;
+
+        if (not index_get(hdl, node_num, blk)) {
+                err = block_read(hdl, node_get_blkaddr(hdl, node_num), blk, 1);
+                if (!err) {
+                        err = check_file_block_coherency(hdl, node_num, blk);
+                }
         }
 
-        int err = block_read(hdl, node_get_blkaddr(hdl, node_num), blk, 1);
         if (!err) {
-                err = check_file_block_coherency(hdl, node_num, blk);
+                name_hash_set(hdl, node_num, blk);
+                pending_apply(hdl, node_num, blk);
         }
 
         return err;
@@ -2494,11 +2639,209 @@ static int file_block_write(flatfs_t *hdl, u32_t node_num, blk_file_t *blk)
         int err = block_write(hdl, node_get_blkaddr(hdl, node_num), blk, 1);
         if (!err) {
                 index_add(hdl, node_num, blk);
+                name_hash_set(hdl, node_num, blk);
+                pending_set(hdl, node_num, blk->size, blk->mtime, false);
         } else {
                 index_remove(hdl, node_num); // medium state unknown
+                hdl->name_hash[node_num] = 0;
         }
 
         return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Apply deferred size and modification time of file (option async).
+ *
+ * @param  hdl          file system handle
+ * @param  node_num     node number
+ * @param  blk          file block
+ */
+//==============================================================================
+static void pending_apply(flatfs_t *hdl, u32_t node_num, blk_file_t *blk)
+{
+#if __FLATFS_ASYNC_ENABLE__ > 0
+        sys_llist_foreach (file_t *, file, hdl->open_files) {
+                if ((file->node_num == node_num) and file->dirty) {
+                        blk->size = file->size;
+                        blk->mtime = file->mtime;
+                        break; // all handles of node have the same values
+                }
+        }
+#else
+        UNUSED_ARG3(hdl, node_num, blk);
+#endif
+}
+
+//==============================================================================
+/**
+ * @brief  Set deferred size and modification time in all handles of node.
+ *
+ * @param  hdl          file system handle
+ * @param  node_num     node number
+ * @param  size         file size
+ * @param  mtime        modification time
+ * @param  dirty        true: descriptor must be written, false: descriptor written
+ */
+//==============================================================================
+static void pending_set(flatfs_t *hdl, u32_t node_num, u32_t size, u64_t mtime, bool dirty)
+{
+#if __FLATFS_ASYNC_ENABLE__ > 0
+        sys_llist_foreach (file_t *, file, hdl->open_files) {
+                if (file->node_num == node_num) {
+                        file->dirty = dirty;
+                        file->size = size;
+                        file->mtime = mtime;
+                }
+        }
+#else
+        UNUSED_ARG5(hdl, node_num, size, mtime, dirty);
+#endif
+}
+
+//==============================================================================
+/**
+ * @brief  Write deferred file descriptor of file (option async).
+ *
+ * @note   Function uses hdl->block[0] buffer.
+ *
+ * @param  hdl          file system handle
+ * @param  file         file handle
+ *
+ * @return One of errno value (errno.h).
+ */
+//==============================================================================
+static int pending_flush(flatfs_t *hdl, file_t *file)
+{
+#if __FLATFS_ASYNC_ENABLE__ > 0
+        int err = ESUCC;
+
+        if (file->dirty) {
+                blk_file_t *blk = cast(blk_file_t *, hdl->block[0]);
+
+                err = file_block_read(hdl, file->node_num, blk);
+                if (!err) {
+                        err = file_block_write(hdl, file->node_num, blk);
+                }
+        }
+
+        return err;
+#else
+        UNUSED_ARG2(hdl, file);
+        return ESUCC;
+#endif
+}
+
+//==============================================================================
+/**
+ * @brief  Calculate name hash (FNV-1a folded to 16 bits, never 0).
+ *
+ * @param  name         node name
+ *
+ * @return Name hash.
+ */
+//==============================================================================
+static u16_t name_hash(const char *name)
+{
+        u32_t hash = 2166136261u;
+
+        while (*name) {
+                hash = (hash ^ cast(u8_t, *name++)) * 16777619u;
+        }
+
+        hash = (hash >> 16) ^ (hash & 0xFFFF);
+
+        return (hash == 0) ? 1 : hash;
+}
+
+//==============================================================================
+/**
+ * @brief  Store name hash of node.
+ *
+ * @param  hdl          file system handle
+ * @param  node_num     node number
+ * @param  blk          file block
+ */
+//==============================================================================
+static void name_hash_set(flatfs_t *hdl, u32_t node_num, const blk_file_t *blk)
+{
+        hdl->name_hash[node_num] = name_hash(blk->name);
+}
+
+//==============================================================================
+/**
+ * @brief  Find block in cache.
+ *
+ * @param  hdl          file system handle
+ * @param  address      block address
+ *
+ * @return Cache entry or NULL if block is not cached.
+ */
+//==============================================================================
+static cache_t *cache_find(flatfs_t *hdl, u32_t address)
+{
+#if __FLATFS_CACHE_ENABLE__ > 0
+        for (u32_t i = 0; i < hdl->cache_size; i++) {
+                if (hdl->cache[i].address == address) {
+                        hdl->cache[i].used = ++hdl->cache_tick;
+                        return &hdl->cache[i];
+                }
+        }
+
+        return NULL;
+#else
+        UNUSED_ARG2(hdl, address);
+        return NULL;
+#endif
+}
+
+//==============================================================================
+/**
+ * @brief  Update blocks in cache. Only blocks of file nodes are cached (system
+ *         blocks are kept in RAM by file system handle).
+ *
+ * @param  hdl          file system handle
+ * @param  address      first block address
+ * @param  src          data of blocks (NULL: remove blocks from cache)
+ * @param  blocks       number of blocks
+ * @param  add          add not cached block (least recently used entry is used)
+ */
+//==============================================================================
+static void cache_put(flatfs_t *hdl, u32_t address, const void *src, size_t blocks, bool add)
+{
+#if __FLATFS_CACHE_ENABLE__ > 0
+        if (address < hdl->first_file_node_address) {
+                return;
+        }
+
+        for (size_t b = 0; b < blocks; b++) {
+                cache_t *entry = cache_find(hdl, address + b);
+
+                if (not entry and add and src) {
+                        for (u32_t i = 0; i < hdl->cache_size; i++) {
+                                if (not entry or (hdl->cache[i].used < entry->used)) {
+                                        entry = &hdl->cache[i];
+                                }
+                        }
+
+                        if (entry) {
+                                entry->address = address + b;
+                                entry->used = ++hdl->cache_tick;
+                        }
+                }
+
+                if (entry) {
+                        if (src) {
+                                memcpy(entry->data, cast(const u8_t *, src) + (b * BLOCK_SIZE), BLOCK_SIZE);
+                        } else {
+                                entry->address = UINT32_MAX;
+                                entry->used = 0;
+                        }
+                }
+        }
+#else
+        UNUSED_ARG5(hdl, address, src, blocks, add);
+#endif
 }
 
 //==============================================================================
