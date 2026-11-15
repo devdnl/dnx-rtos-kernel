@@ -79,6 +79,7 @@ static ksem_t *wake_sem;
 static const _process_attr_t kworker_attr = {
         .at_init = NULL,
         .at_init_ctx = NULL,
+        .at_exit = NULL,
         .cwd = "/",
         .app_ctx_size = 128,
         .fd_stdin = -1,

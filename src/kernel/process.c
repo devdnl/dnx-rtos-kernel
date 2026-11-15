@@ -103,6 +103,7 @@ typedef struct {
         void *func;
         void (*at_init)(void *);
         void *at_init_ctx;
+        void (*at_exit)(void);
         struct _process *proc;
         task_data_t *task_data;
         void *arg;
@@ -387,6 +388,7 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
                 task_args->task_data = &proc->taskdata[0];
                 task_args->at_init = attr->at_init;
                 task_args->at_init_ctx = attr->at_init_ctx;
+                task_args->at_exit = attr->at_exit;
 
                 proc->taskdata[0].start_args = task_args;
 
@@ -2869,6 +2871,10 @@ static void process_code(void *arg)
 
         process_func_t func = args.func;
         args.task_data->status = func(args.proc->argc, args.proc->argv);
+
+        if (args.at_exit) {
+                args.at_exit();
+        }
 
         _process_exit(args.proc, args.task_data->status);
         _task_suspend(_THIS_TASK);

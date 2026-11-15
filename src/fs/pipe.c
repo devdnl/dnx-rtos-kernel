@@ -49,6 +49,7 @@ struct pipe {
         kqueue_t *queue;
         struct pipe *self;
         u32_t flag;
+        size_t eof_marks;
 };
 
 /*==============================================================================
@@ -87,6 +88,24 @@ static bool is_valid(pipe_t *this)
 {
         return this && this->self == this;
 }
+
+//==============================================================================
+/**
+ * @brief  Check if all data of closed pipe was read (only wake-up bytes left).
+ * @param  this         pipe object
+ * @return true if end of pipe, otherwise false
+ */
+//==============================================================================
+static bool is_end_of_pipe(pipe_t *this)
+{
+        if (this->flag & CLOSED) {
+                size_t noitm = 0;
+                _queue_get_number_of_items(this->queue, &noitm);
+                return noitm <= this->eof_marks;
+        }
+
+        return false;
+}
 #endif
 
 //==============================================================================
@@ -111,6 +130,7 @@ int _pipe_create(pipe_t **pipe)
                         if (err == ESUCC) {
                                 (*pipe)->self = *pipe;
                                 (*pipe)->flag = 0;
+                                (*pipe)->eof_marks = 0;
                         } else {
                                 _kfree(_MM_KRN, cast(void **, pipe));
                         }
@@ -164,7 +184,12 @@ int _pipe_get_length(pipe_t *pipe, size_t *len)
 {
 #if __OS_ENABLE_MKFIFO__ == _YES_
         if (len && is_valid(pipe)) {
-                return _queue_get_number_of_items(pipe->queue, len);
+                int err = _queue_get_number_of_items(pipe->queue, len);
+                if (!err) {
+                        *len = (*len > pipe->eof_marks) ? (*len - pipe->eof_marks) : 0;
+                }
+
+                return err;
         } else {
                 return EINVAL;
         }
@@ -192,20 +217,42 @@ int _pipe_read(pipe_t *pipe, u8_t *buf, size_t count, size_t *rdcnt, bool non_bl
 #if __OS_ENABLE_MKFIFO__ == _YES_
         if (is_valid(pipe) && buf && count) {
 
+                /*
+                 * Wake-up bytes of closed pipe stay in the queue (they are only
+                 * peeked), so all blocked readers are released and none of them
+                 * gets these bytes as data.
+                 */
                 size_t n = 0;
-                for (; n < count; n++) {
+                while (n < count) {
 
-                        size_t noitm = 0;
-                        _queue_get_number_of_items(pipe->queue, &noitm);
-
-                        if ((pipe->flag & CLOSED) && noitm == 0) {
-                                u8_t null = '\0';
-                                _queue_send(pipe->queue, &null, PIPE_WRITE_TIMEOUT);
+                        if (is_end_of_pipe(pipe)) {
                                 break;
                         }
 
-                        u32_t tout = non_blocking || n ? 0 : PIPE_READ_TIMEOUT;
-                        if (_queue_receive(pipe->queue, &buf[n], tout) != ESUCC) {
+                        if (_queue_receive(pipe->queue, &buf[n], 0) == ESUCC) {
+
+                                /* pipe closed between check and receive: wake-up byte received */
+                                if (pipe->eof_marks > 0) {
+                                        size_t noitm = 0;
+                                        _queue_get_number_of_items(pipe->queue, &noitm);
+
+                                        if (noitm < pipe->eof_marks) {
+                                                u8_t nul = '\0';
+                                                _queue_send(pipe->queue, &nul, 0);
+                                                break;
+                                        }
+                                }
+
+                                n++;
+                                continue;
+                        }
+
+                        if (non_blocking || (n > 0)) {
+                                break;
+                        }
+
+                        u8_t byte;
+                        if (_queue_receive_peek(pipe->queue, &byte, PIPE_READ_TIMEOUT) != ESUCC) {
                                 break;
                         }
                 }
@@ -285,8 +332,22 @@ int _pipe_close(pipe_t *pipe)
                 if (not(pipe->flag & PERMANENT)) {
                         pipe->flag |= CLOSED;
 
-                        u8_t nul = '\0';
-                        _queue_send(pipe->queue, &nul, 10);
+                        /*
+                         * Reader blocked on empty pipe is released by wake-up
+                         * byte (it is not data, see _pipe_read()). Pipe with
+                         * data does not need it: reader gets EOF after data.
+                         */
+                        size_t noitm = 0;
+                        _queue_get_number_of_items(pipe->queue, &noitm);
+
+                        if (noitm == 0) {
+                                pipe->eof_marks++;
+
+                                u8_t nul = '\0';
+                                if (_queue_send(pipe->queue, &nul, 10) != ESUCC) {
+                                        pipe->eof_marks--;
+                                }
+                        }
                 }
 
                 return ESUCC;
@@ -312,6 +373,7 @@ int _pipe_clear(pipe_t *pipe)
 {
 #if __OS_ENABLE_MKFIFO__ == _YES_
         if (is_valid(pipe)) {
+                pipe->eof_marks = 0;
                 return _queue_reset(pipe->queue);
         } else {
                 return EINVAL;

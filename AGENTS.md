@@ -361,6 +361,19 @@ repositories, so the interface between them must stay consistent:
   by `thread_join`/`process_wait` (memory is released immediately, a task that
   deletes itself is released only by the idle task). Stress tests of this
   behavior are in the workspace `perf` program (`perf -s`).
+- **Process attributes** (`_process_attr_t` in `src/include/lib/sys/types.h`)
+  match `_syscall_process_attr_t` of the workspace libc (`concurrent.c`):
+  `at_init` (creates stdio streams in the new process) and `at_exit` (called
+  in `process_code()` at return from `main()`, flushes libc stream buffers;
+  `exit()` flushes them in libc before the syscall). Change both sides
+  together.
+- **Pipes and FIFOs** (`src/fs/pipe.c`): a non-permanent pipe closed by
+  `IOCTL_PIPE__CLOSE` (dsh, when the writer of a pipeline finishes) returns
+  remaining data and then EOF (read of 0 bytes) to every reader. A reader
+  blocked on an empty pipe is woken by a byte added at close; such bytes stay
+  in the queue (counted by `eof_marks`, only peeked), are never returned as
+  data and are not counted in the pipe length. `IOCTL_PIPE__CLEAR` removes
+  them.
 - **Command line parsing** (`argument_parse()`/`argtab_create()` in
   `process.c`) follows shell quoting rules and is relied on by `dsh`,
   `system()`, Lua `io.popen()` and configtool's dialog calls. `argc` is

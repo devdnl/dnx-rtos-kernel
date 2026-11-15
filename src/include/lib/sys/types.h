@@ -287,6 +287,7 @@ typedef struct {
 typedef struct {
         void (*at_init)(void *); //!< function called at init before main()
         void *at_init_ctx;       //!< context of at_init function
+        void (*at_exit)(void);   //!< function called at return from main() (e.g. stdio flush)
         const char *cwd;         //!< working directory path
         size_t app_ctx_size;     //!< size of application context object
         int fd_stdin;            //!< stdin file descriptor (major)
