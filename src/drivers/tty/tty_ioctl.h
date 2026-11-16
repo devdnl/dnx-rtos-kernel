@@ -78,6 +78,21 @@ is passed by TTY_config_t type. If input and output paths are the same the
 file is opened once in read/write mode, otherwise input is opened read-only
 and output write-only.
 
+\subsection drv-tty-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_TTY__CONFIGURE_STR, program `modprobe -c`) is a
+list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. All keys are set by each configuration (not given:
+value of column Omitted).
+
+| Key           | Value | Omitted  | Description |
+|---------------|-------|----------|-------------|
+| `input_file`  | path  | not used | input file of terminal (e.g. /dev/ttyS0) |
+| `output_file` | path  | not used | output file of terminal |
+
+@code
+modprobe -c /dev/tty0 input_file=/dev/ttyS0,output_file=/dev/ttyS0
+@endcode
+
 \subsection drv-tty-ddesc-write Data write
 Writing data to device is the same as writing data to regular file.
 
@@ -115,8 +130,8 @@ extern "C" {
 #define IOCTL_TTY__CONFIGURE _IOW(TTY, 0x00, const TTY_config_t *)
 
 /**
- *  @brief  Configure TTY by string: input_file=<path>,output_file=<path>
- *          (file not specified: not used), e.g. "input_file=/dev/ttyS1,output_file=/dev/ttyS1".
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-tty-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
  *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */

@@ -73,6 +73,21 @@ modprobe -i HOSTDISK 4 0 /dev/hd4 -c block_size=512,buffer_align=32
 Requests that do not meet constraints are rejected (EINVAL: position or size
 not aligned to block size, EFAULT: data buffer not aligned).
 
+\subsection drv-hostdisk-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_HOSTDISK__CONFIGURE_STR, program `modprobe -c`)
+is a list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. Keys not given keep current values (initially no
+constraints).
+
+| Key            | Value  | Omitted     | Description |
+|----------------|--------|-------------|-------------|
+| `block_size`   | number | not changed | emulated block size [bytes], requests must be aligned (0 or 1: no constraint) |
+| `buffer_align` | number | not changed | required alignment of data buffer [bytes], power of 2 (0 or 1: no constraint) |
+
+@code
+modprobe -i HOSTDISK 4 0 /dev/hd4 -c block_size=512,buffer_align=32
+@endcode
+
 \subsection drv-hostdisk-ddesc-write Data write
 The same as regular file.
 
@@ -102,9 +117,8 @@ extern "C" {
 #define _HOSTDISK_BLOCK_DEVICE
 
 /**
- *  @brief  Configure emulated constraints by string (not specified parameters
- *          are not changed): block_size=<bytes>,buffer_align=<bytes>, e.g.
- *          "block_size=512,buffer_align=32". Value 0 or 1 disables constraint.
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-hostdisk-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
  *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */

@@ -63,6 +63,23 @@ driver_release("PART", 1, 0);
 \subsection drv-part-ddesc-cfg Driver configuration
 Driver can be configured by using IOCTL_PART__CONFIGURE ioctl request.
 
+\subsection drv-part-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_PART__CONFIGURE_STR, program `modprobe -c`) is
+a list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. All keys are set by each configuration (not given:
+value of column Omitted).
+
+| Key             | Value  | Omitted  | Description |
+|-----------------|--------|----------|-------------|
+| `path`          | path   | required | block device file (e.g. /dev/sda) |
+| `block_size`    | number | 512      | block size [bytes] |
+| `offset_blocks` | number | 0        | offset of partition [blocks] |
+| `total_blocks`  | number | 0        | size of partition [blocks]; offset and size can be set from MBR by IOCTL_PART__READ_MBR |
+
+@code
+modprobe -i PART 0 1 /dev/sda1 -c path=/dev/sda,offset_blocks=2048,total_blocks=65536
+@endcode
+
 \subsection drv-part-ddesc-write Data write
 The same as regular file.
 
@@ -135,10 +152,8 @@ extern "C" {
 #define IOCTL_PART__CONFIGURE _IOW(PART, 0x00, const PART_config_t *)
 
 /**
- *  @brief  Configure partition by string: path=<device>,block_size=<bytes>,
- *          offset_blocks=<n>,total_blocks=<n> (block_size default 512, offset_blocks and
- *          total_blocks default 0: partition can be configured from MBR by
- *          IOCTL_PART__READ_MBR), e.g. "path=/dev/sda,offset_blocks=2048,total_blocks=65536".
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-part-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
  *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */

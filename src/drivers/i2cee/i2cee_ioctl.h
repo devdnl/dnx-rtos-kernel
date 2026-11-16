@@ -116,6 +116,23 @@ if (dev) {
 
 \endcode
 
+\subsection drv-i2cee-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_I2CEE__CONFIGURE_STR, program `modprobe -c`) is
+a list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. All keys are set by each configuration (not given:
+value of column Omitted).
+
+| Key                 | Value  | Omitted  | Description |
+|---------------------|--------|----------|-------------|
+| `i2c_path`          | path   | required | I2C device file of the memory (sub-address mode set as for memory) |
+| `memory_size`       | number | required | memory size [bytes] |
+| `page_size`         | number | required | page size [bytes] |
+| `page_prog_time_ms` | number | 0        | page write time [ms] waited after page write (0: acknowledge polling only) |
+
+@code
+modprobe -i I2CEE 0 0 /dev/24c256 -c i2c_path=/dev/i2c-ee,memory_size=32768,page_size=64,page_prog_time_ms=5
+@endcode
+
 \subsection drv-i2cee-ddesc-write Data write
 Data to the driver can be write in the same way as regular file. Driver automatically
 handles page segmentation and programming time. Data can be not aligned to
@@ -154,9 +171,10 @@ extern "C" {
 #define IOCTL_I2CEE__CONFIGURE _IOW(I2CEE, 0x00, I2CEE_config_t *)
 
 /**
- * @brief  I2C EEPROM driver configuration by using string.
- * @param  [WR] const char*             configuration string
- * @return On success 0 is returned, otherwise -1 and @ref errno code is set.
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-i2cee-ddesc-cfgstr.
+ *  @param  [WR] const char * configuration string
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */
 #define IOCTL_I2CEE__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 

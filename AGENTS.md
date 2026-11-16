@@ -85,6 +85,14 @@ If the toolchain is not available in your environment, do not install a
 different GCC or modify the Makefiles to work around it. Say that the build
 could not be verified.
 
+`tools/cfgstr_check.py` checks that every key of driver configuration strings
+(`sys_opt_get_*(opts, "<key>", ...)` in driver sources) is described in the
+table of section "Configuration string" (`\subsection drv-<drv>-ddesc-cfgstr`)
+of `<drv>_ioctl.h`, and that the table has no other keys; `tools/tests.sh` runs
+it first. A driver with `IOCTL_<DRV>__CONFIGURE_STR` must have the table
+(columns Key, Value, Omitted, Description; value notation and syntax in
+`IOCTL_DEVICE__CONFIGURE_STR`).
+
 `tools/tests.sh` builds the kernel for every configuration in
 `tools/test_bsp/` (stm32f1, stm32f3, stm32f4, stm32f7, stm32h7, rpcm0 and
 drvset variants `stm32h7+stm32h7-drvset`, `rpcm0+drvset`: test configuration

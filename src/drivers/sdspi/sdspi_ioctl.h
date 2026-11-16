@@ -114,6 +114,21 @@ if (dev) {
 @endcode
 
 
+\subsection drv-sdspi-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_SDSPI__CONFIGURE_STR, program `modprobe -c`) is
+a list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. All keys are set by each configuration (not given:
+value of column Omitted).
+
+| Key        | Value  | Omitted  | Description |
+|------------|--------|----------|-------------|
+| `spi_path` | path   | required | SPI device file of card |
+| `timeout`  | number | 1000     | timeout of card operations [ms] (> 0) |
+
+@code
+modprobe -i SDSPI 0 0 /dev/sdcard -c spi_path=/dev/spi-sd
+@endcode
+
 \subsection drv-sdspi-ddesc-write Data write
 Writing data to device is the same as writing data to regular file.
 
@@ -202,12 +217,10 @@ extern "C" {
 #define IOCTL_SDSPI__INITIALIZE_CARD IOCTL_STORAGE__INITIALIZE
 
 /**
- *  @brief  SDSPI configuration by string: "spi_path=<SPI file>,timeout=<ms>"
- *          (timeout is optional, default 1000 ms), e.g. from shell:
- *          modprobe -i SDSPI 0 0 /dev/sda -c spi_path=/dev/spi_sda
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-sdspi-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
- *  @return On success 0 is returned.
- *          On error -1 is returned and @ref errno is set.
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */
 #define IOCTL_SDSPI__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 

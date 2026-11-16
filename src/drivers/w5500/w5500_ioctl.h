@@ -55,19 +55,27 @@ driver_release("W5500", 0, 0);
 @endcode
 
 \subsection drv-w5500-ddesc-cfg Driver configuration
-Configuration string (modprobe -c, IOCTL_W5500__CONFIGURE_STR):
-\li spi_path=<file> - SPI device file (required),
-\li reset_port=<n>, reset_pin=<n> - GPIO output connected to RSTn pin
-    (optional, hardware reset at start).
-
-@code
-modprobe -i W5500 0 0 /dev/eth0 -c spi_path=/dev/spi-eth
-@endcode
-
 The interface is started as other Ethernet interfaces: @ref IOCTL_ETHIF__CONFIGURE
 (MAC address, speed, duplex, auto-negotiation), @ref IOCTL_ETHIF__START (e.g.
 by netmgr: <tt>path = /dev/eth0</tt> in netmgr.conf). The chip is identified
 by version register (ENODEV: no chip) at start.
+
+\subsection drv-w5500-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_W5500__CONFIGURE_STR, program `modprobe -c`) is
+a list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. All keys are set by each configuration (not given:
+value of column Omitted). Configuration is possible only when interface is
+stopped (EBUSY).
+
+| Key          | Value  | Omitted  | Description |
+|--------------|--------|----------|-------------|
+| `spi_path`   | path   | required | SPI device file of the chip (used at IOCTL_ETHIF__START) |
+| `reset_port` | number | not used | GPIO port index of RSTn pin (hardware reset at start), used with reset_pin |
+| `reset_pin`  | number | not used | GPIO pin index of RSTn pin |
+
+@code
+modprobe -i W5500 0 0 /dev/eth0 -c spi_path=/dev/spi-eth,reset_port=1,reset_pin=10
+@endcode
 
 \subsection drv-w5500-ddesc-write Data write
 Write of the file sends one frame (14..1514 bytes, without FCS).
@@ -104,9 +112,10 @@ extern "C" {
 #define IOCTL_W5500__CONFIGURE _IOW(W5500, 0x00, const W5500_config_t *)
 
 /**
- * @brief  Configure driver by configuration string.
- * @param  [WR] const char * configuration string
- * @return On success 0 is returned, otherwise -1 and @ref errno is set.
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-w5500-ddesc-cfgstr.
+ *  @param  [WR] const char * configuration string
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */
 #define IOCTL_W5500__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 

@@ -63,6 +63,22 @@ driver_release("TIMENC", 0, 1);
 \subsection drv-timenc-ddesc-cfg Driver configuration
 \todo Driver configuration
 
+\subsection drv-timenc-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_TIMENC__CONFIGURE_STR, program `modprobe -c`)
+is a list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. Keys not given keep current values.
+
+| Key      | Value  | Omitted     | Description |
+|----------|--------|-------------|-------------|
+| `a_port` | number | not changed | GPIO port index of input A |
+| `a_pin`  | number | not changed | GPIO pin index of input A |
+| `b_port` | number | not changed | GPIO port index of input B |
+| `b_pin`  | number | not changed | GPIO pin index of input B |
+
+@code
+modprobe -c /dev/enc0 a_port=0,a_pin=8,b_port=0,b_pin=9
+@endcode
+
 \subsection drv-timenc-ddesc-write Data write
 \todo Data write
 
@@ -97,9 +113,8 @@ extern "C" {
 #define IOCTL_TIMENC__CONFIGURE _IOW(TIMENC, 0x00, const TIMENC_config_t *)
 
 /**
- *  @brief  Configure encoder by string (not specified parameters are not
- *          changed): a_port=<n>,a_pin=<n>,b_port=<n>,b_pin=<n> (GPIO port and pin
- *          indexes of A and B inputs), e.g. "a_port=0,a_pin=8,b_port=0,b_pin=9".
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-timenc-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
  *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */

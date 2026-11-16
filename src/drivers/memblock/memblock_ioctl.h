@@ -91,6 +91,21 @@ if (dev) {
       perror(dev_path);
 }
 
+\subsection drv-memblock-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_MEMBLOCK__CONFIGURE_STR, program `modprobe -c`)
+is a list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. Keys not given keep current values.
+
+| Key              | Value                      | Omitted     | Description |
+|------------------|----------------------------|-------------|-------------|
+| `memory_address` | number                     | not changed | address of memory region, e.g. 0x20010000 |
+| `block_size`     | number                     | not changed | size of memory region [bytes] |
+| `access`         | `rdonly`, `wronly`, `rdwr` | not changed | access mode |
+
+@code
+modprobe -i MEMBLOCK 0 0 /dev/mem0 -c memory_address=0x20010000,block_size=4096,access=rdwr
+@endcode
+
 \subsection drv-memblock-ddesc-write Data write
 The same as to regular file.
 
@@ -127,9 +142,8 @@ extern "C" {
 #define IOCTL_MEMBLOCK__SET_CONFIGURATION _IOW(MEMBLOCK, 0x00, const MEMBLOCK_config_t *)
 
 /**
- *  @brief  Set memory block configuration by string (not specified parameters
- *          are not changed): memory_address=<address>,block_size=<bytes>,
- *          access=rdonly|wronly|rdwr, e.g. "memory_address=0x90000000,block_size=512,access=rdonly".
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-memblock-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
  *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */

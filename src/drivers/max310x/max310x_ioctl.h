@@ -92,32 +92,46 @@ Driver is configured by IOCTL_MAX310X__CONFIGURE (structure MAX310X_config_t)
 or by string (IOCTL_MAX310X__CONFIGURE_STR, modprobe -c). Configuration of
 UART resets the UART (data in FIFOs and buffers are lost), configuration of
 UART 0 resets also the chip (pin RST) and configures again other UARTs.
-Keys of configuration string (keys of interface and chip that are not
-specified are taken from the previous configuration, other keys have default
-values):
-\li path=<file> - SPI or I2C device file (required, UART 1 on SPI uses the
-    file of UART 0),
-\li interface=spi|i2c - interface (default spi),
-\li chip=max3107|max3108|max3109 - type of chip (UART 0, default max3107),
-\li clock=<Hz> - frequency of reference clock on pin XIN (UART 0, required),
-\li crystal=0|1 - crystal on XIN/XOUT instead of external clock (UART 0, default 0),
-\li reset_port=<n>,reset_pin=<n> - GPIO pin connected to RST (UART 0, active low, optional),
-\li irq_port=<n>,irq_pin=<n> - GPIO pin connected to IRQ (UART 0, active low, optional),
-\li baud=<bps> - baud rate (default 115200),
-\li parity=off|odd|even - parity (default off),
-\li stop_bits=1|2 - stop bits (default 1),
-\li word_length=5|6|7|8 - number of data bits (default 8),
-\li tx_enable=0|1, rx_enable=0|1 - transmitter and receiver enable (default 1),
-\li tx_invert=0|1, rx_invert=0|1 - logic inversion of TX and RX pins (default 0),
-\li hw_flow_ctrl=0|1 - automatic RTS/CTS flow control (default 0),
-\li flow_halt=<words>,flow_resume=<words> - RX FIFO levels of RTS flow control
-    (multiple of 8, resume level lower than halt level, default 96 and 32),
-\li rs485=0|1 - RTS controls transceiver direction (half duplex, default 0),
-\li echo_suppress=0|1 - received data are ignored while transmitting (default 0),
-\li loopback=0|1 - internal loopback TX to RX (default 0),
-\li rx_buffer=<bytes>,tx_buffer=<bytes> - size of buffers in RAM (default
-    256 and 128; can be changed when the device file is not open by other
-    files than the configuring one).
+
+\subsection drv-max310x-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_MAX310X__CONFIGURE_STR, program `modprobe -c`)
+is a list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. Keys of chip (chip, interface, clock, crystal,
+reset and IRQ pins) not given keep current values, other keys not given are set
+to values of column Omitted. Keys marked UART 0 configure the chip (used only by
+configuration of UART 0).
+
+| Key             | Value                           | Omitted             | Description |
+|-----------------|---------------------------------|---------------------|-------------|
+| `path`          | path                            | SPI: file of UART 0 | SPI or I2C device file of UART (required for UART 0 and for UART 1 on I2C) |
+| `interface`     | `spi`, `i2c`                    | not changed         | interface of the chip (initial spi) |
+| `chip`          | `max3107`, `max3108`, `max3109` | not changed         | type of chip, UART 0 (initial max3107) |
+| `clock`         | number                          | not changed         | frequency of reference clock on XIN [Hz], UART 0 (required) |
+| `crystal`       | bool                            | not changed         | crystal on XIN/XOUT (0: external clock), UART 0 |
+| `reset_port`    | number                          | not used            | GPIO port index of RST pin (active low), UART 0, used with reset_pin |
+| `reset_pin`     | number                          | not used            | GPIO pin index of RST pin |
+| `irq_port`      | number                          | not used            | GPIO port index of IRQ pin (IRQ driver), UART 0, used with irq_pin |
+| `irq_pin`       | number                          | not used            | GPIO pin index of IRQ pin (EXTI line) |
+| `baud`          | number                          | 115200              | baud rate [bps] |
+| `word_length`   | `5..8`                          | 8                   | number of data bits |
+| `parity`        | `off`, `odd`, `even`            | off                 | parity |
+| `stop_bits`     | `1`, `2`                        | 1                   | stop bits (2: 1.5 for 5 data bits) |
+| `tx_enable`     | bool                            | 1                   | transmitter enabled |
+| `rx_enable`     | bool                            | 1                   | receiver enabled |
+| `tx_invert`     | bool                            | 0                   | TX pin logic inversion |
+| `rx_invert`     | bool                            | 0                   | RX pin logic inversion |
+| `hw_flow_ctrl`  | bool                            | 0                   | automatic RTS/CTS flow control |
+| `flow_halt`     | number                          | 96                  | RX FIFO level that deactivates RTS [words, multiple of 8] |
+| `flow_resume`   | number                          | 32                  | RX FIFO level that activates RTS [words, multiple of 8, lower than flow_halt] |
+| `rs485`         | bool                            | 0                   | RTS controls transceiver direction (half duplex) |
+| `echo_suppress` | bool                            | 0                   | received data ignored while transmitting |
+| `loopback`      | bool                            | 0                   | internal loopback TX to RX |
+| `rx_buffer`     | number                          | 256                 | size of RX buffer in RAM [bytes], changed only when the file is not open by other files |
+| `tx_buffer`     | number                          | 128                 | size of TX buffer in RAM [bytes], changed only when the file is not open by other files |
+
+@code
+modprobe -i MAX310X 0 0 /dev/ttyM0 -c path=/dev/spi-uart,chip=max3109,clock=3686400,baud=9600
+@endcode
 
 \subsection drv-max310x-ddesc-write Data write
 Data are written to the TX buffer and transmitted by the thread. A blocking
@@ -165,7 +179,8 @@ extern "C" {
 #define IOCTL_MAX310X__GET_CONFIGURATION _IOR(MAX310X, 0x01, MAX310X_config_t *)
 
 /**
- *  @brief  Set UART configuration by string (keys in driver description).
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-max310x-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
  *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */

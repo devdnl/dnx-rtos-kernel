@@ -36,6 +36,11 @@ switch_to_bsp()
     done
 }
 
+# documentation of driver configuration strings (keys parsed by drivers)
+if command -v python3 >/dev/null; then
+    python3 ./tools/cfgstr_check.py
+fi
+
 for bsp in stm32f1 stm32f3 stm32f4 stm32f7 stm32h7 rpcm0 stm32h7+stm32h7-drvset rpcm0+drvset; do
     switch_to_bsp "$bsp"
     make all

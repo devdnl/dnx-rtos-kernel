@@ -64,6 +64,20 @@ driver_release("FBRIDGE", 0, 1);
 \subsection drv-fbridge-ddesc-cfg Driver configuration
 \todo Driver configuration
 
+\subsection drv-fbridge-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_FBRIDGE__CONFIGURE_STR, program `modprobe -c`)
+is a list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR.
+
+| Key          | Value | Omitted  | Description |
+|--------------|-------|----------|-------------|
+| `read_path`  | path  | required | file read by read() of the bridge |
+| `write_path` | path  | required | file written by write() of the bridge |
+
+@code
+modprobe -i FBRIDGE 0 0 /dev/bridge -c read_path=/dev/ttyS1,write_path=/dev/ttyS2
+@endcode
+
 \subsection drv-fbridge-ddesc-write Data write
 \todo Data write
 
@@ -97,8 +111,8 @@ extern "C" {
 #define IOCTL_FBRIDGE__CONFIGURE _IOW(FBRIDGE, 0x00, const FBRIDGE_conf_t *)
 
 /**
- *  @brief  Configure file bridge by string: read_path=<path>,write_path=<path>,
- *          e.g. "read_path=/dev/ttyS1,write_path=/dev/ttyS2".
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-fbridge-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
  *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */

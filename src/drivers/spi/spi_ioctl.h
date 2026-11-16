@@ -80,17 +80,8 @@ driver_release("SPI", 0, 1);
 @endcode
 
 \subsection drv-spi-ddesc-cfg Driver configuration
-Device can be also configured by configuration string (all parameters are
-optional, not specified parameters are not changed):
-@code
-ioctl(fileno(dev), IOCTL_SPI__CONFIGURE_STR, "clk_divider=1,mode=0,msb_first=1,cs_port=0,cs_pin=4,cs_reverse=0");
-@endcode
-where clk_divider is @ref SPI_clk_div value (0: divided by 2, 1: by 4, ...),
-mode is @ref SPI_mode value (0..3), cs_port and cs_pin select Chip Select pin
-(GPIO port and pin index, 255: CS not used). From shell:
-@code
-modprobe -i SPI 0 0 /dev/spi-ee -c cs_port=0,cs_pin=4
-@endcode
+Device can be also configured by configuration string
+(@ref drv-spi-ddesc-cfgstr).
 
 Driver configuration should be done before usage and after initialization.
 The best place to do this is user application. To configure particular SPI
@@ -131,6 +122,24 @@ Flush Byte have not any meaning if write procedure is used.
 
 <tt>MOSI: [ 0xFF ][ 0xFF ][ 0xFF ][ 0xFF ][ 0xFF ]</tt> -> Flush bytes@n
 <tt>MISO: [DATA_0][DATA_1][DATA_2][DATA_3][DATA_n]</tt> -> Data frames read by fread()
+
+\subsection drv-spi-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_SPI__CONFIGURE_STR, program `modprobe -c`) is a
+list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. Keys not given keep current values.
+
+| Key           | Value  | Omitted     | Description |
+|---------------|--------|-------------|-------------|
+| `clk_divider` | `0..7` | not changed | peripheral clock divider: 0: /2, 1: /4, 2: /8 .. 7: /256 (SPI_CLK_DIV__*) |
+| `mode`        | `0..3` | not changed | SPI mode (clock polarity and phase) |
+| `msb_first`   | bool   | not changed | MSb first (0: LSb first) |
+| `cs_port`     | number | not changed | GPIO port index of chip select (255: CS not used) |
+| `cs_pin`      | number | not changed | GPIO pin index of chip select (255: CS not used) |
+| `cs_reverse`  | bool   | not changed | chip select active high |
+
+@code
+modprobe -i SPI 0 1 /dev/spi-ee -c mode=0,cs_port=0,cs_pin=4
+@endcode
 
 \subsection drv-spi-ddesc-write Data write
 Data to a SPI device can be wrote as regular file, but there are some
@@ -375,11 +384,10 @@ extern "C" {
 #define IOCTL_SPI__TRANSMIT_NO_SELECT _IOW(SPI, 0x05, const u8_t *)
 
 /**
- *  @brief  Set SPI configuration by string, e.g. "mode=0,cs_port=0,cs_pin=4".
- *          Parameters: clk_divider, mode, msb_first, cs_port, cs_pin,
- *          cs_reverse; not specified parameters are not changed.
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-spi-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
- *  @return On success 0 is returned, otherwise -1.
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */
 #define IOCTL_SPI__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 

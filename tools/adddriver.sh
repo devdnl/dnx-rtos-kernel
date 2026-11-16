@@ -89,6 +89,12 @@ driver_release("${DRVNAME^^}", 0, 1);
 \subsection drv-${DRVNAME}-ddesc-cfg Driver configuration
 \todo Driver configuration
 
+\note If the driver handles request IOCTL_${DRVNAME^^}__CONFIGURE_STR, keys of the
+      configuration string are described in subsection
+      drv-${DRVNAME}-ddesc-cfgstr "Configuration string" (table: Key, Value,
+      Omitted, Description; see other drivers, e.g. uart_ioctl.h). The table
+      is checked by tools/cfgstr_check.py.
+
 \subsection drv-${DRVNAME}-ddesc-write Data write
 \todo Data write
 

@@ -74,6 +74,27 @@ The default driver values should be configured in project configuration (Configt
 Runtime configuration should be always done at system startup or later in
 application. In this case the ioctl() function should be used and UART_config_t object.
 
+\subsection drv-uart-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_UART__CONFIGURE_STR, program `modprobe -c`) is
+a list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. Keys not given keep current values.
+
+| Key            | Value                    | Omitted     | Description |
+|----------------|--------------------------|-------------|-------------|
+| `baud`         | number                   | not changed | baud rate [bps] (> 0) |
+| `parity`       | `off`, `odd`, `even`     | not changed | parity |
+| `stop_bits`    | `1`, `2`                 | not changed | stop bits |
+| `mode`         | `normal`, `lin`, `rs485` | not changed | UART mode |
+| `tx_enable`    | bool                     | not changed | transmitter enabled |
+| `rx_enable`    | bool                     | not changed | receiver enabled |
+| `single_wire`  | bool                     | not changed | single wire (half duplex) mode, bit UART_FEATURE__SINGLE_WIRE |
+| `hw_flow_ctrl` | bool                     | not changed | hardware flow control RTS/CTS, bit UART_FEATURE__HARDWARE_FLOW_CTRL |
+| `features`     | number                   | not changed | all UART_FEATURE__* flags as number (single_wire and hw_flow_ctrl are applied after) |
+
+@code
+modprobe -c /dev/ttyS1 baud=115200,parity=even
+@endcode
+
 \subsection drv-uart-ddesc-write Data write
 Writing data to device is the same as writing data to regular file.
 File position is ignored because device handle stream.
@@ -114,10 +135,8 @@ extern "C" {
 #define IOCTL_UART__SET_CONFIGURATION _IOW(UART, 0x00, struct UART_config *)
 
 /**
- *  @brief  Set UART configuration by string (not specified parameters are not
- *          changed): mode=normal|lin|rs485, parity=off|odd|even, stop_bits=1|2,
- *          tx_enable=0|1, rx_enable=0|1, baud=<bps>, features=<UART_FEATURE__ flags>,
- *          single_wire=0|1, hw_flow_ctrl=0|1, e.g. "baud=9600,parity=even".
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-uart-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
  *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */

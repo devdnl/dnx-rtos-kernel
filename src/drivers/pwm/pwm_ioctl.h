@@ -72,6 +72,21 @@ Driver can be configured by using IOCTL_PWM__SET_CONFIGURATION or IOCTL_PWM__AUT
 The first one set timer configuration defined by user. The second one automatically
 set timer configuration to achieve output frequency and <i>top</i> value defined by user.
 
+\subsection drv-pwm-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_PWM__CONFIGURE_STR, program `modprobe -c`) is a
+list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. Keys not given keep current values (common for all
+channels of the timer).
+
+| Key         | Value      | Omitted     | Description |
+|-------------|------------|-------------|-------------|
+| `prescaler` | `1..65536` | not changed | timer clock divider |
+| `reload`    | `0..65535` | not changed | timer reload (top), fpwm = ftim / prescaler / (reload + 1) |
+
+@code
+modprobe -c /dev/pwm1 prescaler=72,reload=999
+@endcode
+
 \subsection drv-pwm-ddesc-write Data write
 Write data to set PWM output value.
 
@@ -146,8 +161,8 @@ extern "C" {
 #define IOCTL_PWM__SET_CONFIGURATION _IOW(PWM, 0x00, const PWM_config_t *)
 
 /**
- *  @brief  Set PWM configuration by string (not specified parameters are not
- *          changed): reload=<n>,prescaler=<n>, e.g. "reload=1000,prescaler=72".
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-pwm-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
  *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */

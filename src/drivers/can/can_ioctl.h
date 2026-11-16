@@ -135,6 +135,32 @@ if (f) {
 @endcode
 
 
+\subsection drv-can-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_CAN__CONFIGURE_STR, program `modprobe -c`) is a
+list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. All keys are set by each configuration (not given:
+value of column Omitted).
+
+| Key                   | Value  | Omitted   | Description |
+|-----------------------|--------|-----------|-------------|
+| `sjw`                 | number | required  | resynchronization jump width of nominal bit rate (1..n) |
+| `ts1`                 | number | required  | time segment 1 of nominal bit rate (1..n) |
+| `ts2`                 | number | required  | time segment 2 of nominal bit rate (1..n) |
+| `prescaler`           | number | required  | prescaler of nominal bit rate (1..n), baud = fPCLK / (prescaler * (1 + ts1 + ts2)) |
+| `data_sjw`            | number | sjw       | resynchronization jump width of data bit rate (CAN FD) |
+| `data_ts1`            | number | ts1       | time segment 1 of data bit rate (CAN FD) |
+| `data_ts2`            | number | ts2       | time segment 2 of data bit rate (CAN FD) |
+| `data_prescaler`      | number | prescaler | prescaler of data bit rate (CAN FD) |
+| `loopback`            | bool   | 0         | loopback mode (test) |
+| `silent`              | bool   | 0         | silent mode (no transmission) |
+| `auto_bus_off`        | bool   | 0         | automatic bus-off management |
+| `auto_wake_up`        | bool   | 0         | automatic wake-up mode |
+| `auto_retransmission` | bool   | 0         | automatic retransmission |
+
+@code
+modprobe -c /dev/can0 auto_retransmission=1,sjw=1,ts1=13,ts2=2,prescaler=6
+@endcode
+
 \subsection drv-can-ddesc-write Data write
 There are two possible methods for data write operation: by using fwrite() and
 by using ioctl() functions. By using fwrite() function is possibility to send
@@ -299,11 +325,8 @@ extern "C" {
 #define IOCTL_CAN__CONFIGURE _IOW(CAN, 0x00, const CAN_config_t *)
 
 /**
- *  @brief  Configure CAN by string: loopback, silent, auto_bus_off,
- *          auto_wake_up, auto_retransmission (0|1, default 0), sjw, ts1, ts2,
- *          prescaler (nominal bit rate, required), data_sjw, data_ts1, data_ts2,
- *          data_prescaler (FD data bit rate, default: nominal values),
- *          e.g. "auto_retransmission=1,sjw=1,ts1=13,ts2=2,prescaler=6".
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-can-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
  *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */

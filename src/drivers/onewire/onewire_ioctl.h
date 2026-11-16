@@ -60,17 +60,6 @@ driver_init("ONEWIRE", 0, 0, "/dev/ow0");
 driver_release("ONEWIRE", 0, 0);
 @endcode
 
-\subsection drv-onewire-ddesc-cfg Driver configuration
-Configuration string (modprobe -c, IOCTL_ONEWIRE__CONFIGURE_STR):
-\li path=<file> - UART device file (required), UART is configured by the
-    driver (8N1, baud rate),
-\li single_wire=0|1 - UART in single wire (half duplex) mode, default 0,
-\li spu_port=<n>, spu_pin=<n> - GPIO output of strong pull-up (active high).
-
-@code
-modprobe -i ONEWIRE 0 0 /dev/ow0 -c path=/dev/ttyS2
-@endcode
-
 \subsection drv-onewire-ddesc-use Bus operations
 @code
 #include <stdio.h>
@@ -93,6 +82,23 @@ ONEWIRE_transfer_t r = {.rom = search.rom, .tx = "\xBE", .tx_len = 1,
                         .rx = scratchpad, .rx_len = sizeof(scratchpad)};
 ioctl(fd, IOCTL_ONEWIRE__TRANSFER, &r);
 close(fd);
+@endcode
+
+\subsection drv-onewire-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_ONEWIRE__CONFIGURE_STR, program `modprobe -c`)
+is a list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. All keys are set by each configuration (not given:
+value of column Omitted).
+
+| Key           | Value  | Omitted  | Description |
+|---------------|--------|----------|-------------|
+| `path`        | path   | required | UART device file, configured by the driver (8N1, 9600 and 115200 bps) |
+| `single_wire` | bool   | 0        | UART in single wire (half duplex) mode |
+| `spu_port`    | number | not used | GPIO port index of strong pull-up output (active high), used with spu_pin |
+| `spu_pin`     | number | not used | GPIO pin index of strong pull-up output |
+
+@code
+modprobe -i ONEWIRE 0 0 /dev/ow0 -c path=/dev/ttyS2,spu_port=1,spu_pin=8
 @endcode
 
 \subsection drv-onewire-ddesc-write Data write
@@ -154,9 +160,10 @@ extern "C" {
 #define IOCTL_ONEWIRE__TRANSFER _IOWR(ONEWIRE, 0x03, ONEWIRE_transfer_t *)
 
 /**
- *  @brief  Configure bus by configuration string.
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-onewire-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
- *  @return On success 0 is returned, otherwise -1 and errno is set.
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */
 #define IOCTL_ONEWIRE__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 

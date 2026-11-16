@@ -90,6 +90,20 @@ if (dev) {
 ...
 @endcode
 
+\subsection drv-dht11-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_DHT11__CONFIGURE_STR, program `modprobe -c`) is
+a list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. Keys not given keep current values.
+
+| Key    | Value  | Omitted     | Description |
+|--------|--------|-------------|-------------|
+| `port` | number | not changed | GPIO port index of data pin (0: PA, 1: PB, ...) |
+| `pin`  | number | not changed | GPIO pin index of data pin |
+
+@code
+modprobe -c /dev/dht11 port=0,pin=5
+@endcode
+
 \subsection drv-dht11-ddesc-write Data write
 There is no possibility to write any data to the device.
 
@@ -157,8 +171,8 @@ extern "C" {
 #define IOCTL_DHT11__CONFIGURE _IOW(DHT11, 0, const DHT11_config_t *)
 
 /**
- *  @brief  Configure DHT11 by string (not specified parameters are not changed):
- *          port=<GPIO port index>,pin=<GPIO pin index>, e.g. "port=0,pin=5".
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-dht11-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
  *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */

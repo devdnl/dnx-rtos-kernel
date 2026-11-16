@@ -62,6 +62,11 @@ The hardware requirements depends on the user's configuration.
 
 ## Drivers
 Architecture independent (`noarch`) drivers are available on every platform.
+Drivers are configured by structures (`IOCTL_<DRIVER>__CONFIGURE`) or by
+configuration strings (`modprobe -c <node> key=value,key=value`): keys, values
+and behavior of omitted keys of each driver are described in section
+"Configuration string" of `src/drivers/<driver>/<driver>_ioctl.h`, the common
+syntax in `IOCTL_DEVICE__CONFIGURE_STR` (`src/include/drivers/class/device/ioctl.h`).
 
 | Driver   | Description                          | Architectures |
 |----------|--------------------------------------|---------------|
@@ -156,7 +161,8 @@ Other targets:
 - `make clean` – remove build files,
 - `make doc` – create Doxygen documentation,
 - `make check`, `make quickcheck` – static code analysis by using cppcheck,
-- `./tools/tests.sh` – build the kernel for all test configurations
+- `./tools/tests.sh` – check documentation of driver configuration strings
+  (`tools/cfgstr_check.py`) and build the kernel for all test configurations
   (`tools/test_bsp`, also configurations with drvset partition support);
   the current configuration is restored afterwards,
 - `make help` – list of all targets.

@@ -68,14 +68,17 @@ driver_init("ADC", 0, 0, "/dev/adc0");
 driver_release("ADC", 0, 0);
 @endcode
 
-\subsection drv-adc-ddesc-cfg Driver configuration
-Configuration string (modprobe -c, IOCTL_ADC__CONFIGURE_STR):
-\li resolution=<bits> - resolution, 0 (default): maximal,
-\li sample_time_ns=<ns> - minimal sample time (default 10000),
-\li oversampling=<n> - number of averaged samples, 1..1024, power of 2
-    (default 1),
-\li vref_mv=<mV> - voltage of reference (default 3300), used to calculate
-    voltage of measurement and temperature.
+\subsection drv-adc-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_ADC__CONFIGURE_STR, program `modprobe -c`) is a
+list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. Keys not given keep current values.
+
+| Key              | Value  | Omitted     | Description |
+|------------------|--------|-------------|-------------|
+| `resolution`     | number | not changed | resolution [bits], 0: maximal (initial 0) |
+| `sample_time_ns` | number | not changed | minimal sample time [ns], the nearest longer time of the converter is used (initial 10000) |
+| `oversampling`   | number | not changed | number of averaged samples: 1, 2, 4 .. 1024 (initial 1) |
+| `vref_mv`        | number | not changed | reference voltage [mV] used to calculate voltage and temperature (initial 3300) |
 
 @code
 modprobe -i ADC 0 0 /dev/adc0 -c resolution=12,sample_time_ns=5000,oversampling=16
@@ -167,9 +170,10 @@ extern "C" {
 #define IOCTL_ADC__READ_TEMPERATURE _IOR(ADC, 0x04, i32_t *)
 
 /**
- *  @brief  Configure converter by configuration string.
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-adc-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
- *  @return On success 0 is returned, otherwise -1 and errno is set.
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */
 #define IOCTL_ADC__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 

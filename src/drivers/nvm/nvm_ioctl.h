@@ -95,6 +95,21 @@ Start sector is a sector from driver handles memory. This is the offset at
 entire NVM memory block. After configuration all sectors are relative to selected
 one.
 
+\subsection drv-nvm-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_NVM__CONFIGURE_STR, program `modprobe -c`) is a
+list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. All keys are set by each configuration (not given:
+value of column Omitted).
+
+| Key                 | Value  | Omitted  | Description |
+|---------------------|--------|----------|-------------|
+| `start_sector`      | number | 0        | first flash sector of device |
+| `number_of_sectors` | number | required | number of sectors of device (> 0) |
+
+@code
+modprobe -i NVM 0 0 /dev/nvm -c start_sector=6,number_of_sectors=2
+@endcode
+
 \subsection drv-nvm-ddesc-write Data write
 Writing to the device works in the same way as writing to a regular file. There
 is only one exception - bytes that were already written must be erased by using
@@ -189,8 +204,8 @@ extern "C" {
 #define IOCTL_NVM__CONFIGURE _IOW(NVM, 0, const NVM_config_t *)
 
 /**
- *  @brief  Configure NVM by string: start_sector=<n>,number_of_sectors=<n>,
- *          e.g. "start_sector=6,number_of_sectors=2".
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-nvm-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
  *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */

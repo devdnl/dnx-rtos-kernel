@@ -63,17 +63,8 @@ driver_release("NORFLASH", 0, 0);
 @endcode
 
 \subsection drv-norflash-ddesc-cfg Driver configuration
-Configuration string (modprobe -c, IOCTL_NORFLASH__CONFIGURE_STR):
-\li path=<file> - SPI or QSPI device file (required),
-\li interface=spi|qspi - interface (default spi),
-\li size=<bytes> - memory size, 0 (default): detected,
-\li unprotect=0|1 - clear block protection at configuration (global unlock
-    0x98 and status register BP bits), default 0.
-
-@code
-modprobe -i NORFLASH 0 0 /dev/flash0 -c path=/dev/spi-flash
-@endcode
-
+Driver is configured by @ref IOCTL_NORFLASH__CONFIGURE (structure
+NORFLASH_config_t) or by configuration string (@ref drv-norflash-ddesc-cfgstr):
 @code
 #include <dnx/misc.h>
 #include <sys/ioctl.h>
@@ -91,6 +82,24 @@ if (fd >= 0) {
         }
         close(fd);
 }
+@endcode
+
+\subsection drv-norflash-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_NORFLASH__CONFIGURE_STR, program `modprobe -c`)
+is a list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. All keys are set by each configuration (not given:
+value of column Omitted). Configuration identifies the memory (ENODEV: memory
+not detected).
+
+| Key         | Value         | Omitted  | Description |
+|-------------|---------------|----------|-------------|
+| `path`      | path          | required | SPI or QSPI device file |
+| `interface` | `spi`, `qspi` | spi      | interface (QSPI: single line mode, QSPI driver) |
+| `size`      | number        | 0        | memory size [bytes], 0: detected (SFDP, JEDEC ID) |
+| `unprotect` | bool          | 0        | clear block protection (global unlock 0x98, status register BP bits) |
+
+@code
+modprobe -i NORFLASH 0 0 /dev/flash0 -c path=/dev/spi-flash
 @endcode
 
 \subsection drv-norflash-ddesc-write Data write
@@ -139,9 +148,10 @@ extern "C" {
 #define IOCTL_NORFLASH__GET_INFO _IOR(NORFLASH, 0x01, NORFLASH_info_t *)
 
 /**
- *  @brief  Configure memory by configuration string.
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-norflash-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
- *  @return On success 0 is returned, otherwise -1 and errno is set.
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */
 #define IOCTL_NORFLASH__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 

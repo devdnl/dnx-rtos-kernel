@@ -47,10 +47,37 @@ extern "C" {
 ==============================================================================*/
 /* predefined requests*/
 /**
- *  @brief  Configure device by using string options.
+ *  @brief  Configure device by configuration string.
+ *
+ *  The request is handled by drivers that define request
+ *  IOCTL_<MODULE>__CONFIGURE_STR. Keys, values and behavior of keys that are
+ *  not given are described in section "Configuration string" of each driver
+ *  (file <module>_ioctl.h, table: Key, Value, Omitted, Description). From
+ *  shell the string is set by program modprobe:
+ *  @code
+ *  modprobe -i <MODULE> <major> <minor> <node> -c <string>   # init and configure
+ *  modprobe -c <node> <string>                               # configure
+ *  @endcode
+ *
+ *  Syntax: <tt>key=value[,key=value...]</tt>, e.g. "baud=9600,parity=even".
+ *  A value ends at the next comma (it cannot contain a comma), keys are case
+ *  sensitive, unknown keys are ignored, a key given twice: the first one is
+ *  used. Values (column Value of driver tables):
+ *  \li number - decimal, hexadecimal with prefix 0x (e.g. 0x50) or binary with
+ *      prefix 0b; a leading zero means octal number, so use 8 not 08,
+ *  \li bool - 1, yes, on, true, enable, set or 0, no, off, false, disable,
+ *      reset,
+ *  \li `a`, `b`, `c` - one of names, or index of name (first name is 0),
+ *      other value: EINVAL,
+ *  \li path - file path, name - text (without commas).
+ *
+ *  Column Omitted: "not changed" - current value is kept, "required" - EINVAL
+ *  when the key is missing, other - value used when the key is missing.
+ *
  *  @param  [WR] const char*            driver configuration string.
- *  @return On success (device initialized) 0 is returned.
- *          On error (device not initialized) -1 is returned and errno is set.
+ *  @return On success (device configured) 0 is returned.
+ *          On error -1 is returned and errno is set (EINVAL: invalid or
+ *          missing value).
  */
 #define IOCTL_DEVICE__CONFIGURE_STR _IOW(DEVICE, 0x80, const char *)
 

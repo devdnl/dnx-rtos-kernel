@@ -57,6 +57,19 @@ driver_release("ENC28J60", 0, 0);
 Entire driver configuration is realized by using configuration files in
 the <tt>./config</tt> directory or by using Configtool.
 
+\subsection drv-enc28j60-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_ENC28J60__CONFIGURE_STR, program `modprobe -c`)
+is a list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR.
+
+| Key        | Value | Omitted  | Description |
+|------------|-------|----------|-------------|
+| `spi_path` | path  | required | SPI device file of the chip (used at IOCTL_ETHIF__START) |
+
+@code
+modprobe -i ENC28J60 0 0 /dev/eth0 -c spi_path=/dev/spi-eth
+@endcode
+
 \subsection drv-enc28j60-ddesc-write Data write
 Data to driver can be written as for regular file but if buffer is bigger than
 MTU then buffer is send in few parts.
@@ -171,8 +184,8 @@ extern "C" {
 #define IOCTL_ENC28J60__CONFIGURE _IOW(ENC28J60, 0x00, ENC28J60_config_t *)
 
 /**
- *  @brief  Configure ENC28J60 by string: spi_path=<SPI device file>,
- *          e.g. "spi_path=/dev/spi_eth".
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-enc28j60-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
  *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */

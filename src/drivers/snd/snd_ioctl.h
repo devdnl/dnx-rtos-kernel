@@ -63,6 +63,21 @@ driver_release("SND", 0, 1);
 \subsection drv-snd-ddesc-cfg Driver configuration
 \todo Driver configuration
 
+\subsection drv-snd-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_SND__CONFIGURE_STR, program `modprobe -c`) is a
+list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. Keys not given keep current values.
+
+| Key               | Value                     | Omitted     | Description |
+|-------------------|---------------------------|-------------|-------------|
+| `channels`        | `mono`, `stereo`          | not changed | number of channels |
+| `sample_rate`     | `44100`, `22050`, `11025` | not changed | sample rate [Hz] |
+| `bits_per_sample` | `8`, `16`, `32`           | not changed | bits per sample |
+
+@code
+modprobe -c /dev/snd sample_rate=22050,channels=mono
+@endcode
+
 \subsection drv-snd-ddesc-write Data write
 \todo Data write
 
@@ -107,9 +122,8 @@ extern "C" {
 #define IOCTL_SND__SET_CONFIGURATION _IOW(SND, 0x00, SND_config_t *)
 
 /**
- *  @brief  Set sound configuration by string (not specified parameters are not
- *          changed): channels=mono|stereo, sample_rate=44100|22050|11025,
- *          bits_per_sample=8|16|32, e.g. "channels=stereo,sample_rate=44100,bits_per_sample=16".
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-snd-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
  *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */

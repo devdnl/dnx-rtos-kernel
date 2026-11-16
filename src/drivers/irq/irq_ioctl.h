@@ -102,6 +102,19 @@ if (irq) {
 
 \endcode
 
+\subsection drv-irq-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_IRQ__CONFIGURE_STR, program `modprobe -c`) is a
+list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR.
+
+| Key       | Value                                                  | Omitted  | Description |
+|-----------|--------------------------------------------------------|----------|-------------|
+| `trigger` | `disabled`, `falling`, `rising`, `both`, `low`, `high` | required | trigger of interrupt |
+
+@code
+modprobe -c /dev/button0 trigger=falling
+@endcode
+
 \subsection drv-irq-ddesc-write Data write
 Operation not supported.
 
@@ -226,8 +239,8 @@ typedef enum {
 #define IOCTL_IRQ__CONFIGURE _IOW(IRQ, 2, const IRQ_config_t *)
 
 /**
- *  @brief  Configure IRQ by string: trigger=disabled|falling|rising|both|low|high,
- *          e.g. "trigger=falling".
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-irq-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
  *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */

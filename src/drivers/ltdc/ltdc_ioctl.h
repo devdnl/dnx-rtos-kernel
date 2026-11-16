@@ -63,6 +63,23 @@ driver_release("LTDC", 0, 1);
 Driver can be configured by using driver_init2() or IOCTL_LTDC__CONFIGURE ioctl()
 request.
 
+\subsection drv-ltdc-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_LTDC__CONFIGURE_STR, program `modprobe -c`) is
+a list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. Keys not given keep current values.
+
+| Key            | Value                                                                        | Omitted        | Description |
+|----------------|------------------------------------------------------------------------------|----------------|-------------|
+| `pixel_format` | `argb8888`, `rgb888`, `rgb565`, `argb1555`, `argb4444`, `l8`, `al44`, `al88` | not changed    | pixel format of frame buffer |
+| `mem_region`   | name                                                                         | any region     | memory region of frame buffer (DMA capable), e.g. sdram (ignored in simulator) |
+| `bg_r`         | number                                                                       | not changed    | background color, red (0..255) |
+| `bg_g`         | number                                                                       | not changed    | background color, green (0..255) |
+| `bg_b`         | number                                                                       | not changed    | background color, blue (0..255) |
+
+@code
+modprobe -c /dev/ltdc pixel_format=rgb565,mem_region=sdram
+@endcode
+
 \subsection drv-ltdc-ddesc-write Data write
 Writting data to created device modyfi framebuffer pixels.
 
@@ -96,10 +113,8 @@ extern "C" {
 #define IOCTL_LTDC__CONFIGURE _IOW(LTDC, 0x00, const LTDC_config_t *)
 
 /**
- *  @brief  Configure LTDC by string (not specified parameters are not changed):
- *          pixel_format=argb8888|rgb888|rgb565|argb1555|argb4444|l8|al44|al88,
- *          mem_region=<memory region name>, bg_r=<0..255>, bg_g=<0..255>,
- *          bg_b=<0..255>, e.g. "pixel_format=rgb565,mem_region=sdram".
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-ltdc-ddesc-cfgstr.
  *  @param  [WR] const char * configuration string
  *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */

@@ -193,6 +193,23 @@ fseek() value and next read data sequence.
 
 <tt>Read:  [S][ADDR+W][POINTER:2][POINTER:1][POINTER:0][Sr][ADDR+R][DATA1][DATAn]...[P]</tt>
 
+\subsection drv-i2c-ddesc-cfgstr Configuration string
+Configuration string (@ref IOCTL_I2C__CONFIGURE_STR, program `modprobe -c`) is a
+list of `key=value` pairs separated by commas, values are described in @ref
+IOCTL_DEVICE__CONFIGURE_STR. All keys are set by each configuration (not given:
+value of column Omitted).
+
+| Key             | Value              | Omitted | Description |
+|-----------------|--------------------|---------|-------------|
+| `address`       | number             | 0       | 7-bit (or 10-bit) address of device (master), own address (slave), e.g. 0x50 |
+| `addr_10bit`    | bool               | 0       | 10-bit address |
+| `sub_addr_mode` | `0`, `1`, `2`, `3` | 0       | number of sub-address (register) bytes sent before data, 0: none |
+| `slave`         | bool               | 0       | slave mode (0: master) |
+
+@code
+modprobe -i I2C 0 1 /dev/i2c-ee -c address=0x50,sub_addr_mode=2
+@endcode
+
 \subsection drv-i2c-ddesc-write Data write
 \subsubsection drv-i2c-ddesc-write-master Master mode
 Data to the I2C device can be written as regular file. Example assumptions:
@@ -544,9 +561,10 @@ typedef struct {
 #define IOCTL_I2C__SLAVE_WAIT_FOR_SELECTION _IOWR(I2C, 1, I2C_selection_t *)
 
 /**
- * @brief  Configure device by using string
- * @param  [WR] const char*             configuration string
- * @return On success 0 is returned, otherwise -1 and @ref errno code is set.
+ *  @brief  Configure device by configuration string, keys and values:
+ *          @ref drv-i2c-ddesc-cfgstr.
+ *  @param  [WR] const char * configuration string
+ *  @return On success 0 is returned, otherwise -1 and @ref errno is set.
  */
 #define IOCTL_I2C__CONFIGURE_STR IOCTL_DEVICE__CONFIGURE_STR
 
