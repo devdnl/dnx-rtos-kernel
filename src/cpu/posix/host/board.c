@@ -60,6 +60,8 @@
   Local macros
 ==============================================================================*/
 #define GPIO_PORTS      26  /* PA..PZ */
+#define ADC_COUNT       4   /* ADC:0..ADC:3 */
+#define ADC_CHANNELS    18  /* 0..15, 16: temperature sensor, 17: internal reference */
 #define GPIO_PINS       32
 #define EVENT_QUEUE_LEN 1024
 #define I2C_BUSES       16
@@ -214,6 +216,7 @@ static struct {
         uint32_t out_state[GPIO_PORTS];   /* output state of the system */
         uint32_t drive_mask[GPIO_PORTS];  /* pins driven by board */
         uint32_t drive_level[GPIO_PORTS]; /* levels of driven pins */
+        uint32_t adc_uv[ADC_COUNT][ADC_CHANNELS]; /* voltages of ADC channels [uV] */
 
         pthread_mutex_t req_mtx;          /* one request at a time */
         pthread_cond_t req_cond;          /* request finished */
@@ -745,20 +748,53 @@ static const char PRELUDE[] =
         "    end\n"
         "end\n"
         "\n"
+        "-- adc -------------------------------------------------------------------\n"
+        "adc = {}\n"
+        "\n"
+        "local ADC_INTERNAL = {temp = 16, vref = 17}\n"
+        "\n"
+        "-- 'ADC:<major>', channel: number or 'temp', 'vref'\n"
+        "local function adc_args(name, ch, fn)\n"
+        "    local n = major_of('ADC', name, B.ADC_COUNT, 4)\n"
+        "    local c = ADC_INTERNAL[ch] or ch\n"
+        "    if math.type(c) ~= 'integer' or c < 0 or c >= B.ADC_CHANNELS then\n"
+        "        error(fn .. ': invalid channel: ' .. tostring(ch), 3)\n"
+        "    end\n"
+        "    return n, c\n"
+        "end\n"
+        "\n"
+        "-- voltage of channel [V] (read by the system at conversion)\n"
+        "function adc.set(name, ch, volts)\n"
+        "    local n, c = adc_args(name, ch, 'adc.set')\n"
+        "    B.adc_set(n, c, math.floor(math.max(0, volts) * 1e6 + 0.5))\n"
+        "end\n"
+        "\n"
+        "function adc.get(name, ch)\n"
+        "    local n, c = adc_args(name, ch, 'adc.get')\n"
+        "    return B.adc_get(n, c) / 1e6\n"
+        "end\n"
+        "\n"
+        "-- temperature of chip: voltage of sensor 0.76 V at 25 C, 2.5 mV/C\n"
+        "function adc.set_temperature(name, celsius)\n"
+        "    adc.set(name, 'temp', 0.76 + 0.0025 * (celsius - 25))\n"
+        "end\n"
+        "\n"
         "-- eth -------------------------------------------------------------------\n"
         "eth = {}\n"
         "\n"
         "local eth_devs = {}\n"
+        "local eth_seg = setmetatable({}, {__mode = 'k'})   -- segment of device\n"
         "local eth_local, eth_busy = {}, false\n"
+        "local ETH_SYSTEM = 'lan'                             -- segment of the system interface\n"
         "\n"
-        "-- deliver frames sent by models to other models (in order, without recursion)\n"
+        "-- deliver frames sent by models to other models of the segment (in order, without recursion)\n"
         "local function eth_flush()\n"
         "    if eth_busy then return end\n"
         "    eth_busy = true\n"
         "    while #eth_local > 0 do\n"
         "        local f = table.remove(eth_local, 1)\n"
         "        for _, d in ipairs({table.unpack(eth_devs)}) do\n"
-        "            if d ~= f.from then dcall(d, 'receive', f.frame) end\n"
+        "            if d ~= f.from and eth_seg[d] == f.seg then dcall(d, 'receive', f.frame) end\n"
         "        end\n"
         "    end\n"
         "    eth_busy = false\n"
@@ -766,14 +802,19 @@ static const char PRELUDE[] =
         "\n"
         "-- attach device model to Ethernet: dev:receive(frame) gets frames of the network\n"
         "-- (system, host TAP interface, other models); call it when the script is loaded\n"
-        "-- (the system checks the interface at start)\n"
-        "function eth.attach(dev)\n"
+        "-- (the system checks the interface at start); segment: name of separate network\n"
+        "-- (hub) of models, default 'lan' is connected to the system interface (/dev/eth)\n"
+        "-- and host TAP, other segments only to models (e.g. W5500 model of the system)\n"
+        "function eth.attach(dev, segment)\n"
         "    if type(dev) ~= 'table' then error('eth.attach: device table expected', 2) end\n"
+        "    segment = segment or ETH_SYSTEM\n"
+        "    if type(segment) ~= 'string' then error('eth.attach: segment name expected', 2) end\n"
+        "    eth_seg[dev] = segment\n"
         "    for _, d in ipairs(eth_devs) do\n"
         "        if d == dev then return dev end\n"
         "    end\n"
         "    table.insert(eth_devs, dev)\n"
-        "    B.eth_attach()\n"
+        "    if segment == ETH_SYSTEM then B.eth_attach() end\n"
         "    return dev\n"
         "end\n"
         "\n"
@@ -786,22 +827,27 @@ static const char PRELUDE[] =
         "end\n"
         "\n"
         "-- send Ethernet frame (destination MAC, source MAC, type, payload; without FCS)\n"
-        "-- to the system, host TAP interface and other models (except `from`), returns\n"
-        "-- false if the frame is lost (system does not receive frames)\n"
+        "-- to other models of the segment of `from` (except `from`) and, in segment 'lan',\n"
+        "-- to the system and host TAP interface, returns false if the frame is lost\n"
+        "-- (system does not receive frames)\n"
         "function eth.send(frame, from)\n"
         "    frame = tostring(frame)\n"
         "    if #frame < 14 or #frame > B.ETH_FRAME_MAX then\n"
         "        error('eth.send: invalid frame length: ' .. #frame, 2)\n"
         "    end\n"
-        "    local ok = B.eth_send(frame)\n"
-        "    table.insert(eth_local, {frame = frame, from = from})\n"
+        "    local seg = (from and eth_seg[from]) or ETH_SYSTEM\n"
+        "    local ok = true\n"
+        "    if seg == ETH_SYSTEM then ok = B.eth_send(frame) end\n"
+        "    table.insert(eth_local, {frame = frame, from = from, seg = seg})\n"
         "    eth_flush()\n"
         "    return ok\n"
         "end\n"
         "\n"
         "-- frame sent by the system or received by host TAP interface\n"
         "local function eth_event(frame)\n"
-        "    for _, d in ipairs({table.unpack(eth_devs)}) do dcall(d, 'receive', frame) end\n"
+        "    for _, d in ipairs({table.unpack(eth_devs)}) do\n"
+        "        if eth_seg[d] == ETH_SYSTEM then dcall(d, 'receive', frame) end\n"
+        "    end\n"
         "    eth_flush()\n"
         "end\n"
         "\n"
@@ -1980,6 +2026,47 @@ static size_t eth_get(eth_queue_t *q, void *buf, size_t len)
 
 //==============================================================================
 /**
+ * @brief  Lua: B.adc_set(adc, channel, uV)
+ */
+//==============================================================================
+static int l_adc_set(lua_State *L)
+{
+        lua_Integer n = luaL_checkinteger(L, 1);
+        lua_Integer ch = luaL_checkinteger(L, 2);
+        lua_Integer uv = luaL_checkinteger(L, 3);
+        luaL_argcheck(L, n >= 0 && n < ADC_COUNT, 1, "invalid ADC");
+        luaL_argcheck(L, ch >= 0 && ch < ADC_CHANNELS, 2, "invalid channel");
+        luaL_argcheck(L, uv >= 0 && uv <= UINT32_MAX, 3, "invalid voltage");
+
+        pthread_mutex_lock(&board.mtx);
+        board.adc_uv[n][ch] = (uint32_t)uv;
+        pthread_mutex_unlock(&board.mtx);
+
+        return 0;
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: B.adc_get(adc, channel) -> uV
+ */
+//==============================================================================
+static int l_adc_get(lua_State *L)
+{
+        lua_Integer n = luaL_checkinteger(L, 1);
+        lua_Integer ch = luaL_checkinteger(L, 2);
+        luaL_argcheck(L, n >= 0 && n < ADC_COUNT, 1, "invalid ADC");
+        luaL_argcheck(L, ch >= 0 && ch < ADC_CHANNELS, 2, "invalid channel");
+
+        pthread_mutex_lock(&board.mtx);
+        lua_Integer uv = board.adc_uv[n][ch];
+        pthread_mutex_unlock(&board.mtx);
+
+        lua_pushinteger(L, uv);
+        return 1;
+}
+
+//==============================================================================
+/**
  * @brief  Lua: B.eth_attach() -- Ethernet model is attached
  */
 //==============================================================================
@@ -2318,6 +2405,12 @@ static bool board_load(void)
         board.L = L;
         luaL_openlibs(L);
 
+        /* internal channels of ADC: temperature sensor 25 C, reference 1.21 V */
+        for (int n = 0; n < ADC_COUNT; n++) {
+                board.adc_uv[n][16] = 760000;
+                board.adc_uv[n][17] = 1210000;
+        }
+
         /* modules are searched in the script directory and in its parent (sim-env) */
         char *path = strdup(board.script);
         char *dir = path ? dirname(path) : ".";
@@ -2340,6 +2433,8 @@ static bool board_load(void)
                 {"uart_send", l_uart_send},
                 {"uart_config", l_uart_config},
                 {"uart_pending", l_uart_pending},
+                {"adc_set", l_adc_set},
+                {"adc_get", l_adc_get},
                 {"eth_attach", l_eth_attach},
                 {"eth_send", l_eth_send},
                 {NULL, NULL},
@@ -2360,6 +2455,10 @@ static bool board_load(void)
         lua_setfield(L, -2, "UART_PORTS");
         lua_pushinteger(L, ETH_FRAME_MAX);
         lua_setfield(L, -2, "ETH_FRAME_MAX");
+        lua_pushinteger(L, ADC_COUNT);
+        lua_setfield(L, -2, "ADC_COUNT");
+        lua_pushinteger(L, ADC_CHANNELS);
+        lua_setfield(L, -2, "ADC_CHANNELS");
         lua_pushinteger(L, _HOST_BOARD_SPI_LSB_FIRST);
         lua_setfield(L, -2, "SPI_LSB_FIRST");
         lua_pushinteger(L, _HOST_BOARD_I2C_ADDR_10BIT);
@@ -3038,6 +3137,30 @@ uint32_t _host_board_gpio_input(int port, uint32_t *level)
         pthread_mutex_unlock(&board.mtx);
 
         return mask;
+}
+
+//==============================================================================
+/**
+ * @brief  Get voltage of ADC channel set by board.
+ *
+ * @param  adc          converter number
+ * @param  channel      channel (16: temperature sensor, 17: internal reference)
+ * @param  uv           voltage [uV]
+ *
+ * @return 0 on success, -1 if converter or channel does not exist.
+ */
+//==============================================================================
+int _host_board_adc_read(int adc, int channel, uint32_t *uv)
+{
+        if ((adc < 0) || (adc >= ADC_COUNT) || (channel < 0) || (channel >= ADC_CHANNELS)) {
+                return -1;
+        }
+
+        pthread_mutex_lock(&board.mtx);
+        *uv = board.adc_uv[adc][channel];
+        pthread_mutex_unlock(&board.mtx);
+
+        return 0;
 }
 
 //==============================================================================

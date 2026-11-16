@@ -1205,6 +1205,32 @@ uint32_t _host_gpio_input(int port, uint32_t *level)
 
 //==============================================================================
 /**
+ * @brief  Get voltage of ADC channel (board model). Without board model all
+ *         channels are 0 V.
+ *
+ * @param  adc          converter number
+ * @param  channel      channel
+ * @param  uv           voltage [uV]
+ *
+ * @return 0 on success, -1 if converter or channel does not exist.
+ */
+//==============================================================================
+int _host_adc_read(int adc, int channel, uint32_t *uv)
+{
+        *uv = 0;
+
+        if (host.board) {
+                lock();
+                int r = _host_board_adc_read(adc, channel, uv);
+                unlock();
+                return r;
+        }
+
+        return ((adc >= 0) && (adc < 4) && (channel >= 0) && (channel < 18)) ? 0 : -1;
+}
+
+//==============================================================================
+/**
  * @brief  I2C master: START or repeated START condition (board model). Bus
  *         without board model has no devices (address is not acknowledged).
  *

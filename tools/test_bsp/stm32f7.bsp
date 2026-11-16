@@ -1,6 +1,6 @@
 {
 	["config/arch/arch_flags.h"]={
-		["__ENABLE_ADC__"]="_NO_";
+		["__ENABLE_ADC__"]="_YES_";
 		["__ENABLE_AFM__"]="_YES_";
 		["__ENABLE_CAN__"]="_YES_";
 		["__ENABLE_CLK__"]="_YES_";
@@ -19,8 +19,11 @@
 		["__ENABLE_IRQ__"]="_YES_";
 		["__ENABLE_LOOP__"]="_YES_";
 		["__ENABLE_LTDC__"]="_YES_";
+		["__ENABLE_MAX310X__"]="_YES_";
 		["__ENABLE_MEMBLOCK__"]="_YES_";
+		["__ENABLE_NORFLASH__"]="_YES_";
 		["__ENABLE_NVM__"]="_YES_";
+		["__ENABLE_ONEWIRE__"]="_YES_";
 		["__ENABLE_PART__"]="_YES_";
 		["__ENABLE_PWM__"]="_YES_";
 		["__ENABLE_QSPI__"]="_NO_";
@@ -36,6 +39,7 @@
 		["__ENABLE_URANDOM__"]="_YES_";
 		["__ENABLE_USBD__"]="_NO_";
 		["__ENABLE_USBH__"]="_NO_";
+		["__ENABLE_W5500__"]="_YES_";
 		["__ENABLE_WDG__"]="_YES_";
 		["__ENABLE_ZERO__"]="_YES_";
 	};

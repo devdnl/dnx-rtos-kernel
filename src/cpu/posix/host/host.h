@@ -161,6 +161,9 @@ extern int _host_uart_write(int port, const void *buf, size_t len);
 extern void _host_gpio_output(int port, uint32_t state, uint32_t changed);
 extern uint32_t _host_gpio_input(int port, uint32_t *level);
 
+/* ADC (board model): voltage of channel [uV], result: 0 or -1 (no channel) */
+extern int _host_adc_read(int adc, int channel, uint32_t *uv);
+
 /* I2C master (board model), results: 0: ACK, 1: NACK, -1: error */
 #define _HOST_I2C_ADDR_10BIT 0x8000
 extern int _host_i2c_start(int bus);

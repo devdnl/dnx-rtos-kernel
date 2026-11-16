@@ -397,7 +397,7 @@ API_MOD_IOCTL(SPI, void *device_handle, int request, void *arg)
                 break;
 
         case IOCTL_SPI__SELECT:
-                err = sys_mutex_trylock(_SPI[hdl->major]->periph_protect_mtx);
+                err = sys_mutex_lock(_SPI[hdl->major]->periph_protect_mtx, DEV_LOCK_TIMEOUT);
                 if (!err) {
                         err = drv_lock(&_SPI[hdl->major]->RAW_mode);
                         if (!err) {
@@ -413,7 +413,7 @@ API_MOD_IOCTL(SPI, void *device_handle, int request, void *arg)
                 break;
 
         case IOCTL_SPI__DESELECT:
-                err = sys_mutex_trylock(_SPI[hdl->major]->periph_protect_mtx);
+                err = sys_mutex_lock(_SPI[hdl->major]->periph_protect_mtx, DEV_LOCK_TIMEOUT);
                 if (!err) {
                         err = drv_unlock(&_SPI[hdl->major]->RAW_mode, false);
                         if (!err) {
@@ -458,7 +458,7 @@ API_MOD_IOCTL(SPI, void *device_handle, int request, void *arg)
                         }
                 }
 
-                err = sys_mutex_trylock(_SPI[hdl->major]->periph_protect_mtx);
+                err = sys_mutex_lock(_SPI[hdl->major]->periph_protect_mtx, DEV_LOCK_TIMEOUT);
                 if (!err) {
                         if (not RAW_mode) {
                                 slave_deselect(hdl);
@@ -493,7 +493,7 @@ API_MOD_IOCTL(SPI, void *device_handle, int request, void *arg)
                 if (arg) {
                         const u8_t *byte = arg;
 
-                        err = sys_mutex_trylock(_SPI[hdl->major]->periph_protect_mtx);
+                        err = sys_mutex_lock(_SPI[hdl->major]->periph_protect_mtx, DEV_LOCK_TIMEOUT);
                         if (!err) {
                                 slave_deselect(hdl);
                                 _SPI_LLD__apply_config(hdl);

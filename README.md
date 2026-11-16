@@ -65,7 +65,7 @@ Architecture independent (`noarch`) drivers are available on every platform.
 
 | Driver   | Description                          | Architectures |
 |----------|--------------------------------------|---------------|
-| ADC      | analog-digital converter             | stm32f1 |
+| ADC      | analog-digital converter             | stm32f1, stm32f3, stm32f4, stm32f7, stm32h7, rpcm0, posix |
 | AFM      | alternative function manager         | stm32f1, stm32f4, stm32f7, stm32h7 |
 | CAN      | CAN bus                              | stm32f1, stm32f3, stm32f4, stm32f7, stm32h7 |
 | CLK      | clock configuration                  | all |
@@ -95,12 +95,16 @@ Architecture independent (`noarch`) drivers are available on every platform.
 | FBRIDGE  | file bridge                          | noarch |
 | I2CEE    | I2C EEPROM                           | noarch |
 | LOOP     | loop device                          | noarch |
+| MAX310X  | UARTs MAX3107/3108/3109 on SPI, I2C  | noarch |
 | MEMBLOCK | memory region as block device        | noarch |
+| NORFLASH | serial NOR flash memory (SPI, QSPI)  | noarch |
+| ONEWIRE  | 1-Wire bus master on UART            | noarch |
 | PART     | partitions (MBR) of block device     | noarch |
 | SDSPI    | SD card over SPI                     | noarch |
 | SPIEE    | SPI EEPROM                           | noarch |
 | TTY      | terminal (virtual terminals)         | noarch |
 | URANDOM  | pseudo random number source          | noarch |
+| W5500    | SPI Ethernet controller (MACRAW)     | noarch |
 | ZERO     | zero source                          | noarch |
 
 ## File systems

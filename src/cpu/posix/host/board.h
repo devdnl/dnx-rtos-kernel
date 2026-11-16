@@ -127,6 +127,17 @@ extern void _host_board_gpio_output(int port, uint32_t state, uint32_t changed);
 extern uint32_t _host_board_gpio_input(int port, uint32_t *level);
 
 /**
+ * @brief  Get voltage of ADC channel set by board.
+ *
+ * @param  adc          converter number
+ * @param  channel      channel (16: temperature sensor, 17: internal reference)
+ * @param  uv           voltage [uV]
+ *
+ * @return 0 on success, -1 if converter or channel does not exist.
+ */
+extern int _host_board_adc_read(int adc, int channel, uint32_t *uv);
+
+/**
  * @brief  I2C master: START or repeated START condition.
  *
  * @param  bus          bus index (I2C driver major, board script name "I2C:<major>")
