@@ -312,11 +312,11 @@ API_FS_OPEN(ext4fs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
         u32_t mode = 0;
         bool exists = (ext4_mode_get(path, NULL, &mode, hdl->mp) == ESUCC);
 
-        if (exists && is_dir(mode)) {
-                err = EISDIR;
-
-        } else if (exists && (flags & O_CREAT) && (flags & O_EXCL)) {
+        if (exists && (flags & O_CREAT) && (flags & O_EXCL)) {
                 err = EEXIST;
+
+        } else if (exists && is_dir(mode)) {
+                err = EISDIR;
 
         } else {
                 err = ext4_fopen2(&fh->file, path, flags & EXT4_OPEN_FLAGS_MASK, hdl->mp);

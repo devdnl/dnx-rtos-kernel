@@ -66,7 +66,7 @@
 
 #define SHEBANGLEN 64
 
-#define APPSET_TABLE_MAGIC 0x32565341
+#define APPSET_TABLE_MAGIC 0x33565341
 
 /*
  * Programs started from files of file system (appsetfs): command in path form and program search
@@ -92,12 +92,29 @@
 #define PID_MIN 1
 #define PID_MAX 999
 
+/*
+ * Descriptor: bits 0..14 index in descriptor table (node * 16 + slot), bit 15
+ * shared descriptor, bits 16..30 tag: process tag (descriptor of other process
+ * is rejected) or generation of shared descriptor (descriptor of closed object
+ * is rejected when slot is used again). Descriptors 0, 1, 2 (stdin, stdout,
+ * stderr) are accepted without tag.
+ */
 #define SHARED_DESCRIPTOR (1 << 15)
+#define DESC_INDEX_MASK   0x7FFF
+#define DESC_TAG_SHIFT    16
+#define DESC_TAG_MASK     0x7FFF
+#define DESC_STDIO_COUNT  3
 
 /*==============================================================================
   Local types, enums definitions
 ==============================================================================*/
 typedef struct _prog_data pdata_t;
+
+/* chain of shared descriptor table: tags of descriptors (generation) */
+typedef struct {
+        dchain_t chain; // must be the first
+        u16_t tag[16];
+} shared_dchain_t;
 
 typedef struct {
         void *func;
@@ -167,7 +184,8 @@ static _process_t *zombie_process_list;
 static _process_t *active_process[_CPUCTL_CORE_NUM];
 static kmtx_t *process_mtx;
 static kmtx_t *kworker_mtx;
-static dchain_t shared_desctab;
+static shared_dchain_t shared_desctab;
+static u16_t shared_desc_tag;
 static appset_table_t appset_base;
 
 /*==============================================================================
@@ -336,6 +354,14 @@ int _process_create(const char *cmd, const _process_attr_t *attr, pid_t *pid)
                         goto finish;
                 }
         }
+
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+        /* privileged program (e.g. sudo): effective IDs of root, real IDs of creator */
+        if (proc->pdata->flags and (*proc->pdata->flags & _PROGRAM_FLAG_PRIVILEGED)) {
+                proc->taskdata[0].uid = 0;
+                proc->taskdata[0].gid = 0;
+        }
+#endif
 
         err = allocate_process_globals(proc, attr->app_ctx_size, proc->pdata);
         if (err) {
@@ -947,6 +973,197 @@ void _process_abort(_process_t *proc)
                 _assert(is_proc_valid(proc));
         }
 }
+
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+//==============================================================================
+/**
+ * @brief  Function returns data of the current thread of process.
+ *
+ * @return Thread data or NULL (task is not thread of process).
+ */
+//==============================================================================
+static task_data_t *get_current_task_data(void)
+{
+        task_t *task = _task_get_handle();
+        return task ? _task_get_storage_pointer(task, STORAGE_IDX_TASK_DATA) : NULL;
+}
+
+//==============================================================================
+/**
+ * @brief  Function returns effective credentials of the current thread (used by
+ *         access checks; tasks that are not threads of process are root).
+ *
+ * @param  uid          user ID (can be NULL)
+ * @param  gid          group ID (can be NULL)
+ */
+//==============================================================================
+void _process_get_credentials(uid_t *uid, gid_t *gid)
+{
+        task_data_t *task_data = get_current_task_data();
+
+        if (uid) {
+                *uid = task_data ? task_data->uid : 0;
+        }
+
+        if (gid) {
+                *gid = task_data ? task_data->gid : 0;
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Function returns real credentials of the current thread (user that
+ *         started the process; differ from effective credentials in programs
+ *         with flag _PROGRAM_FLAG_PRIVILEGED).
+ *
+ * @param  uid          user ID (can be NULL)
+ * @param  gid          group ID (can be NULL)
+ */
+//==============================================================================
+void _process_get_real_credentials(uid_t *uid, gid_t *gid)
+{
+        task_data_t *task_data = get_current_task_data();
+
+        if (uid) {
+                *uid = task_data ? task_data->ruid : 0;
+        }
+
+        if (gid) {
+                *gid = task_data ? task_data->rgid : 0;
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Function sets credentials of thread data (root sets real and
+ *         effective IDs).
+ *
+ * @param  td           thread data
+ * @param  root         caller is root
+ * @param  uid          new user ID (NULL: not changed)
+ * @param  gid          new group ID (NULL: not changed)
+ */
+//==============================================================================
+static void set_task_credentials(task_data_t *td, bool root, const uid_t *uid, const gid_t *gid)
+{
+        if (gid) {
+                td->gid = *gid;
+                if (root) {
+                        td->rgid = *gid;
+                }
+        }
+
+        if (uid) {
+                td->uid = *uid;
+                if (root) {
+                        td->ruid = *uid;
+                }
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Function sets credentials of the current process (all threads, POSIX
+ *         setuid() and setgid()) or of the current thread only: root (effective
+ *         user ID 0) sets real and effective IDs to any value, other users set
+ *         effective ID to own real or effective ID.
+ *
+ * @param  uid          new user ID (NULL: not changed)
+ * @param  gid          new group ID (NULL: not changed)
+ * @param  thread       change only the current thread
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+int _process_set_credentials(const uid_t *uid, const gid_t *gid, bool thread)
+{
+        task_data_t *task_data = get_current_task_data();
+
+        if (!task_data) {
+                return ESRCH;
+        }
+
+        bool root = (task_data->uid == 0);
+
+        if (!root) {
+                if ((uid && (*uid != task_data->uid) && (*uid != task_data->ruid)) ||
+                        (gid && (*gid != task_data->gid) && (*gid != task_data->rgid))) {
+                        return EPERM;
+                }
+        }
+
+        _process_t *proc = _task_get_storage_pointer(_task_get_handle(), STORAGE_IDX_PROC);
+
+        if (thread || !is_proc_valid(proc)) {
+                set_task_credentials(task_data, root, uid, gid);
+
+        } else {
+                ATOMIC (process_mtx) {
+                        for (int tid = 0; tid < __OS_PROCESS_MAX_THREADS__; tid++) {
+                                if (proc->taskdata[tid].task) {
+                                        set_task_credentials(&proc->taskdata[tid], root, uid, gid);
+                                }
+                        }
+                }
+        }
+
+        return ESUCC;
+}
+
+//==============================================================================
+/**
+ * @brief  Function gets and sets file mode creation mask of the current
+ *         process (tasks that are not threads of process: default mask).
+ *
+ * @param  mask         new mask (NULL: not changed)
+ *
+ * @return Previous mask.
+ */
+//==============================================================================
+mode_t _process_umask(const mode_t *mask)
+{
+        mode_t old = _PROCESS_DEFAULT_UMASK;
+
+        task_t *task = _task_get_handle();
+        _process_t *proc = task ? _task_get_storage_pointer(task, STORAGE_IDX_PROC) : NULL;
+
+        if (is_proc_valid(proc)) {
+                old = proc->umask;
+
+                if (mask) {
+                        proc->umask = *mask & (S_IRWXU | S_IRWXG | S_IRWXO);
+                }
+        }
+
+        return old;
+}
+
+//==============================================================================
+/**
+ * @brief  Function returns owner of process: real user ID of main thread (user
+ *         that started the process).
+ *
+ * @param  pid          process ID
+ * @param  uid          user ID
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+int _process_get_owner(pid_t pid, uid_t *uid)
+{
+        int err = ESRCH;
+
+        ATOMIC (process_mtx) {
+                _process_t *proc = NULL;
+                if (_process_get_container(pid, &proc) == ESUCC) {
+                        *uid = proc->taskdata[0].ruid;
+                        err = ESUCC;
+                }
+        }
+
+        return err;
+}
+#endif
 
 //==============================================================================
 /**
@@ -1582,10 +1799,15 @@ int _process_thread_create(_process_t *proc, thread_func_t func, const _thread_a
                                 proc->taskdata[id].id = id;
                                 proc->taskdata[id].curr_syscall = NO_SYSCALL;
                                 proc->taskdata[id].kernelspace = (proc->flag & PROC_FLAG_KWORKER);
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+                                // credentials of creating thread
+                                _process_get_credentials(&proc->taskdata[id].uid, &proc->taskdata[id].gid);
+                                _process_get_real_credentials(&proc->taskdata[id].ruid, &proc->taskdata[id].rgid);
+#endif
 
                                 // kernel threads are never joined
-                                proc->taskdata[id].detached =
-                                        (proc->flag & PROC_FLAG_KWORKER) or (attr and attr->detached);
+                                proc->taskdata[id].detached = (proc->flag & PROC_FLAG_KWORKER) or
+                                        (attr and attr->detached);
 
                                 if (proc->event) {
                                         _flag_clear(proc->event, _PROCESS_EXIT_FLAG(id));
@@ -2670,6 +2892,61 @@ u8_t _process_get_curr_syscall(_process_t *proc, tid_t tid, bool isr)
 
 //==============================================================================
 /**
+ * @brief  Function returns tag of descriptors of process (1..DESC_TAG_MASK).
+ *
+ * @param  process      process
+ *
+ * @return Tag.
+ */
+//==============================================================================
+static int process_descriptor_tag(_process_t *process)
+{
+        return (process->pid % DESC_TAG_MASK) + 1;
+}
+
+//==============================================================================
+/**
+ * @brief  Function finds slot of descriptor (process_mtx must be locked).
+ *
+ * @param  process      process
+ * @param  desc         descriptor
+ *
+ * @return Pointer to slot of object or NULL (incorrect descriptor).
+ */
+//==============================================================================
+static res_header_t **descriptor_slot(_process_t *process, int desc)
+{
+        if (desc < 0) {
+                return NULL;
+        }
+
+        bool shared = desc & SHARED_DESCRIPTOR;
+        int index = desc & DESC_INDEX_MASK;
+        int tag = (desc >> DESC_TAG_SHIFT) & DESC_TAG_MASK;
+
+        if (!shared && (tag != process_descriptor_tag(process)) && ((tag != 0) || (index >= DESC_STDIO_COUNT))) {
+                return NULL; // descriptor of other process
+        }
+
+        dchain_t *chain = shared ? &shared_desctab.chain : &process->desctab;
+
+        for (int node = 0; chain && (node < (index >> 4)); node++) {
+                chain = chain->next;
+        }
+
+        if (!chain || !chain->resource[index & 0xF]) {
+                return NULL;
+        }
+
+        if (shared && (tag != cast(shared_dchain_t *, chain)->tag[index & 0xF])) {
+                return NULL; // descriptor of closed object
+        }
+
+        return &chain->resource[index & 0xF];
+}
+
+//==============================================================================
+/**
  * @brief  Function allocate descriptor.
  *
  * @param  process      process
@@ -2693,19 +2970,30 @@ int _process_descriptor_allocate(_process_t *process, int *desc, res_header_t *r
                 res->prev = NULL;
 
                 if (shared) {
-                        chain = &shared_desctab;
+                        chain = &shared_desctab.chain;
                 } else {
                         chain = &process->desctab;
                 }
 
                 int node = 0;
                 bool found = false;
+                int tag = process_descriptor_tag(process);
 
-                while (chain and (not found)) {
+                if (shared) {
+                        shared_desc_tag = (shared_desc_tag % DESC_TAG_MASK) + 1; // generation 1..DESC_TAG_MASK
+                        tag = shared_desc_tag;
+                }
+
+                while (chain and (not found) and ((node << 4) <= DESC_INDEX_MASK)) {
                         for (size_t i = 0; not found and (i < ARRAY_SIZE(chain->resource)); i++) {
                                 if (chain->resource[i] == NULL) {
                                         chain->resource[i] = res;
-                                        *desc = (node << 4) | i | (shared ? SHARED_DESCRIPTOR : 0);
+                                        if (shared) {
+                                                cast(shared_dchain_t *, chain)->tag[i] = tag;
+                                        }
+                                        *desc = (node << 4) | i;
+                                        *desc |= shared ? SHARED_DESCRIPTOR : 0;
+                                        *desc |= (tag & DESC_TAG_MASK) << DESC_TAG_SHIFT;
                                         found = true;
                                         err = ESUCC;
                                         break;
@@ -2714,7 +3002,8 @@ int _process_descriptor_allocate(_process_t *process, int *desc, res_header_t *r
 
                         if (not found) {
                                 if (chain->next == NULL) {
-                                        err = _kzalloc(_MM_KRN, sizeof(dchain_t), 0, _cpuctl_fast_mem, 0, 0,
+                                        size_t size = shared ? sizeof(shared_dchain_t) : sizeof(dchain_t);
+                                        err = _kzalloc(_MM_KRN, size, 0, _cpuctl_fast_mem, 0, 0,
                                                 cast(void **, &chain->next));
                                         if (err) {
                                                 chain->next = NULL;
@@ -2738,55 +3027,21 @@ int _process_descriptor_allocate(_process_t *process, int *desc, res_header_t *r
  * @param  descriptor   descriptor
  * @param  rtype        object type (validation)
  *
- * @return One of errno value.
+ * @return One of errno value (EBADF: incorrect descriptor or object type).
  */
 //==============================================================================
 int _process_descriptor_free(_process_t *process, int desc, res_type_t rtype)
 {
-        int err = ENOENT;
-
-        if (desc < 0) {
-                return err;
-        }
+        int err = EBADF;
 
         ATOMIC (process_mtx) {
+                res_header_t **slot = descriptor_slot(process, desc);
 
-                dchain_t *chain = NULL;
-
-                if (desc & SHARED_DESCRIPTOR) {
-                        chain = &shared_desctab;
-                        desc &= ~SHARED_DESCRIPTOR;
-                } else {
-                        chain = &process->desctab;
-                }
-
-                int node = 0;
-
-                while (chain) {
-                        if ((desc >> 4) == node) {
-                                res_header_t *res = chain->resource[desc & 0xF];
-
-                                if (res == NULL) {
-                                        err = ENOENT;
-
-                                } else if ((rtype != RES_TYPE_UNKNOWN) and (res->type != rtype)) {
-                                        printk("Descriptor %d points to "
-                                               "incorrect object type!",
-                                                desc);
-                                        err = EINVAL;
-
-                                } else {
-                                        err = resource_destroy(res);
-                                        if (!err) {
-                                                chain->resource[desc & 0xF] = NULL;
-                                        }
-                                }
-
-                                break;
+                if (slot and ((rtype == RES_TYPE_UNKNOWN) or ((*slot)->type == rtype))) {
+                        err = resource_destroy(*slot);
+                        if (!err) {
+                                *slot = NULL;
                         }
-
-                        chain = chain->next;
-                        node++;
                 }
         }
 
@@ -2795,47 +3050,26 @@ int _process_descriptor_free(_process_t *process, int desc, res_type_t rtype)
 
 //==============================================================================
 /**
- * @brief  Function free descriptor.
+ * @brief  Function returns object of descriptor.
  *
  * @param  process      process
  * @param  desc         descriptor
+ * @param  rtype        expected object type (RES_TYPE_UNKNOWN: any)
  * @param  res          resource pointer
  *
- * @return One of errno value.
+ * @return One of errno value (EBADF: incorrect descriptor or object type).
  */
 //==============================================================================
-int _process_descriptor_get_resource(_process_t *process, int desc, res_header_t **res)
+int _process_descriptor_get_resource(_process_t *process, int desc, res_type_t rtype, res_header_t **res)
 {
-        int err = ENOENT;
-
-        if (desc < 0) {
-                return err;
-        }
+        int err = EBADF;
 
         ATOMIC (process_mtx) {
+                res_header_t **slot = descriptor_slot(process, desc);
 
-                dchain_t *chain = NULL;
-
-                if (desc & SHARED_DESCRIPTOR) {
-                        chain = &shared_desctab;
-                        desc &= ~SHARED_DESCRIPTOR;
-                } else {
-                        chain = &process->desctab;
-                }
-
-                int node = 0;
-
-                while (chain) {
-                        if ((desc >> 4) == node) {
-                                if (chain->resource[desc & 0xF]) {
-                                        *res = chain->resource[desc & 0xF];
-                                        err = ESUCC;
-                                }
-                                break;
-                        }
-
-                        chain = chain->next;
-                        node++;
+                if (slot and ((rtype == RES_TYPE_UNKNOWN) or ((*slot)->type == rtype))) {
+                        *res = *slot;
+                        err = ESUCC;
                 }
         }
 
@@ -3244,6 +3478,10 @@ static void process_get_stat(_process_t *proc, _process_stat_t *stat)
 
         stat->pid = proc->pid;
         stat->priority = (proc->taskdata[0].task) ? _task_get_priority(proc->taskdata[0].task) : 0;
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+        stat->uid = proc->taskdata[0].uid;
+        stat->gid = proc->taskdata[0].gid;
+#endif
         stat->CPU_load = 0;
 
         u8_t threads = __OS_PROCESS_MAX_THREADS__;
@@ -3360,6 +3598,29 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
         if (attr) {
                 u8_t cpuid = _cpuctl_get_cpu_id();
 
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+                /*
+                 * Credentials and file mode creation mask of creator, other
+                 * credentials can be selected only by root
+                 */
+                uid_t uid;
+                gid_t gid;
+                _process_get_credentials(&uid, &gid);
+
+                if (attr->set_credentials && (uid != 0) && ((attr->uid != uid) || (attr->gid != gid))) {
+                        err = EPERM;
+                        goto finish;
+                }
+
+                /* stdio files below are opened with credentials of creator */
+                proc->taskdata[0].uid = attr->set_credentials ? attr->uid : uid;
+                proc->taskdata[0].gid = attr->set_credentials ? attr->gid : gid;
+                proc->taskdata[0].ruid = proc->taskdata[0].uid;
+                proc->taskdata[0].rgid = proc->taskdata[0].gid;
+
+                proc->umask = _process_umask(NULL);
+#endif
+
                 /*
                  * Apply Current Working Directory path
                  */
@@ -3397,7 +3658,8 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
                 for (size_t i = 0; i < ARRAY_SIZE(stdio); i++) {
                         if (stdio[i].fd >= 0) {
                                 res_header_t *res = NULL;
-                                _process_descriptor_get_resource(active_process[cpuid], stdio[i].fd, &res);
+                                _process_descriptor_get_resource(active_process[cpuid], stdio[i].fd, RES_TYPE_FILE,
+                                        &res);
 
                                 if (res and (res->type == RES_TYPE_FILE)) {
                                         if (_vfs_fopen_ref(res->self) == ESUCC) {
@@ -3408,6 +3670,14 @@ static int process_apply_attributes(_process_t *proc, const _process_attr_t *att
                         } else if (stdio[i].path) {
                                 cpath.PATH = stdio[i].path;
 
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+                                // stream file is opened with rights of creator
+                                err = _vfs_access(&cpath, (stdio[i].flags == O_RDONLY) ? _VFS_R_OK : _VFS_W_OK, uid,
+                                        gid);
+                                if (err) {
+                                        goto finish;
+                                }
+#endif
                                 kfile_t *file;
                                 err = _vfs_fopen(&cpath, stdio[i].flags, 0, &file);
                                 if (err) {

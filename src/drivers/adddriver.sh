@@ -62,12 +62,9 @@ function create_driver_registration_file_c()
     local ifimport=""
     local modtable="const struct _module_entry _drvreg_module_table[] = {\n"
     for module in $module_list; do
-        archlist=$(get_list "$1/$module")
-
-        enable="#if (__ENABLE_${module^^}__) && ("
-        or=""
-        for arch in $archlist; do enable=$enable"$or""defined(ARCH_$arch)"; or=" || "; done
-        enable=$enable")\n"
+        # module enabled in configuration is supported by selected CPU (otherwise the kernel
+        # Makefile stops the build: enabled module without sources is reported as unsupported)
+        enable="#if (__ENABLE_${module^^}__)\n"
 
         ifimport="$ifimport$enable"
         ifimport="$ifimport\t_IMPORT_MODULE_INTERFACE(${module^^});\n"
@@ -107,12 +104,7 @@ function create_driver_registration_file_h()
     local modenum="enum _MODID {\n"
 
     for module in $module_list; do
-        archlist=$(get_list "$1/$module")
-
-        enable="#if (__ENABLE_${module^^}__) && ("
-        or=""
-        for arch in $archlist; do enable=$enable"$or""defined(ARCH_$arch)"; or=" || "; done
-        enable=$enable")\n"
+        enable="#if (__ENABLE_${module^^}__)\n"
 
         modenum="$modenum\t$enable"
         modenum="$modenum\t_MODID_${module^^},\n"

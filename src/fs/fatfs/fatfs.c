@@ -73,6 +73,12 @@ struct fatfs {
         kmtx_t *mutex;
         int opened_dirs;
         bool read_only;
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+        uid_t uid;   /* owner of all files (mount option) */
+        gid_t gid;   /* group of all files (mount option) */
+        u16_t fmask; /* permission mask of files */
+        u16_t dmask; /* permission mask of directories */
+#endif
 };
 
 /*==============================================================================
@@ -80,7 +86,8 @@ struct fatfs {
 ==============================================================================*/
 static int faterr_2_errno(FRESULT fresult);
 static time_t time_fat2unix(WORD fdate, WORD ftime);
-static mode_t fattrib_2_mode(BYTE fattrib);
+static mode_t fattrib_2_mode(struct fatfs *hdl, BYTE fattrib);
+static void set_owner(struct fatfs *hdl, struct stat *stat);
 static bool is_root_path(const char *path);
 static int fat_stat(struct fatfs *hdl, const char *path, FILINFO **fno);
 static struct fatobj *find_obj(struct fatfs *hdl, DWORD clu, DWORD ofs);
@@ -121,6 +128,15 @@ API_FS_INIT(fatfs, void **fs_handle, const char *src_path, const char *opts)
                 struct fatfs *hdl = *fs_handle;
 
                 hdl->read_only = sys_opt_has_flag(opts, "ro");
+
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+                /* FAT does not store owners and permissions (as vfat of Linux) */
+                int umask = sys_opt_get_int(opts, "umask", 0022);
+                hdl->uid = sys_opt_get_int(opts, "uid", 0);
+                hdl->gid = sys_opt_get_int(opts, "gid", 0);
+                hdl->fmask = sys_opt_get_int(opts, "fmask", umask) & S_IPMT;
+                hdl->dmask = sys_opt_get_int(opts, "dmask", umask) & S_IPMT;
+#endif
 
                 err = sys_llist_create(cmp_ptr, dummy_free, &hdl->file_list);
 
@@ -263,11 +279,11 @@ API_FS_OPEN(fatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
 
         if (fr == FR_OK) {
                 /* object exists */
-                if (attr & AM_DIR) {
-                        err = EISDIR;
-
-                } else if ((flags & O_CREAT) && excl) {
+                if ((flags & O_CREAT) && excl) {
                         err = EEXIST;
+
+                } else if (attr & AM_DIR) {
+                        err = EISDIR;
 
                 } else {
                         obj = find_obj(hdl, clu, ofs);
@@ -751,8 +767,7 @@ API_FS_CLOSEDIR(fatfs, void *fs_handle, kdir_t *dir)
 //==============================================================================
 API_FS_READDIR(fatfs, void *fs_handle, kdir_t *dir)
 {
-        UNUSED_ARG1(fs_handle);
-
+        struct fatfs *hdl = fs_handle;
         struct fatdir *fatdir = dir->d_hdl;
         FILINFO *fno = &fatdir->fno;
         int err = ESUCC;
@@ -784,7 +799,7 @@ API_FS_READDIR(fatfs, void *fs_handle, kdir_t *dir)
                         dir->dirent.dev = 0;
                         dir->dirent.d_name = fno->fname;
                         dir->dirent.size = fno->fsize;
-                        dir->dirent.mode = fattrib_2_mode(fno->fattrib);
+                        dir->dirent.mode = fattrib_2_mode(hdl, fno->fattrib);
                         dir->d_seek = fatdir->seek;
                 } else {
                         err = ENOENT;
@@ -1000,7 +1015,8 @@ API_FS_FSTAT(fatfs, void *fs_handle, void *fhdl, struct stat *stat)
         if (!err) {
                 memset(stat, 0, sizeof(*stat));
 
-                stat->st_mode = fattrib_2_mode(obj->fil.obj.attr);
+                stat->st_mode = fattrib_2_mode(hdl, obj->fil.obj.attr);
+                set_owner(hdl, stat);
                 stat->st_mtime = time_fat2unix(obj->fil.obj.fdate, obj->fil.obj.ftime);
                 stat->st_ctime = stat->st_mtime;
                 stat->st_size = f_size(&obj->fil);
@@ -1030,14 +1046,16 @@ API_FS_STAT(fatfs, void *fs_handle, const char *path, struct stat *stat)
 
         /* FatFs f_stat() does not support root directory */
         if (is_root_path(path)) {
-                stat->st_mode = fattrib_2_mode(AM_DIR | (hdl->read_only ? AM_RDO : 0));
+                stat->st_mode = fattrib_2_mode(hdl, AM_DIR | (hdl->read_only ? AM_RDO : 0));
+                set_owner(hdl, stat);
                 return ESUCC;
         }
 
         FILINFO *fno = NULL;
         int err = fat_stat(hdl, path, &fno);
         if (!err) {
-                stat->st_mode = fattrib_2_mode(fno->fattrib);
+                stat->st_mode = fattrib_2_mode(hdl, fno->fattrib);
+                set_owner(hdl, stat);
                 stat->st_mtime = time_fat2unix(fno->fdate, fno->ftime);
                 stat->st_ctime = stat->st_mtime;
                 stat->st_size = fno->fsize;
@@ -1210,23 +1228,51 @@ static time_t time_fat2unix(WORD fdate, WORD ftime)
  *
  * @note   FAT has no permission bits. Files are reported as rw-rw-rw-,
  *         directories as rwxrwxrwx; read-only attribute removes write bits.
+ *         With permissions bits of masks (mount options fmask, dmask, umask)
+ *         are removed.
  *
+ * @param  hdl          file system
  * @param  fattrib      FAT attributes
  *
  * @return File mode.
  */
 //==============================================================================
-static mode_t fattrib_2_mode(BYTE fattrib)
+static mode_t fattrib_2_mode(struct fatfs *hdl, BYTE fattrib)
 {
         mode_t mode = PERM_R | ((fattrib & AM_RDO) ? 0 : PERM_W);
 
         if (fattrib & AM_DIR) {
                 mode |= S_IFDIR | PERM_X;
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+                mode &= ~hdl->dmask;
+#endif
         } else {
                 mode |= S_IFREG;
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+                mode &= ~hdl->fmask;
+#endif
         }
 
+        UNUSED_ARG1(hdl);
         return mode;
+}
+
+//==============================================================================
+/**
+ * @brief  Function sets owner of file (mount options, FAT has no owners).
+ *
+ * @param  hdl          file system
+ * @param  stat         file status
+ */
+//==============================================================================
+static void set_owner(struct fatfs *hdl, struct stat *stat)
+{
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+        stat->st_uid = hdl->uid;
+        stat->st_gid = hdl->gid;
+#else
+        UNUSED_ARG2(hdl, stat);
+#endif
 }
 
 //==============================================================================
@@ -1246,7 +1292,8 @@ static bool is_root_path(const char *path)
 //==============================================================================
 /**
  * @brief  Function read object information. FILINFO is allocated on heap
- *         (large with LFN and UTF-8). Caller frees *fno on success.
+ *         (large with LFN and UTF-8). Caller frees *fno on success. Slash at
+ *         the end of path is accepted (directory).
  *
  * @param  hdl          FS handle
  * @param  path         object path
@@ -1257,12 +1304,30 @@ static bool is_root_path(const char *path)
 //==============================================================================
 static int fat_stat(struct fatfs *hdl, const char *path, FILINFO **fno)
 {
+        /* FatFs does not accept slash at the end of directory path ("dir/") */
+        char *copy = NULL;
+        size_t len = strlen(path);
+        if ((len > 1) && (path[len - 1] == '/')) {
+                int err = sys_malloc(len, cast(void *, &copy));
+                if (err) {
+                        return err;
+                }
+
+                memcpy(copy, path, len - 1);
+                copy[len - 1] = '\0';
+                path = copy;
+        }
+
         int err = sys_malloc(sizeof(FILINFO), cast(void *, fno));
         if (!err) {
                 err = faterr_2_errno(f_stat(&hdl->fatfs, path, *fno));
                 if (err) {
                         sys_free(cast(void *, fno));
                 }
+        }
+
+        if (copy) {
+                sys_free(cast(void *, &copy));
         }
 
         return err;

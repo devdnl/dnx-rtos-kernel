@@ -237,6 +237,11 @@ typedef enum {
         SYSCALL_SYSCONF,                // int errno (const int *name, long *value)
         SYSCALL_ATOMICTAS,              // int errno (u8_t *flag): 0 when flag set by caller, EBUSY when flag already set
         SYSCALL_CONFSTR,                // int errno (const int *name, const char **ref)
+        SYSCALL_SETUID,                 // int errno (const uid_t *uid, const bool *thread)
+        SYSCALL_SETGID,                 // int errno (const gid_t *gid, const bool *thread)
+        SYSCALL_UMASK,                  // int errno (const mode_t *mask (NULL: get), mode_t *old)
+        SYSCALL_GETEUID,                // int errno (uid_t *uid)
+        SYSCALL_GETEGID,                // int errno (gid_t *gid)
         _SYSCALL_COUNT,
 } syscall_t;
 // clang-format on
@@ -380,6 +385,17 @@ static int syscall_getcurrentcore(syscallrq_t *rq);
 static int syscall_getcpucorecount(syscallrq_t *rq);
 static int syscall_sysconf(syscallrq_t *rq);
 static int syscall_confstr(syscallrq_t *rq);
+static int syscall_setuid(syscallrq_t *rq);
+static int syscall_setgid(syscallrq_t *rq);
+static int syscall_umask(syscallrq_t *rq);
+static int syscall_geteuid(syscallrq_t *rq);
+static int syscall_getegid(syscallrq_t *rq);
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+static bool syscall_is_root_only(syscall_t syscall);
+static int access_check(const struct vfs_path *path, int amode);
+static int access_check_parent(const struct vfs_path *path, int amode);
+static int open_access_check(const struct vfs_path *path, int flags);
+#endif
 
 /*==============================================================================
   Local objects
@@ -514,6 +530,11 @@ static const syscallfunc_t syscalltab[] = {
         [SYSCALL_SYSCONF] = syscall_sysconf,
         [SYSCALL_ATOMICTAS] = NULL,
         [SYSCALL_CONFSTR] = syscall_confstr,
+        [SYSCALL_SETUID] = syscall_setuid,
+        [SYSCALL_SETGID] = syscall_setgid,
+        [SYSCALL_UMASK] = syscall_umask,
+        [SYSCALL_GETEUID] = syscall_geteuid,
+        [SYSCALL_GETEGID] = syscall_getegid,
 };
 
 /*==============================================================================
@@ -650,6 +671,16 @@ static int syscall_do(void *rq)
 {
         syscallrq_t *sysrq = rq;
 
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+        if (syscall_is_root_only(sysrq->syscall_no)) {
+                uid_t uid;
+                _process_get_credentials(&uid, NULL);
+                if (uid != 0) {
+                        return EPERM;
+                }
+        }
+#endif
+
         _process_enter_kernelspace(sysrq->client_proc, sysrq->syscall_no);
         int err = syscalltab[sysrq->syscall_no](sysrq);
         _process_exit_kernelspace(sysrq->client_proc);
@@ -766,7 +797,16 @@ static int syscall_mkfifo(syscallrq_t *rq)
         path.PATH = LOADARG(const char *);
         GETARG(mode_t *, mode);
 
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+        int err = access_check_parent(&path, _VFS_W_OK);
+        if (err) {
+                return err;
+        }
+
+        return _vfs_mkfifo(&path, *mode & ~_process_umask(NULL));
+#else
         return _vfs_mkfifo(&path, *mode);
+#endif
 #else
         UNUSED_ARG1(rq);
         return ENOSYS;
@@ -788,7 +828,7 @@ static int syscall_dirread(syscallrq_t *rq)
         GETARG(dirent_t **, dirent);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_UNKNOWN, &res);
         if (!err) {
                 if (res->type == RES_TYPE_DIR) {
                         err = _vfs_readdir(res->self, dirent);
@@ -817,6 +857,12 @@ static int syscall_remove(syscallrq_t *rq)
         path.CWD = _process_get_CWD(GETPROCESS());
         path.PATH = LOADARG(const char *);
 
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+        int err = access_check_parent(&path, _VFS_W_OK);
+        if (err) {
+                return err;
+        }
+#endif
         return _vfs_remove(&path);
 #else
         UNUSED_ARG1(rq);
@@ -844,6 +890,16 @@ static int syscall_rename(syscallrq_t *rq)
         newname.CWD = _process_get_CWD(GETPROCESS());
         newname.PATH = LOADARG(const char *);
 
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+        int err = access_check_parent(&oldname, _VFS_W_OK);
+        if (!err) {
+                err = access_check_parent(&newname, _VFS_W_OK);
+        }
+
+        if (err) {
+                return err;
+        }
+#endif
         return _vfs_rename(&oldname, &newname);
 #else
         UNUSED_ARG1(rq);
@@ -868,6 +924,22 @@ static int syscall_chmod(syscallrq_t *rq)
         path.PATH = LOADARG(const char *);
         GETARG(mode_t *, mode);
 
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+        /* mode can be changed by owner or root */
+        uid_t uid;
+        _process_get_credentials(&uid, NULL);
+        if (uid != 0) {
+                struct stat st;
+                int err = _vfs_stat(&path, &st);
+                if (err) {
+                        return err;
+                }
+
+                if (st.st_uid != uid) {
+                        return EPERM;
+                }
+        }
+#endif
         return _vfs_chmod(&path, *mode);
 #else
         UNUSED_ARG1(rq);
@@ -940,7 +1012,7 @@ static int syscall_fstat(syscallrq_t *rq)
         GETARG(struct stat *, buf);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_UNKNOWN, &res);
         if (!err) {
                 if (res->type == RES_TYPE_FILE) {
                         err = _vfs_fstat(cast(kfile_t *, res), buf);
@@ -1000,12 +1072,27 @@ static int syscall_open(syscallrq_t *rq)
 
         int err = EFAULT;
         int desc;
+        mode_t new_mode = *mode;
+
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+        if (*flags & O_DIRECTORY) {
+                err = (*flags & O_CREAT) ? access_check_parent(&path, _VFS_W_OK) : access_check(&path, _VFS_R_OK);
+        } else {
+                err = open_access_check(&path, *flags);
+        }
+
+        if (err) {
+                return err;
+        }
+
+        new_mode &= ~_process_umask(NULL);
+#endif
 
         if (*flags & O_DIRECTORY) {
 
                 if (*flags & O_CREAT) {
 #if __OS_ENABLE_MKDIR__ == _YES_
-                        err = _vfs_mkdir(&path, *mode);
+                        err = _vfs_mkdir(&path, new_mode);
 #else
                         err = ENOTSUP;
 #endif
@@ -1029,7 +1116,7 @@ static int syscall_open(syscallrq_t *rq)
 
         } else {
                 kfile_t *file;
-                err = _vfs_fopen(&path, *flags, *mode, &file);
+                err = _vfs_fopen(&path, *flags, new_mode, &file);
                 if (!err) {
                         err = _process_descriptor_allocate(GETPROCESS(), &desc, &file->header, *flags & O_SHARED);
                         if (err) {
@@ -1056,21 +1143,8 @@ static int syscall_close(syscallrq_t *rq)
 {
         GETARG(int *, desc);
 
-        int err = _process_descriptor_free(GETPROCESS(), *desc, RES_TYPE_UNKNOWN);
-        if (err) {
-                res_header_t *res;
-                if (_process_descriptor_get_resource(GETPROCESS(), STDERR_FD, &res) == 0) {
-                        const char *msg = "*** Error: descriptor is not valid! ***\n";
-                        size_t wrcnt;
-                        _vfs_fwrite(msg, strlen(msg), &wrcnt, cast(kfile_t *, res));
-                }
-
-                pid_t pid = 0;
-                _process_get_pid(GETPROCESS(), &pid);
-                printk("fd close: PID %d: descriptor %d not exists!", pid, *desc);
-        }
-
-        return err;
+        // incorrect descriptor: EBADF (like in Linux, without messages)
+        return _process_descriptor_free(GETPROCESS(), *desc, RES_TYPE_UNKNOWN);
 }
 
 //==============================================================================
@@ -1090,7 +1164,7 @@ static int syscall_write(syscallrq_t *rq)
         GETARG(size_t *, wrctr);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_UNKNOWN, &res);
         if (!err) {
                 if (res->type == RES_TYPE_FILE) {
                         err = _vfs_fwrite(buf, *count, wrctr, cast(kfile_t *, res));
@@ -1127,7 +1201,7 @@ static int syscall_read(syscallrq_t *rq)
         GETARG(size_t *, rdctr);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_UNKNOWN, &res);
         if (!err) {
                 if (res->type == RES_TYPE_FILE) {
                         err = _vfs_fread(buf, *count, rdctr, cast(kfile_t *, res));
@@ -1163,7 +1237,7 @@ static int syscall_seek64(syscallrq_t *rq)
         GETARG(int *, orgin);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_UNKNOWN, &res);
         if (!err) {
                 if (res->type == RES_TYPE_FILE) {
                         err = _vfs_fseek(cast(kfile_t *, res), *lseek, *orgin);
@@ -1194,7 +1268,7 @@ static int syscall_ioctl(syscallrq_t *rq)
         GETARG(va_list *, arg);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_UNKNOWN, &res);
         if (!err) {
                 if (res->type == RES_TYPE_FILE) {
                         err = _vfs_vfioctl(cast(kfile_t *, res), *request, *arg);
@@ -1220,7 +1294,7 @@ static int syscall_flush(syscallrq_t *rq)
         GETARG(int *, fd);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_UNKNOWN, &res);
         if (!err) {
                 if (res->type == RES_TYPE_FILE) {
                         err = _vfs_fflush(cast(kfile_t *, res));
@@ -1434,7 +1508,7 @@ static int syscall_free(syscallrq_t *rq)
         int err = _process_release_resource(GETPROCESS(), cast(res_header_t *, mem) - 1, RES_TYPE_MEMORY);
         if (err) {
                 res_header_t *res;
-                if (_process_descriptor_get_resource(GETPROCESS(), STDERR_FD, &res) == 0) {
+                if (_process_descriptor_get_resource(GETPROCESS(), STDERR_FD, RES_TYPE_FILE, &res) == 0) {
                         const char *msg = "*** Error: double free or corruption ***\n";
                         size_t wrcnt;
                         _vfs_fwrite(msg, strlen(msg), &wrcnt, cast(kfile_t *, res));
@@ -1522,6 +1596,23 @@ static int syscall_processcreate(syscallrq_t *rq)
 static int syscall_processkill(syscallrq_t *rq)
 {
         GETARG(const pid_t *, pid);
+
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+        /* process can be killed by its user or root */
+        uid_t uid;
+        _process_get_credentials(&uid, NULL);
+        if (uid != 0) {
+                uid_t owner;
+                int err = _process_get_owner(*pid, &owner);
+                if (err) {
+                        return err;
+                }
+
+                if (owner != uid) {
+                        return EPERM;
+                }
+        }
+#endif
 
         /*
          * NOTE: killed process is not removed here. Process which is not
@@ -1824,7 +1915,7 @@ static int syscall_semaphorewait(syscallrq_t *rq)
         GETARG(uint32_t *, timeout);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_SEMAPHORE, &res);
         if (!err) {
                 err = _semaphore_wait(cast(ksem_t *, res), *timeout);
         }
@@ -1846,7 +1937,7 @@ static int syscall_semaphoresignal(syscallrq_t *rq)
         GETARG(int *, fd);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_SEMAPHORE, &res);
         if (!err) {
                 err = _semaphore_signal(cast(ksem_t *, res));
         }
@@ -1869,7 +1960,7 @@ static int syscall_semaphoregetvalue(syscallrq_t *rq)
         GETARG(size_t *, value);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_SEMAPHORE, &res);
         if (!err) {
                 err = _semaphore_get_value(cast(ksem_t *, res), value);
         }
@@ -1922,7 +2013,7 @@ static int syscall_mutexlock(syscallrq_t *rq)
         GETARG(uint32_t *, timeout);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_MUTEX, &res);
         if (!err) {
                 err = _mutex_lock(cast(kmtx_t *, res), *timeout);
         }
@@ -1944,7 +2035,7 @@ static int syscall_mutexunlock(syscallrq_t *rq)
         GETARG(int *, fd);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_MUTEX, &res);
         if (!err) {
                 err = _mutex_unlock(cast(kmtx_t *, res));
         }
@@ -1997,7 +2088,7 @@ static int syscall_queuereset(syscallrq_t *rq)
         GETARG(int *, fd);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_QUEUE, &res);
         if (!err) {
                 err = _queue_reset(cast(kqueue_t *, res));
         }
@@ -2021,7 +2112,7 @@ static int syscall_queuesend(syscallrq_t *rq)
         GETARG(const u32_t *, timeout);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_QUEUE, &res);
         if (!err) {
                 err = _queue_send(cast(kqueue_t *, res), item, *timeout);
         }
@@ -2045,7 +2136,7 @@ static int syscall_queuereceive(syscallrq_t *rq)
         GETARG(const u32_t *, timeout);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_QUEUE, &res);
         if (!err) {
                 err = _queue_receive(cast(kqueue_t *, res), item, *timeout);
         }
@@ -2069,7 +2160,7 @@ static int syscall_queuereceviepeek(syscallrq_t *rq)
         GETARG(const u32_t *, timeout);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_QUEUE, &res);
         if (!err) {
                 err = _queue_receive_peek(cast(kqueue_t *, res), item, *timeout);
         }
@@ -2092,7 +2183,7 @@ static int syscall_queueitemscount(syscallrq_t *rq)
         GETARG(size_t *, count);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_QUEUE, &res);
         if (!err) {
                 err = _queue_get_number_of_items(cast(kqueue_t *, res), count);
         }
@@ -2115,7 +2206,7 @@ static int syscall_queuefreespace(syscallrq_t *rq)
         GETARG(size_t *, count);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_QUEUE, &res);
         if (!err) {
                 err = _queue_get_space_available(cast(kqueue_t *, res), count);
         }
@@ -2308,7 +2399,7 @@ static int syscall_netbind(syscallrq_t *rq)
         GETARG(const size_t *, addr_size);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_SOCKET, &res);
         if (!err) {
                 err = _net_socket_bind(res->self, addr, *addr_size);
         }
@@ -2335,7 +2426,7 @@ static int syscall_netlisten(syscallrq_t *rq)
         GETARG(int *, fd);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_SOCKET, &res);
         if (!err) {
                 err = _net_socket_listen(res->self);
         }
@@ -2363,7 +2454,7 @@ static int syscall_netaccept(syscallrq_t *rq)
         GETARG(int *, new_fd);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_SOCKET, &res);
         if (!err) {
                 ksocket_t *socknew;
                 err = _net_socket_accept(res->self, &socknew);
@@ -2401,7 +2492,7 @@ static int syscall_netrecv(syscallrq_t *rq)
         GETARG(size_t *, recved);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_SOCKET, &res);
         if (!err) {
                 err = _net_socket_recv(res->self, buf, *len, *flags, recved);
         }
@@ -2434,7 +2525,7 @@ static int syscall_netrecvfrom(syscallrq_t *rq)
         GETARG(size_t *, recved);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_SOCKET, &res);
         if (!err) {
                 err = _net_socket_recvfrom(res->self, buf, *len, *flags, sockaddr, *sockaddr_size, recved);
         }
@@ -2465,7 +2556,7 @@ static int syscall_netsend(syscallrq_t *rq)
         GETARG(size_t *, sent);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_SOCKET, &res);
         if (!err) {
                 err = _net_socket_send(res->self, buf, *len, *flags, sent);
         }
@@ -2498,7 +2589,7 @@ static int syscall_netsendto(syscallrq_t *rq)
         GETARG(size_t *, sent);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_SOCKET, &res);
         if (!err) {
                 err = _net_socket_sendto(res->self, buf, *len, *flags, to_addr, *to_addr_size, sent);
         }
@@ -2550,7 +2641,7 @@ static int syscall_netsetrecvtimeout(syscallrq_t *rq)
         GETARG(uint32_t *, timeout);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_SOCKET, &res);
         if (!err) {
                 err = _net_socket_set_recv_timeout(res->self, *timeout);
         }
@@ -2578,7 +2669,7 @@ static int syscall_netsetsendtimeout(syscallrq_t *rq)
         GETARG(uint32_t *, timeout);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_SOCKET, &res);
         if (!err) {
                 err = _net_socket_set_send_timeout(res->self, *timeout);
         }
@@ -2607,7 +2698,7 @@ static int syscall_netconnect(syscallrq_t *rq)
         GETARG(const size_t *, addr_size);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_SOCKET, &res);
         if (!err) {
                 err = _net_socket_connect(res->self, addr, *addr_size);
         }
@@ -2634,7 +2725,7 @@ static int syscall_netdisconnect(syscallrq_t *rq)
         GETARG(int *, fd);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_SOCKET, &res);
         if (!err) {
                 err = _net_socket_disconnect(res->self);
         }
@@ -2662,7 +2753,7 @@ static int syscall_netshutdown(syscallrq_t *rq)
         GETARG(NETM_shut_t *, how);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_SOCKET, &res);
         if (!err) {
                 err = _net_socket_shutdown(res->self, *how);
         }
@@ -2691,7 +2782,7 @@ static int syscall_netgetaddress(syscallrq_t *rq)
         GETARG(const size_t *, sockaddr_size);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_SOCKET, &res);
         if (!err) {
                 err = _net_socket_getaddress(res->self, sockaddr, *sockaddr_size);
         }
@@ -2922,7 +3013,43 @@ static int syscall_usleep(syscallrq_t *rq)
 
 //==============================================================================
 /**
- * @brief  This syscall get current group ID.
+ * @brief  Function returns one ID of the current thread.
+ *
+ * @param  rq                   syscall request (u16_t *id: uid_t or gid_t)
+ * @param  real                 real IDs (otherwise effective IDs)
+ * @param  group                group ID (otherwise user ID)
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int get_id(syscallrq_t *rq, bool real, bool group)
+{
+        GETARG(u16_t *, id);
+
+        if (!id) {
+                return EINVAL;
+        }
+
+        *id = 0;
+
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+        uid_t uid;
+        gid_t gid;
+        if (real) {
+                _process_get_real_credentials(&uid, &gid);
+        } else {
+                _process_get_credentials(&uid, &gid);
+        }
+        *id = group ? gid : uid;
+#else
+        UNUSED_ARG2(real, group);
+#endif
+        return ESUCC;
+}
+
+//==============================================================================
+/**
+ * @brief  This syscall get real group ID of the current thread.
  *
  * @param  rq                   syscall request
  *
@@ -2931,19 +3058,12 @@ static int syscall_usleep(syscallrq_t *rq)
 //==============================================================================
 static int syscall_getgid(syscallrq_t *rq)
 {
-        GETARG(gid_t *, gid);
-
-        if (gid) {
-                *gid = 0;
-                return 0;
-        } else {
-                return EINVAL;
-        }
+        return get_id(rq, true, true);
 }
 
 //==============================================================================
 /**
- * @brief  This syscall get current user ID.
+ * @brief  This syscall get real user ID of the current thread.
  *
  * @param  rq                   syscall request
  *
@@ -2952,14 +3072,35 @@ static int syscall_getgid(syscallrq_t *rq)
 //==============================================================================
 static int syscall_getuid(syscallrq_t *rq)
 {
-        GETARG(uid_t *, uid);
+        return get_id(rq, true, false);
+}
 
-        if (uid) {
-                *uid = 0;
-                return 0;
-        } else {
-                return EINVAL;
-        }
+//==============================================================================
+/**
+ * @brief  This syscall get effective group ID of the current thread.
+ *
+ * @param  rq                   syscall request
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int syscall_getegid(syscallrq_t *rq)
+{
+        return get_id(rq, false, true);
+}
+
+//==============================================================================
+/**
+ * @brief  This syscall get effective user ID of the current thread.
+ *
+ * @param  rq                   syscall request
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int syscall_geteuid(syscallrq_t *rq)
+{
+        return get_id(rq, false, false);
 }
 
 //==============================================================================
@@ -3381,7 +3522,7 @@ static int syscall_dirseek(syscallrq_t *rq)
         GETARG(const u32_t *, seek);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_UNKNOWN, &res);
         if (!err) {
                 if (res->type == RES_TYPE_DIR) {
                         err = _vfs_seekdir(res->self, *seek);
@@ -3409,7 +3550,7 @@ static int syscall_dirtell(syscallrq_t *rq)
         GETARG(u32_t *, pos);
 
         res_header_t *res;
-        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, &res);
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_UNKNOWN, &res);
         if (!err) {
                 if (res->type == RES_TYPE_DIR) {
                         err = _vfs_telldir(res->self, pos);
@@ -3692,6 +3833,195 @@ static int syscall_confstr(syscallrq_t *rq)
                 return EINVAL;
         }
 }
+
+//==============================================================================
+/**
+ * @brief  This syscall sets user ID of the calling process (all threads) or of
+ *         the calling thread only.
+ *
+ * @param  rq                   syscall request
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int syscall_setuid(syscallrq_t *rq)
+{
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+        GETARG(const uid_t *, uid);
+        GETARG(const bool *, thread);
+        return (uid && thread) ? _process_set_credentials(uid, NULL, *thread) : EINVAL;
+#else
+        UNUSED_ARG1(rq);
+        return ENOSYS;
+#endif
+}
+
+//==============================================================================
+/**
+ * @brief  This syscall sets group ID of the calling process (all threads) or
+ *         of the calling thread only.
+ *
+ * @param  rq                   syscall request
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int syscall_setgid(syscallrq_t *rq)
+{
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+        GETARG(const gid_t *, gid);
+        GETARG(const bool *, thread);
+        return (gid && thread) ? _process_set_credentials(NULL, gid, *thread) : EINVAL;
+#else
+        UNUSED_ARG1(rq);
+        return ENOSYS;
+#endif
+}
+
+//==============================================================================
+/**
+ * @brief  This syscall gets and sets file mode creation mask of process.
+ *
+ * @param  rq                   syscall request
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int syscall_umask(syscallrq_t *rq)
+{
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+        GETARG(const mode_t *, mask);
+        GETARG(mode_t *, old);
+
+        mode_t prev = _process_umask(mask);
+        if (old) {
+                *old = prev;
+        }
+
+        return ESUCC;
+#else
+        UNUSED_ARG1(rq);
+        return ENOSYS;
+#endif
+}
+
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+//==============================================================================
+/**
+ * @brief  Function checks if syscall can be used only by root (system
+ *         configuration: drivers, file systems, network, time, restart).
+ *
+ * @param  syscall              syscall number
+ *
+ * @return true if syscall is available only for root.
+ */
+//==============================================================================
+static bool syscall_is_root_only(syscall_t syscall)
+{
+        switch (syscall) {
+        case SYSCALL_MOUNT:
+        case SYSCALL_UMOUNT:
+        case SYSCALL_MKNOD:
+        case SYSCALL_CHOWN:
+        case SYSCALL_SETTIMEOFDAY:
+        case SYSCALL_DRIVERINIT:
+        case SYSCALL_DRIVERRELEASE:
+        case SYSCALL_NETADD:
+        case SYSCALL_NETRM:
+        case SYSCALL_NETIFUP:
+        case SYSCALL_NETIFDOWN:
+        case SYSCALL_SETHOSTNAME:
+        case SYSCALL_SYSTEMRESTART:
+        case SYSCALL_SYSTEMSHUTDOWN:
+        case SYSCALL_SYSLOGCLEAR:
+        case SYSCALL_REBOOTTOADDR:
+        case SYSCALL_LOWPOWERMODE:
+                return true;
+        default:
+                return false;
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Function checks access of the calling thread to file or directory.
+ *
+ * @param  path                 path
+ * @param  amode                access mode (_VFS_R_OK, _VFS_W_OK, _VFS_X_OK)
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int access_check(const struct vfs_path *path, int amode)
+{
+        uid_t uid;
+        gid_t gid;
+        _process_get_credentials(&uid, &gid);
+
+        return _vfs_access(path, amode, uid, gid);
+}
+
+//==============================================================================
+/**
+ * @brief  Function checks access of the calling thread to directory that
+ *         contains selected object.
+ *
+ * @param  path                 path of object
+ * @param  amode                access mode of directory
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int access_check_parent(const struct vfs_path *path, int amode)
+{
+        uid_t uid;
+        gid_t gid;
+        _process_get_credentials(&uid, &gid);
+
+        return _vfs_access_parent(path, amode, uid, gid);
+}
+
+//==============================================================================
+/**
+ * @brief  Function checks access of the calling thread for open(): read and
+ *         write rights of existing file or write right of directory of new
+ *         file.
+ *
+ * @param  path                 path of file
+ * @param  flags                open flags
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int open_access_check(const struct vfs_path *path, int flags)
+{
+        uid_t uid;
+        gid_t gid;
+        _process_get_credentials(&uid, &gid);
+
+        if (uid == 0) {
+                return ESUCC;
+        }
+
+        int acc = flags & O_ACCMODE;
+        int amode = 0;
+
+        if ((acc == O_RDONLY) || (acc == O_RDWR)) {
+                amode |= _VFS_R_OK;
+        }
+
+        if ((acc == O_WRONLY) || (acc == O_RDWR) || (flags & O_TRUNC)) {
+                amode |= _VFS_W_OK;
+        }
+
+        int err = _vfs_access(path, amode, uid, gid);
+        if ((err == ENOENT) && (flags & O_CREAT)) {
+                err = _vfs_access_parent(path, _VFS_W_OK, uid, gid);
+        }
+
+        return err;
+}
+#endif
 
 /*==============================================================================
   End of file

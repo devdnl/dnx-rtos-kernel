@@ -41,6 +41,11 @@
 #include "kernel/process.h"
 #include "kernel/sysfunc.h"
 
+#if (__OS_ENABLE_PERMISSIONS__ == _YES_) && \
+        ((__OS_ENABLE_CHMOD__ != _YES_) || (__OS_ENABLE_CHOWN__ != _YES_) || (__OS_ENABLE_FSTAT__ != _YES_))
+#error "Permissions need chmod(), chown() and fstat() functions (__OS_ENABLE_CHMOD__, __OS_ENABLE_CHOWN__, __OS_ENABLE_FSTAT__)"
+#endif
+
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
@@ -101,6 +106,9 @@ static int direct_devfs_read(void *fshdl, void *fhdl, u8_t *dst, size_t count, f
 static int direct_devfs_ioctl(void *fshdl, void *fhdl, int iroq, void *arg);
 static int direct_devfs_fstat(void *fshdl, void *fhdl, struct stat *stat);
 static int direct_devfs_flush(void *fshdl, void *fhdl);
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+static void set_new_object_owner(FS_entry_t *fs, const char *external_path, mode_t mode, bool apply_mode);
+#endif
 
 /*==============================================================================
   Local object definitions
@@ -446,6 +454,11 @@ int _vfs_mkdir(const struct vfs_path *path, mode_t mode)
                 err = get_path_base_FS(cwd_path, false, &external_path, &fs);
                 if (!err) {
                         err = fs->interface->fs_mkdir(fs->handle, external_path, mode & S_IPMT);
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+                        if (!err) {
+                                set_new_object_owner(fs, external_path, mode, true);
+                        }
+#endif
                         put_FS(fs);
                 }
 
@@ -482,6 +495,11 @@ int _vfs_mkfifo(const struct vfs_path *path, mode_t mode)
                 err = get_path_base_FS(cwd_path, false, &external_path, &fs);
                 if (!err) {
                         err = fs->interface->fs_mkfifo(fs->handle, external_path, mode & S_IPMT);
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+                        if (!err) {
+                                set_new_object_owner(fs, external_path, mode, true);
+                        }
+#endif
                         put_FS(fs);
                 }
 
@@ -1007,6 +1025,10 @@ int _vfs_fopen(const struct vfs_path *path, int flags, mode_t mode, kfile_t **fi
                          * permissions are applied at each open with O_CREAT.
                          */
                         if (!err && (flags & O_CREAT) && !existed) {
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+                                /* mode (without permission bits: default of file system) and owner */
+                                set_new_object_owner(fs, external_path, mode, (mode & S_IPMT) != 0);
+#else
                                 struct stat st;
                                 memset(&st, 0, sizeof(st));
                                 if (fs->interface->fs_fstat(fs->handle, file_obj->f_hdl, &st) != ESUCC) {
@@ -1015,6 +1037,7 @@ int _vfs_fopen(const struct vfs_path *path, int flags, mode_t mode, kfile_t **fi
 
                                 mode_t cur_mode = st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
                                 err = fs->interface->fs_chmod(fs->handle, external_path, cur_mode | (mode & S_IPMT));
+#endif
                         }
 #endif
                 }
@@ -1062,6 +1085,125 @@ int _vfs_fopen(const struct vfs_path *path, int flags, mode_t mode, kfile_t **fi
 
         return err;
 }
+
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+//==============================================================================
+/**
+ * @brief Function checks access to file or directory (permission bits of
+ *        owner, group or others). Root (user ID 0) has access to all objects
+ *        except direct device paths.
+ *
+ * @param[in] path              path
+ * @param[in] amode             access mode (_VFS_R_OK, _VFS_W_OK, _VFS_X_OK; 0: existence)
+ * @param[in] uid               user ID
+ * @param[in] gid               group ID
+ *
+ * @return One of errno values (EACCES: access denied)
+ */
+//==============================================================================
+int _vfs_access(const struct vfs_path *path, int amode, uid_t uid, gid_t gid)
+{
+        if (!path || !path->PATH) {
+                return EINVAL;
+        }
+
+        if (uid == 0) {
+                return ESUCC;
+        }
+
+        if (strncmp(path->PATH, dev_path_protocol, sizeof(dev_path_protocol) - 1) == 0) {
+                return EACCES;
+        }
+
+        struct stat st;
+        int err = _vfs_stat(path, &st);
+        if (!err) {
+                mode_t bits = st.st_mode;
+                if (uid == st.st_uid) {
+                        bits >>= 6;
+                } else if (gid == st.st_gid) {
+                        bits >>= 3;
+                }
+
+                if ((bits & amode & 7) != (amode & 7)) {
+                        err = EACCES;
+                }
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief Function checks access to directory that contains selected path
+ *        (e.g. write access to create or remove object).
+ *
+ * @param[in] path              path of object
+ * @param[in] amode             access mode of directory
+ * @param[in] uid               user ID
+ * @param[in] gid               group ID
+ *
+ * @return One of errno values (EACCES: access denied)
+ */
+//==============================================================================
+int _vfs_access_parent(const struct vfs_path *path, int amode, uid_t uid, gid_t gid)
+{
+        if (!path || !path->PATH) {
+                return EINVAL;
+        }
+
+        if (uid == 0) {
+                return ESUCC;
+        }
+
+        char *dir_path;
+        int err = new_absolute_path(path, SUB_SLASH, &dir_path);
+        if (!err) {
+                char *slash = strrchr(dir_path, '/');
+                if (slash == dir_path) {
+                        slash[1] = '\0';
+                } else if (slash) {
+                        *slash = '\0';
+                }
+
+                struct vfs_path parent = {.CWD = NULL, .PATH = dir_path};
+                err = _vfs_access(&parent, amode, uid, gid);
+
+                _kfree(_MM_KRN, cast(void **, &dir_path));
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief Function sets mode and owner of new object (owner: credentials of the
+ *        current thread). Errors are ignored (file systems without owners).
+ *
+ * @param[in] fs                file system
+ * @param[in] external_path     path in file system
+ * @param[in] mode              mode of object
+ * @param[in] apply_mode        set permission bits
+ */
+//==============================================================================
+static void set_new_object_owner(FS_entry_t *fs, const char *external_path, mode_t mode, bool apply_mode)
+{
+        uid_t uid;
+        gid_t gid;
+        _process_get_credentials(&uid, &gid);
+
+        struct stat st;
+        if (fs->interface->fs_stat(fs->handle, external_path, &st) == ESUCC) {
+                if (apply_mode && ((st.st_mode & S_IPMT) != (mode & S_IPMT))) {
+                        fs->interface->fs_chmod(fs->handle, external_path, mode & S_IPMT);
+                }
+
+                if ((st.st_uid != uid) || (st.st_gid != gid)) {
+                        fs->interface->fs_chown(fs->handle, external_path, uid, gid);
+                }
+        }
+}
+#endif
 
 //==============================================================================
 /**

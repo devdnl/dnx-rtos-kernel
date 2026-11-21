@@ -529,16 +529,14 @@ API_FS_OPEN(flatfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path
                          */
                         err = node_find_any(hdl, path, blk, &node_num);
 
-                        if ((err == ESUCC) and S_ISDIR(blk->mode)) {
+                        if ((err == ESUCC) and (flags & O_CREAT) and (flags & O_EXCL)) {
+                                err = EEXIST; // existing file or directory
+                                goto finish;
+
+                        } else if ((err == ESUCC) and S_ISDIR(blk->mode)) {
                                 err = EISDIR;
                                 goto finish;
 
-                        } else if (err == ESUCC) {
-#ifdef O_EXCL
-                                if ((flags & O_CREAT) and (flags & O_EXCL)) {
-                                        err = EEXIST;
-                                }
-#endif
                         } else if ((err == ENOENT) and (flags & O_CREAT)) {
                                 err = node_create(hdl, path, S_IFREG | 0666, blk, &node_num, mtime);
                         }

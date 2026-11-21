@@ -271,6 +271,12 @@ both the C preprocessor and make**:
       `$(TARGET)` checks),
     - an `__ENABLE_<NAME>__` entry in `config/arch/arch_flags.h`,
     - matching options files if needed.
+  - Every driver enabled in the configuration is registered
+    (`src/drivers/adddriver.sh`, `#if (__ENABLE_<NAME>__)`). Support of the
+    selected CPU is decided by the driver `Makefile`: an enabled driver whose
+    `Makefile` adds no source for `$(TARGET)` stops the build with "module(s)
+    not supported" (kernel `Makefile`, `UNSUPPORTED_MODULES`), so names of
+    per-arch subdirectories do not matter (no placeholder directories).
   - Drivers are character devices (`S_IFCHR`) by default. A driver of a
     medium that can hold a file system (random read and overwrite in place)
     is a block device: it defines `_<NAME>_BLOCK_DEVICE` in `<name>_ioctl.h`
@@ -325,6 +331,60 @@ both the C preprocessor and make**:
   `tools/appset/memory_layout.ld`). Programs of the main appset are
   listed by `appsetfs` mounted with empty source (`/bin` by `initd` and
   `siminit`); procfs has no program directory.
+- Descriptors (`_process_descriptor_allocate/get_resource/free`): bits 0..14
+  index in the descriptor table (16 slots per chain node), bit 15 shared
+  descriptor (`O_SHARED`, global table), bits 16..30 tag: PID tag of the
+  process (descriptor of other process: `EBADF`) or generation of the shared
+  slot (descriptor of closed shared object: `EBADF`); 0, 1, 2 (stdio) are
+  accepted without tag. `_process_descriptor_get_resource()` takes the
+  expected object type (`RES_TYPE_UNKNOWN`: any), wrong type gives `EBADF`
+  without kernel messages (like Linux); `close()` of incorrect descriptor
+  returns `EBADF` silently.
+- Users and file permissions (`__OS_ENABLE_PERMISSIONS__`, requires
+  `__OS_ENABLE_CHMOD__`, `__OS_ENABLE_CHOWN__`, `__OS_ENABLE_FSTAT__`; off:
+  no code, every task is root): credentials `uid`/`gid` are per thread
+  (`task_data_t`), umask per process (`_PROCESS_DEFAULT_UMASK` 022).
+  Threads and processes inherit credentials of the creator; a process is
+  started as other user only by root (`_process_attr_t.set_credentials`,
+  libc `process_create_as()`). A task that is not a process thread is root.
+  Each thread has effective IDs (`uid`/`gid`, access checks) and real IDs
+  (`ruid`/`rgid`, user that started the process); they differ only in
+  programs with `_PROGRAM_FLAG_PRIVILEGED` (`_program_entry_t.flags`, libc
+  `PROGRAM_PARAMS_FLAGS()`, e.g. `sudo`): such a program gets effective IDs
+  0 and real IDs of the creator. Functions: `_process_get_credentials`
+  (effective, `SYSCALL_GETEUID/GETEGID`), `_process_get_real_credentials`
+  (`SYSCALL_GETUID/GETGID`), `_process_set_credentials`
+  (`SYSCALL_SETUID/SETGID` with scope argument: all threads of the process
+  (POSIX `setuid()`) or the calling thread (`thread_setuid()`); root sets real
+  and effective IDs, others set effective ID to own real or effective ID),
+  `_process_umask`
+  (`SYSCALL_UMASK`), `_process_get_owner` (real user ID of main thread, used
+  by kill). The program table magic is `ASV3` (entry with `flags`); appsets
+  built for older kernels are rejected. Checks are done only in syscalls
+  (`src/kernel/syscall.c`) by `_vfs_access()` / `_vfs_access_parent()`
+  (`fs/vfs.h`): owner/group/other bits, root (uid 0) passes all, `dev://`
+  paths are denied for non-root, `x` bits of directories on the path are not
+  checked. open: read/write by flags, `O_TRUNC` needs write, a new file needs
+  write in parent; `O_DIRECTORY` needs read; mkdir/mkfifo/remove/rename need
+  write in parent(s); chmod only owner; kill only own processes. Root-only
+  syscalls (`syscall_is_root_only()`): mount, umount, mknod, chown,
+  settimeofday, driver init/release, network add/remove/up/down, set host
+  name, restart/shutdown, syslog clear, reboot to address, low power mode.
+  VFS sets owner (creator) and mode (`& ~umask`) of new files, directories
+  and FIFOs by chmod/chown of the file system (`set_new_object_owner()`).
+  Files of ramfs device nodes have mode 0600. fatfs has no owner on disk:
+  mount options `uid=`, `gid=`, `umask=` (default 022), `fmask=`, `dmask=`
+  (like Linux vfat). romfs reads mode, uid and gid of files from
+  the FPKG image (descriptor flags `FLAG_MODE` with mode in bits 16..24,
+  entry `reserved` word uid | gid << 16, container header `FLAG_DIR_MODE`
+  with mode of directories; directories are owned by root; images without
+  the flags: 0444, option `exec` adds owner execute), written by
+  `tools/mkfpkg.py -u -g -m -d -p`. romfs takes the size of the image from
+  the FPKG header (u32 at offset 64), so the device can be the whole
+  partition (e.g. MEMBLOCK of partition size, rest erased); `statfs` gives
+  the partition size and free space after the image, a device without image
+  gives `EILSEQ`. File systems without modes (procfs,
+  appsetfs) are readable by everybody.
 
 ## Compatibility with the workspace (important)
 

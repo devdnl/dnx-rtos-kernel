@@ -88,6 +88,13 @@ struct vfs_path {
         const char *PATH;
 };
 
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+/** Access modes of _vfs_access() (as access() of POSIX) */
+#define _VFS_R_OK 4
+#define _VFS_W_OK 2
+#define _VFS_X_OK 1
+#endif
+
 /** Path slash correction */
 enum path_correction {
         ADD_SLASH,
@@ -118,6 +125,10 @@ extern int _vfs_chown(const struct vfs_path *, uid_t, gid_t);
 extern int _vfs_stat(const struct vfs_path *, struct stat *);
 extern int _vfs_statfs(const struct vfs_path *, struct statfs *);
 extern int _vfs_fopen(const struct vfs_path *, int, mode_t, kfile_t **);
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+extern int _vfs_access(const struct vfs_path *, int, uid_t, gid_t);
+extern int _vfs_access_parent(const struct vfs_path *, int, uid_t, gid_t);
+#endif
 extern int _vfs_fopen_ref(kfile_t *);
 extern int _vfs_fclose(kfile_t *);
 extern int _vfs_fwrite(const void *, size_t, size_t *, kfile_t *);

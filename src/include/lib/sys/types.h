@@ -298,6 +298,9 @@ typedef struct {
         const char *p_stderr;    //!< stderr file path (minor)
         i16_t priority;          //!< process priority
         bool detached;           //!< independent process (no parent)
+        bool set_credentials;    //!< use uid and gid (only root), otherwise credentials of creator
+        uid_t uid;               //!< user ID of process
+        gid_t gid;               //!< group ID of process
 } _process_attr_t;
 
 /**
@@ -323,6 +326,8 @@ typedef struct {
         u16_t stack_max_usage;    //!< max stack usage
         i16_t priority;           //!< priority
         u16_t syscalls_per_sec;   //!< syscalls per second
+        uid_t uid;                //!< user ID of main thread (0 without permissions)
+        gid_t gid;                //!< group ID of main thread (0 without permissions)
 } _process_stat_t;
 
 /**

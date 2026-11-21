@@ -464,6 +464,20 @@ const char *ttybfr_get_fresh_line(ttybfr_t *this)
 
 //==============================================================================
 /**
+ * @brief  Clear fresh flag of last line (line was shown by refresh).
+ * @param  this          buffer object
+ * @return None
+ */
+//==============================================================================
+void ttybfr_clear_fresh_last_line(ttybfr_t *this)
+{
+        if (is_valid(this)) {
+                this->screen.fresh_line[screen_get_line_index(this, 0)] = false;
+        }
+}
+
+//==============================================================================
+/**
  * @brief  Clear fresh line counter
  * @param  this          buffer object
  * @return None

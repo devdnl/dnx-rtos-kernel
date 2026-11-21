@@ -34,7 +34,14 @@
 /*==============================================================================
   Local symbolic constants/macros
 ==============================================================================*/
-#define MTX_TIMEOUT        60000
+#define MTX_TIMEOUT 60000
+
+/* mode of device file (with users: only root, access of users is set by chmod) */
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+#define DEV_NODE_MODE (S_IRUSR | S_IWUSR)
+#else
+#define DEV_NODE_MODE (S_IRWXU | S_IRGRP | S_IROTH)
+#endif
 #define PIPE_LENGTH        __OS_STREAM_BUFFER_LENGTH__
 #define PIPE_WRITE_TIMEOUT 1
 #define PIPE_READ_TIMEOUT  MAX_DELAY
@@ -309,8 +316,7 @@ API_FS_MKNOD(ramfs, void *fs_handle, const char *path, const dev_t dev)
                         err = copy_basename(hdl, path, &child_name);
                         if (!err) {
                                 node_t *child;
-                                err = new_node(hdl, parent, child_name, S_IRWXU | S_IRGRP | S_IROTH | fs_dev_type(dev),
-                                        NULL, &child);
+                                err = new_node(hdl, parent, child_name, DEV_NODE_MODE | fs_dev_type(dev), NULL, &child);
                                 if (!err) {
                                         child->data.dev_t = dev;
                                 } else {

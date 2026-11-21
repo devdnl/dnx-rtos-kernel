@@ -289,6 +289,18 @@ OBJECTS_CSRC           = $(OBJECTS_CSRC_PROGRAMS) $(OBJECTS_CSRC_LIB) $(OBJECTS_
 OBJECTS_CXXSRC         = $(OBJECTS_CXXSRC_PROGRAMS) $(OBJECTS_CXXSRC_LIB) $(OBJECTS_CXXSRC_CORE) $(OBJECTS_CXXSRC_NOARCH) $(OBJECTS_CXXSRC_ARCH)
 OBJECTS_ALL            = $(OBJECTS_ASRC) $(OBJECTS_CSRC) $(OBJECTS_CXXSRC) $(OBJECTS_CSRC_HOST) $(OBJECTS_CSRC_HOST_LIB)
 
+# drivers enabled in configuration whose Makefile adds no source for selected CPU are not
+# supported (driver registration includes all enabled drivers)
+uppercase              = $(subst a,A,$(subst b,B,$(subst c,C,$(subst d,D,$(subst e,E,$(subst f,F,$(subst g,G,$(subst \
+                         h,H,$(subst i,I,$(subst j,J,$(subst k,K,$(subst l,L,$(subst m,M,$(subst n,N,$(subst o,O,$(subst \
+                         p,P,$(subst q,Q,$(subst r,R,$(subst s,S,$(subst t,T,$(subst u,U,$(subst v,V,$(subst w,W,$(subst \
+                         x,X,$(subst y,Y,$(subst z,Z,$(1)))))))))))))))))))))))))))
+DRV_MODULES           := $(notdir $(patsubst %/Makefile,%,$(wildcard $(SYS_DRV_LOC)/*/Makefile)))
+DRV_SOURCES           := $(CSRC_ARCH) $(CSRC_NOARCH) $(CXXSRC_ARCH) $(CXXSRC_NOARCH) $(CSRC_HOST) $(ASRC)
+UNSUPPORTED_MODULES   += $(foreach m,$(DRV_MODULES),$(if $(filter _YES_,$(__ENABLE_$(call uppercase,$(m))__)),\
+                         $(if $(filter drivers/$(m)/% $(SYS_DRV_LOC)/$(m)/%,$(DRV_SOURCES)),,$(call uppercase,$(m)))))
+UNSUPPORTED_MODULES   := $(sort $(UNSUPPORTED_MODULES))
+
 # architecture dependent sources that do not exist (module not supported by selected CPU),
 # modules not supported by selected CPU are also added to UNSUPPORTED_MODULES by module Makefile
 ARCH_SRC               = $(_CSRC_ARCH) $(_CXXSRC_ARCH) $(ASRC) $(_CSRC_HOST) $(_CSRC_HOST_LIB)

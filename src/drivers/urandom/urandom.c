@@ -3,7 +3,7 @@ File    urandom.c
 
 Author  Daniel Zorychta
 
-Brief   Pseudo random generator device
+Brief   Cryptographically secure random number generator device
 
         Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
@@ -28,23 +28,45 @@ Brief   Pseudo random generator device
 /*==============================================================================
   Include files
 ==============================================================================*/
-#include "drivers/driver.h"
-#include "../urandom_ioctl.h"
+#include "urandom.h"
 
 /*==============================================================================
   Local macros
 ==============================================================================*/
+#define KEY_WORDS    8
+#define BLOCK_WORDS  16
+#define RESEED_BYTES 32
+#define ROTL(v, n)   (((v) << (n)) | ((v) >> (32 - (n))))
+#define QR(a, b, c, d)               \
+        do {                         \
+                a += b;              \
+                d = ROTL(d ^ a, 16); \
+                c += d;              \
+                b = ROTL(b ^ c, 12); \
+                a += b;              \
+                d = ROTL(d ^ a, 8);  \
+                c += d;              \
+                b = ROTL(b ^ c, 7);  \
+        } while (0)
 
 /*==============================================================================
   Local object types
 ==============================================================================*/
 typedef struct {
-        uint seed;
+        kmtx_t *mtx;
+        u32_t key[KEY_WORDS];
+        u64_t counter;
+        URANDOM_source_t source;
 } URANDOM_t;
 
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
+static void chacha20_block(URANDOM_t *hdl, u32_t out[BLOCK_WORDS]);
+static void rekey(URANDOM_t *hdl);
+static void mix(URANDOM_t *hdl, const u8_t *data, size_t len);
+static void reseed(URANDOM_t *hdl);
+static void wipe(void *mem, size_t len);
 
 /*==============================================================================
   Local object
@@ -74,14 +96,24 @@ API_MOD_INIT(URANDOM, void **device_handle, u8_t major, u8_t minor)
 {
         UNUSED_ARG1(major);
 
-        int err = EFAULT;
+        if (minor != 0) {
+                return ENODEV;
+        }
 
-        if (minor == 0) {
-                err = sys_zalloc(sizeof(URANDOM_t), device_handle);
+        int err = sys_zalloc(sizeof(URANDOM_t), device_handle);
+        if (!err) {
+                URANDOM_t *hdl = *device_handle;
+
+                err = sys_mutex_create(KMTX_TYPE_NORMAL, &hdl->mtx);
                 if (!err) {
-                        URANDOM_t *hdl = *device_handle;
-                        uint seed = sys_get_uptime_ms();
-                        hdl->seed = sys_rand_r(&seed);
+                        hdl->source = _URANDOM_LLD__init();
+                        reseed(hdl);
+
+                        if (hdl->source == URANDOM_SOURCE__WEAK) {
+                                printk("URANDOM: no hardware entropy source, write secret seed to device");
+                        }
+                } else {
+                        sys_free(device_handle);
                 }
         }
 
@@ -99,7 +131,19 @@ API_MOD_INIT(URANDOM, void **device_handle, u8_t major, u8_t minor)
 //==============================================================================
 API_MOD_RELEASE(URANDOM, void *device_handle)
 {
-        return sys_free(&device_handle);
+        URANDOM_t *hdl = device_handle;
+
+        int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
+        if (!err) {
+                kmtx_t *mtx = hdl->mtx;
+                _URANDOM_LLD__deinit();
+                wipe(hdl, sizeof(*hdl));
+                sys_free(&device_handle);
+                sys_mutex_unlock(mtx);
+                sys_mutex_destroy(mtx);
+        }
+
+        return err;
 }
 
 //==============================================================================
@@ -138,7 +182,7 @@ API_MOD_CLOSE(URANDOM, void *device_handle, bool force)
 
 //==============================================================================
 /**
- * @brief Write data to device.
+ * @brief Write data to device. Data are mixed into generator state.
  *
  * @param[in ]          *device_handle          device allocated memory
  * @param[in ]          *src                    data source
@@ -153,9 +197,18 @@ API_MOD_CLOSE(URANDOM, void *device_handle, bool force)
 API_MOD_WRITE(URANDOM, void *device_handle, const u8_t *src, size_t count, fpos_t *fpos, size_t *wrcnt,
         struct vfs_fattr fattr)
 {
-        UNUSED_ARG6(device_handle, src, count, fpos, wrcnt, fattr);
+        UNUSED_ARG2(fpos, fattr);
 
-        return EPERM;
+        URANDOM_t *hdl = device_handle;
+
+        int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
+        if (!err) {
+                mix(hdl, src, count);
+                *wrcnt = count;
+                sys_mutex_unlock(hdl->mtx);
+        }
+
+        return err;
 }
 
 //==============================================================================
@@ -178,13 +231,29 @@ API_MOD_READ(URANDOM, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos
 
         URANDOM_t *hdl = device_handle;
 
-        while (count) {
-                *dst++ = sys_rand_r(&hdl->seed) >> (count % 3);
-                count--;
-                (*rdcnt)++;
+        int err = sys_mutex_lock(hdl->mtx, _WAIT_FOREVER_MS);
+        if (!err) {
+                reseed(hdl);
+
+                u32_t block[BLOCK_WORDS];
+                size_t n = count;
+
+                while (n) {
+                        chacha20_block(hdl, block);
+                        size_t len = min(n, sizeof(block));
+                        memcpy(dst, block, len);
+                        dst += len;
+                        n -= len;
+                }
+
+                wipe(block, sizeof(block));
+                rekey(hdl);
+                *rdcnt = count;
+
+                sys_mutex_unlock(hdl->mtx);
         }
 
-        return ESUCC;
+        return err;
 }
 
 //==============================================================================
@@ -205,16 +274,9 @@ API_MOD_IOCTL(URANDOM, void *device_handle, int request, void *arg)
         int err = EINVAL;
 
         switch (request) {
-        case IOCTL_URANDOM__SET_SEED:
+        case IOCTL_URANDOM__GET_SOURCE:
                 if (arg) {
-                        hdl->seed = *cast(uint *, arg);
-                        err = ESUCC;
-                }
-                break;
-
-        case IOCTL_URANDOM__GET_SEED:
-                if (arg) {
-                        *cast(uint *, arg) = hdl->seed;
+                        *cast(URANDOM_source_t *, arg) = hdl->source;
                         err = ESUCC;
                 }
                 break;
@@ -259,6 +321,125 @@ API_MOD_STAT(URANDOM, void *device_handle, struct vfs_dev_stat *device_stat)
         device_stat->st_size = 0;
 
         return ESUCC;
+}
+
+//==============================================================================
+/**
+ * @brief  ChaCha20 block (RFC 8439) of generator key and next block counter.
+ *
+ * @param  hdl          generator
+ * @param  out          output block
+ */
+//==============================================================================
+static void chacha20_block(URANDOM_t *hdl, u32_t out[BLOCK_WORDS])
+{
+        u32_t x[BLOCK_WORDS] = {0x61707865, 0x3320646E, 0x79622D32, 0x6B206574};
+
+        memcpy(&x[4], hdl->key, sizeof(hdl->key));
+        x[12] = cast(u32_t, hdl->counter);
+        x[13] = cast(u32_t, hdl->counter >> 32);
+        x[14] = 0;
+        x[15] = 0;
+        hdl->counter++;
+
+        memcpy(out, x, sizeof(x));
+
+        for (int i = 0; i < 10; i++) {
+                QR(x[0], x[4], x[8], x[12]);
+                QR(x[1], x[5], x[9], x[13]);
+                QR(x[2], x[6], x[10], x[14]);
+                QR(x[3], x[7], x[11], x[15]);
+                QR(x[0], x[5], x[10], x[15]);
+                QR(x[1], x[6], x[11], x[12]);
+                QR(x[2], x[7], x[8], x[13]);
+                QR(x[3], x[4], x[9], x[14]);
+        }
+
+        for (int i = 0; i < BLOCK_WORDS; i++) {
+                out[i] += x[i];
+        }
+
+        wipe(x, sizeof(x));
+}
+
+//==============================================================================
+/**
+ * @brief  Replace key by generator output (fast key erasure).
+ *
+ * @param  hdl          generator
+ */
+//==============================================================================
+static void rekey(URANDOM_t *hdl)
+{
+        u32_t block[BLOCK_WORDS];
+        chacha20_block(hdl, block);
+        memcpy(hdl->key, block, sizeof(hdl->key));
+        wipe(block, sizeof(block));
+}
+
+//==============================================================================
+/**
+ * @brief  Mix data into key (each 32 bytes are XORed with key and key is
+ *         replaced by generator output).
+ *
+ * @param  hdl          generator
+ * @param  data         data
+ * @param  len          data length
+ */
+//==============================================================================
+static void mix(URANDOM_t *hdl, const u8_t *data, size_t len)
+{
+        u8_t *key = cast(u8_t *, hdl->key);
+
+        while (len) {
+                size_t n = min(len, sizeof(hdl->key));
+
+                for (size_t i = 0; i < n; i++) {
+                        key[i] ^= data[i];
+                }
+
+                data += n;
+                len -= n;
+                rekey(hdl);
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Mix entropy of source and uptime into key.
+ *
+ * @param  hdl          generator
+ */
+//==============================================================================
+static void reseed(URANDOM_t *hdl)
+{
+        u8_t entropy[RESEED_BYTES];
+
+        u32_t uptime = sys_get_uptime_ms();
+        mix(hdl, cast(u8_t *, &uptime), sizeof(uptime));
+
+        if (_URANDOM_LLD__read(entropy, sizeof(entropy)) == ESUCC) {
+                mix(hdl, entropy, sizeof(entropy));
+        }
+
+        wipe(entropy, sizeof(entropy));
+}
+
+//==============================================================================
+/**
+ * @brief  Clear memory (not removed by compiler optimization).
+ *
+ * @param  mem          memory
+ * @param  len          length
+ */
+//==============================================================================
+static void wipe(void *mem, size_t len)
+{
+        volatile u8_t *p = mem;
+
+        while (len--) {
+                *p++ = 0;
+        }
 }
 
 /*==============================================================================

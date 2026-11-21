@@ -10,6 +10,12 @@ Container layout (little endian):
     EOF-24          container header, 20 B
     EOF-4           u32 CRC32 of entire file
 
+Permissions: descriptor flags FLAG_MODE (bit 1) and file mode in bits 16..24,
+entry "reserved" word uid (bits 0..15) and gid (bits 16..31), container header
+flags FLAG_DIR_MODE (bit 2) and mode of directories in bits 16..24 (directories
+exist only as parts of paths, they are owned by root). Images without the flags
+are read as files 0444 and directories 0444 of root.
+
 File names are absolute paths ("/dir/file"), UTF-8 (raw bytes on POSIX), and
 entries are sorted by name bytes (FLAG_SORTED), so romfs can use binary search.
 
@@ -23,6 +29,7 @@ import os
 import secrets
 import sys
 from struct import pack
+from urllib.parse import unquote
 
 FILE_DESCRIPTOR_MAGIC  = 0x43534446
 FILE_ENTRY_MAGIC       = 0x544E4546
@@ -31,7 +38,12 @@ HEADER_SIZE            = 64
 ALIGN                  = 4
 
 FLAG_ENCRYPTED         = 1 << 0
-FLAG_SORTED            = 1 << 1
+FLAG_SORTED            = 1 << 1            # container header
+FLAG_DIR_MODE          = 1 << 2            # container header: mode of directories in bits 16..24
+FLAG_MODE              = 1 << 1            # file descriptor: mode of file in bits 16..24
+MODE_SHIFT             = 16
+MODE_MASK              = 0o777
+ID_MAX                 = 0xFFFF
 
 MAX_NAME_LEN           = 510            # romfs: NAME_BUF_LEN (512) - '/' - '\0'
 U32_MASK               = 0xFFFFFFFF
@@ -94,10 +106,37 @@ def collect_files(root, exclude):
     return files
 
 
-def make_image(files, encrypted):
+def parse_permissions(spec, uid, gid, mode):
+    """Exceptions "path:mode[:uid[:gid]]" separated by spaces -> {name: (mode, uid, gid)}.
+
+    Characters of path are encoded as in URL: %20 space, %3A ':', %25 '%'.
+    """
+    perms = {}
+    for item in spec.split():
+        fields = item.split(':')
+        if not 2 <= len(fields) <= 4 or not fields[0].startswith('/'):
+            sys.exit('error: invalid permissions (path:mode[:uid[:gid]]): ' + item)
+        fields[0] = unquote(fields[0], errors='strict')
+        try:
+            p_mode = int(fields[1], 8)
+            p_uid = int(fields[2]) if len(fields) > 2 else uid
+            p_gid = int(fields[3]) if len(fields) > 3 else gid
+        except ValueError:
+            sys.exit('error: invalid permissions: ' + item)
+        check_ids(p_uid, p_gid, p_mode)
+        perms[os.fsencode(fields[0])] = (p_mode, p_uid, p_gid)
+    return perms
+
+
+def check_ids(uid, gid, mode):
+    if not (0 <= uid <= ID_MAX and 0 <= gid <= ID_MAX and 0 <= mode <= MODE_MASK):
+        sys.exit('error: invalid user ID, group ID or mode: {} {} {:o}'.format(uid, gid, mode))
+
+
+def make_image(files, encrypted, uid=0, gid=0, file_mode=0o444, dir_mode=0o555, perms=None):
+    perms = dict(perms or {})
     desc_seed = random_seed() if encrypted else 0
-    flags = FLAG_SORTED | (FLAG_ENCRYPTED if encrypted else 0)
-    desc_flags = FLAG_ENCRYPTED if encrypted else 0
+    flags = FLAG_SORTED | FLAG_DIR_MODE | (dir_mode << MODE_SHIFT) | (FLAG_ENCRYPTED if encrypted else 0)
 
     img = bytearray(b'FPKG\n')
     img += bytes(HEADER_SIZE - len(img))
@@ -115,10 +154,13 @@ def make_image(files, encrypted):
         pad_to_align(img)
         address = len(img)
 
+        mode, f_uid, f_gid = perms.pop(name, (file_mode, uid, gid))
+        desc_flags = (FLAG_ENCRYPTED if encrypted else 0) | FLAG_MODE | (mode << MODE_SHIFT)
+
         desc_data = pack('<IIIIII', len(name), crc32(name), len(data), crc32(data), seed, desc_flags)
         desc = pack('<II', FILE_DESCRIPTOR_MAGIC, crc32(desc_data)) + desc_data
 
-        entry_data = pack('<II', address, 0)
+        entry_data = pack('<II', address, f_uid | (f_gid << 16))
         entry = pack('<II', FILE_ENTRY_MAGIC, crc32(entry_data)) + entry_data
 
         if encrypted:
@@ -156,6 +198,13 @@ def make_image(files, encrypted):
 def main():
     parser = argparse.ArgumentParser(description='Create FPKG container (romfs image) from selected directory.')
     parser.add_argument('-e', action='store_true', help='encrypted (obfuscated) container')
+    parser.add_argument('-u', type=int, default=0, help='owner (user ID) of files (default 0)')
+    parser.add_argument('-g', type=int, default=0, help='group ID of files (default 0)')
+    parser.add_argument('-m', default='0444', help='mode of files, octal (default 0444)')
+    parser.add_argument('-d', default='0555', help='mode of directories, octal (default 0555)')
+    parser.add_argument('-p', default='', help='permissions of selected files: "path:mode[:uid[:gid]] ..." '
+                        '(entries separated by spaces, path in the image, %%20: space, %%3A: colon, %%25: percent)')
+    parser.add_argument('-s', default='0', help='size of partition, error when image is bigger (0: not checked)')
     parser.add_argument('search_path', help='directory with files')
     parser.add_argument('output_file', help='output container')
     args = parser.parse_args()
@@ -163,8 +212,26 @@ def main():
     if not os.path.isdir(args.search_path):
         sys.exit('error: not a directory: ' + args.search_path)
 
+    try:
+        file_mode = int(args.m, 8)
+        dir_mode = int(args.d, 8)
+    except ValueError:
+        sys.exit('error: invalid mode (octal)')
+
+    check_ids(args.u, args.g, file_mode)
+    check_ids(args.u, args.g, dir_mode)
+    perms = parse_permissions(args.p, args.u, args.g, file_mode)
+
     files = collect_files(args.search_path, os.path.abspath(args.output_file))
-    img = make_image(files, args.e)
+    img = make_image(files, args.e, args.u, args.g, file_mode, dir_mode, perms)
+
+    try:
+        partition_size = int(args.s, 0)
+    except ValueError:
+        sys.exit('error: invalid partition size: ' + args.s)
+
+    if partition_size and (len(img) > partition_size):
+        sys.exit('error: image too big for partition ({} > {} bytes)'.format(len(img), partition_size))
 
     with open(args.output_file, 'wb') as fout:
         fout.write(img)

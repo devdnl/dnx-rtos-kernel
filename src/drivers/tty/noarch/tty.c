@@ -1148,7 +1148,16 @@ static int show_fresh_line(tty_t *tty)
                                         tty->flushed = false;
                                 }
 
-                                sys_fwrite(str, strlen(str), &wrcnt, tty->io->outfile);
+                                size_t len = strlen(str);
+                                sys_fwrite(str, len, &wrcnt, tty->io->outfile);
+
+                                /*
+                                 * Not finished line is shown again with new
+                                 * characters: line must be cleared before.
+                                 */
+                                if ((len == 0) || (str[len - 1] != '\n')) {
+                                        tty->flushed = true;
+                                }
                         }
 
                         sys_mutex_unlock(tty->secure_mtx);
@@ -1209,6 +1218,9 @@ static int refresh_last_line(tty_t *tty)
                         if (last_line) {
                                 sys_fwrite(last_line, strlen(last_line), &wrcnt, tty->io->outfile);
                         }
+
+                        /* last line is shown, it is not printed again as fresh line */
+                        ttybfr_clear_fresh_last_line(tty->screen);
 
                         const char *editline = ttyedit_get_value(tty->editline);
                         if (editline && ttyedit_is_echo_enabled(tty->editline)) {

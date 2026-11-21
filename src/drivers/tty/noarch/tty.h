@@ -92,6 +92,7 @@ extern void ttybfr_clear(ttybfr_t *);
 extern const char *ttybfr_get_line(ttybfr_t *, int);
 extern const char *ttybfr_get_fresh_line(ttybfr_t *);
 extern void ttybfr_clear_fresh_line_counter(ttybfr_t *);
+extern void ttybfr_clear_fresh_last_line(ttybfr_t *);
 
 extern int ttyedit_create(kfile_t **, ttyedit_t **);
 extern int ttyedit_destroy(ttyedit_t *);

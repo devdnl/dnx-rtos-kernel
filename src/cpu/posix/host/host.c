@@ -48,6 +48,7 @@
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/random.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
@@ -1201,6 +1202,34 @@ uint32_t _host_gpio_input(int port, uint32_t *level)
         }
 
         return mask;
+}
+
+//==============================================================================
+/**
+ * @brief  Read random data of host generator (URANDOM driver).
+ *
+ * @param  buf          destination
+ * @param  len          number of bytes
+ *
+ * @return 0 on success, -1 on error.
+ */
+//==============================================================================
+int _host_random(void *buf, size_t len)
+{
+        size_t done = 0;
+
+        while (done < len) {
+                ssize_t n = getrandom((char *)buf + done, len - done, 0);
+                if (n < 0) {
+                        if (errno == EINTR) {
+                                continue;
+                        }
+                        return -1;
+                }
+                done += (size_t)n;
+        }
+
+        return 0;
 }
 
 //==============================================================================

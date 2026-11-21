@@ -62,10 +62,17 @@ Brief   ROM File System (FPKG container)
 #define CONTAINER_HEADER_MAGIC 0x474B5046
 
 #define FLAG_ENCRYPTED (1 << 0)
-#define FLAG_SORTED    (1 << 1)
+#define FLAG_SORTED    (1 << 1) /* container header: entries sorted by name */
+#define FLAG_DIR_MODE  (1 << 2) /* container header: mode of directories in bits 16..24 */
+#define FLAG_MODE      (1 << 1) /* file descriptor: mode of file in bits 16..24 */
+#define MODE_SHIFT     16
+#define MODE_DEFAULT   (S_IRUSR | S_IRGRP | S_IROTH) /* image without permissions */
 
 #define is_encrypted(hdl) ((hdl)->flags & FLAG_ENCRYPTED)
 #define is_sorted(hdl)    ((hdl)->flags & FLAG_SORTED)
+
+#define SIGNATURE         "FPKG\n"
+#define IMAGE_SIZE_OFFSET 64 /* u32 size of image after 64 B signature block */
 
 #define NAME_BUF_LEN 512
 #define MAX_PATH_LEN (NAME_BUF_LEN - 2)
@@ -104,7 +111,8 @@ typedef struct {
 typedef struct {
         kfile_t *file;
         kmtx_t *mtx;
-        uint32_t file_size;
+        uint32_t file_size;   /* size of image (header) */
+        uint32_t device_size; /* size of device (partition) */
         uint32_t entries_offset;
         uint32_t prng_seed;
         uint32_t number_of_files;
@@ -128,6 +136,9 @@ struct fpkg_file {
         uint32_t content_prng_seed;
         uint32_t current_seed;
         uint32_t content_offset;
+        uid_t uid;
+        gid_t gid;
+        mode_t mode;
 };
 
 struct fpkg_dir {
@@ -149,7 +160,9 @@ static int normalize_path(const char *path, size_t *key_len);
 
 static int lookup(romfs_t *hdl, const char *key, size_t key_len, romfs_item_t *item);
 
-static int dir_next(romfs_t *hdl, struct fpkg_dir *dir, bool *is_dir, uint32_t *size);
+static int dir_next(romfs_t *hdl, struct fpkg_dir *dir, bool *is_dir, uint32_t *size, mode_t *mode);
+static mode_t file_mode(romfs_t *hdl, const file_descriptor_t *desc);
+static mode_t dir_mode(romfs_t *hdl);
 
 static int dir_reset_item_name(struct fpkg_dir *dir);
 
@@ -204,8 +217,11 @@ static uint32_t calc_CRC32(const void *buf, uint32_t buflen, uint32_t init);
 /**
  * @brief Initialize file system.
  *
+ * The device can be bigger than the image (e.g. partition): size of the image
+ * is read from its header, free space of device is shown by statfs.
+ *
  * Options:
- *      exec=<bool>     regular files are executable
+ *      exec=<bool>     regular files are executable (image without modes)
  *      validate        full image check (CRC of image, entries, names and content)
  *
  * @param[out]          **fs_handle             file system allocated memory
@@ -328,6 +344,9 @@ API_FS_OPEN(romfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
                         file->current_seed = item.desc.content_prng_seed;
                         file->size = item.desc.file_size;
                         file->seek = 0;
+                        file->uid = item.entry.reserved & 0xFFFF;
+                        file->gid = item.entry.reserved >> 16;
+                        file->mode = file_mode(hdl, &item.desc);
 
                         hdl->open_files_ctr++;
 
@@ -496,16 +515,17 @@ API_FS_FLUSH(romfs, void *fs_handle, void *fhdl)
 //==============================================================================
 API_FS_FSTAT(romfs, void *fs_handle, void *fhdl, struct stat *stat)
 {
-        romfs_t *hdl = fs_handle;
+        UNUSED_ARG1(fs_handle);
+
         struct fpkg_file *file = fhdl;
 
         stat->st_ctime = COMPILE_EPOCH_TIME;
         stat->st_mtime = COMPILE_EPOCH_TIME;
         stat->st_dev = 0;
         stat->st_size = file->size;
-        stat->st_gid = 0;
-        stat->st_uid = 0;
-        stat->st_mode = S_IRUSR | S_IRGRP | S_IROTH | (S_IXUSR * hdl->exec_reg_files) | S_IFREG;
+        stat->st_gid = file->gid;
+        stat->st_uid = file->uid;
+        stat->st_mode = file->mode | S_IFREG;
 
         return ESUCC;
 }
@@ -542,16 +562,16 @@ API_FS_STAT(romfs, void *fs_handle, const char *path, struct stat *stat)
                 stat->st_ctime = COMPILE_EPOCH_TIME;
                 stat->st_mtime = COMPILE_EPOCH_TIME;
                 stat->st_dev = 0;
-                stat->st_gid = 0;
-                stat->st_uid = 0;
-                stat->st_mode = S_IRUSR | S_IRGRP | S_IROTH;
-
                 if (item.is_dir) {
+                        stat->st_gid = 0;
+                        stat->st_uid = 0;
                         stat->st_size = 0;
-                        stat->st_mode |= S_IFDIR;
+                        stat->st_mode = dir_mode(hdl) | S_IFDIR;
                 } else {
+                        stat->st_gid = item.entry.reserved >> 16;
+                        stat->st_uid = item.entry.reserved & 0xFFFF;
                         stat->st_size = item.desc.file_size;
-                        stat->st_mode |= S_IFREG | (S_IXUSR * hdl->exec_reg_files);
+                        stat->st_mode = file_mode(hdl, &item.desc) | S_IFREG;
                 }
         }
 
@@ -575,8 +595,8 @@ API_FS_STATFS(romfs, void *fs_handle, struct statfs *statfs)
         romfs_t *hdl = fs_handle;
 
         statfs->f_bsize = 1;
-        statfs->f_blocks = hdl->file_size;
-        statfs->f_bfree = 0;
+        statfs->f_blocks = hdl->device_size;
+        statfs->f_bfree = hdl->device_size - hdl->file_size; // space for bigger image
         statfs->f_ffree = 0;
         statfs->f_files = hdl->number_of_files;
         statfs->f_type = SYS_FS_TYPE__SOLID;
@@ -699,7 +719,8 @@ API_FS_OPENDIR(romfs, void *fs_handle, const char *path, kdir_t *kdir)
 
                 bool is_dir;
                 uint32_t size;
-                while ((err = dir_next(hdl, dir, &is_dir, &size)) == ESUCC) {
+                mode_t mode;
+                while ((err = dir_next(hdl, dir, &is_dir, &size, &mode)) == ESUCC) {
                         items++;
                 }
 
@@ -798,18 +819,13 @@ API_FS_READDIR(romfs, void *fs_handle, kdir_t *kdir)
 
         bool is_dir;
         uint32_t size;
-        err = dir_next(hdl, dir, &is_dir, &size);
+        mode_t mode;
+        err = dir_next(hdl, dir, &is_dir, &size, &mode);
 
         kdir->d_seek = dir->seek;
 
         if (not err) {
-                if (is_dir) {
-                        kdir->dirent.mode = S_IFDIR;
-                } else {
-                        kdir->dirent.mode = S_IFREG | (S_IXUSR * hdl->exec_reg_files);
-                }
-
-                kdir->dirent.mode |= S_IRUSR | S_IRGRP | S_IROTH;
+                kdir->dirent.mode = mode | (is_dir ? S_IFDIR : S_IFREG);
                 kdir->dirent.size = size;
                 kdir->dirent.dev = 0;
                 kdir->dirent.d_name = dir->item_name;
@@ -950,11 +966,40 @@ static int read_image_info(romfs_t *hdl)
                 return err;
         }
 
-        if ((size < cast(i64_t, sizeof(container_header_t))) or (size > cast(i64_t, UINT32_MAX))) {
+        if ((size < cast(i64_t, IMAGE_SIZE_OFFSET + sizeof(uint32_t))) or (size > cast(i64_t, UINT32_MAX))) {
                 return EILSEQ;
         }
 
-        hdl->file_size = size;
+        hdl->device_size = size;
+
+        /* image size from header: image can be smaller than device (partition) */
+        char signature[sizeof(SIGNATURE) - 1];
+        uint32_t image_size;
+
+        err = sys_fseek(hdl->file, 0, VFS_SEEK_SET);
+        if (not err) {
+                err = read_file(signature, sizeof(signature), hdl->file);
+        }
+
+        if (not err) {
+                err = sys_fseek(hdl->file, IMAGE_SIZE_OFFSET, VFS_SEEK_SET);
+        }
+
+        if (not err) {
+                err = read_file(&image_size, sizeof(image_size), hdl->file);
+        }
+
+        if (err) {
+                return err;
+        }
+
+        if ((memcmp(signature, SIGNATURE, sizeof(signature)) != 0) or
+                (image_size < IMAGE_SIZE_OFFSET + sizeof(uint32_t) + sizeof(container_header_t)) or
+                (image_size > hdl->device_size)) {
+                return EILSEQ; // no image (e.g. erased partition)
+        }
+
+        hdl->file_size = image_size;
 
         container_header_t header;
         err = read_container_header(hdl, &header);
@@ -1265,6 +1310,41 @@ static int dir_reset_item_name(struct fpkg_dir *dir)
 
 //==============================================================================
 /**
+ * @brief  Function returns permissions of file (stored in descriptor, otherwise
+ *         read for all users and execute for owner with option "exec").
+ *
+ * @param  hdl          file system handle
+ * @param  desc         file descriptor
+ *
+ * @return Permission bits.
+ */
+//==============================================================================
+static mode_t file_mode(romfs_t *hdl, const file_descriptor_t *desc)
+{
+        if (desc->flags & FLAG_MODE) {
+                return (desc->flags >> MODE_SHIFT) & S_IPMT;
+        }
+
+        return MODE_DEFAULT | (S_IXUSR * hdl->exec_reg_files);
+}
+
+//==============================================================================
+/**
+ * @brief  Function returns permissions of directories (stored in container
+ *         header, otherwise read for all users).
+ *
+ * @param  hdl          file system handle
+ *
+ * @return Permission bits.
+ */
+//==============================================================================
+static mode_t dir_mode(romfs_t *hdl)
+{
+        return (hdl->flags & FLAG_DIR_MODE) ? ((hdl->flags >> MODE_SHIFT) & S_IPMT) : MODE_DEFAULT;
+}
+
+//==============================================================================
+/**
  * @brief  Find next directory item. Duplicated subdirectory names are skipped
  *         only if they are adjacent (always true for sorted images).
  *
@@ -1276,7 +1356,7 @@ static int dir_reset_item_name(struct fpkg_dir *dir)
  * @return ESUCC if found (name in dir->item_name), ENOENT at end of directory.
  */
 //==============================================================================
-static int dir_next(romfs_t *hdl, struct fpkg_dir *dir, bool *is_dir, uint32_t *size)
+static int dir_next(romfs_t *hdl, struct fpkg_dir *dir, bool *is_dir, uint32_t *size, mode_t *mode)
 {
         if (dir->seek < dir->start) {
                 dir->seek = dir->start;
@@ -1328,6 +1408,7 @@ static int dir_next(romfs_t *hdl, struct fpkg_dir *dir, bool *is_dir, uint32_t *
 
                 *is_dir = (slash != NULL);
                 *size = slash ? 0 : desc.file_size;
+                *mode = slash ? dir_mode(hdl) : file_mode(hdl, &desc);
 
                 return ESUCC;
         }

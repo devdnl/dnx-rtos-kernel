@@ -53,6 +53,12 @@ extern "C" {
 /** Exit status of killed process (POSIX shell: 128 + SIGKILL), the same as PROCESS_STATUS_KILLED in libc. */
 #define _PROCESS_STATUS_KILLED 137
 
+/* file mode creation mask of the first process */
+#define _PROCESS_DEFAULT_UMASK 0022
+
+/* program flags (_program_entry_t::flags) */
+#define _PROGRAM_FLAG_PRIVILEGED (1 << 0) //!< program runs as root (effective IDs 0), e.g. sudo
+
 /*==============================================================================
   Exported types, enums definitions
 ==============================================================================*/
@@ -67,6 +73,7 @@ typedef struct {
         const size_t *globals_size; //!< size of program global variables
         const size_t *stack_depth;  //!< stack depth
         const char ***pref_ram;     //!< preffered application RAM
+        const uint32_t *flags;      //!< program flags (_PROGRAM_FLAG_*)
         process_func_t main;        //!< program main function
 } _program_entry_t;
 
@@ -103,6 +110,12 @@ typedef struct {
         bool detached;                    //!< thread is released at exit (cannot be joined)
         bool zombie;                      //!< finished thread, slot is reserved until join
         void *start_args;                 //!< task arguments (released by task or with not started task)
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+        uid_t uid;  //!< effective user ID of thread (access checks)
+        gid_t gid;  //!< effective group ID of thread (access checks)
+        uid_t ruid; //!< real user ID of thread (user that started the process)
+        gid_t rgid; //!< real group ID of thread
+#endif
 } task_data_t;
 
 struct _process {
@@ -122,6 +135,9 @@ struct _process {
         u8_t flag;                                        //!< control flags
         u8_t curr_task;                                   //!< current working task (thread)
         task_t *exit_task;                                //!< task that exited process (destroyed with zombie)
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+        u16_t umask; //!< file mode creation mask
+#endif
         task_data_t taskdata[__OS_PROCESS_MAX_THREADS__]; //!< array of tasks data
 };
 
@@ -151,6 +167,13 @@ extern CPU_load_t CPU_load[_CPUCTL_CORE_NUM];
 extern void _process_init(void);
 extern void _process_clean_up_killed_processes(void);
 extern int _process_create(const char *, const _process_attr_t *, pid_t *);
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+extern void _process_get_credentials(uid_t *, gid_t *);
+extern void _process_get_real_credentials(uid_t *, gid_t *);
+extern int _process_set_credentials(const uid_t *, const gid_t *, bool);
+extern mode_t _process_umask(const mode_t *);
+extern int _process_get_owner(pid_t, uid_t *);
+#endif
 extern int _process_kill(pid_t);
 extern int _process_kill_timeout(pid_t, u32_t);
 extern void _process_suicide(void);
@@ -163,7 +186,7 @@ extern int _process_register_resource(_process_t *, res_header_t *);
 extern int _process_release_resource(_process_t *, res_header_t *, res_type_t);
 extern int _process_descriptor_free(_process_t *, int, res_type_t);
 extern int _process_descriptor_allocate(_process_t *, int *, res_header_t *, bool);
-extern int _process_descriptor_get_resource(_process_t *, int, res_header_t **);
+extern int _process_descriptor_get_resource(_process_t *, int, res_type_t, res_header_t **);
 extern const char *_process_get_name(_process_t *);
 extern size_t _process_get_count(void);
 extern _process_t *_process_get_active(void);
