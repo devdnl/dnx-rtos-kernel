@@ -8,20 +8,17 @@
 @note    Copyright (C) 2026 Daniel Zorychta <daniel.zorychta@gmail.com>
 
          This program is free software; you can redistribute it and/or modify
-         it under the terms of the GNU General Public License as published by
-         the Free Software Foundation and modified by the dnx RTOS exception.
+         it under the terms of the GNU General Public License version 2 as
+         published by the Free Software Foundation.
 
-         NOTE: The modification  to the GPL is  included to allow you to
-               distribute a combined work that includes dnx RTOS without
-               being obliged to provide the source  code for proprietary
-               components outside of the dnx RTOS.
-
-         The dnx RTOS  is  distributed  in the hope  that  it will be useful,
-         but WITHOUT  ANY  WARRANTY;  without  even  the implied  warranty of
-         MERCHANTABILITY  or  FITNESS  FOR  A  PARTICULAR  PURPOSE.  See  the
+         The dnx RTOS is distributed in the hope that it will be useful,
+         but WITHOUT ANY WARRANTY; without even the implied warranty of
+         MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
          GNU General Public License for more details.
 
-         Full license text is available on the following file: doc/license.txt.
+         Programs using the kernel by system calls are not covered by the license,
+         drivers and file systems of drvset partition: exception, see the license
+         file: doc/license.txt.
 
 
 ==============================================================================*/
@@ -266,7 +263,10 @@
         X(_MDMA_DDI_get_channel) \
         X(_MDMA_DDI_memcpy) \
         X(_IRQ_DDI_attach) \
-        X(_IRQ_DDI_detach)
+        X(_IRQ_DDI_detach) \
+        /* drivers (driver.h) */ \
+        X(drv_module_instance_init) \
+        X(drv_module_instance_release)
 
 /*
  * Optional symbols (driver interfaces) with fallback used when the driver is

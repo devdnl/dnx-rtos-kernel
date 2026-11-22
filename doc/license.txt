@@ -1,64 +1,69 @@
-Copyright (c) 2020 Daniel Zorychta (daniel.zorychta@gmail.com)
-All rights reserved.
+dnx RTOS kernel license
+=======================
 
-The dnx RTOS open source license covers the dnx RTOS source files,
-which are located in the ./src/system directory of the official dnx RTOS
-download.  It also covers most of the source files in the application
-projects, which are located in the ./src/application directory of the official
-dnx RTOS download.  The project may also include third party software that
-is not part of dnx RTOS and is licensed separately to dnx RTOS.  Examples of
-third party software includes header files provided by chip or tools vendors,
-linker scripts, peripheral drivers, file systems, etc.  All the software in
-subdirectories of the ./src or ./tools directories are either open source or
-distributed with permission, and is free for use.  For the avoidance of doubt,
-refer to the comments at the top of each source file.
+Copyright (C) Daniel Zorychta <daniel.zorychta@gmail.com>
 
-The dnx RTOS GPL Exception text on this page applies to dnx RTOS v2.0.0 up to
-the latest version.
+The dnx RTOS kernel (sources of this repository, except third party
+components described by their LICENSE.spdx files) is licensed under the GNU
+General Public License version 2 (GPL-2.0-only), with the note about programs
+and the exception for drvset modules below. Third party components keep their
+own licenses (LICENSE.spdx files, texts in the LICENSES directory).
 
 
-NOTE: The modification to the GPL is included to allow you to distribute a
-combined work that includes dnx RTOS without being obliged to provide the source
-code for proprietary components.
+NOTE: programs (application sets)
+---------------------------------
+
+This license does not cover programs that use services of the kernel by
+system calls (application sets, appsets: programs and libraries linked
+separately from the kernel, using the kernel through the C library or system
+calls directly), together with the interface definitions they use for that
+(numbers and structures of system calls and ioctl requests, headers
+*_ioctl.h of drivers and file systems). This is considered normal use of the
+kernel and does not make such programs a work based on the kernel. Such
+programs may be distributed under terms of your choice.
 
 
-The dnx RTOS GPL exception text follows:
+dnx RTOS drvset exception
+-------------------------
 
-Any dnx RTOS *source code*, whether modified or in it's original release form,
-or whether in whole or in part, can only be distributed by you under the terms
-of the GNU General Public License plus this exception.  An independent module is
-a module which is not derived from or based on dnx RTOS.
+As a special exception, the copyright holders of the dnx RTOS kernel give you
+permission to create drivers and file systems that are built separately from
+the kernel, placed in the drvset partition and registered by the kernel at run
+time ("drvset modules"), and to copy and distribute drvset modules in source
+or object form under terms of your choice, provided that:
 
-Clause 1:
+  a) the drvset modules use the kernel only through the interface intended
+     for them: functions and objects exported by the kernel symbol table
+     (src/include/kernel/ksymtab.h) and the interfaces of drivers, file
+     systems and the drvset partition (src/include/drivers/driver.h,
+     src/include/fs/fs.h, src/include/fs/fsif.h, src/include/drivers/drvset.h,
+     the files of src/drvset and the headers they include), and
+  b) the drvset modules do not contain code of the kernel other than the code
+     that results from use of these interface headers (types, macros and
+     inline functions) and the code of src/drvset placed by the build in the
+     drvset partition (partition header, file system table, stubs of kernel
+     symbols).
 
-Linking dnx RTOS with other modules is making a combined work based on dnx RTOS.
-Thus, the terms and conditions of the GNU General Public License V2 cover the
-whole combination.
-
-As a special exception, the copyright holders of dnx RTOS give you permission to
-link dnx RTOS with independent modules to produce a statically linked
-executable, regardless of the license terms of these independent modules, and to
-copy and distribute the resulting executable under terms of your choice,
-provided that you also meet, for each linked independent module, the terms and
-conditions of the license of that module.  An independent module is a module
-which is not derived from or based on dnx RTOS.
+The exception does not cover the kernel itself: the kernel, modifications of
+the kernel and drivers and file systems built into the kernel are distributed
+under the terms of the GNU General Public License version 2. If you modify the
+kernel, you may extend this exception to your version of the kernel, but you
+are not obliged to do so.
 
 
 --------------------------------------------------------------------------------
 
-
 The standard GPL V2 text:
 
+                    GNU GENERAL PUBLIC LICENSE
+                       Version 2, June 1991
 
-          GNU GENERAL PUBLIC LICENSE
-             Version 2, June 1991
-
- Copyright (C) 1989, 1991 Free Software Foundation, Inc.
-                       59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ Copyright (C) 1989, 1991 Free Software Foundation, Inc.,
+ 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  Everyone is permitted to copy and distribute verbatim copies
  of this license document, but changing it is not allowed.
 
-             Preamble
+                            Preamble
 
   The licenses for most software are designed to take away your
 freedom to share and change it.  By contrast, the GNU General Public
@@ -67,7 +72,7 @@ software--to make sure the software is free for all its users.  This
 General Public License applies to most of the Free Software
 Foundation's software and to any other program whose authors commit to
 using it.  (Some other Free Software Foundation software is covered by
-the GNU Library General Public License instead.)  You can apply it to
+the GNU Lesser General Public License instead.)  You can apply it to
 your programs, too.
 
   When we speak of free software, we are referring to freedom, not
@@ -108,7 +113,7 @@ patent must be licensed for everyone's free use or not licensed at all.
   The precise terms and conditions for copying, distribution and
 modification follow.
 
-          GNU GENERAL PUBLIC LICENSE
+                    GNU GENERAL PUBLIC LICENSE
    TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 
   0. This License applies to any program or other work which contains
@@ -307,7 +312,7 @@ make exceptions for this.  Our decision will be guided by the two goals
 of preserving the free status of all derivatives of our free software and
 of promoting the sharing and reuse of software generally.
 
-			    NO WARRANTY
+                            NO WARRANTY
 
   11. BECAUSE THE PROGRAM IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
 FOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE LAW.  EXCEPT WHEN
@@ -329,9 +334,9 @@ YOU OR THIRD PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER
 PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGES.
 
-           END OF TERMS AND CONDITIONS
+                     END OF TERMS AND CONDITIONS
 
-       How to Apply These Terms to Your New Programs
+            How to Apply These Terms to Your New Programs
 
   If you develop a new program, and you want it to be of the greatest
 possible use to the public, the best way to achieve this is to make it
@@ -346,7 +351,7 @@ the "copyright" line and a pointer to where the full notice is found.
     Copyright (C) <year>  <name of author>
 
     This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License** as published by
+    it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
     (at your option) any later version.
 
@@ -355,10 +360,9 @@ the "copyright" line and a pointer to where the full notice is found.
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 Also add information on how to contact you by electronic and paper mail.
 
@@ -388,5 +392,5 @@ necessary.  Here is a sample; alter the names:
 This General Public License does not permit incorporating your program into
 proprietary programs.  If your program is a subroutine library, you may
 consider it more useful to permit linking proprietary applications with the
-library.  If this is what you want to do, use the GNU Library General
+library.  If this is what you want to do, use the GNU Lesser General
 Public License instead of this License.

@@ -5,11 +5,11 @@
 cd "$(dirname "$0")/.."
 
 get_version() {
-    grep -m 1 -oP 'dnx_RTOS_version\s*=\s*"\K[^"]+' src/kernel/syscall.c
+    tr -d ' \t\r\n' < VERSION 2>/dev/null
 }
 
 if [ -z "$(get_version)" ]; then
-    echo "Cannot read dnx RTOS version from src/kernel/syscall.c"
+    echo "Cannot read dnx RTOS version from VERSION"
     exit 1
 fi
 

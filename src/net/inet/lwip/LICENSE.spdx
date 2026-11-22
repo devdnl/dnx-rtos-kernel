@@ -1,0 +1,6 @@
+PackageName: lwIP
+PackageVersion: 2.2.0
+PackageDownloadLocation: https://savannah.nongnu.org/projects/lwip/
+PackageLicenseDeclared: BSD-3-Clause
+PackageCopyrightText: Copyright (c) 2001-2004 Swedish Institute of Computer Science. All rights reserved.
+PackageComment: files of other authors under BSD-style licenses (see headers, e.g. PPP)

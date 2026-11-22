@@ -1,0 +1,9 @@
+# HAL and LL drivers of STMicroelectronics used by dnx drivers
+PackageName: STM32Cube HAL and LL drivers
+PackageDownloadLocation: https://github.com/STMicroelectronics
+PackageLicenseDeclared: BSD-3-Clause
+PackageCopyrightText: Copyright (c) STMicroelectronics. All rights reserved.
+PackageComment: some headers refer to the LICENSE file of the ST repository (BSD-3-Clause)
+# headers of dnx (*_hal_def.h, ...) replace HAL headers
+FilesMatch: */stm32*_hal*.[ch] */stm32*_ll_*.[ch]
+FilesMatch: !*_hal_def.h !*_hal_qspi_def.h !*_hal_sdmmc.h !*/STM32_USB_HCD/stm32f4xx_hal.h

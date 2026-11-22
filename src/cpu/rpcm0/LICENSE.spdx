@@ -1,0 +1,5 @@
+PackageName: Raspberry Pi Pico SDK
+PackageDownloadLocation: https://github.com/raspberrypi/pico-sdk
+PackageLicenseDeclared: BSD-3-Clause
+PackageCopyrightText: Copyright (c) 2020-2024 Raspberry Pi (Trading) Ltd.
+FilesMatch: boot_stage2/* hardware_regs/* hardware_structs/*

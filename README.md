@@ -180,6 +180,31 @@ Templates of a new driver and a new file system can be created by scripts:
 ./tools/addfilesystem.sh <filesystem-name> [brief] [author] [email]
 ```
 
+## Version and releases
+The version is kept in the `VERSION` file (`MAJOR.MINOR.PATCH`) and is built
+into the kernel (`uname`), on branches other than release with the branch
+name (e.g. `3.13.0+develop`), the commit hash has suffix `-dirty` when tracked
+files are modified.
+
+| Command            | Description |
+|--------------------|-------------|
+| `make bump-minor`  | increase minor version (`bump-major`, `bump-patch`) and commit `VERSION`, `NOCOMMIT=1`: file only |
+| `make tag-release` | create tag `vX.Y.Z` of the current commit |
+
+Branches: `feature/*` are merged into `develop`, release is prepared on
+`release/X.Y` created from `develop` after `make bump-minor` (or
+`bump-major`), the released commit is tagged (`make tag-release`), fixes of
+the release are made on the release branch (`make bump-patch`, tag).
+
+## Licenses
+The kernel is licensed under GNU GPL version 2 (`doc/license.txt`), third party components keep their licenses. Each
+component is described by a `LICENSE.spdx` file (SPDX fields, e.g.
+`src/net/inet/lwip/LICENSE.spdx`), texts of licenses are in `LICENSES/`. The
+build creates the list of components of linked sources (`tools/licenses.py`):
+`build/output/dnx.spdx` (SBOM, SPDX 2.3), `build/output/dnx-licenses.txt.gz`
+(notices and license texts) and `build/output/dnx.files` (sources, used by the
+workspace for licenses of the whole firmware).
+
 ## Folder structure
 - `build`  - the project's binaries (created after compilation)
 - `config` - the project's default configuration
@@ -200,8 +225,10 @@ Templates of a new driver and a new file system can be created by scripts:
   templates, FPKG image builder, test BSPs, etc.)
 
 ## License
-The dnx RTOS is distributed under the GNU General Public License with exception
-that allows to distribute combined work that includes dnx RTOS without being
-obliged to provide the source code for proprietary components. See
+The dnx RTOS kernel is distributed under the GNU General Public License
+version 2. The license does not cover programs that use the kernel by system
+calls (appsets), and drivers and file systems of the drvset partition may be
+distributed under terms of your choice (dnx RTOS drvset exception), so
+proprietary programs and drivers can be used with the kernel. See
 `doc/license.txt` for details. Third party software (FreeRTOS, lwIP, FatFs,
 lwext4, CMSIS, etc.) is licensed separately.

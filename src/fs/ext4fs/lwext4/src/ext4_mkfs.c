@@ -115,7 +115,9 @@ static uint32_t compute_inodes_per_group(struct ext4_mkfs_info *info)
 	uint32_t blocks = (uint32_t)EXT4_DIV_ROUND_UP(info->len, info->block_size);
 	uint32_t block_groups = EXT4_DIV_ROUND_UP(blocks, info->blocks_per_group);
 	uint32_t inodes = EXT4_DIV_ROUND_UP(info->inodes, block_groups);
-	inodes = EXT4_ALIGN(inodes, (info->block_size / info->inode_size));
+	/* whole inode table blocks and whole bytes of inode bitmap */
+	uint32_t inodes_per_block = info->block_size / info->inode_size;
+	inodes = EXT4_ALIGN(inodes, (inodes_per_block > 8) ? inodes_per_block : 8);
 
 	/* After properly rounding up the number of inodes/group,
 	 * make sure to update the total inodes field in the info struct.
@@ -359,14 +361,18 @@ static int write_bgroups(struct ext4_blockdev *bd, struct fs_aux_info *aux_info,
 		uint32_t blk_off = 0;
 
 		bg_desc = (void *)(aux_info->bg_desc_blk + k * dsc_size);
-		bg_free_blk = info->blocks_per_group -
-				aux_info->inode_table_blocks;
+
+		/* last group can be smaller than blocks_per_group */
+		uint32_t bg_blocks = info->blocks_per_group;
+		if (i == (aux_info->groups - 1))
+			bg_blocks = (uint32_t)(aux_info->len_blocks -
+					       aux_info->first_data_block -
+					       (uint64_t)i * info->blocks_per_group);
+
+		bg_free_blk = bg_blocks - aux_info->inode_table_blocks;
 
 		bg_free_blk -= 2;
 		blk_off += aux_info->bg_desc_blocks;
-
-		if (i == (aux_info->groups - 1))
-			bg_free_blk -= aux_info->first_data_block;
 
 		if (has_superblock(info, i)) {
 			bg_start_block++;

@@ -1,0 +1,5 @@
+PackageName: STM32F3 CMSIS device and LL drivers
+PackageDownloadLocation: https://github.com/STMicroelectronics/STM32CubeF3
+PackageLicenseDeclared: BSD-3-Clause
+PackageCopyrightText: Copyright (c) STMicroelectronics. All rights reserved.
+FilesMatch: stm32f3xx.h stm32f3xx/* lib/stm32f3xx_*

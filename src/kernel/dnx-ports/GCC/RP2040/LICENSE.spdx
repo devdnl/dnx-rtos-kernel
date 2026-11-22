@@ -1,0 +1,6 @@
+PackageName: FreeRTOS Kernel RP2040 port
+PackageDownloadLocation: https://github.com/FreeRTOS/FreeRTOS-Kernel
+PackageLicenseDeclared: MIT
+PackageCopyrightText: Copyright (C) 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+PackageCopyrightText: Copyright (c) 2021 Raspberry Pi (Trading) Ltd.
+FilesMatch: port.c portmacro.h

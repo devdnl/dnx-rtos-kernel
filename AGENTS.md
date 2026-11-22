@@ -17,13 +17,29 @@ the normal way to build it. There the same kernel sources are built twice, as
 the application kernel (`config/app-kernel`) and as the bootloader kernel
 (`config/btl-kernel`).
 
-Development happens on the `develop` branch.
+Development happens on the `develop` branch (`feature/*` branches merged into
+it, `release/X.Y` branches for releases, no master branch).
+
+Version: file `VERSION` (`MAJOR.MINOR.PATCH`), `tools/version.sh` writes
+`DNX_RTOS_VERSION` (outside release branches with branch name, e.g.
+`3.13.0+develop`) and `COMMIT_HASH` (`-dirty` with modified tracked files) to
+`build/defs.h`; the build warns when `release/X.Y` does not match `VERSION`.
+Licenses: components are described by `LICENSE.spdx` (SPDX fields,
+`FilesMatch` for selected files, `tools/licenses.py`), license texts in
+`LICENSES/<id>.txt`; third party code added to the kernel needs its own
+`LICENSE.spdx` (otherwise it is reported as dnx RTOS kernel code). The build
+writes `build/output/dnx.spdx`, `dnx-licenses.txt.gz` and `dnx.files`.
+
+Release: `make bump-minor` on `develop` (commit "Version X.Y.Z."), branch
+`release/X.Y`, `make tag-release` on the released commit (tag `vX.Y.Z`);
+fixes of release: `make bump-patch` and tag on the release branch. Do not
+edit the version in source files.
 
 ## Directory map
 
 - `src/init/main.c` — kernel entry point (`main()`, `low_level_init_*`).
 - `src/kernel/` — core: `process.c` (processes, threads, appset table),
-  `syscall.c` (syscall table and version string), `kworker.c`, `kpanic.c`,
+  `syscall.c` (syscall table, version from `VERSION`), `kworker.c`, `kpanic.c`,
   `printk.c`, `sysapi.c`, `time.c`, `khooks.c`, `kwrapper.c`.
   - `src/kernel/FreeRTOS/` — FreeRTOS sources and `FreeRTOSConfig.h` (third party).
   - `src/kernel/dnx-ports/` — dnx-specific FreeRTOS ports (RP2040 SMP).
@@ -155,7 +171,8 @@ both the C preprocessor and make**:
     (`src/drivers/zero`, `src/fs/ramfs`) or use the `tools/add*.sh` templates.
 - Every function has a Doxygen comment framed with `//====…` lines
   (`@brief`, `@param[in]/[out]`, `@return`).
-- License: kernel files are GPL with the dnx RTOS exception (see
+- License: kernel files are GPL-2.0-only; programs using the kernel by system
+  calls are not covered, drvset modules may use other licenses (exception,
   `doc/license.txt`). Keep the license of the file you edit. Ask before
   choosing a license for a new file if unclear.
 - Code, comments and commit messages are in English. Commit messages are short
@@ -241,7 +258,9 @@ both the C preprocessor and make**:
   exclusive monitor, shared memory not cached) is selected; the same flag is
   needed in `project_flags.h` of appsets (libc `source/atomic.h`).
 - Prefix tells who can use the function: `sys_` drivers and file systems,
-  `drv_` only drivers (`drv_lock`, `drv_get_instance`, `drv_mem_*`,
+  `drv_` only drivers (`drv_lock`, `drv_get_instance`, `drv_instance_init` /
+  `drv_instance_release` (instance of the same module with node, e.g. PART
+  partitions), `drv_mem_*`,
   `drv_clock_changed`, …), `fs_` only file systems (`fs_dev_*` access to the
   device under file system, `fs_pipe_*`, `fs_mkdir`, `fs_stat`, …).
   `sys_llist_*` is a library available in file systems and kernel.
@@ -284,6 +303,14 @@ both the C preprocessor and make**:
     `API_MOD_STAT` (stacked drivers such as `part` and `loop` report 1, the
     underlying device handles alignment). File systems get the type with
     `fs_dev_type(dev)`.
+  - `part` reads GPT (CRC checked, backup GPT when primary is damaged, GPT
+    header checked also when protective MBR is damaged) or
+    MBR (`IOCTL_STORAGE__READ_PARTITION_TABLE`). Disk instance (minor 0,
+    config `nodes`) creates partition instances with nodes `<nodes>[p]<n>`
+    (minors 1..15) and `<nodes>-<name>` (named GPT partitions, minors 17..31)
+    by `drv_instance_init()`, removes nodes of deleted partitions (not opened
+    ones) and releases them with the disk. Instances of one major and device
+    are updated together.
   - Requests to block devices not aligned to `st_blksize` are split by
     `drvctrl.c` (read-modify-write), so block drivers get only aligned
     requests. Data buffer requirements (e.g. DMA) are declared in

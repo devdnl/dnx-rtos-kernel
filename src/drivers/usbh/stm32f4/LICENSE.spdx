@@ -1,0 +1,5 @@
+PackageName: STM32 USB Host Library
+PackageDownloadLocation: https://www.st.com/
+PackageLicenseDeclared: LicenseRef-ST-SLA0044
+PackageCopyrightText: Copyright (c) 2015 STMicroelectronics. All rights reserved.
+FilesMatch: usbh_conf.h STM32_USB_Host_Library/*

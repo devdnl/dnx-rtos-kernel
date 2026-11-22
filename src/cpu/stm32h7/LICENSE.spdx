@@ -1,0 +1,12 @@
+PackageName: STM32H7 CMSIS device
+PackageDownloadLocation: https://github.com/STMicroelectronics/cmsis_device_h7
+PackageLicenseDeclared: Apache-2.0
+PackageCopyrightText: Copyright (c) STMicroelectronics. All rights reserved.
+PackageComment: headers refer to the LICENSE file of the ST repository (Apache-2.0)
+FilesMatch: stm32h7xx.h stm32h7xx/*
+
+PackageName: STM32H7 LL drivers
+PackageDownloadLocation: https://github.com/STMicroelectronics/stm32h7xx_hal_driver
+PackageLicenseDeclared: BSD-3-Clause
+PackageCopyrightText: Copyright (c) STMicroelectronics. All rights reserved.
+FilesMatch: lib/stm32h7xx_*

@@ -1,0 +1,13 @@
+PackageName: STM32F4xx Standard Peripherals Library
+PackageVersion: V1.8.0
+PackageDownloadLocation: https://www.st.com/
+PackageLicenseDeclared: LicenseRef-ST-MCD-Liberty-V2
+PackageCopyrightText: COPYRIGHT 2016 STMicroelectronics
+FilesMatch: lib/stm32f4xx_*
+
+PackageName: STM32F4 CMSIS device
+PackageVersion: V2.6.1
+PackageDownloadLocation: https://github.com/STMicroelectronics/cmsis_device_f4
+PackageLicenseDeclared: BSD-3-Clause
+PackageCopyrightText: Copyright (c) STMicroelectronics. All rights reserved.
+FilesMatch: stm32f4xx.h stm32f4xx/*

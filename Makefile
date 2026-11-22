@@ -201,6 +201,8 @@ CONFIGTOOL = $(SHELL) ./tools/configtool.sh
 ADDFS      = $(SHELL) ./$(SYS_FS_LOC)/addfs.sh
 ADDDRIVERS = $(SHELL) ./$(SYS_DRV_LOC)/adddriver.sh
 GIT_HOOKS  = $(SHELL) ./tools/apply_git_hooks.sh
+VERSION_SH = $(SHELL) ./tools/version.sh
+LICENSES   = $(PYTHON3) ./tools/licenses.py
 DOXYGEN    = $(SHELL) ./tools/doxygen.sh
 RELEASEPKG = $(SHELL) ./tools/releasepkg.sh
 RUNGENS    = $(SHELL) ./tools/rungens.sh
@@ -317,7 +319,7 @@ all : generate apply_git_hooks
 	@$(MAKE) -s -j 1 -f$(THIS_MAKEFILE) build_start
 
 .PHONY : build_start
-build_start : buildobjects linkobjects hex status
+build_start : buildobjects linkobjects hex licenses status
 
 ####################################################################################################
 # help
@@ -337,6 +339,12 @@ help :
 	@$(ECHO) "   release             create Release package"
 	@$(ECHO) "   doc                 create documentation (Doxygen)"
 	@$(ECHO) "   rungens             start generator scripts"
+	@$(ECHO) ""
+	@$(ECHO) "Version (file VERSION):"
+	@$(ECHO) "   bump-major          increase major version and commit VERSION"
+	@$(ECHO) "   bump-minor          increase minor version and commit VERSION"
+	@$(ECHO) "   bump-patch          increase patch version and commit VERSION"
+	@$(ECHO) "   tag-release         create tag vX.Y.Z of current commit"
 
 ####################################################################################################
 # project configuration wizard
@@ -423,7 +431,9 @@ generate :
 	@$(MKDIR) $(TARGET_DIR_NAME)/build
 	@$(MKDIR) $(TARGET_DIR_NAME)/build-tmp
 	@$(ECHO) "#include \"../$(CONFIG)\"" > $(TARGET_DIR_NAME)/build-tmp/defs.h
-	@$(ECHO) "#define COMMIT_HASH \"$(shell git rev-parse --short HEAD 2>/dev/null)\"" >> $(TARGET_DIR_NAME)/build-tmp/defs.h
+	@$(VERSION_SH) check
+	@$(ECHO) "#define DNX_RTOS_VERSION \"$(shell $(VERSION_SH))\"" >> $(TARGET_DIR_NAME)/build-tmp/defs.h
+	@$(ECHO) "#define COMMIT_HASH \"$(shell $(VERSION_SH) hash)\"" >> $(TARGET_DIR_NAME)/build-tmp/defs.h
 	@$(ECHO) "#define BRANCH_NAME \"$(shell git symbolic-ref --short HEAD 2>/dev/null)\"" >> $(TARGET_DIR_NAME)/build-tmp/defs.h
 	@$(ECHO) "#define COMPILE_EPOCH_TIME $(shell $(DATE) "+%s")" > $(TARGET_DIR_NAME)/build-tmp/vars.h
 	@$(SYNCDIR) $(TARGET_DIR_NAME)/build-tmp/ $(TARGET_DIR_NAME)/build/
@@ -567,6 +577,26 @@ $(OBJ_PATH)/%.$(OBJ_EXT) : %.$(AS_EXT) $(THIS_MAKEFILE)
 clean :
 	@$(ECHO) "Deleting all build files..."
 	-@$(RM) -r $(TARGET_DIR_NAME) ./doc/doxygen/html/ ./doc/doxygen/latex
+
+####################################################################################################
+# licenses of build: sources of linked objects (dnx.files), components (LICENSE.spdx files):
+# SBOM (dnx.spdx) and notices with license texts (dnx-licenses.txt.gz)
+####################################################################################################
+.PHONY : licenses
+licenses :
+	@$(ECHO) "Creating list of licenses..."
+	@$(LICENSES) files -o $(TARGET_PATH)/$(PROJECT).files $(TARGET_PATH)/objects.list
+	@$(LICENSES) report -o $(TARGET_PATH)/$(PROJECT) -n "dnx RTOS kernel" -r . $(TARGET_PATH)/$(PROJECT).files
+
+####################################################################################################
+# version (file VERSION), NOCOMMIT=1: VERSION is changed only
+####################################################################################################
+.PHONY : bump-major bump-minor bump-patch tag-release
+bump-major bump-minor bump-patch :
+	@NOCOMMIT=$(NOCOMMIT) $(VERSION_SH) bump $(@:bump-%=%)
+
+tag-release :
+	@$(VERSION_SH) tag
 
 ####################################################################################################
 # target used to create Release archive

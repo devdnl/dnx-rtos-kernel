@@ -1,0 +1,4 @@
+PackageName: FreeRTOS Kernel POSIX port
+PackageDownloadLocation: https://github.com/FreeRTOS/FreeRTOS-Kernel
+PackageLicenseDeclared: MIT
+PackageCopyrightText: Copyright (C) 2020 Cambridge Consultants Ltd.

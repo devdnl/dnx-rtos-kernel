@@ -6,20 +6,17 @@ Author  Daniel Zorychta
 Brief   IOCTL requests for storage class devices.
 
         This program is free software; you can redistribute it and/or modify
-        it under the terms of the GNU General Public License as published by
-        the Free Software Foundation and modified by the dnx RTOS exception.
+        it under the terms of the GNU General Public License version 2 as
+        published by the Free Software Foundation.
 
-        NOTE: The modification  to the GPL is  included to allow you to
-              distribute a combined work that includes dnx RTOS without
-              being obliged to provide the source  code for proprietary
-              components outside of the dnx RTOS.
-
-        The dnx RTOS  is  distributed  in the hope  that  it will be useful,
-        but WITHOUT  ANY  WARRANTY;  without  even  the implied  warranty of
-        MERCHANTABILITY  or  FITNESS  FOR  A  PARTICULAR  PURPOSE.  See  the
+        The dnx RTOS is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
         GNU General Public License for more details.
 
-        Full license text is available on the following file: doc/license.txt.
+        Programs using the kernel by system calls are not covered by the license,
+        drivers and file systems of drvset partition: exception, see the license
+        file: doc/license.txt.
 
 ==============================================================================*/
 
@@ -55,12 +52,12 @@ extern "C" {
 #define IOCTL_STORAGE__INITIALIZE _IO(STORAGE, 0x80)
 
 /**
- *  @brief  Read storage's MBR sector and detect partitions
+ *  @brief  Read storage's partition table (GPT or MBR) and update partitions
  *  @param  None
- *  @return On success (MBR detected) 0 is returned.
- *          On error (MBR not exist or IO error) -1 is returned and errno is set.
+ *  @return On success (partition table detected) 0 is returned.
+ *          On error (partition table not exist or IO error) -1 is returned and errno is set.
  */
-#define IOCTL_STORAGE__READ_MBR _IO(STORAGE, 0x81)
+#define IOCTL_STORAGE__READ_PARTITION_TABLE _IO(STORAGE, 0x81)
 
 /**
  *  @brief  Enable and reset I/O statistics of block device.

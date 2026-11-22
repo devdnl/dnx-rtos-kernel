@@ -1,0 +1,9 @@
+# dnx RTOS kernel: sources of this repository, except components with own
+# LICENSE.spdx (tools/licenses.py)
+PackageName: dnx RTOS kernel
+PackageVersion: @VERSION@
+PackageDownloadLocation: git+https://github.com/devdnl/dnx-rtos-kernel.git
+PackageLicenseDeclared: LicenseRef-dnx-RTOS
+PackageCopyrightText: Copyright (C) Daniel Zorychta <daniel.zorychta@gmail.com>
+PackageCopyrightText: Copyright (C) 2021 Dawid Wałach <dawid.walach@3dgence.com> (MAX310x driver)
+PackageComment: GPL-2.0-only, note about programs (system calls), dnx RTOS drvset exception (doc/license.txt)

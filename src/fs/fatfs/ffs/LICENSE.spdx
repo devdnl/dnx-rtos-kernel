@@ -1,0 +1,6 @@
+PackageName: FatFs
+PackageVersion: R0.14
+PackageDownloadLocation: http://elm-chan.org/fsw/ff/
+PackageLicenseDeclared: LicenseRef-FatFs
+PackageCopyrightText: Copyright (C) 2019, ChaN, all right reserved.
+PackageComment: fork modified for dnx RTOS

@@ -1,0 +1,6 @@
+PackageName: FreeRTOS Kernel
+PackageVersion: V11.1.0
+PackageDownloadLocation: https://github.com/FreeRTOS/FreeRTOS-Kernel
+PackageLicenseDeclared: MIT
+PackageCopyrightText: Copyright (C) 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+FilesMatch: Source/* FreeRTOSConfig.h

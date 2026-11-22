@@ -1,0 +1,10 @@
+PackageName: Arm CMSIS Core (cmsis_gcc.h)
+PackageDownloadLocation: https://github.com/ARM-software/CMSIS_5
+PackageLicenseDeclared: Apache-2.0
+PackageCopyrightText: Copyright (c) 2009-2018 Arm Limited. All rights reserved.
+FilesMatch: cmsis_gcc.h
+
+PackageName: Arm CMSIS Core
+PackageDownloadLocation: https://github.com/ARM-software/CMSIS_5
+PackageLicenseDeclared: BSD-3-Clause
+PackageCopyrightText: Copyright (c) 2009-2015 ARM LIMITED. All rights reserved.

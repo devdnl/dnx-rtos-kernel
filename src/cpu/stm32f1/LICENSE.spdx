@@ -1,0 +1,5 @@
+PackageName: STM32F10x Standard Peripherals Library
+PackageDownloadLocation: https://www.st.com/
+PackageLicenseDeclared: LicenseRef-ST-StdPeriph
+PackageCopyrightText: COPYRIGHT 2009-2011 STMicroelectronics
+FilesMatch: stm32f10x.h lib/misc.* lib/stm32f10x_*
