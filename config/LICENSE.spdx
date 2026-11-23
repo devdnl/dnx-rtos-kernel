@@ -1,0 +1,5 @@
+# default configuration of the kernel (projects copy and modify it)
+PackageName: dnx RTOS kernel configuration
+PackageDownloadLocation: git+https://github.com/devdnl/dnx-rtos-kernel.git
+PackageLicenseDeclared: MIT
+PackageCopyrightText: Copyright (C) Daniel Zorychta <daniel.zorychta@gmail.com>

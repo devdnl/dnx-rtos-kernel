@@ -118,6 +118,8 @@ static int SPI_transmit_block(SDSPI_t *hdl, const u8_t *block, size_t count);
 static int SPI_receive_block(SDSPI_t *hdl, u8_t *block, size_t count);
 static u8_t card_send_cmd(SDSPI_t *hdl, SD_cmd_t cmd, u32_t arg);
 static u8_t card_wait_ready(SDSPI_t *hdl);
+static u8_t card_wait_token(SDSPI_t *hdl);
+static bool card_leave_idle(SDSPI_t *hdl, SD_cmd_t cmd, u32_t arg, clock_t tref);
 static bool card_receive_data_block(SDSPI_t *hdl, u8_t *buff);
 static bool card_transmit_data_block(SDSPI_t *hdl, const u8_t *buff, u8_t token);
 static ssize_t card_read_sectors(SDSPI_t *hdl, u8_t *dst, size_t nsectors, u64_t lseek);
@@ -529,6 +531,10 @@ static int SPI_receive_block(SDSPI_t *hdl, u8_t *block, size_t count)
 /**
  * @brief Function wait for card ready
  *
+ * @note  The timeout is checked before each transfer, so the byte received
+ *        after the timeout is still checked (one long transfer, e.g. when the
+ *        task is preempted, does not end waiting without checking the card).
+ *
  * @param[in] hdl       partition handler
  *
  * @return card response
@@ -537,12 +543,71 @@ static int SPI_receive_block(SDSPI_t *hdl, u8_t *block, size_t count)
 static u8_t card_wait_ready(SDSPI_t *hdl)
 {
         u8_t response;
+        bool expired;
         clock_t tref = sys_get_uptime_ms();
 
-        while ((response = SPI_transive(hdl, 0xFF)) != 0xFF && !sys_is_time_expired(tref, hdl->timeout_ms))
-                ;
+        do {
+                expired = sys_is_time_expired(tref, hdl->timeout_ms);
+                response = SPI_transive(hdl, 0xFF);
+        } while ((response != 0xFF) && !expired);
 
         return response;
+}
+
+//==============================================================================
+/**
+ * @brief Function wait for data token (first byte other than 0xFF).
+ *
+ * @note  The timeout is checked as in card_wait_ready().
+ *
+ * @param[in] hdl       partition handler
+ *
+ * @return token (0xFE: start of data block), 0xFF on timeout
+ */
+//==============================================================================
+static u8_t card_wait_token(SDSPI_t *hdl)
+{
+        u8_t token;
+        bool expired;
+        clock_t tref = sys_get_uptime_ms();
+
+        do {
+                expired = sys_is_time_expired(tref, hdl->timeout_ms);
+                token = SPI_transive(hdl, 0xFF);
+        } while ((token == 0xFF) && !expired);
+
+        return token;
+}
+
+//==============================================================================
+/**
+ * @brief Function send command until card leaves idle state (response 0).
+ *
+ * @note  The timeout is checked before each command as in card_wait_ready().
+ *
+ * @param[in] hdl       partition handler
+ * @param[in] cmd       card command
+ * @param[in] arg       command's argument
+ * @param[in] tref      time reference of the timeout
+ *
+ * @return true if card left idle state, false on timeout
+ */
+//==============================================================================
+static bool card_leave_idle(SDSPI_t *hdl, SD_cmd_t cmd, u32_t arg, clock_t tref)
+{
+        for (;;) {
+                bool expired = sys_is_time_expired(tref, hdl->timeout_ms);
+
+                if (card_send_cmd(hdl, cmd, arg) == 0) {
+                        return true;
+                }
+
+                if (expired) {
+                        return false;
+                }
+
+                sys_sleep_ms(1);
+        }
 }
 
 //==============================================================================
@@ -626,12 +691,7 @@ static u8_t card_send_cmd(SDSPI_t *hdl, SD_cmd_t cmd, u32_t arg)
 //==============================================================================
 static bool card_receive_data_block(SDSPI_t *hdl, u8_t *buff)
 {
-        u8_t token;
-        clock_t tref = sys_get_uptime_ms();
-        while ((token = SPI_transive(hdl, 0xFF)) == 0xFF && !sys_is_time_expired(tref, hdl->timeout_ms))
-                ;
-
-        if (token != 0xFE) {
+        if (card_wait_token(hdl) != 0xFE) {
                 return false;
         }
 
@@ -815,13 +875,7 @@ static int card_initialize(SDSPI_t *hdl)
                         SPI_receive_block(hdl, OCR, sizeof(OCR));
 
                         if (OCR[2] == 0x01 && OCR[3] == 0xAA) {
-                                while (!sys_is_time_expired(tref, hdl->timeout_ms) &&
-                                        card_send_cmd(hdl, SD_CMD__ACMD41, 1UL << 30)) {
-
-                                        sys_sleep_ms(1);
-                                }
-
-                                if (!sys_is_time_expired(tref, hdl->timeout_ms) &&
+                                if (card_leave_idle(hdl, SD_CMD__ACMD41, 1UL << 30, tref) &&
                                         card_send_cmd(hdl, SD_CMD__CMD58, 0) == 0) {
 
                                         SPI_receive_block(hdl, OCR, sizeof(OCR));
@@ -844,14 +898,8 @@ static int card_initialize(SDSPI_t *hdl)
                                 cmd = SD_CMD__CMD1; /* MMC */
                         }
 
-                        /* Wait for leaving idle state */
-                        while (!sys_is_time_expired(tref, hdl->timeout_ms) && card_send_cmd(hdl, cmd, 0)) {
-
-                                sys_sleep_ms(1);
-                        }
-
-                        /* set R/W block length to 512 */
-                        if (sys_is_time_expired(tref, hdl->timeout_ms) ||
+                        /* wait for leaving idle state, set R/W block length to 512 */
+                        if (!card_leave_idle(hdl, cmd, 0, tref) ||
                                 card_send_cmd(hdl, SD_CMD__CMD16, SECTOR_SIZE) != 0) {
 
                                 hdl->type.type = SD_TYPE__UNKNOWN;
@@ -870,13 +918,7 @@ static int card_initialize(SDSPI_t *hdl)
 
                 // read size
                 if (card_send_cmd(hdl, SD_CMD__CMD9, 0) == 0) {
-                        u8_t token;
-
-                        clock_t tref = sys_get_uptime_ms();
-                        while ((token = SPI_transive(hdl, 0xFF)) == 0xFF && !sys_is_time_expired(tref, hdl->timeout_ms))
-                                ;
-
-                        if (token == 0xFE) {
+                        if (card_wait_token(hdl) == 0xFE) {
                                 u8_t CSD[16];
                                 memset(CSD, 0, sizeof(CSD));
 

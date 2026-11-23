@@ -173,7 +173,8 @@ both the C preprocessor and make**:
   (`@brief`, `@param[in]/[out]`, `@return`).
 - License: kernel files are GPL-2.0-only; programs using the kernel by system
   calls are not covered, drvset modules may use other licenses (exception,
-  `doc/license.txt`). Keep the license of the file you edit. Ask before
+  `doc/license.txt`). Configuration files (`config/`, `*_flags.h` created by
+  `tools/adddriver.sh` and `tools/addfilesystem.sh`) are MIT. Keep the license of the file you edit. Ask before
   choosing a license for a new file if unclear.
 - Code, comments and commit messages are in English. Commit messages are short
   sentences ending with a period, e.g. `Fix in the VFS.`.

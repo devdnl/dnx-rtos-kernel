@@ -197,8 +197,9 @@ Branches: `feature/*` are merged into `develop`, release is prepared on
 the release are made on the release branch (`make bump-patch`, tag).
 
 ## Licenses
-The kernel is licensed under GNU GPL version 2 (`doc/license.txt`), third party components keep their licenses. Each
-component is described by a `LICENSE.spdx` file (SPDX fields, e.g.
+The kernel is licensed under GNU GPL version 2 (`doc/license.txt`), the
+configuration (`config/`) is MIT, third party components keep their licenses.
+Each component is described by a `LICENSE.spdx` file (SPDX fields, e.g.
 `src/net/inet/lwip/LICENSE.spdx`), texts of licenses are in `LICENSES/`. The
 build creates the list of components of linked sources (`tools/licenses.py`):
 `build/output/dnx.spdx` (SBOM, SPDX 2.3), `build/output/dnx-licenses.txt.gz`
