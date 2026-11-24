@@ -1465,7 +1465,7 @@ static mode_t ext4ftype2vfs(u32_t mode)
         case EXT4_INODE_MODE_SOFTLINK:
                 return S_IFLNK;
         case EXT4_INODE_MODE_SOCKET:
-                return S_IFIFO;
+                return S_IFSOCK;
         default:
                 return 0;
         }

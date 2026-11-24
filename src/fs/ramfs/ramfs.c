@@ -111,7 +111,7 @@ typedef struct node {
 /** info of opened file */
 struct opened_file_info {
         node_t *child;        //!< opened node
-        node_t *parent;       //!< base of opened node
+        node_t *parent;       //!< base of opened node (NULL: node removed from directory)
         bool remove_at_close; //!< file to remove after close
 };
 
@@ -139,7 +139,6 @@ static int write_regular_file(struct RAMFS *hdl, node_t *node, const u8_t *src, 
         size_t *wrcnt);
 static int read_regular_file(node_t *node, u8_t *dst, size_t count, fpos_t fpos, size_t *rdcnt);
 static int copy_basename(struct RAMFS *hdl, const char *path, char **name);
-static int find_child_index(node_t *parent, node_t *child);
 static int release_tree(struct RAMFS *hdl);
 static size_t mem_cost(size_t size);
 static int mem_reserve(struct RAMFS *hdl, size_t cost);
@@ -374,11 +373,11 @@ API_FS_MKDIR(ramfs, void *fs_handle, const char *path, mode_t mode)
 
 //==============================================================================
 /**
- * @brief Create pipe
+ * @brief Create pipe or socket file (UDS)
  *
  * @param[in ]          *fs_handle              file system allocated memory
  * @param[in ]          *path                   name of created pipe
- * @param[in ]           mode                   pipe mode
+ * @param[in ]           mode                   file type (S_IFIFO, S_IFSOCK) and permissions
  *
  * @return One of errno value (errno.h)
  */
@@ -404,7 +403,8 @@ API_FS_MKFIFO(ramfs, void *fs_handle, const char *path, mode_t mode)
                         err = copy_basename(hdl, path, &child_name);
                         if (!err) {
                                 node_t *child;
-                                err = new_node(hdl, parent, child_name, (mode & S_IPMT) | S_IFIFO, NULL, &child);
+                                mode_t type = S_ISSOCK(mode) ? S_IFSOCK : S_IFIFO;
+                                err = new_node(hdl, parent, child_name, (mode & S_IPMT) | type, NULL, &child);
                                 if (err) {
                                         free_name(hdl, &child_name);
                                 }
@@ -587,20 +587,26 @@ API_FS_REMOVE(ramfs, void *fs_handle, const char *path)
 
                 bool remove_file = true;
 
-                /* check if file is opened */
+                /*
+                 * Opened file: name is removed from directory at once (as
+                 * unlink() of POSIX), node and data are released when the last
+                 * handle is closed.
+                 */
                 if (!S_ISDIR(child->mode)) {
                         sys_llist_foreach (struct opened_file_info *, opened_file, hdl->opended_files) {
                                 if (opened_file->child == child) {
                                         opened_file->remove_at_close = true;
+                                        opened_file->parent = NULL;
                                         remove_file = false;
                                 }
                         }
                 }
 
-                /* remove node if possible */
                 if (remove_file == true) {
                         err = delete_node(hdl, parent, child, item);
                 } else {
+                        /* take does not destroy object (in contrast to erase) */
+                        sys_llist_take(parent->data.llist_t, item);
                         err = ESUCC;
                 }
 
@@ -1005,6 +1011,12 @@ API_FS_OPEN(ramfs, void *fs_handle, void **fhdl, fpos_t *fpos, const char *path,
                                 err = EISDIR;
                                 goto finish;
                         }
+
+                        /* socket file is used only by UDS (bind, connect) */
+                        if (S_ISSOCK(child->mode)) {
+                                err = ENXIO;
+                                goto finish;
+                        }
                 }
 
                 /* add file to list of open files */
@@ -1101,11 +1113,8 @@ API_FS_CLOSE(ramfs, void *fs_handle, void *fhdl)
                                 }
 
                                 if (remove) {
-                                        /* position of node in PARENT list, not in opened files list */
-                                        int item = find_child_index(opened_file->parent, target);
-                                        if (item >= 0) {
-                                                delete_node(hdl, opened_file->parent, target, item);
-                                        }
+                                        /* node was removed from directory by remove() */
+                                        delete_node(hdl, NULL, target, 0);
                                 }
                         }
 
@@ -1344,7 +1353,8 @@ API_FS_SYNC(ramfs, void *fs_handle)
 /**
  * @brief Remove selected node
  *
- * @param[in] *base             base node
+ * @param[in] *base             base node (NULL: node already removed from
+ *                              directory, e.g. removed open file)
  * @param[in] *target           target node
  * @param[in]  position         item in base node that point to target
  *
@@ -1378,7 +1388,11 @@ static int delete_node(struct RAMFS *hdl, node_t *base, node_t *target, u32_t po
         free_name(hdl, &target->name);
 
         /* list destructor frees the node itself */
-        sys_llist_erase(base->data.llist_t, position);
+        if (base) {
+                sys_llist_erase(base->data.llist_t, position);
+        } else {
+                sys_free(cast(void **, &target));
+        }
         mem_release(hdl, mem_cost(sizeof(node_t)) + RAMFS_LLIST_ITEM_COST);
 
         hdl->file_count--;
@@ -1831,35 +1845,6 @@ static int copy_basename(struct RAMFS *hdl, const char *path, char **name)
         }
 
         return err;
-}
-
-//==============================================================================
-/**
- * @brief Function find position of child in parent's list.
- *
- * Position is searched by pointer manually because directory lists are
- * created without compare functor.
- *
- * @param parent                parent directory node
- * @param child                 child node
- *
- * @return child position or -1 if not found
- */
-//==============================================================================
-static int find_child_index(node_t *parent, node_t *child)
-{
-        if (!parent || !S_ISDIR(parent->mode) || !parent->data.llist_t) {
-                return -1;
-        }
-
-        int size = sys_llist_size(parent->data.llist_t);
-        for (int i = 0; i < size; i++) {
-                if (sys_llist_at(parent->data.llist_t, i) == child) {
-                        return i;
-                }
-        }
-
-        return -1;
 }
 
 //==============================================================================

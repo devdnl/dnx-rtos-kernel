@@ -211,7 +211,6 @@ extern "C" {
 /** @brief F12 key code. */
 #define VT100_F12_VT "\033[24~"
 
-#if (__OS_COLOR_TERMINAL_ENABLE__ > 0)
 #define VT100_FONT_BLINKING         "\033[5m"
 #define VT100_FONT_UNDERLINE        "\033[4m"
 #define VT100_FONT_NORMAL           "\033[0m"
@@ -239,88 +238,6 @@ extern "C" {
 #define VT100_BACK_COLOR_PINK       "\033[1;45m"
 #define VT100_BACK_COLOR_CYAN       "\033[46m"
 #define VT100_BACK_COLOR_WHITE      "\033[47m"
-#else
-/** @brief Enable blinking font. To disable blinking use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_FONT_BLINKING
-
-/** @brief Enable font underline. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_FONT_UNDERLINE
-
-/** @brief Enable normal font. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_FONT_NORMAL
-
-/** @brief Enable bold font. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_FONT_BOLD
-
-/** @brief Enable black font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_FONT_COLOR_BLACK
-
-/** @brief Enable gray font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_FONT_COLOR_GRAY
-
-/** @brief Enable red font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_FONT_COLOR_RED
-
-/** @brief Enable green font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_FONT_COLOR_GREEN
-
-/** @brief Enable yellow font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_FONT_COLOR_YELLOW
-
-/** @brief Enable brown font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_FONT_COLOR_BROWN
-
-/** @brief Enable blue font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_FONT_COLOR_BLUE
-
-/** @brief Enable light blue font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_FONT_COLOR_LIGHT_BLUE
-
-/** @brief Enable magenta font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_FONT_COLOR_MAGENTA
-
-/** @brief Enable pink font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_FONT_COLOR_PINK
-
-/** @brief Enable cyan font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_FONT_COLOR_CYAN
-
-/** @brief Enable white font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_FONT_COLOR_WHITE
-
-/** @brief Enable  background font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_BACK_COLOR_BLACK
-
-/** @brief Enable gray background font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_BACK_COLOR_GRAY
-
-/** @brief Enable red background font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_BACK_COLOR_RED
-
-/** @brief Enable green background font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_BACK_COLOR_GREEN
-
-/** @brief Enable yellow background font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_BACK_COLOR_YELLOW
-
-/** @brief Enable brown background font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_BACK_COLOR_BROWN
-
-/** @brief Enable blue background font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_BACK_COLOR_BLUE
-
-/** @brief Enable magenta background font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_BACK_COLOR_MAGENTA
-
-/** @brief Enable pink background font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_BACK_COLOR_PINK
-
-/** @brief Enable cyan background font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_BACK_COLOR_CYAN
-
-/** @brief Enable white background font color. To disable text attribute use @ref VT100_RESET_ATTRIBUTES. */
-#define VT100_BACK_COLOR_WHITE
-#endif
 
 /*==============================================================================
   Exported object types

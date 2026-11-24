@@ -160,6 +160,7 @@ extern "C" {
 #define S_ISPROG(mode_t_m) ((mode_t_m & S_IFMT) == S_IFPROG)
 #define S_ISFIFO(mode_t_m) ((mode_t_m & S_IFMT) == S_IFIFO)
 #define S_ISBLK(mode_t_m)  ((mode_t_m & S_IFMT) == S_IFBLK)
+#define S_ISSOCK(mode_t_m) ((mode_t_m & S_IFMT) == S_IFSOCK)
 
 #define S_IFREG  0000000
 #define S_IFDIR  0010000
@@ -168,6 +169,7 @@ extern "C" {
 #define S_IFPROG 0040000
 #define S_IFIFO  0050000
 #define S_IFBLK  0060000
+#define S_IFSOCK 0070000
 
 /* stream definitions */
 #define EOF (-1)

@@ -417,10 +417,22 @@ typedef struct {
         u64_t rx_packets;       /*!< Number of received packets.*/
 } NETM_UDS_status_t;
 
-/** UDS socket address. */
+/**
+ * UDS socket address: path of socket file (bind() creates the file, connect()
+ * and sendto() need write permission of the file) or abstract name (path[0] is
+ * '\0', name follows, no file and permissions). Unnamed socket: path[0] and
+ * path[1] are '\0'.
+ */
 typedef struct {
         char path[64];
 } NETM_UDS_sockaddr_t;
+
+/** Credentials of process (peer of connected socket). */
+typedef struct {
+        pid_t pid;
+        uid_t uid;
+        gid_t gid;
+} NETM_credentials_t;
 
 /*==============================================================================
   Exported objects
@@ -457,6 +469,7 @@ extern int _net_socket_connect(ksocket_t *, const NETM_generic_sockaddr_t *, siz
 extern int _net_socket_disconnect(ksocket_t *);
 extern int _net_socket_shutdown(ksocket_t *, NETM_shut_t);
 extern int _net_socket_getaddress(ksocket_t *, NETM_generic_sockaddr_t *, size_t);
+extern int _net_socket_getpeercred(ksocket_t *, NETM_credentials_t *);
 extern u16_t _net_hton_u16(NETM_family_t, u16_t);
 extern u32_t _net_hton_u32(NETM_family_t, u32_t);
 extern u64_t _net_hton_u64(NETM_family_t, u64_t);

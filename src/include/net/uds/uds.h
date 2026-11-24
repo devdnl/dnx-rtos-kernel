@@ -59,7 +59,7 @@ extern "C" {
  *       locked and in critical section.
  */
 typedef struct UDS_socket {
-        char *path;
+        char *path;                //!< socket name: path of socket file or abstract name ("@<name>")
         kqueue_t *buf;             //!< datagram buffer
         struct UDS_stream *stream; //!< stream buffer
         kqueue_t *conn_req;
@@ -70,11 +70,13 @@ typedef struct UDS_socket {
         u32_t send_timeout;
         NETM_shut_t shutdown;
         int conn_err;    //!< client: error set by server when request is rejected
+        NETM_credentials_t cred; //!< own credentials (connect, listen), peer credentials when connected
         u16_t refs;      //!< number of pending operations that use this socket
         bool connected;  //!< connection established
         bool connecting; //!< client: request is waiting in server accept queue
         bool closing;    //!< socket is being destroyed
         bool eof;        //!< stream: peer closed connection or shut down write direction
+        bool unlinked;   //!< socket file was replaced (removed and bound by other socket): not found by name
 } UDS_socket_t;
 
 /*==============================================================================
@@ -109,6 +111,7 @@ extern int UDS_socket_set_send_timeout(void *, UDS_socket_t *, uint32_t);
 extern int UDS_socket_get_recv_timeout(void *, UDS_socket_t *, uint32_t *);
 extern int UDS_socket_get_send_timeout(void *, UDS_socket_t *, uint32_t *);
 extern int UDS_socket_getaddress(void *, UDS_socket_t *, NETM_UDS_sockaddr_t *, size_t);
+extern int UDS_socket_getpeercred(void *, UDS_socket_t *, NETM_credentials_t *);
 extern u16_t UDS_hton_u16(u16_t);
 extern u32_t UDS_hton_u32(u32_t);
 extern u64_t UDS_hton_u64(u64_t);

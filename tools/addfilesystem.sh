@@ -353,11 +353,12 @@ API_FS_MKDIR($FSNAME, void *fs_handle, const char *path, mode_t mode)
 
 //==============================================================================
 /**
- * @brief Create pipe.
+ * @brief Create pipe or socket file (UDS), ENOTSUP when special files are not
+ *        supported.
  *
  * @param[in ]          *fs_handle              file system allocated memory
  * @param[in ]          *path                   name of created pipe
- * @param[in ]           mode                   pipe mode
+ * @param[in ]           mode                   file type (S_IFIFO, S_IFSOCK) and permissions
  *
  * @return One of errno value (errno.h).
  */

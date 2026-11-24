@@ -76,15 +76,11 @@ typedef struct vfs_FS_itf {
 #if __OS_ENABLE_STATFS__ == _YES_
         int (*fs_statfs)(void *fshdl, struct statfs *statfs);
 #endif
-#if __OS_ENABLE_MKDIR__ == _YES_
         int (*fs_mkdir)(void *fshdl, const char *path, mode_t);
-#endif
 #if __OS_ENABLE_MKFIFO__ == _YES_
         int (*fs_mkfifo)(void *fshdl, const char *path, mode_t);
 #endif
-#if __OS_ENABLE_REMOVE__ == _YES_
         int (*fs_remove)(void *fshdl, const char *path);
-#endif
 #if __OS_ENABLE_RENAME__ == _YES_
         int (*fs_rename)(void *fshdl, const char *old_name, const char *new_name);
 #endif

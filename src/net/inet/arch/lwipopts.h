@@ -98,6 +98,10 @@
 #define EHOSTUNREACH   ENXIO
 #define EINPROGRESS    EALREADY
 #define EWOULDBLOCK    ETIME
+
+// lwIP: not connected and closed connection (ERR_CONN, ERR_CLSD) are reported
+// as ECONNABORTED (programs handle it as end of connection)
+#undef ENOTCONN
 #define ENOTCONN       ECONNABORTED
 
 /*

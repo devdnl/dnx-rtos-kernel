@@ -127,7 +127,10 @@ syntax in `IOCTL_DEVICE__CONFIGURE_STR` (`src/include/drivers/class/device/ioctl
 - **inet** – TCP/IP stack (based on lwIP),
 - **cannet** – network over CAN bus,
 - **sipc** – simple serial protocol for point-to-point communication,
-- **uds** – Unix domain sockets.
+- **uds** – Unix domain sockets: socket bound to path creates socket file
+  (ramfs, e.g. `/run`; connect and send need write permission of the file) or
+  abstract name (address starts with `'\0'`, no file and permissions), peer
+  credentials of connection (`socket_get_peer_credentials()`).
 
 Network is accessed by programs via sockets API.
 

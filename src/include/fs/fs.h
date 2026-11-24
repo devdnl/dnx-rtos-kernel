@@ -278,14 +278,15 @@ enum SYS_FS_TYPE {
  * @brief Macro creates unique name of FIFO create function.
  *
  * Function created by this macro is called by system when file system has to
- * create a new FIFO file.
+ * create a new FIFO file or socket file (UNIX domain socket bound to path).
+ * File system without special files returns ENOTSUP.
  *
  * @note Macro can be used only by file system code.
  *
  * @param fsname        file system name
  * @param fs_handle     [<b>void *</b>]         file system memory handler
  * @param path          [<b>const char *</b>]   FIFO path
- * @param mode          [<b>mode_t</b>]         FIFO mode (permissions)
+ * @param mode          [<b>mode_t</b>]         file type (S_IFIFO or S_IFSOCK) and permissions
  * @return One of @ref errno value.
  *
  * @see mode_t

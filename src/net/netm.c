@@ -69,6 +69,7 @@ Brief    Network management.
 #define PROXY_socket_disconnect(_family)        PROXY_FUNCTION(_family, socket_disconnect)
 #define PROXY_socket_shutdown(_family)          PROXY_FUNCTION(_family, socket_shutdown)
 #define PROXY_socket_getaddress(_family)        PROXY_FUNCTION(_family, socket_getaddress)
+#define PROXY_socket_getpeercred(_family)       PROXY_FUNCTION(_family, socket_getpeercred)
 #define PROXY_hton_u16(_family)                 PROXY_FUNCTION_U16(_family, hton_u16)
 #define PROXY_hton_u32(_family)                 PROXY_FUNCTION_U32(_family, hton_u32)
 #define PROXY_hton_u64(_family)                 PROXY_FUNCTION_U64(_family, hton_u64)
@@ -1417,6 +1418,35 @@ int _net_socket_getaddress(ksocket_t *socket, NETM_generic_sockaddr_t *sockaddr,
                 if ((err = socket_op_begin(socket, socket->tx_mutex)) == 0) {
                         void *ctx = socket->net->stack_ctx;
                         err = call_proxy_function(socket->family, ctx, socket->ctx, sockaddr, sockaddr_size);
+                        socket_op_end(socket, socket->tx_mutex);
+                }
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief Function return credentials of peer of connected socket.
+ * @param socket        socket
+ * @param cred          peer credentials
+ * @return One of @ref errno value.
+ */
+//==============================================================================
+int _net_socket_getpeercred(ksocket_t *socket, NETM_credentials_t *cred)
+{
+        PROXY_TABLE = {
+#if __ENABLE_UDS_STACK__ > 0
+                PROXY_socket_getpeercred(UDS),
+#endif
+        };
+
+        int err = EINVAL;
+
+        if (is_socket_valid(socket) && cred) {
+                if ((err = socket_op_begin(socket, socket->tx_mutex)) == 0) {
+                        void *ctx = socket->net->stack_ctx;
+                        err = call_proxy_function(socket->family, ctx, socket->ctx, cred);
                         socket_op_end(socket, socket->tx_mutex);
                 }
         }

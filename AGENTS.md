@@ -52,7 +52,11 @@ edit the version in source files.
   flatfs, appsetfs) plus `vfs.c`, `pipe.c`, `fsctrl.c`. `src/fs/addfs.sh` is the
   registration generator.
 - `src/net/` — `netm.c` and network families: `inet` (lwIP, third party under
-  `inet/lwip`), `cannet`, `sipc`, `uds`.
+  `inet/lwip`), `cannet`, `sipc`, `uds`. UDS names are socket files
+  (`S_IFSOCK`, created by `_vfs_mkfifo()`, only ramfs supports special files;
+  connect/sendto check type and write permission) or abstract names (address
+  starts with `'\0'`, stored as `"@<name>"`); peer credentials are stored by
+  connect/listen and exchanged by accept.
 - `src/mm/` — heap, memory manager, shared memory.
 - `src/lib/`, `src/include/lib/` — kernel-internal libraries (printf family,
   llist, crc32, stropt, …). These are not the user-space libc.
@@ -368,6 +372,14 @@ both the C preprocessor and make**:
   expected object type (`RES_TYPE_UNKNOWN`: any), wrong type gives `EBADF`
   without kernel messages (like Linux); `close()` of incorrect descriptor
   returns `EBADF` silently.
+- Optional functions of `config/os/os_flags.h` (`__OS_ENABLE_*__`) are kept
+  only where they save flash without breaking the base system: `mkdir()`,
+  `remove()`, `getcwd()` and `mknod()` are always present (initd, device
+  nodes of drivers and dsh need them). `__OS_ENABLE_MKFIFO__` is needed by
+  dsh pipelines and UDS socket files, `__OS_ENABLE_FSTAT__` by `stat()`
+  users, `__OS_ENABLE_SHARED_MEMORY__` by netmgr. Before adding a flag,
+  measure the kernel with and without it (clean build, the Makefile does not
+  track headers).
 - Users and file permissions (`__OS_ENABLE_PERMISSIONS__`, requires
   `__OS_ENABLE_CHMOD__`, `__OS_ENABLE_CHOWN__`, `__OS_ENABLE_FSTAT__`; off:
   no code, every task is root): credentials `uid`/`gid` are per thread

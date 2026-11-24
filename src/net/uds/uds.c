@@ -32,6 +32,8 @@ Brief    Unix Domain Socket Network management.
 #include "net/uds/uds.h"
 #include "cpuctl.h"
 #include "lib/llist.h"
+#include "fs/vfs.h"
+#include "kernel/process.h"
 
 /*==============================================================================
   Local macros
@@ -52,6 +54,18 @@ Brief    Unix Domain Socket Network management.
 #define MAX_DATAGRAM_BUFFERS __NETWORK_UDS_DATAGRAM_BUFFERS_SIZE__
 #define MAX_DATAGRAM_SIZE    __NETWORK_UDS_DATAGRAM_MAX_SIZE__
 #define CONN_REQ_QUEUE_LEN   8
+
+/*
+ * Socket names: path of socket file (absolute, "." and ".." reduced, file
+ * created by bind(), connect() and sendto() check type and write permission of
+ * the file) or abstract name stored with prefix '@' (address: '\0' and name).
+ * Names are not longer than address path, so they can be returned as address.
+ */
+#define NAME_SIZE       sizeof(((NETM_UDS_sockaddr_t *)0)->path)
+#define ABSTRACT_PREFIX '@'
+
+/* socket files need VFS functions (other configuration: only abstract names) */
+#define SOCKET_FILES ((__OS_ENABLE_MKFIFO__ == _YES_) && (__OS_ENABLE_FSTAT__ == _YES_))
 
 /*
  * Blocking operations wait in slices. After each slice the state of sockets
@@ -121,7 +135,10 @@ typedef struct {
 ==============================================================================*/
 static int stack_lock(uds_t *uds);
 static void stack_unlock(uds_t *uds);
-static bool path_is_valid(const char *path, size_t size);
+static int name_get(const NETM_UDS_sockaddr_t *addr, size_t addr_size, char *name);
+static int name_file_check(const char *name);
+static void name_to_addr(const char *name, NETM_UDS_sockaddr_t *addr);
+static void credentials_get(NETM_credentials_t *cred);
 static bool socket_is_registered(uds_t *uds, UDS_socket_t *socket);
 static int socket_ref_get(uds_t *uds, UDS_socket_t *socket);
 static void socket_ref_put(uds_t *uds, UDS_socket_t *socket);
@@ -347,6 +364,8 @@ int UDS_socket_create(void *ctx, NETM_socket_type_t type, u8_t prot, UDS_socket_
         socket->connecting = false;
         socket->closing = false;
         socket->eof = false;
+        socket->unlinked = false;
+        memset(&socket->cred, 0, sizeof(socket->cred));
 
         return socket_register(uds, socket);
 }
@@ -466,11 +485,16 @@ int UDS_socket_connect(void *ctx, UDS_socket_t *socket, const NETM_UDS_sockaddr_
                 return ENONET;
         }
 
-        if ((addr_size != sizeof(*addr)) or not path_is_valid(addr->path, sizeof(addr->path))) {
-                return EINVAL;
+        char name[NAME_SIZE];
+        int err = name_get(addr, addr_size, name);
+        if (not err) {
+                err = name_file_check(name);
         }
 
-        int err = socket_ref_get(uds, socket);
+        if (not err) {
+                err = socket_ref_get(uds, socket);
+        }
+
         if (err) {
                 return err;
         }
@@ -496,15 +520,18 @@ int UDS_socket_connect(void *ctx, UDS_socket_t *socket, const NETM_UDS_sockaddr_
                 // drop data of previous connection
                 buffer_reset(uds, socket);
 
-                err = ENOENT;
+                err = ECONNREFUSED;
 
                 sys_llist_foreach (UDS_socket_t *, s, uds->socket.list) {
-                        if (s->path and s->conn_req and isstreq(s->path, addr->path)) {
+                        if (s->path and not s->unlinked and s->conn_req and isstreq(s->path, name)) {
 
                                 if (s->type != socket->type) {
                                         err = ECONNREFUSED;
 
                                 } else {
+                                        // credentials of client (peer of accepted socket)
+                                        credentials_get(&socket->cred);
+
                                         socket->conn_err = 0;
                                         socket->connecting = true;
 
@@ -619,7 +646,7 @@ int UDS_socket_disconnect(void *ctx, UDS_socket_t *socket)
                         stream_wake(socket);
                         stream_wake(peer);
                 } else {
-                        err = ENOENT;
+                        err = ENOTCONN;
                 }
 
                 stack_unlock(uds);
@@ -680,44 +707,87 @@ int UDS_socket_bind(void *ctx, UDS_socket_t *socket, const NETM_UDS_sockaddr_t *
                 return ENONET;
         }
 
-        if ((addr_size != sizeof(*addr)) or not path_is_valid(addr->path, sizeof(addr->path))) {
+        // socket is bound once (name of socket file cannot be changed)
+        if (socket->path) {
                 return EINVAL;
         }
 
-        size_t path_len = strnlen(addr->path, sizeof(addr->path));
-
-        int err = stack_lock(uds);
+        char name[NAME_SIZE];
+        int err = name_get(addr, addr_size, name);
         if (err) {
                 return err;
         }
 
-        sys_llist_foreach (UDS_socket_t *, s, uds->socket.list) {
-                if ((s != socket) and s->path and isstreq(s->path, addr->path)) {
-                        err = EADDRINUSE;
-                        break;
-                }
+        char *new_name = NULL;
+        err = kalloc(strsize(name), cast(void **, &new_name));
+        if (err) {
+                return err;
         }
 
-        if (not err and (socket->type == NETM_SOCKET_TYPE__DATAGRAM)) {
-                err = buffer_create(uds, socket);
-        }
+        strcpy(new_name, name);
 
-        if (not err) {
-                char *new_path = NULL;
+        bool file = (name[0] != ABSTRACT_PREFIX);
 
-                err = kalloc(path_len + 1, cast(void **, &new_path));
+#if SOCKET_FILES
+        struct vfs_path path = {.CWD = NULL, .PATH = name};
+
+        if (file) {
+                mode_t mode = S_IFSOCK | S_IRWXU | S_IRWXG | S_IRWXO;
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+                uid_t uid;
+                gid_t gid;
+                _process_get_credentials(&uid, &gid);
+
+                err = _vfs_access_parent(&path, _VFS_W_OK, uid, gid);
+                mode &= ~_process_umask(NULL);
+#endif
                 if (not err) {
-                        sys_strlcpy(new_path, addr->path, path_len + 1);
-
-                        if (socket->path) {
-                                zfree(cast(void **, &socket->path));
+                        err = _vfs_mkfifo(&path, mode);
+                        if (err == EEXIST) {
+                                err = EADDRINUSE;
                         }
+                }
 
-                        socket->path = new_path;
+                if (err) {
+                        zfree(cast(void **, &new_name));
+                        return err;
                 }
         }
+#endif
 
-        stack_unlock(uds);
+        err = stack_lock(uds);
+        if (not err) {
+                sys_llist_foreach (UDS_socket_t *, s, uds->socket.list) {
+                        if ((s != socket) and s->path and not s->unlinked and isstreq(s->path, name)) {
+                                if (file) {
+                                        // socket file of s was removed, new file belongs to this socket
+                                        s->unlinked = true;
+                                } else {
+                                        err = EADDRINUSE;
+                                        break;
+                                }
+                        }
+                }
+
+                if (not err and (socket->type == NETM_SOCKET_TYPE__DATAGRAM)) {
+                        err = buffer_create(uds, socket);
+                }
+
+                if (not err) {
+                        socket->path = new_name;
+                }
+
+                stack_unlock(uds);
+        }
+
+        if (err) {
+#if SOCKET_FILES
+                if (file) {
+                        _vfs_remove(&path);
+                }
+#endif
+                zfree(cast(void **, &new_name));
+        }
 
         return err;
 }
@@ -744,6 +814,11 @@ int UDS_socket_listen(void *ctx, UDS_socket_t *socket)
 
                 } else if (not socket->conn_req) {
                         err = sys_queue_create(CONN_REQ_QUEUE_LEN, sizeof(UDS_socket_t *), &socket->conn_req);
+                }
+
+                // credentials of server (peer of connected client)
+                if (not err) {
+                        credentials_get(&socket->cred);
                 }
 
                 stack_unlock(uds);
@@ -822,6 +897,10 @@ int UDS_socket_accept(void *ctx, UDS_socket_t *socket, UDS_socket_t *new_socket)
                                 socket_conn_req_finish(uds, req, err);
 
                         } else {
+                                // peer credentials: client (stored by connect) and server (stored by listen)
+                                new_socket->cred = req->cred;
+                                req->cred = socket->cred;
+
                                 sys_critical_section_begin();
                                 {
                                         new_socket->conn_sock = req;
@@ -882,7 +961,7 @@ int UDS_socket_recv(void *ctx, UDS_socket_t *socket, void *buf, size_t len, NETM
         } else if (socket->type == NETM_SOCKET_TYPE__STREAM) {
                 // remaining data can be received after peer closed connection
                 if (not socket->stream or not((socket->conn_sock and socket->connected) or socket->eof)) {
-                        err = ECONNREFUSED;
+                        err = ENOTCONN;
                 }
 
         } else if (socket->type == NETM_SOCKET_TYPE__DATAGRAM) {
@@ -1018,7 +1097,7 @@ int UDS_socket_send(void *ctx, UDS_socket_t *socket, const void *buf, size_t len
                 socket->refs++;
 
         } else {
-                err = socket->eof ? EPIPE : ECONNREFUSED;
+                err = socket->eof ? EPIPE : ENOTCONN;
         }
 
         sys_critical_section_end();
@@ -1068,10 +1147,6 @@ int UDS_socket_sendto(void *ctx, UDS_socket_t *socket, const void *buf, size_t l
                 return ENONET;
         }
 
-        if ((to_addr_size != sizeof(*to_addr)) or not path_is_valid(to_addr->path, sizeof(to_addr->path))) {
-                return EINVAL;
-        }
-
         if (socket->type != NETM_SOCKET_TYPE__DATAGRAM) {
                 return ECANCELED;
         }
@@ -1080,21 +1155,30 @@ int UDS_socket_sendto(void *ctx, UDS_socket_t *socket, const void *buf, size_t l
                 return EPIPE;
         }
 
-        UDS_socket_t *dst = NULL;
+        char name[NAME_SIZE];
+        int err = name_get(to_addr, to_addr_size, name);
+        if (not err) {
+                err = name_file_check(name);
+        }
 
-        int err = stack_lock(uds);
+        if (not err) {
+                err = stack_lock(uds);
+        }
+
         if (err) {
                 return err;
         }
+
+        UDS_socket_t *dst = NULL;
 
         if (socket->closing) {
                 err = EBADF;
 
         } else {
-                err = ENOENT;
+                err = ECONNREFUSED;
 
                 sys_llist_foreach (UDS_socket_t *, s, uds->socket.list) {
-                        if (s->path and isstreq(s->path, to_addr->path)) {
+                        if (s->path and not s->unlinked and isstreq(s->path, name)) {
                                 if (s->type != socket->type) {
                                         err = ECONNABORTED;
                                 } else if (not s->buf) {
@@ -1240,7 +1324,34 @@ int UDS_socket_getaddress(void *ctx, UDS_socket_t *socket, NETM_UDS_sockaddr_t *
                 }
 
                 // accepted and not bound sockets have no path
-                sys_strlcpy(addr->path, path ? path : "", sizeof(addr->path));
+                name_to_addr(path, addr);
+
+                stack_unlock(uds);
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Function returns credentials of peer of connected socket (process
+ *         that called connect() or listen() of server socket).
+ * @param  socket    socket
+ * @param  cred      peer credentials
+ * @return One of @ref errno value.
+ */
+//==============================================================================
+int UDS_socket_getpeercred(void *ctx, UDS_socket_t *socket, NETM_credentials_t *cred)
+{
+        uds_t *uds = ctx;
+
+        int err = stack_lock(uds);
+        if (not err) {
+                if (socket->conn_sock and socket->connected) {
+                        *cred = socket->cred;
+                } else {
+                        err = ENOTCONN;
+                }
 
                 stack_unlock(uds);
         }
@@ -1321,18 +1432,140 @@ static void stack_unlock(uds_t *uds)
 
 //==============================================================================
 /**
- * @brief  Check if socket path is NUL terminated within buffer and not empty.
+ * @brief  Function creates socket name from address: abstract name ("@<name>")
+ *         or absolute path of socket file (relative path is resolved by CWD of
+ *         calling process).
  *
- * @param  path         path buffer
- * @param  size         path buffer size
+ * @param  addr         socket address
+ * @param  addr_size    socket address size
+ * @param  name         name buffer (NAME_SIZE)
  *
- * @return True if path is valid.
+ * @return One of @ref errno value.
  */
 //==============================================================================
-static bool path_is_valid(const char *path, size_t size)
+static int name_get(const NETM_UDS_sockaddr_t *addr, size_t addr_size, char *name)
 {
-        size_t len = strnlen(path, size);
-        return (len > 0) and (len < size);
+        if (addr_size != sizeof(*addr)) {
+                return EINVAL;
+        }
+
+        if (addr->path[0] == '\0') {
+                size_t len = strnlen(addr->path + 1, NAME_SIZE - 1);
+                if ((len == 0) or (len >= NAME_SIZE - 1)) {
+                        return EINVAL;
+                }
+
+                name[0] = ABSTRACT_PREFIX;
+                memcpy(name + 1, addr->path + 1, len + 1);
+
+                return ESUCC;
+        }
+
+        if (strnlen(addr->path, NAME_SIZE) >= NAME_SIZE) {
+                return EINVAL;
+        }
+
+#if !SOCKET_FILES
+        return ENOTSUP;
+#endif
+
+        const struct vfs_path path = {
+                .CWD = _process_get_CWD(_process_get_active()),
+                .PATH = addr->path,
+        };
+
+        char *abspath;
+        int err = _vfs_abspath(&path, SUB_SLASH, &abspath);
+        if (not err) {
+                if (sys_strlcpy(name, abspath, NAME_SIZE) >= NAME_SIZE) {
+                        err = ENAMETOOLONG;
+                }
+
+                _kfree(_MM_KRN, cast(void **, &abspath));
+        }
+
+        return err;
+}
+
+//==============================================================================
+/**
+ * @brief  Function checks that socket file exists and calling process has
+ *         write permission (connect, sendto). Abstract names are not checked.
+ *
+ * @param  name         socket name
+ *
+ * @return One of @ref errno value (ENOENT, ECONNREFUSED: not socket file,
+ *         EACCES).
+ */
+//==============================================================================
+static int name_file_check(const char *name)
+{
+        if (name[0] == ABSTRACT_PREFIX) {
+                return ESUCC;
+        }
+
+#if SOCKET_FILES
+        const struct vfs_path path = {.CWD = NULL, .PATH = name};
+
+        struct stat st;
+        int err = _vfs_stat(&path, &st);
+        if (not err and not S_ISSOCK(st.st_mode)) {
+                err = ECONNREFUSED;
+        }
+
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+        if (not err) {
+                uid_t uid;
+                gid_t gid;
+                _process_get_credentials(&uid, &gid);
+
+                err = _vfs_access(&path, _VFS_W_OK, uid, gid);
+        }
+#endif
+
+        return err;
+#else
+        return ENOTSUP;
+#endif
+}
+
+//==============================================================================
+/**
+ * @brief  Function converts socket name to address.
+ *
+ * @param  name         socket name (NULL: unnamed socket)
+ * @param  addr         socket address
+ */
+//==============================================================================
+static void name_to_addr(const char *name, NETM_UDS_sockaddr_t *addr)
+{
+        memset(addr, 0, sizeof(*addr));
+
+        if (name) {
+                if (name[0] == ABSTRACT_PREFIX) {
+                        sys_strlcpy(addr->path + 1, name + 1, NAME_SIZE - 1);
+                } else {
+                        sys_strlcpy(addr->path, name, NAME_SIZE);
+                }
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Function returns credentials of calling process.
+ *
+ * @param  cred         credentials
+ */
+//==============================================================================
+static void credentials_get(NETM_credentials_t *cred)
+{
+        cred->pid = _process_get_active_process_pid();
+#if __OS_ENABLE_PERMISSIONS__ == _YES_
+        _process_get_credentials(&cred->uid, &cred->gid);
+#else
+        cred->uid = 0;
+        cred->gid = 0;
+#endif
 }
 
 //==============================================================================
@@ -1763,7 +1996,7 @@ static int buffer_datagram_receive(uds_t *uds, UDS_socket_t *socket, void *buf, 
         }
 
         if (addr) {
-                addr->path[0] = '\0';
+                name_to_addr(NULL, addr);
         }
 
         deadline_t dl;
@@ -1782,7 +2015,7 @@ static int buffer_datagram_receive(uds_t *uds, UDS_socket_t *socket, void *buf, 
         } else {
                 if (datagram.from) {
                         if (addr) {
-                                sys_strlcpy(addr->path, datagram.from, sizeof(addr->path));
+                                name_to_addr(datagram.from, addr);
                         }
 
                         zfree(cast(void **, &datagram.from));

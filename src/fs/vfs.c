@@ -92,7 +92,6 @@ static bool is_mount_point_at_or_under(const char *path);
 static int get_path_FS(const char *path, size_t len, int *position, FS_entry_t **fs_entry);
 static int get_mount_root_FS(const char *path, size_t len, FS_entry_t **fs_entry);
 static int get_path_base_FS(const char *path, bool mnt_root, const char **ext_path, FS_entry_t **fs_entry);
-static int new_absolute_path(const struct vfs_path *path, enum path_correction corr, char **new_path);
 static int new_source_path(const struct vfs_path *path, char **new_path);
 static int open_device_file(const char *path, int flags, kfile_t *file_obj);
 static int direct_devfs_close(void *fshdl, void *fhdl);
@@ -173,15 +172,11 @@ int _vfs_mount(const struct vfs_path *src_path, const struct vfs_path *mount_poi
 #if __OS_ENABLE_FSTAT__ == _YES_
                 || !fsif->fs_stat
 #endif
-#if __OS_ENABLE_MKDIR__ == _YES_
                 || !fsif->fs_mkdir
-#endif
 #if __OS_ENABLE_MKFIFO__ == _YES_
                 || !fsif->fs_mkfifo
 #endif
-#if __OS_ENABLE_REMOVE__ == _YES_
                 || !fsif->fs_remove
-#endif
 #if __OS_ENABLE_RENAME__ == _YES_
                 || !fsif->fs_rename
 #endif
@@ -203,7 +198,7 @@ int _vfs_mount(const struct vfs_path *src_path, const struct vfs_path *mount_poi
         char *cwd_mount_point = NULL;
         char *cwd_src_path = NULL;
 
-        int err = new_absolute_path(mount_point, ADD_SLASH, &cwd_mount_point);
+        int err = _vfs_abspath(mount_point, ADD_SLASH, &cwd_mount_point);
         if (!err) {
                 err = new_source_path(src_path, &cwd_src_path);
         }
@@ -304,7 +299,7 @@ int _vfs_umount(const struct vfs_path *path)
         }
 
         char *cwd_path;
-        int err = new_absolute_path(path, ADD_SLASH, &cwd_path);
+        int err = _vfs_abspath(path, ADD_SLASH, &cwd_path);
         if (not err) {
                 err = _mutex_lock(VFS.resource_mtx, _WAIT_FOREVER_MS);
                 if (not err) {
@@ -408,7 +403,7 @@ int _vfs_mknod(const struct vfs_path *path, dev_t dev)
         }
 
         char *cwd_path;
-        int err = new_absolute_path(path, NO_SLASH_ACTION, &cwd_path);
+        int err = _vfs_abspath(path, NO_SLASH_ACTION, &cwd_path);
         if (!err) {
 
                 const char *external_path;
@@ -425,7 +420,6 @@ int _vfs_mknod(const struct vfs_path *path, dev_t dev)
         return err;
 }
 
-#if __OS_ENABLE_MKDIR__ == _YES_
 //==============================================================================
 /**
  * @brief Create directory
@@ -443,7 +437,7 @@ int _vfs_mkdir(const struct vfs_path *path, mode_t mode)
         }
 
         char *cwd_path;
-        int err = new_absolute_path(path, SUB_SLASH, &cwd_path);
+        int err = _vfs_abspath(path, SUB_SLASH, &cwd_path);
         if (!err) {
 
                 const char *external_path;
@@ -464,15 +458,15 @@ int _vfs_mkdir(const struct vfs_path *path, mode_t mode)
 
         return err;
 }
-#endif
 
 #if __OS_ENABLE_MKFIFO__ == _YES_
 //==============================================================================
 /**
- * @brief Create pipe
+ * @brief Create pipe (FIFO) or socket file
  *
  * @param[in] path              path to pipe
- * @param[in] mode              directory mode
+ * @param[in] mode              permissions, file type S_IFSOCK creates socket file
+ *                              (UNIX domain socket bound to path), other: FIFO
  *
  * @return One of errno values
  */
@@ -484,14 +478,15 @@ int _vfs_mkfifo(const struct vfs_path *path, mode_t mode)
         }
 
         char *cwd_path;
-        int err = new_absolute_path(path, NO_SLASH_ACTION, &cwd_path);
+        int err = _vfs_abspath(path, NO_SLASH_ACTION, &cwd_path);
         if (!err) {
 
                 const char *external_path;
                 FS_entry_t *fs;
                 err = get_path_base_FS(cwd_path, false, &external_path, &fs);
                 if (!err) {
-                        err = fs->interface->fs_mkfifo(fs->handle, external_path, mode & S_IPMT);
+                        mode_t type = S_ISSOCK(mode) ? S_IFSOCK : S_IFIFO;
+                        err = fs->interface->fs_mkfifo(fs->handle, external_path, type | (mode & S_IPMT));
 #if __OS_ENABLE_PERMISSIONS__ == _YES_
                         if (!err) {
                                 set_new_object_owner(fs, external_path, mode, true);
@@ -526,7 +521,7 @@ int _vfs_opendir(const struct vfs_path *path, kdir_t **dir)
         int err = _kzalloc(_MM_KRN, sizeof(kdir_t), 0, NULL, 0, 0, cast(void **, dir));
         if (!err) {
                 char *cwd_path;
-                err = new_absolute_path(path, ADD_SLASH, &cwd_path);
+                err = _vfs_abspath(path, ADD_SLASH, &cwd_path);
                 if (!err) {
 
                         const char *external_path;
@@ -657,7 +652,6 @@ int _vfs_telldir(kdir_t *dir, u32_t *seek)
         }
 }
 
-#if __OS_ENABLE_REMOVE__ == _YES_
 //==============================================================================
 /**
  * @brief Remove file
@@ -676,7 +670,7 @@ int _vfs_remove(const struct vfs_path *path)
         }
 
         char *cwd_path;
-        int err = new_absolute_path(path, SUB_SLASH, &cwd_path);
+        int err = _vfs_abspath(path, SUB_SLASH, &cwd_path);
         if (!err) {
 
                 const char *external_path = NULL;
@@ -703,7 +697,6 @@ int _vfs_remove(const struct vfs_path *path)
 
         return err;
 }
-#endif
 
 #if __OS_ENABLE_RENAME__ == _YES_
 //==============================================================================
@@ -728,9 +721,9 @@ int _vfs_rename(const struct vfs_path *old_name, const struct vfs_path *new_name
         char *cwd_old_name = NULL;
         char *cwd_new_name = NULL;
 
-        int err = new_absolute_path(old_name, NO_SLASH_ACTION, &cwd_old_name);
+        int err = _vfs_abspath(old_name, NO_SLASH_ACTION, &cwd_old_name);
         if (!err) {
-                err = new_absolute_path(new_name, NO_SLASH_ACTION, &cwd_new_name);
+                err = _vfs_abspath(new_name, NO_SLASH_ACTION, &cwd_new_name);
         }
 
         if (!err) {
@@ -802,7 +795,7 @@ int _vfs_chmod(const struct vfs_path *path, mode_t mode)
         }
 
         char *cwd_path;
-        int err = new_absolute_path(path, NO_SLASH_ACTION, &cwd_path);
+        int err = _vfs_abspath(path, NO_SLASH_ACTION, &cwd_path);
         if (!err) {
 
                 const char *external_path;
@@ -839,7 +832,7 @@ int _vfs_chown(const struct vfs_path *path, uid_t owner, gid_t group)
         }
 
         char *cwd_path;
-        int err = new_absolute_path(path, NO_SLASH_ACTION, &cwd_path);
+        int err = _vfs_abspath(path, NO_SLASH_ACTION, &cwd_path);
         if (!err) {
 
                 const char *external_path;
@@ -875,7 +868,7 @@ int _vfs_stat(const struct vfs_path *path, struct stat *stat)
         }
 
         char *cwd_path;
-        int err = new_absolute_path(path, NO_SLASH_ACTION, &cwd_path);
+        int err = _vfs_abspath(path, NO_SLASH_ACTION, &cwd_path);
         if (!err) {
 
                 const char *external_path;
@@ -911,7 +904,7 @@ int _vfs_statfs(const struct vfs_path *path, struct statfs *statfs)
         }
 
         char *cwd_path;
-        int err = new_absolute_path(path, ADD_SLASH, &cwd_path);
+        int err = _vfs_abspath(path, ADD_SLASH, &cwd_path);
         if (!err) {
 
                 FS_entry_t *fs;
@@ -987,7 +980,7 @@ int _vfs_fopen(const struct vfs_path *path, int flags, mode_t mode, kfile_t **fi
                 const char *external_path = NULL;
                 FS_entry_t *fs = NULL;
 
-                err = new_absolute_path(path, NO_SLASH_ACTION, &cwd_path);
+                err = _vfs_abspath(path, NO_SLASH_ACTION, &cwd_path);
                 if (!err) {
                         err = get_path_base_FS(cwd_path, false, &external_path, &fs);
                 }
@@ -1154,7 +1147,7 @@ int _vfs_access_parent(const struct vfs_path *path, int amode, uid_t uid, gid_t 
         }
 
         char *dir_path;
-        int err = new_absolute_path(path, SUB_SLASH, &dir_path);
+        int err = _vfs_abspath(path, SUB_SLASH, &dir_path);
         if (!err) {
                 char *slash = strrchr(dir_path, '/');
                 if (slash == dir_path) {
@@ -2033,9 +2026,9 @@ static int get_path_base_FS(const char *path, bool mnt_root, const char **ext_pa
 
 //==============================================================================
 /**
- * @brief Function create new path with slash and CWD correction.
- *        Function set errno: ENOMEM. Path should be destroyed by free() family
- *        functions.
+ * @brief Function create new absolute path with slash and CWD correction
+ *        ("." and ".." elements are reduced). Path is allocated in kernel
+ *        memory (_MM_KRN) and should be released by _kfree(_MM_KRN, ...).
  *
  * @param[in]  path             path to correct
  * @param[in]  corr             path correction kind
@@ -2044,7 +2037,7 @@ static int get_path_base_FS(const char *path, bool mnt_root, const char **ext_pa
  * @return One of errno value (errno.h)
  */
 //==============================================================================
-static int new_absolute_path(const struct vfs_path *path, enum path_correction corr, char **new_path)
+int _vfs_abspath(const struct vfs_path *path, enum path_correction corr, char **new_path)
 {
         if (!path || !path->PATH || !new_path) {
                 return EINVAL;
@@ -2125,7 +2118,7 @@ static int new_source_path(const struct vfs_path *path, char **new_path)
         }
 
         if ((p == path->PATH) || (strncmp(p, "://", 3) != 0)) {
-                return new_absolute_path(path, SUB_SLASH, new_path);
+                return _vfs_abspath(path, SUB_SLASH, new_path);
         }
 
         size_t len = strsize(path->PATH);

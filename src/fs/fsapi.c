@@ -132,16 +132,11 @@ int fs_mknod(const char *path, dev_t dev)
 //==============================================================================
 int fs_mkdir(const char *pathname, mode_t mode)
 {
-#if __OS_ENABLE_MKDIR__ == _YES_
         struct vfs_path path;
         path.CWD = NULL;
         path.PATH = pathname;
 
         return _vfs_mkdir(&path, mode);
-#else
-        UNUSED_ARG2(pathname, mode);
-        return ENOTSUP;
-#endif
 }
 
 //==============================================================================
@@ -217,15 +212,10 @@ int fs_readdir(kdir_t *dir, dirent_t **dirent)
 //==============================================================================
 int fs_remove(const char *path)
 {
-#if __OS_ENABLE_REMOVE__ == _YES_
         struct vfs_path cpath;
         cpath.CWD = NULL;
         cpath.PATH = path;
         return _vfs_remove(&cpath);
-#else
-        UNUSED_ARG1(path);
-        return ENOTSUP;
-#endif
 }
 
 //==============================================================================

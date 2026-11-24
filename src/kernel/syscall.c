@@ -239,6 +239,7 @@ typedef enum {
         SYSCALL_UMASK,                  // int errno (const mode_t *mask (NULL: get), mode_t *old)
         SYSCALL_GETEUID,                // int errno (uid_t *uid)
         SYSCALL_GETEGID,                // int errno (gid_t *gid)
+        SYSCALL_NETGETPEERCRED,         // int errno (int *fd, NETM_credentials_t *cred)
         _SYSCALL_COUNT,
 } syscall_t;
 // clang-format on
@@ -325,6 +326,7 @@ static int syscall_netshutdown(syscallrq_t *rq);
 static int syscall_netsendto(syscallrq_t *rq);
 static int syscall_netrecvfrom(syscallrq_t *rq);
 static int syscall_netgetaddress(syscallrq_t *rq);
+static int syscall_netgetpeercred(syscallrq_t *rq);
 static int syscall_nethton16(syscallrq_t *rq);
 static int syscall_nethton32(syscallrq_t *rq);
 static int syscall_nethton64(syscallrq_t *rq);
@@ -532,6 +534,7 @@ static const syscallfunc_t syscalltab[] = {
         [SYSCALL_UMASK] = syscall_umask,
         [SYSCALL_GETEUID] = syscall_geteuid,
         [SYSCALL_GETEGID] = syscall_getegid,
+        [SYSCALL_NETGETPEERCRED] = syscall_netgetpeercred,
 };
 
 /*==============================================================================
@@ -762,7 +765,6 @@ static int syscall_getmntentry(syscallrq_t *rq)
 //==============================================================================
 static int syscall_mknod(syscallrq_t *rq)
 {
-#if __OS_ENABLE_MKNOD__ == _YES_
         struct vfs_path pathname;
         pathname.CWD = _process_get_CWD(GETPROCESS());
         pathname.PATH = LOADARG(const char *);
@@ -771,10 +773,6 @@ static int syscall_mknod(syscallrq_t *rq)
         GETARG(int *, minor);
 
         return _vfs_mknod(&pathname, _dev_t__create(_module_get_ID(mod_name), *major, *minor));
-#else
-        UNUSED_ARG1(rq);
-        return ENOSYS;
-#endif
 }
 
 //==============================================================================
@@ -800,9 +798,9 @@ static int syscall_mkfifo(syscallrq_t *rq)
                 return err;
         }
 
-        return _vfs_mkfifo(&path, *mode & ~_process_umask(NULL));
+        return _vfs_mkfifo(&path, *mode & S_IPMT & ~_process_umask(NULL));
 #else
-        return _vfs_mkfifo(&path, *mode);
+        return _vfs_mkfifo(&path, *mode & S_IPMT);
 #endif
 #else
         UNUSED_ARG1(rq);
@@ -849,7 +847,6 @@ static int syscall_dirread(syscallrq_t *rq)
 //==============================================================================
 static int syscall_remove(syscallrq_t *rq)
 {
-#if __OS_ENABLE_REMOVE__ == _YES_
         struct vfs_path path;
         path.CWD = _process_get_CWD(GETPROCESS());
         path.PATH = LOADARG(const char *);
@@ -861,10 +858,6 @@ static int syscall_remove(syscallrq_t *rq)
         }
 #endif
         return _vfs_remove(&path);
-#else
-        UNUSED_ARG1(rq);
-        return ENOSYS;
-#endif
 }
 
 //==============================================================================
@@ -1088,11 +1081,7 @@ static int syscall_open(syscallrq_t *rq)
         if (*flags & O_DIRECTORY) {
 
                 if (*flags & O_CREAT) {
-#if __OS_ENABLE_MKDIR__ == _YES_
                         err = _vfs_mkdir(&path, new_mode);
-#else
-                        err = ENOTSUP;
-#endif
                 } else {
                         err = 0;
                 }
@@ -1791,7 +1780,6 @@ static int syscall_processexit(syscallrq_t *rq)
 //==============================================================================
 static int syscall_getcwd(syscallrq_t *rq)
 {
-#if __OS_ENABLE_GETCWD__ == _YES_
         GETARG(char *, buf);
         GETARG(size_t *, size);
 
@@ -1805,10 +1793,6 @@ static int syscall_getcwd(syscallrq_t *rq)
         }
 
         return err;
-#else
-        UNUSED_ARG1(rq);
-        return ENOSYS;
-#endif
 }
 
 //==============================================================================
@@ -1822,13 +1806,8 @@ static int syscall_getcwd(syscallrq_t *rq)
 //==============================================================================
 static int syscall_setcwd(syscallrq_t *rq)
 {
-#if __OS_ENABLE_GETCWD__ == _YES_
         GETARG(const char *, cwd);
         return _process_set_CWD(GETPROCESS(), cwd);
-#else
-        UNUSED_ARG1(rq);
-        return ENOSYS;
-#endif
 }
 
 //==============================================================================
@@ -2782,6 +2761,34 @@ static int syscall_netgetaddress(syscallrq_t *rq)
         int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_SOCKET, &res);
         if (!err) {
                 err = _net_socket_getaddress(res->self, sockaddr, *sockaddr_size);
+        }
+
+        return err;
+#else
+        UNUSED_ARG1(rq);
+        return ENOSYS;
+#endif
+}
+
+//==============================================================================
+/**
+ * @brief  This syscall return credentials of peer of connected socket.
+ *
+ * @param  rq                   syscall request
+ *
+ * @return One of errno value.
+ */
+//==============================================================================
+static int syscall_netgetpeercred(syscallrq_t *rq)
+{
+#if _ENABLE_NETWORK_ == _YES_
+        GETARG(int *, fd);
+        GETARG(NETM_credentials_t *, cred);
+
+        res_header_t *res;
+        int err = _process_descriptor_get_resource(GETPROCESS(), *fd, RES_TYPE_SOCKET, &res);
+        if (!err) {
+                err = _net_socket_getpeercred(res->self, cred);
         }
 
         return err;

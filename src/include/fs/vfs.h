@@ -104,6 +104,7 @@ enum path_correction {
 ==============================================================================*/
 extern int _vfs_init(void);
 extern int _vfs_realpath(char *path, enum path_correction corr);
+extern int _vfs_abspath(const struct vfs_path *path, enum path_correction corr, char **new_path);
 extern int _vfs_mount(const struct vfs_path *, const struct vfs_path *, const struct vfs_FS_itf *, const char *);
 extern int _vfs_umount(const struct vfs_path *);
 extern int _vfs_getmntentry(int, struct mntent *);

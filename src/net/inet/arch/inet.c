@@ -80,7 +80,9 @@ static void clear_rx_tx_counters(inet_t *inet);
 static bool is_mac_set(inet_t *inet);
 static bool wait_for_link(inet_t *inet);
 static dhcp_state_enum_t DHCP_get_state(inet_t *inet);
+#if LWIP_DHCP
 static int DHCP_start_client(inet_t *inet);
+#endif
 static err_t netif_configure(struct netif *netif);
 static int load_dns_file(inet_t *inet);
 static int apply_static_IP_configuration(inet_t *inet, const ip_addr_t *ip_address, const ip_addr_t *net_mask,
@@ -110,7 +112,9 @@ extern int _inetdrv_get_MAC(inet_t *inet, u8_t MAC[6]);
 ==============================================================================*/
 static bool tcp_initialized;
 static const u32_t ACCESS_TIMEOUT = 10000;
+#if LWIP_DHCP
 static const u32_t DHCP_TIMEOUT = 5000;
+#endif
 static const u32_t INIT_TIMEOUT = 5000;
 static const u32_t INPUT_TIMEOUT = 1000;
 static const u32_t LINK_POLL_TIME = 250;
@@ -383,15 +387,18 @@ static int load_dns_file(inet_t *inet)
 //==============================================================================
 static dhcp_state_enum_t DHCP_get_state(inet_t *inet)
 {
+#if LWIP_DHCP
         struct dhcp *dhcp = inet->netif.client_data[LWIP_NETIF_CLIENT_DATA_INDEX_DHCP];
         if (dhcp) {
                 return dhcp->state;
-
-        } else {
-                return DHCP_STATE_OFF;
         }
+#else
+        UNUSED_ARG1(inet);
+#endif
+        return DHCP_STATE_OFF;
 }
 
+#if LWIP_DHCP
 //==============================================================================
 /**
  * @brief  Function starts DHCP client.
@@ -519,6 +526,7 @@ static int DHCP_renew_connection(inet_t *inet)
 
         return status;
 }
+#endif
 
 //==============================================================================
 /**
@@ -653,11 +661,13 @@ int INET_ifdeinit(void *ctx)
         if (inet->netif_added) {
                 core_lock();
                 {
+#if LWIP_DHCP
                         if (DHCP_get_state(inet) != DHCP_STATE_OFF) {
                                 dhcp_release_and_stop(&inet->netif);
                         }
 
                         dhcp_cleanup(&inet->netif);
+#endif
                         netif_set_down(&inet->netif);
                         netif_remove(&inet->netif);
                 }
@@ -713,6 +723,7 @@ int INET_ifup(void *ctx, const NETM_INET_config_t *cfg, size_t cfg_size)
                 break;
         }
 
+#if LWIP_DHCP
         case NETM_INET_MODE__DHCP_START:
                 err = DHCP_start_client(inet);
                 break;
@@ -724,6 +735,13 @@ int INET_ifup(void *ctx, const NETM_INET_config_t *cfg, size_t cfg_size)
         case NETM_INET_MODE__DHCP_RENEW:
                 err = DHCP_renew_connection(inet);
                 break;
+#else
+        case NETM_INET_MODE__DHCP_START:
+        case NETM_INET_MODE__DHCP_INFORM:
+        case NETM_INET_MODE__DHCP_RENEW:
+                err = ENOTSUP;
+                break;
+#endif
 
         default:
                 err = EINVAL;
@@ -748,10 +766,11 @@ int INET_ifdown(void *ctx)
 
                 core_lock();
                 {
+#if LWIP_DHCP
                         if ((DHCP_get_state(inet) != DHCP_STATE_OFF)) {
                                 dhcp_release_and_stop(&inet->netif);
                         }
-
+#endif
                         netif_set_down(&inet->netif);
                 }
                 core_unlock();

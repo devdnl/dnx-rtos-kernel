@@ -86,21 +86,13 @@
 #else
 #define FS_IF_CHOWN(p)
 #endif
-#if __OS_ENABLE_MKDIR__ == _YES_
 #define FS_IF_MKDIR(p) .fs_mkdir = _##p##_mkdir,
-#else
-#define FS_IF_MKDIR(p)
-#endif
 #if __OS_ENABLE_MKFIFO__ == _YES_
 #define FS_IF_MKFIFO(p) .fs_mkfifo = _##p##_mkfifo,
 #else
 #define FS_IF_MKFIFO(p)
 #endif
-#if __OS_ENABLE_REMOVE__ == _YES_
 #define FS_IF_REMOVE(p) .fs_remove = _##p##_remove,
-#else
-#define FS_IF_REMOVE(p)
-#endif
 #if __OS_ENABLE_RENAME__ == _YES_
 #define FS_IF_RENAME(p) .fs_rename = _##p##_rename,
 #else
