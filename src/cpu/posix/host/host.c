@@ -2417,6 +2417,23 @@ int _host_fs_stat(const char *path, struct _host_stat *info)
 
 //==============================================================================
 /**
+ * @brief  Host permission of directory: dnx RTOS does not use execute (search)
+ *         permission of directories, search permission is added when read
+ *         permission is set.
+ *
+ * @param  perm         permission of dnx RTOS
+ *
+ * @return Host permission.
+ */
+//==============================================================================
+static mode_t dir_perm(uint32_t perm)
+{
+        perm &= 0777;
+        return (mode_t)(perm | ((perm & 0444) >> 2));
+}
+
+//==============================================================================
+/**
  * @brief  Create directory.
  *
  * @param  path         directory path
@@ -2433,15 +2450,8 @@ int _host_fs_mkdir(const char *path, uint32_t perm)
                 return err;
         }
 
-        /*
-         * dnx RTOS does not use execute (search) permission of directories:
-         * search permission is added when read permission is set.
-         */
-        perm &= 0777;
-        perm |= (perm & 0444) >> 2;
-
         lock();
-        err = (mkdir(hpath, (mode_t)perm) == 0) ? _HOST_ESUCC : fs_err(errno);
+        err = (mkdir(hpath, dir_perm(perm)) == 0) ? _HOST_ESUCC : fs_err(errno);
         unlock();
 
         return err;
@@ -2536,7 +2546,13 @@ int _host_fs_chmod(const char *path, uint32_t perm)
         }
 
         lock();
-        err = (chmod(hpath, (mode_t)(perm & 0777)) == 0) ? _HOST_ESUCC : fs_err(errno);
+        struct stat st;
+        if (stat(hpath, &st) != 0) {
+                err = fs_err(errno);
+        } else {
+                mode_t mode = S_ISDIR(st.st_mode) ? dir_perm(perm) : (mode_t)(perm & 0777);
+                err = (chmod(hpath, mode) == 0) ? _HOST_ESUCC : fs_err(errno);
+        }
         unlock();
 
         return err;
