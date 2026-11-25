@@ -1266,7 +1266,7 @@ static void port_service(port_t *hdl)
 //==============================================================================
 static int wait_for_reg(port_t *hdl, u8_t reg, u8_t mask, u8_t value, u32_t timeout_ms)
 {
-        u32_t tref = sys_get_uptime_ms();
+        clock_t tref = sys_get_uptime_ms();
 
         for (;;) {
                 u8_t val = 0;

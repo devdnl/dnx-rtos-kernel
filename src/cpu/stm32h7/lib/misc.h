@@ -68,7 +68,8 @@ extern "C" {
                              0 bits for subpriority */
 
 #define assert_param(...)
-#define HAL_GetTick()      sys_get_uptime_ms()
+/* 32-bit tick of HAL: timeouts use uint32_t start time and wrap after 49.7 days */
+#define HAL_GetTick() ((uint32_t)sys_get_uptime_ms())
 #define HAL_Delay(_ms)     sys_sleep_ms(_ms)
 #define HAL_MAX_DELAY      _WAIT_FOREVER_MS
 #define __weak             __attribute__((weak))
