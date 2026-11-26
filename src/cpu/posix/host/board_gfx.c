@@ -634,8 +634,175 @@ static int l_canvas_rect(lua_State *L)
 
 //==============================================================================
 /**
- * @brief  Lua: cv:disc(x, y, radius, color [, alpha]) (filled circle: pixels
- *         with distance from center <= radius)
+ * @brief  Pixel of anti-aliased shape: coverage cov (0..1) scales alpha a,
+ *         tag is written when at least half of the pixel is covered.
+ */
+//==============================================================================
+static inline void aa_pixel(canvas_t *c, size_t o, double cov, uint32_t color, uint32_t a)
+{
+        if (cov <= 0) {
+                return;
+        }
+
+        if ((cov >= 0.5) && c->tag_mask) {
+                c->tags[o] = c->tag;
+        }
+
+        uint32_t ea = (cov >= 1) ? a : (uint32_t)(a * cov + 0.5);
+
+        if (ea >= 255) {
+                c->px[o] = color;
+        } else if (ea > 0) {
+                c->px[o] = blend(c->px[o], (color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, ea);
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Coverage of pixel with distance d from the core of shape of radius r
+ *         (edge at distance r has coverage 1/2, linear over one pixel).
+ */
+//==============================================================================
+static inline double aa_cov(double r, double d)
+{
+        double v = r + 0.5 - d;
+        return (v <= 0) ? 0 : ((v >= 1) ? 1 : v);
+}
+
+//==============================================================================
+/**
+ * @brief  Anti-aliased rounded rectangle: points within distance r from core
+ *         rectangle ax..bx, ay..by (pixel centers), inner part by spans.
+ */
+//==============================================================================
+static void aa_rrect(canvas_t *c, double ax, double ay, double bx, double by, double r, uint32_t color, uint32_t a)
+{
+        clip_t cl = canvas_clip(c);
+        if ((cl.x0 > cl.x1) || (cl.y0 > cl.y1)) {
+                return;
+        }
+
+        double ro = r + 0.5, ri = r - 0.5;
+        int ya = (int)fmax(ceil(ay - ro), cl.y0), yb = (int)fmin(floor(by + ro), cl.y1);
+
+        for (int y = ya; y <= yb; y++) {
+                double dy = fmax(fmax(ay - y, y - by), 0);
+                if (dy >= ro) {
+                        continue;
+                }
+
+                double wo = sqrt(ro * ro - dy * dy);
+                int xa = (int)fmax(ceil(ax - wo), cl.x0), xb = (int)fmin(floor(bx + wo), cl.x1);
+                int fa = xb + 1, fb = xb; /* fully covered span (empty) */
+
+                if ((ri >= 0) && (dy <= ri)) {
+                        double wi = sqrt(ri * ri - dy * dy);
+                        fa = (int)fmax(ceil(ax - wi), xa);
+                        fb = (int)fmin(floor(bx + wi), xb);
+                        if (fa <= fb) {
+                                fill_clipped(c, fa, y, fb, y, color, a);
+                        } else {
+                                fa = xb + 1;
+                                fb = xb;
+                        }
+                }
+
+                size_t o = (size_t)y * c->width;
+                for (int x = xa; x <= xb; x++) {
+                        if (x == fa) {
+                                x = fb;
+                                continue;
+                        }
+
+                        double dx = fmax(fmax(ax - x, x - bx), 0);
+                        aa_pixel(c, o + x, aa_cov(r, sqrt(dx * dx + dy * dy)), color, a);
+                }
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Anti-aliased capsule: points within distance r from segment x0, y0 -
+ *         x1, y1 (circle for equal ends), every pixel is drawn once.
+ */
+//==============================================================================
+static void aa_capsule(canvas_t *c, double x0, double y0, double x1, double y1, double r, uint32_t color, uint32_t a)
+{
+        clip_t cl = canvas_clip(c);
+        if ((cl.x0 > cl.x1) || (cl.y0 > cl.y1)) {
+                return;
+        }
+
+        double ro = r + 0.5;
+        double vx = x1 - x0, vy = y1 - y0;
+        double len2 = vx * vx + vy * vy, len = sqrt(len2);
+        double ux = (len > 0) ? vx / len : 0, uy = (len > 0) ? vy / len : 0;
+
+        int ya = (int)fmax(ceil(fmin(y0, y1) - ro), cl.y0);
+        int yb = (int)fmin(floor(fmax(y0, y1) + ro), cl.y1);
+
+        for (int y = ya; y <= yb; y++) {
+                /* x range of the row: hull of end circles and band along the segment */
+                double xl = INFINITY, xr = -INFINITY;
+                const double ex[2] = {x0, x1}, ey[2] = {y0, y1};
+
+                for (int k = 0; k < 2; k++) {
+                        double dy = y - ey[k];
+                        if (fabs(dy) < ro) {
+                                double w = sqrt(ro * ro - dy * dy);
+                                xl = fmin(xl, ex[k] - w);
+                                xr = fmax(xr, ex[k] + w);
+                        }
+                }
+
+                if (len > 0) {
+                        /* t(x) = (x - x0) ux + (y - y0) uy in 0..len, n(x) = (y - y0) ux - (x - x0) uy in -ro..ro */
+                        double lo = -INFINITY, hi = INFINITY, py = y - y0;
+                        bool ok = true;
+
+                        if (ux != 0) {
+                                double p = x0 + (0 - py * uy) / ux, q = x0 + (len - py * uy) / ux;
+                                lo = fmax(lo, fmin(p, q));
+                                hi = fmin(hi, fmax(p, q));
+                        } else if ((py * uy < 0) || (py * uy > len)) {
+                                ok = false;
+                        }
+
+                        if (uy != 0) {
+                                double p = x0 + (py * ux - ro) / uy, q = x0 + (py * ux + ro) / uy;
+                                lo = fmax(lo, fmin(p, q));
+                                hi = fmin(hi, fmax(p, q));
+                        } else if (fabs(py * ux) > ro) {
+                                ok = false;
+                        }
+
+                        if (ok && (lo <= hi)) {
+                                xl = fmin(xl, lo);
+                                xr = fmax(xr, hi);
+                        }
+                }
+
+                if (xl > xr) {
+                        continue;
+                }
+
+                int xa = (int)fmax(ceil(xl), cl.x0), xb = (int)fmin(floor(xr), cl.x1);
+                size_t o = (size_t)y * c->width;
+
+                for (int x = xa; x <= xb; x++) {
+                        double px = x - x0, py = y - y0;
+                        double t = (len2 > 0) ? (px * vx + py * vy) / len2 : 0;
+                        t = (t < 0) ? 0 : ((t > 1) ? 1 : t);
+                        double dx = px - t * vx, dy = py - t * vy;
+                        aa_pixel(c, o + x, aa_cov(r, sqrt(dx * dx + dy * dy)), color, a);
+                }
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: cv:disc(x, y, radius, color [, alpha]) (filled circle,
+ *         anti-aliased: the edge at radius has coverage 1/2)
  */
 //==============================================================================
 static int l_canvas_disc(lua_State *L)
@@ -646,28 +813,16 @@ static int l_canvas_disc(lua_State *L)
         double rad = luaL_checknumber(L, 4);
         uint32_t color = (uint32_t)luaL_checkinteger(L, 5) & 0xFFFFFF;
         uint32_t a = (uint32_t)luaL_optinteger(L, 6, 255) & 0xFF;
-        double r2 = rad * rad;
 
-        for (double y = floor(py - rad); y <= ceil(py + rad); y++) {
-                double dy = y - py;
-                double q = r2 - dy * dy;
-                if (q >= 0) {
-                        double dx = sqrt(q);
-                        double xa = ceil(px - dx), xb = floor(px + dx);
-                        if (xa <= xb) {
-                                fill_rect(c, xa, y, xb, y, color, a);
-                        }
-                }
-        }
-
+        aa_capsule(c, px, py, px, py, rad, color, a);
         return 0;
 }
 
 //==============================================================================
 /**
  * @brief  Lua: cv:line(x0, y0, x1, y1, half, color [, alpha]) (line of width
- *         2 * half pixels: squares along the line, half <= 0.5: thin line;
- *         every pixel is drawn once)
+ *         2 * half pixels with round ends, anti-aliased; every pixel is drawn
+ *         once)
  */
 //==============================================================================
 static int l_canvas_line(lua_State *L)
@@ -678,81 +833,46 @@ static int l_canvas_line(lua_State *L)
         double half = luaL_checknumber(L, 6);
         uint32_t color = (uint32_t)luaL_checkinteger(L, 7) & 0xFFFFFF;
         uint32_t a = (uint32_t)luaL_optinteger(L, 8, 255) & 0xFF;
-        uint32_t r = (color >> 16) & 0xFF, g = (color >> 8) & 0xFF, b = color & 0xFF;
 
-        clip_t cl = canvas_clip(c);
-        if ((cl.x0 > cl.x1) || (cl.y0 > cl.y1)) {
+        aa_capsule(c, x0, y0, x1, y1, fmax(half, 0.5), color, a);
+        return 0;
+}
+
+//==============================================================================
+/**
+ * @brief  Lua: cv:rrect(x0, y0, x1, y1, radius, color [, alpha]) (rectangle
+ *         with rounded corners, anti-aliased: corners in pixels as cv:rect,
+ *         radius 1 is cv:rect, larger radius extends the rectangle by
+ *         radius - 1 and rounds the corners, as RECTS with LINE_WIDTH of EVE)
+ */
+//==============================================================================
+static int l_canvas_rrect(lua_State *L)
+{
+        canvas_t *c = check_canvas(L, 1);
+        double x0 = luaL_checknumber(L, 2), y0 = luaL_checknumber(L, 3);
+        double x1 = luaL_checknumber(L, 4), y1 = luaL_checknumber(L, 5);
+        double rad = luaL_checknumber(L, 6);
+        uint32_t color = (uint32_t)luaL_checkinteger(L, 7) & 0xFFFFFF;
+        uint32_t a = (uint32_t)luaL_optinteger(L, 8, 255) & 0xFF;
+
+        if (rad <= 1) {
+                fill_rect(c, x0, y0, x1, y1, color, a);
                 return 0;
         }
 
-        double len = fmax(fabs(x1 - x0), fabs(y1 - y0));
-        double steps = fmax(ceil(len), 1);
-        bool thin = (half <= 0.5);
-        double ext = thin ? 1 : half + 1;
+        /* core: edges of the rectangle (cv:rect pixels) moved inside by 1/2 px */
+        double ax = fmin(x0, x1) + 0.5, bx = fmax(x0, x1) - 0.5;
+        double ay = fmin(y0, y1) + 0.5, by = fmax(y0, y1) - 0.5;
 
-        /* pixels already drawn (blended once): bitmap of clipped bounding box */
-        int bx0 = (int)fmax(floor(fmin(x0, x1) - ext), cl.x0);
-        int by0 = (int)fmax(floor(fmin(y0, y1) - ext), cl.y0);
-        int bx1 = (int)fmin(ceil(fmax(x0, x1) + ext), cl.x1);
-        int by1 = (int)fmin(ceil(fmax(y0, y1) + ext), cl.y1);
-        if ((bx0 > bx1) || (by0 > by1)) {
-                return 0;
+        if (ax > bx) {
+                ax = bx = (x0 + x1) / 2;
         }
 
-        int bw = bx1 - bx0 + 1;
-        uint8_t *done = NULL;
-        if ((a > 0) && (a < 255)) {
-                done = calloc((size_t)bw * (size_t)(by1 - by0 + 1), 1);
-                if (!done) {
-                        return luaL_error(L, "cv:line: not enough memory");
-                }
+        if (ay > by) {
+                ay = by = (y0 + y1) / 2;
         }
 
-        for (double k = 0; k <= steps; k++) {
-                double x = x0 + (x1 - x0) * k / steps;
-                double y = y0 + (y1 - y0) * k / steps;
-                int pxa, pxb, pya, pyb;
-
-                if (thin) {
-                        pxa = pxb = (int)floor(x + 0.5);
-                        pya = pyb = (int)floor(y + 0.5);
-                } else {
-                        pya = (int)floor(y - half + 0.5);
-                        pyb = (int)floor(y + half - 0.5);
-                        pxa = (int)floor(x - half + 0.5);
-                        pxb = (int)floor(x + half - 0.5);
-                }
-
-                pxa = (pxa < bx0) ? bx0 : pxa;
-                pya = (pya < by0) ? by0 : pya;
-                pxb = (pxb > bx1) ? bx1 : pxb;
-                pyb = (pyb > by1) ? by1 : pyb;
-
-                for (int py = pya; py <= pyb; py++) {
-                        size_t o = (size_t)py * c->width;
-                        for (int px = pxa; px <= pxb; px++) {
-                                if (done) {
-                                        uint8_t *d = &done[(size_t)(py - by0) * bw + (px - bx0)];
-                                        if (*d) {
-                                                continue;
-                                        }
-                                        *d = 1;
-                                }
-
-                                if (c->tag_mask) {
-                                        c->tags[o + px] = c->tag;
-                                }
-
-                                if (a >= 255) {
-                                        c->px[o + px] = color;
-                                } else if (a > 0) {
-                                        c->px[o + px] = blend(c->px[o + px], r, g, b, a);
-                                }
-                        }
-                }
-        }
-
-        free(done);
+        aa_rrect(c, ax, ay, bx, by, rad, color, a);
         return 0;
 }
 
@@ -1541,6 +1661,7 @@ void board_gfx_open(lua_State *L)
                 {"rect", l_canvas_rect},
                 {"disc", l_canvas_disc},
                 {"line", l_canvas_line},
+                {"rrect", l_canvas_rrect},
                 {"bitmap", l_canvas_bitmap},
                 {"tag_at", l_canvas_tag_at},
                 {"pixel", l_canvas_pixel},
