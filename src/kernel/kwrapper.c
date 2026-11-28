@@ -141,7 +141,7 @@ void _kernel_start(void)
 //==============================================================================
 clock_t _kernel_get_uptime_ms(void)
 {
-        return (_tick_counter * (1000 / (configTICK_RATE_HZ)));
+        return (_kernel_get_tick_counter() * (1000 / (configTICK_RATE_HZ)));
 }
 
 //==============================================================================
@@ -153,7 +153,20 @@ clock_t _kernel_get_uptime_ms(void)
 //==============================================================================
 u64_t _kernel_get_tick_counter(void)
 {
-        return _tick_counter;
+        /*
+         * NOTE: 64-bit counter is read by two instructions on 32-bit CPUs
+         *       (Cortex-M0+, simulator i386), the tick can increment it between
+         *       them (carry to the upper word gives an error of 2^32 ticks);
+         *       the value is read again until two reads are the same.
+         */
+        const volatile u64_t *cnt = &_tick_counter;
+        u64_t val;
+
+        do {
+                val = *cnt;
+        } while (val != *cnt);
+
+        return val;
 }
 
 //==============================================================================

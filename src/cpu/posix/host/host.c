@@ -45,6 +45,7 @@
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/prctl.h>
 #include <sys/random.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -103,8 +104,11 @@ typedef struct {
 /*==============================================================================
   Local function prototypes
 ==============================================================================*/
-static void lock(void);
+static void lock_section(const char *func);
 static void unlock(void);
+
+/* host call section, the function is shown when the simulator is terminated */
+#define lock() lock_section(__func__)
 static bool uart_board(int port);
 static bool eth_board(void);
 static void terminal_restore(void);
@@ -122,6 +126,8 @@ static struct {
         size_t ram_size;
         void *ram;
         bool terminal_configured;
+        const char *volatile lock_func; /* function in host call section (task) */
+        int lock_depth;
         struct termios terminal_attr;
         disk_t disk[_HOST_DISK_COUNT];
         uart_t uart[_HOST_UART_COUNT];
@@ -143,6 +149,14 @@ static struct {
 /*==============================================================================
   External objects
 ==============================================================================*/
+/* kernel functions (headers of kernel are not used with host library): active
+ * process and its name, only read without locks (used by signal handler) */
+extern void *_process_get_active(void);
+extern const char *_process_get_name(void *proc);
+
+/* system time counters of kernel, set by option --uptime */
+extern uint64_t _tick_counter;
+extern uint32_t _uptime_counter_sec;
 
 /*==============================================================================
   Function definitions
@@ -155,10 +169,14 @@ static struct {
  *         internal locks.
  */
 //==============================================================================
-static void lock(void)
+static void lock_section(const char *func)
 {
         if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED) {
                 vPortEnterCritical();
+
+                if (host.lock_depth++ == 0) {
+                        host.lock_func = func;
+                }
         }
 }
 
@@ -170,6 +188,10 @@ static void lock(void)
 static void unlock(void)
 {
         if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED) {
+                if (--host.lock_depth == 0) {
+                        host.lock_func = NULL;
+                }
+
                 vPortExitCritical();
         }
 }
@@ -264,8 +286,35 @@ static void signal_terminate(int sig)
 {
         host_cleanup();
 
-        static const char msg[] = "\r\n*** dnx RTOS simulator terminated ***\r\n";
-        if (write(STDERR_FILENO, msg, sizeof(msg) - 1)) {
+        /*
+         * Running task and its host call (e.g. blocking I/O of host) show the
+         * reason when the simulator does not respond. Only async-signal-safe
+         * functions are used (the system can be blocked in any place).
+         */
+        char msg[192] = "\r\n*** dnx RTOS simulator terminated";
+        size_t len = strlen(msg);
+
+        const char *part[5] = {NULL};
+        if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED) {
+                void *proc = _process_get_active();
+                const char *func = host.lock_func;
+                part[0] = " (process \"";
+                part[1] = proc ? _process_get_name(proc) : "kernel";
+                part[2] = func ? "\", blocked in host call " : "\"";
+                part[3] = func ? func : "";
+                part[4] = ")";
+        }
+
+        for (size_t i = 0; i < 5; i++) {
+                for (const char *c = part[i]; c && *c && (len < sizeof(msg) - 8); c++) {
+                        msg[len++] = *c;
+                }
+        }
+
+        memcpy(&msg[len], " ***\r\n", 7);
+        len += 7;
+
+        if (write(STDERR_FILENO, msg, len)) {
         }
 
         _exit(128 + sig);
@@ -477,6 +526,9 @@ static void show_usage(const char *name)
         printf("      --drvset <file>      drvset partition image (drivers built separately from\n");
         printf("                           the kernel, tools/drvset), needs drvset enabled in\n");
         printf("                           the kernel configuration\n");
+        printf("      --uptime <ms>        initial system time (uptime) in milliseconds, e.g.\n");
+        printf("                           4294900000 starts about 1 minute before 32-bit\n");
+        printf("                           millisecond counters (e.g. lwIP time) wrap\n");
         printf("  -h, --help               show this help\n\n");
         printf("Press Ctrl+\\ to terminate simulator.\n");
 }
@@ -813,6 +865,18 @@ static bool parse_args(int argc, char *argv[])
                         host.board_script = script;
                         i++;
 
+                } else if (strcmp(opt, "--uptime") == 0) {
+                        char *end = NULL;
+                        errno = 0;
+                        unsigned long long ms = val ? strtoull(val, &end, 10) : 0;
+                        if (!val || (*val == '\0') || (*end != '\0') || (errno != 0) || (*val == '-')) {
+                                fprintf(stderr, "Invalid uptime: %s\n", val ? val : "");
+                                return false;
+                        }
+                        _tick_counter = (uint64_t)ms * configTICK_RATE_HZ / 1000;
+                        _uptime_counter_sec = (uint32_t)(ms / 1000);
+                        i++;
+
                 } else if (strcmp(opt, "--panel") == 0) {
                         if (!val || (*val == '\0')) {
                                 fprintf(stderr, "Invalid panel socket: %s\n", val ? val : "");
@@ -912,6 +976,13 @@ int main(int argc, char *argv[])
         memset(host.ram, 0, host.ram_size);
 
         signals_configure();
+
+        /*
+         * Debugger (gdbserver --attach) can attach to the running simulator also
+         * when ptrace is restricted to ancestors (Yama ptrace_scope 1); the call
+         * fails without Yama, the error is not important.
+         */
+        prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0, 0, 0);
 
         if (!uarts_open() || !tap_open()) {
                 host_cleanup();

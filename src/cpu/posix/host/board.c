@@ -258,6 +258,10 @@ static struct {
         bool running;
         bool stop;
         bool exit_done;
+
+        /* work of board thread and its start (diagnostics of request timeout) */
+        const char *volatile phase;
+        volatile double phase_t;
 } board = {
         .mtx = PTHREAD_MUTEX_INITIALIZER,
         .cond = PTHREAD_COND_INITIALIZER,
@@ -1124,6 +1128,19 @@ static double time_ms(void)
         struct timespec t;
         clock_gettime(CLOCK_MONOTONIC, &t);
         return (double)(t.tv_sec - board.t0.tv_sec) * 1000.0 + (double)(t.tv_nsec - board.t0.tv_nsec) / 1e6;
+}
+
+//==============================================================================
+/**
+ * @brief  Set work of board thread (shown by request timeout).
+ *
+ * @param  phase        name of work
+ */
+//==============================================================================
+static void set_phase(const char *phase)
+{
+        board.phase_t = time_ms();
+        board.phase = phase;
 }
 
 //==============================================================================
@@ -2537,11 +2554,12 @@ static void *board_thread(void *arg)
                 bool request = board.req.pending && !board.req.taken;
 
                 if (!board.stop && (board.head == board.tail) && !request && !board.uart_kick && !board.eth_kick) {
+                        set_phase("waiting for work");
                         if (tmo < 0) {
                                 pthread_cond_wait(&board.cond, &board.mtx);
                         } else if (tmo > 0) {
                                 struct timespec t;
-                                clock_gettime(CLOCK_REALTIME, &t);
+                                clock_gettime(CLOCK_MONOTONIC, &t);
                                 long long ns = (long long)t.tv_nsec + (long long)(tmo * 1e6);
                                 t.tv_sec += (time_t)(ns / 1000000000LL);
                                 t.tv_nsec = (long)(ns % 1000000000LL);
@@ -2592,6 +2610,7 @@ static void *board_thread(void *arg)
                         board_log(msg);
                 }
 
+                set_phase("events of models");
                 for (size_t i = 0; i < n; i++) {
                         switch (events[i].type) {
                         case EVENT__GPIO_OUTPUT:
@@ -2624,13 +2643,18 @@ static void *board_thread(void *arg)
                  * queued after the queue was read are handled first in the next loop) */
                 pthread_mutex_lock(&board.mtx);
                 if (board.req.pending && !board.req.taken && (board.head == board.tail)) {
+                        set_phase("request of system");
                         handle_request();
                 }
                 pthread_mutex_unlock(&board.mtx);
 
+                set_phase("UART data of models");
                 uart_deliver();
+                set_phase("ETH frames of models");
                 eth_deliver();
+                set_phase("timers of models");
                 call_ref(board.ref_run_timers, 0, 0);
+                set_phase("timeouts of models");
         }
 
         return NULL;
@@ -3007,6 +3031,15 @@ int _host_board_init(const char *script, const char *panel)
         board.panel_path = panel;
         clock_gettime(CLOCK_MONOTONIC, &board.t0);
 
+        /* timeouts of conditions use monotonic clock: change of host time (NTP, resume
+         * from suspend) does not end waiting (request timeout) or delay timers of models */
+        pthread_condattr_t attr;
+        pthread_condattr_init(&attr);
+        pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
+        pthread_cond_init(&board.cond, &attr);
+        pthread_cond_init(&board.req_cond, &attr);
+        pthread_condattr_destroy(&attr);
+
         /* board thread does not handle any signal (scheduler signals are sent to tasks) */
         sigset_t all, old;
         sigfillset(&all);
@@ -3059,7 +3092,7 @@ void _host_board_exit(void)
 
                 /* wait for exit handlers of board */
                 struct timespec t;
-                clock_gettime(CLOCK_REALTIME, &t);
+                clock_gettime(CLOCK_MONOTONIC, &t);
                 t.tv_sec += 2;
 
                 while (!board.exit_done) {
@@ -3174,8 +3207,41 @@ static int request(request_t *req)
         int result = _HOST_BOARD_I2C_ERROR;
         bool timeout = false;
 
-        pthread_mutex_lock(&board.req_mtx);
-        pthread_mutex_lock(&board.mtx);
+        struct timespec t;
+        clock_gettime(CLOCK_MONOTONIC, &t);
+        t.tv_sec += REQUEST_TIMEOUT / 1000;
+        t.tv_nsec += (REQUEST_TIMEOUT % 1000) * 1000000L;
+        if (t.tv_nsec >= 1000000000L) {
+                t.tv_sec++;
+                t.tv_nsec -= 1000000000L;
+        }
+
+        /* mutexes are locked with the same timeout (pthread_mutex_timedlock() uses
+         * real time clock): system never waits without limit in the critical section */
+        struct timespec rt;
+        clock_gettime(CLOCK_REALTIME, &rt);
+        rt.tv_sec += REQUEST_TIMEOUT / 1000;
+        rt.tv_nsec += (REQUEST_TIMEOUT % 1000) * 1000000L;
+        if (rt.tv_nsec >= 1000000000L) {
+                rt.tv_sec++;
+                rt.tv_nsec -= 1000000000L;
+        }
+
+        const char *busy = NULL;
+        if (pthread_mutex_timedlock(&board.req_mtx, &rt) != 0) {
+                busy = "previous request is not finished";
+        } else if (pthread_mutex_timedlock(&board.mtx, &rt) != 0) {
+                pthread_mutex_unlock(&board.req_mtx);
+                busy = "board mutex is locked";
+        }
+
+        if (busy) {
+                char msg[160];
+                snprintf(msg, sizeof(msg), "request timeout (%s, board thread: %s for %.0f ms)", busy,
+                        board.phase ? board.phase : "?", time_ms() - board.phase_t);
+                board_log(msg);
+                return result;
+        }
 
         if (board.running) {
                 uint32_t seq = board.req.seq + 1;
@@ -3184,15 +3250,6 @@ static int request(request_t *req)
                 board.req.pending = true;
                 board.req.taken = false;
                 pthread_cond_broadcast(&board.cond);
-
-                struct timespec t;
-                clock_gettime(CLOCK_REALTIME, &t);
-                t.tv_sec += REQUEST_TIMEOUT / 1000;
-                t.tv_nsec += (REQUEST_TIMEOUT % 1000) * 1000000L;
-                if (t.tv_nsec >= 1000000000L) {
-                        t.tv_sec++;
-                        t.tv_nsec -= 1000000000L;
-                }
 
                 while (board.req.pending) {
                         if (pthread_cond_timedwait(&board.req_cond, &board.mtx, &t) == ETIMEDOUT) {
@@ -3214,7 +3271,10 @@ static int request(request_t *req)
         pthread_mutex_unlock(&board.req_mtx);
 
         if (timeout) {
-                board_log("request timeout (board does not respond)");
+                char msg[160];
+                snprintf(msg, sizeof(msg), "request timeout (board does not respond, board thread: %s for %.0f ms)",
+                        board.phase ? board.phase : "?", time_ms() - board.phase_t);
+                board_log(msg);
         }
 
         return result;

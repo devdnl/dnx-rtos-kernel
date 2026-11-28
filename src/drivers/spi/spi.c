@@ -46,6 +46,7 @@ MODULE_NAME(SPI);
 static void release_resources(u8_t major);
 static void slave_select(struct SPI_slave *hdl);
 static void slave_deselect(struct SPI_slave *hdl);
+static int bus_lock(struct SPI_slave *hdl, bool *RAW_mode);
 
 /*==============================================================================
   Local objects
@@ -227,26 +228,8 @@ API_MOD_WRITE(SPI, void *device_handle, const u8_t *src, size_t count, fpos_t *f
 
         struct SPI_slave *hdl = device_handle;
 
-        // check if device is switched to RAW mode
-        clock_t tref = sys_get_uptime_ms();
         bool RAW_mode = false;
-
-        while (drv_is_locked(&_SPI[hdl->major]->RAW_mode)) {
-
-                RAW_mode = true;
-
-                if (drv_check_access(&_SPI[hdl->major]->RAW_mode) == ESUCC) {
-                        break;
-                } else {
-                        if (sys_is_time_expired(tref, DEV_LOCK_TIMEOUT)) {
-                                return ETIME;
-                        } else {
-                                sys_sleep_ms(10);
-                        }
-                }
-        }
-
-        int err = sys_mutex_lock(_SPI[hdl->major]->periph_protect_mtx, DEV_LOCK_TIMEOUT);
+        int err = bus_lock(hdl, &RAW_mode);
         if (!err) {
                 if (not RAW_mode) {
                         slave_deselect(hdl);
@@ -289,26 +272,8 @@ API_MOD_READ(SPI, void *device_handle, u8_t *dst, size_t count, fpos_t *fpos, si
 
         struct SPI_slave *hdl = device_handle;
 
-        // check if device is switched to RAW mode
-        clock_t tref = sys_get_uptime_ms();
         bool RAW_mode = false;
-
-        while (drv_is_locked(&_SPI[hdl->major]->RAW_mode)) {
-
-                RAW_mode = true;
-
-                if (drv_check_access(&_SPI[hdl->major]->RAW_mode) == ESUCC) {
-                        break;
-                } else {
-                        if (sys_is_time_expired(tref, DEV_LOCK_TIMEOUT)) {
-                                return ETIME;
-                        } else {
-                                sys_sleep_ms(10);
-                        }
-                }
-        }
-
-        int err = sys_mutex_lock(_SPI[hdl->major]->periph_protect_mtx, DEV_LOCK_TIMEOUT);
+        int err = bus_lock(hdl, &RAW_mode);
         if (!err) {
                 if (not RAW_mode) {
                         slave_deselect(hdl);
@@ -436,26 +401,8 @@ API_MOD_IOCTL(SPI, void *device_handle, int request, void *arg)
                         break;
                 }
 
-                // check if device is switched to RAW mode
-                clock_t tref = sys_get_uptime_ms();
                 bool RAW_mode = false;
-
-                while (drv_is_locked(&_SPI[hdl->major]->RAW_mode)) {
-
-                        RAW_mode = true;
-
-                        if (drv_check_access(&_SPI[hdl->major]->RAW_mode) == ESUCC) {
-                                break;
-                        } else {
-                                if (sys_is_time_expired(tref, DEV_LOCK_TIMEOUT)) {
-                                        return ETIME;
-                                } else {
-                                        sys_sleep_ms(10);
-                                }
-                        }
-                }
-
-                err = sys_mutex_lock(_SPI[hdl->major]->periph_protect_mtx, DEV_LOCK_TIMEOUT);
+                err = bus_lock(hdl, &RAW_mode);
                 if (!err) {
                         if (not RAW_mode) {
                                 slave_deselect(hdl);
@@ -481,8 +428,6 @@ API_MOD_IOCTL(SPI, void *device_handle, int request, void *arg)
                         }
 
                         sys_mutex_unlock(_SPI[hdl->major]->periph_protect_mtx);
-                } else {
-                        err = EBUSY;
                 }
                 break;
 
@@ -570,6 +515,50 @@ static void release_resources(u8_t major)
                 _SPI_LLD__turn_off(major);
 
                 sys_free(cast(void **, &_SPI[major]));
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Lock peripheral for transfer of device. When other device uses the
+ *         bus in RAW mode (IOCTL_SPI__SELECT), the function waits for its end.
+ *         The RAW mode is checked with locked peripheral: other device cannot
+ *         select its slave between the check and the transfer.
+ *
+ * @param  hdl          device handle
+ * @param  RAW_mode     true: device is the owner of RAW mode (slave is selected),
+ *                      false: device selects its slave for the transfer
+ *
+ * @return One of errno value (errno.h), peripheral is locked on success.
+ */
+//==============================================================================
+static int bus_lock(struct SPI_slave *hdl, bool *RAW_mode)
+{
+        clock_t tref = sys_get_uptime_ms();
+
+        for (;;) {
+                int err = sys_mutex_lock(_SPI[hdl->major]->periph_protect_mtx, DEV_LOCK_TIMEOUT);
+                if (err) {
+                        return EBUSY;
+                }
+
+                if (not drv_is_locked(&_SPI[hdl->major]->RAW_mode)) {
+                        *RAW_mode = false;
+                        return ESUCC;
+                }
+
+                if (drv_check_access(&_SPI[hdl->major]->RAW_mode) == ESUCC) {
+                        *RAW_mode = true;
+                        return ESUCC;
+                }
+
+                sys_mutex_unlock(_SPI[hdl->major]->periph_protect_mtx);
+
+                if (sys_is_time_expired(tref, DEV_LOCK_TIMEOUT)) {
+                        return ETIME;
+                }
+
+                sys_sleep_ms(10);
         }
 }
 

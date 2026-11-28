@@ -626,6 +626,14 @@ static void prvSetupSignalsAndSchedulerPolicy( void )
      * in a critical section. */
     sigdelset( &xAllSignals, SIGINT );
 
+    /* dnx RTOS: termination signals are not blocked, the simulator can be
+     * terminated (Ctrl+\ key) also when a task is blocked in a critical section
+     * (e.g. blocking call of host library), the signal is handled by any
+     * thread (e.g. timer thread) and the handler terminates the process. */
+    sigdelset( &xAllSignals, SIGQUIT );
+    sigdelset( &xAllSignals, SIGTERM );
+    sigdelset( &xAllSignals, SIGHUP );
+
     /*
      * Block all signals in this thread so all new threads
      * inherits this mask.
