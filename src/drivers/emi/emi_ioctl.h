@@ -58,7 +58,14 @@ driver_release("EMI", 0, 1);
 @endcode
 
 \subsection drv-emi-ddesc-cfg Driver configuration
-\todo Driver configuration
+The driver is configured by configtool (static configuration).
+
+SDRAM timings tRP, tRC, tRAS, tXSR, tWR and tRCD are given in nanoseconds, as in
+the memory datasheet. The driver converts them to clock cycles (rounded up) at
+compile time by using the configured SDRAM clock frequency (SDCLK), so after a
+frequency change only this one option has to be updated. tMRD and CAS latency
+are given in clock cycles. CAS latency must be selected for the used frequency.
+tWR is increased when required by FMC (tRAS - tRCD, tRC - tRCD - tRP).
 
 \subsection drv-emi-ddesc-write Data write
 \todo Data write

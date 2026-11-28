@@ -132,6 +132,67 @@ Brief    External Memory Interface
 #define SDRAM2_ADDRESS 0xD0000000
 #endif
 
+#if (__EMI_SDRAM_1_ENABLE__ or __EMI_SDRAM_2_ENABLE__)
+/*
+ * SDRAM timings: conversion of datasheet times [ns] to SDCLK cycles (rounded up).
+ * All values are calculated at compile time.
+ */
+#define SDRAM_MAX(_a, _b) ((_a) > (_b) ? (_a) : (_b))
+#define SDRAM_MIN(_a, _b) ((_a) < (_b) ? (_a) : (_b))
+#define SDRAM_NS2CLK(_ns) SDRAM_MAX((((_ns) * __EMI_SDRAM_FREQ_MHZ__) + 999) / 1000, 1)
+
+#define SDRAM_TRP    SDRAM_NS2CLK(__EMI_SDRAM_TRP_NS__)
+#define SDRAM_TRC    SDRAM_NS2CLK(__EMI_SDRAM_TRC_NS__)
+#define SDRAM_TRAS   SDRAM_NS2CLK(__EMI_SDRAM_TRAS_NS__)
+#define SDRAM_TXSR   SDRAM_NS2CLK(__EMI_SDRAM_TXSR_NS__)
+#define SDRAM_TMRD   (__EMI_SDRAM_TMRD__)
+#define SDRAM_1_TRCD SDRAM_NS2CLK(__EMI_SDRAM_1_TRCD_NS__)
+#define SDRAM_2_TRCD SDRAM_NS2CLK(__EMI_SDRAM_2_TRCD_NS__)
+
+/* the shortest tRCD of enabled banks */
+#if (__EMI_SDRAM_1_ENABLE__ and __EMI_SDRAM_2_ENABLE__)
+#define SDRAM_TRCD_MIN SDRAM_MIN(SDRAM_1_TRCD, SDRAM_2_TRCD)
+#elif __EMI_SDRAM_1_ENABLE__
+#define SDRAM_TRCD_MIN SDRAM_1_TRCD
+#else
+#define SDRAM_TRCD_MIN SDRAM_2_TRCD
+#endif
+
+/*
+ * tWR is common for both banks and FMC requires: tWR >= tRAS - tRCD and
+ * tWR >= tRC - tRCD - tRP (see reference manual, FMC_SDTRx register).
+ */
+#define SDRAM_TWR_DEVICE SDRAM_MAX(SDRAM_NS2CLK(__EMI_SDRAM_TWR_NS__), __EMI_SDRAM_TWR_MIN_CLK__)
+#define SDRAM_TWR_FMC    SDRAM_MAX(SDRAM_TRAS - SDRAM_TRCD_MIN, SDRAM_TRC - SDRAM_TRCD_MIN - SDRAM_TRP)
+#define SDRAM_TWR        SDRAM_MAX(SDRAM_TWR_DEVICE, SDRAM_TWR_FMC)
+
+/* FMC supports 1..16 cycles */
+#if SDRAM_TRP > 16
+#error "EMI: SDRAM tRP exceeds 16 cycles!"
+#endif
+#if SDRAM_TRC > 16
+#error "EMI: SDRAM tRC exceeds 16 cycles!"
+#endif
+#if SDRAM_TRAS > 16
+#error "EMI: SDRAM tRAS exceeds 16 cycles!"
+#endif
+#if SDRAM_TXSR > 16
+#error "EMI: SDRAM tXSR exceeds 16 cycles!"
+#endif
+#if SDRAM_TWR > 16
+#error "EMI: SDRAM tWR exceeds 16 cycles!"
+#endif
+#if (SDRAM_TMRD < 1) or (SDRAM_TMRD > 16)
+#error "EMI: SDRAM tMRD out of range 1..16 cycles!"
+#endif
+#if __EMI_SDRAM_1_ENABLE__ and (SDRAM_1_TRCD > 16)
+#error "EMI: SDRAM1 tRCD exceeds 16 cycles!"
+#endif
+#if __EMI_SDRAM_2_ENABLE__ and (SDRAM_2_TRCD > 16)
+#error "EMI: SDRAM2 tRCD exceeds 16 cycles!"
+#endif
+#endif
+
 /*==============================================================================
   Local object types
 ==============================================================================*/
@@ -443,12 +504,12 @@ static void sdram_wait_while_busy(void)
 
 //==============================================================================
 /**
- * @brief  Calcualte SDRAM refresh rate.
+ * @brief  Get FMC kernel clock frequency.
  *
- * @return Calculated refresh rate.
+ * @return Frequency in Hz.
  */
 //==============================================================================
-static u32_t sdram_calculate_refresh_rate(void)
+static u32_t sdram_get_fmc_frequency(void)
 {
         u32_t fmc_freq = 0;
 
@@ -464,6 +525,20 @@ static u32_t sdram_calculate_refresh_rate(void)
 #elif defined(ARCH_stm32h7)
         fmc_freq = LL_RCC_GetFMCClockFreq(LL_RCC_FMC_CLKSOURCE);
 #endif
+
+        return fmc_freq;
+}
+
+//==============================================================================
+/**
+ * @brief  Calcualte SDRAM refresh rate.
+ *
+ * @return Calculated refresh rate.
+ */
+//==============================================================================
+static u32_t sdram_calculate_refresh_rate(void)
+{
+        u32_t fmc_freq = sdram_get_fmc_frequency();
 
         i32_t NR = max((2 << (__EMI_SDRAM_1_NR__ + 10)), (2 << (__EMI_SDRAM_2_NR__ + 10)));
         i32_t MHz = fmc_freq / __EMI_SDRAM_SDCLK__ / 1000000;
@@ -489,22 +564,19 @@ static int sdram_init(void)
         FMC_ENABLE();
 
         /*
+         * Timings are calculated for the configured frequency. A higher real
+         * frequency means that delays are too short.
+         */
+        u32_t sdclk = sdram_get_fmc_frequency() / __EMI_SDRAM_SDCLK__;
+        if (sdclk > (__EMI_SDRAM_FREQ_MHZ__ * 1000000UL)) {
+                dev_dbg2(0, 0, "SDRAM clock %lu Hz is higher than configured %u MHz!", sdclk, __EMI_SDRAM_FREQ_MHZ__);
+        }
+
+        /*
          * 1. Program the memory device features into the FMC_SDCRx register.
          *    The SDRAM clock frequency, RBURST and RPIPE must be programmed
          *    in the FMC_SDCR1 register.
          */
-#if __EMI_SDRAM_1_ENABLE__ > 0
-        if (__EMI_SDRAM_TWR__ < __EMI_SDRAM_TRAS__ - __EMI_SDRAM_1_TRCD__) {
-                dev_dbg2(0, 0, "SDRAM1 invalid tWR value!");
-        }
-#endif
-
-#if __EMI_SDRAM_2_ENABLE__ > 0
-        if (__EMI_SDRAM_TWR__ < __EMI_SDRAM_TRAS__ - __EMI_SDRAM_2_TRCD__) {
-                dev_dbg2(0, 0, "SDRAM2 invalid tWR value!");
-        }
-#endif
-
         FMC_BANK_5_6->SDCR[0] = ((__EMI_SDRAM_RPIPE__ & 3) << FMC_SDCRx_RPIPE_Pos) |
                 ((__EMI_SDRAM_RBURST__ & 1) << FMC_SDCRx_RBURST_Pos) |
                 ((__EMI_SDRAM_SDCLK__ & 3) << FMC_SDCRx_SDCLK_Pos) | ((__EMI_SDRAM_CAS__ & 3) << FMC_SDCRx_CAS_Pos) |
@@ -523,21 +595,15 @@ static int sdram_init(void)
          *    register.
          *
          */
-        FMC_BANK_5_6->SDTR[0] = (((__EMI_SDRAM_1_TRCD__ - 1) & 0xF) << FMC_SDTRx_TRCD_Pos) |
-                (((__EMI_SDRAM_TRP__ - 1) & 0xF) << FMC_SDTRx_TRP_Pos) |
-                (((__EMI_SDRAM_TWR__ - 1) & 0xF) << FMC_SDTRx_TWR_Pos) |
-                (((__EMI_SDRAM_TRC__ - 1) & 0xF) << FMC_SDTRx_TRC_Pos) |
-                (((__EMI_SDRAM_TRAS__ - 1) & 0xF) << FMC_SDTRx_TRAS_Pos) |
-                (((__EMI_SDRAM_TXSR__ - 1) & 0xF) << FMC_SDTRx_TXSR_Pos) |
-                (((__EMI_SDRAM_TMRD__ - 1) & 0xF) << FMC_SDTRx_TMRD_Pos);
+        FMC_BANK_5_6->SDTR[0] = (((SDRAM_1_TRCD - 1) & 0xF) << FMC_SDTRx_TRCD_Pos) |
+                (((SDRAM_TRP - 1) & 0xF) << FMC_SDTRx_TRP_Pos) | (((SDRAM_TWR - 1) & 0xF) << FMC_SDTRx_TWR_Pos) |
+                (((SDRAM_TRC - 1) & 0xF) << FMC_SDTRx_TRC_Pos) | (((SDRAM_TRAS - 1) & 0xF) << FMC_SDTRx_TRAS_Pos) |
+                (((SDRAM_TXSR - 1) & 0xF) << FMC_SDTRx_TXSR_Pos) | (((SDRAM_TMRD - 1) & 0xF) << FMC_SDTRx_TMRD_Pos);
 
-        FMC_BANK_5_6->SDTR[1] = (((__EMI_SDRAM_2_TRCD__ - 1) & 0xF) << FMC_SDTRx_TRCD_Pos) |
-                (((__EMI_SDRAM_TRP__ - 1) & 0xF) << FMC_SDTRx_TRP_Pos) |
-                (((__EMI_SDRAM_TWR__ - 1) & 0xF) << FMC_SDTRx_TWR_Pos) |
-                (((__EMI_SDRAM_TRC__ - 1) & 0xF) << FMC_SDTRx_TRC_Pos) |
-                (((__EMI_SDRAM_TRAS__ - 1) & 0xF) << FMC_SDTRx_TRAS_Pos) |
-                (((__EMI_SDRAM_TXSR__ - 1) & 0xF) << FMC_SDTRx_TXSR_Pos) |
-                (((__EMI_SDRAM_TMRD__ - 1) & 0xF) << FMC_SDTRx_TMRD_Pos);
+        FMC_BANK_5_6->SDTR[1] = (((SDRAM_2_TRCD - 1) & 0xF) << FMC_SDTRx_TRCD_Pos) |
+                (((SDRAM_TRP - 1) & 0xF) << FMC_SDTRx_TRP_Pos) | (((SDRAM_TWR - 1) & 0xF) << FMC_SDTRx_TWR_Pos) |
+                (((SDRAM_TRC - 1) & 0xF) << FMC_SDTRx_TRC_Pos) | (((SDRAM_TRAS - 1) & 0xF) << FMC_SDTRx_TRAS_Pos) |
+                (((SDRAM_TXSR - 1) & 0xF) << FMC_SDTRx_TXSR_Pos) | (((SDRAM_TMRD - 1) & 0xF) << FMC_SDTRx_TMRD_Pos);
 
         /* From this point software is sending commands to SDRAM chips.*/
         /*
