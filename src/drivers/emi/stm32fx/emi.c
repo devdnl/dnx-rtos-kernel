@@ -81,6 +81,12 @@ Brief    External Memory Interface
 
 #define FMC_BCRx_RESET_VALUE 0x000030D2
 
+#define SDRAM_BENCH_BURST (8 * sizeof(u32_t))
+#define SDRAM_BENCH_CHUNK (64 * 1024)
+
+#define SDRAM_TEST_SEED         0x2545F491
+#define SDRAM_TEST_RETENTION_MS 500
+
 #if defined(ARCH_stm32f1)
 #error No FMC implementation!
 #elif defined(ARCH_stm32f4)
@@ -398,9 +404,264 @@ API_MOD_STAT(EMI, void *device_handle, struct vfs_dev_stat *device_stat)
 }
 
 #if (__EMI_SDRAM_1_ENABLE__ or __EMI_SDRAM_2_ENABLE__)
+#if __EMI_SDRAM_TEST_ENABLE__ == _YES_
 //==============================================================================
 /**
- * @brief  Function test RAM memory.
+ * @brief  Get CPU core frequency (frequency of the DWT cycle counter).
+ *
+ * @return Frequency in Hz.
+ */
+//==============================================================================
+static u32_t sdram_get_cpu_frequency(void)
+{
+        LL_RCC_ClocksTypeDef freq;
+        LL_RCC_GetSystemClocksFreq(&freq);
+
+#if defined(ARCH_stm32h7)
+        return LL_RCC_CALC_SYSCLK_FREQ(freq.SYSCLK_Frequency, LL_RCC_GetSysPrescaler());
+#else
+        return freq.HCLK_Frequency;
+#endif
+}
+
+//==============================================================================
+/**
+ * @brief  Measure number of CPU cycles of block write or read. Transfers are
+ *         done by 8-word bursts, thus memory is the bottleneck, not the CPU.
+ *         Interrupts are disabled only for a single chunk.
+ *
+ * @param  address      address
+ * @param  size         size (bytes), multiple of SDRAM_BENCH_CHUNK
+ * @param  write        true: write, false: read
+ *
+ * @return Number of CPU cycles.
+ */
+//==============================================================================
+static u64_t sdram_measure_cycles(void *address, size_t size, bool write)
+{
+        u64_t cycles = 0;
+        u32_t *ptr = address;
+
+        for (size_t chunk = 0; chunk < (size / SDRAM_BENCH_CHUNK); chunk++) {
+
+                u32_t n = SDRAM_BENCH_CHUNK / SDRAM_BENCH_BURST;
+
+                sys_critical_section_begin();
+                u32_t start = DWT->CYCCNT;
+
+                if (write) {
+                        /* written values do not matter, registers are only reserved */
+                        __asm volatile("1: stmia %[ptr]!, {r3, r4, r5, r6, r8, r9, r10, r12} \n"
+                                       "   subs %[n], #1                                    \n"
+                                       "   bne 1b                                           \n"
+                                       "   dsb                                              \n"
+                                       : [ptr] "+r"(ptr), [n] "+r"(n)
+                                       :
+                                       : "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r12", "cc", "memory");
+                } else {
+                        __asm volatile("1: ldmia %[ptr]!, {r3, r4, r5, r6, r8, r9, r10, r12} \n"
+                                       "   subs %[n], #1                                    \n"
+                                       "   bne 1b                                           \n"
+                                       "   dsb                                              \n"
+                                       : [ptr] "+r"(ptr), [n] "+r"(n)
+                                       :
+                                       : "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r12", "cc", "memory");
+                }
+
+                cycles += DWT->CYCCNT - start;
+                sys_critical_section_end();
+        }
+
+        return cycles;
+}
+
+//==============================================================================
+/**
+ * @brief  Measure and print SDRAM write and read speed. Memory content is lost.
+ *
+ * @param  address      address
+ * @param  size         size (bytes)
+ */
+//==============================================================================
+static void sdram_benchmark(void *address, size_t size)
+{
+        /* enable cycle counter */
+        SET_BIT(CoreDebug->DEMCR, CoreDebug_DEMCR_TRCENA_Msk);
+#if defined(ARCH_stm32f7) or defined(ARCH_stm32h7)
+        *cast(volatile u32_t *, DWT_BASE + 0xFB0) = 0xC5ACCE55; // unlock DWT (LAR)
+#endif
+        SET_BIT(DWT->CTRL, DWT_CTRL_CYCCNTENA_Msk);
+
+        u64_t cpu_hz = sdram_get_cpu_frequency();
+        u64_t wr = sdram_measure_cycles(address, size, true);
+        u64_t rd = sdram_measure_cycles(address, size, false);
+
+        if (wr and rd) {
+                dev_dbg2(0, 0, "memory write: %u MB/s, read: %u MB/s.", cast(u32_t, size * cpu_hz / wr / 1000000),
+                        cast(u32_t, size * cpu_hz / rd / 1000000));
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Pseudo-random sequence generator (xorshift32).
+ *
+ * @param  x            previous value (not 0)
+ *
+ * @return Next value.
+ */
+//==============================================================================
+static u32_t sdram_random(u32_t x)
+{
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        return x;
+}
+
+//==============================================================================
+/**
+ * @brief  Test data lines (walking one and zero) and address lines (aliasing).
+ *
+ * @param  address      address
+ * @param  size         size (bytes)
+ *
+ * @return One of errno value (errno.h).
+ */
+//==============================================================================
+static int sdram_test_lines(void *address, size_t size)
+{
+        volatile u32_t *mem = address;
+        size_t words = size / sizeof(u32_t);
+
+        /* the second write drives the bus by the opposite value */
+        for (u32_t bit = 1; bit != 0; bit <<= 1) {
+                mem[0] = bit;
+                mem[1] = ~bit;
+                if ((mem[0] != bit) or (mem[1] != ~bit)) {
+                        dev_dbg2(0, 0, "data line error, pattern %08lXh", bit);
+                        return EFAULT;
+                }
+        }
+
+        /* each address line selects a different cell */
+        mem[0] = 0;
+        for (size_t offset = 1; offset < words; offset <<= 1) {
+                mem[offset] = offset;
+        }
+
+        if (mem[0] != 0) {
+                dev_dbg2(0, 0, "address line error @ %p", mem);
+                return EFAULT;
+        }
+
+        for (size_t offset = 1; offset < words; offset <<= 1) {
+                if (mem[offset] != offset) {
+                        dev_dbg2(0, 0, "address line error @ %p", &mem[offset]);
+                        return EFAULT;
+                }
+        }
+
+        return ESUCC;
+}
+
+//==============================================================================
+/**
+ * @brief  Test 8 and 16-bit accesses (byte mask lines).
+ *
+ * @param  address      address
+ *
+ * @return One of errno value (errno.h).
+ */
+//==============================================================================
+static int sdram_test_byte_lanes(void *address)
+{
+        volatile u32_t *mem32 = address;
+        volatile u16_t *mem16 = address;
+        volatile u8_t *mem8 = address;
+
+        mem32[0] = 0xFFFFFFFF;
+        mem32[1] = 0xFFFFFFFF;
+
+        for (u8_t i = 0; i < 4; i++) {
+                mem8[i] = 0x10 + i;
+        }
+
+        mem16[2] = 0x5A01;
+        mem16[3] = 0xA502;
+
+        if ((mem32[0] != 0x13121110) or (mem32[1] != 0xA5025A01)) {
+                dev_dbg2(0, 0, "byte access error @ %p", address);
+                return EFAULT;
+        }
+
+        return ESUCC;
+}
+
+//==============================================================================
+/**
+ * @brief  Write pseudo-random pattern to whole memory.
+ *
+ * @param  address      address
+ * @param  size         size (bytes)
+ * @param  invert       inversion mask of the pattern
+ */
+//==============================================================================
+static void sdram_fill_random(void *address, size_t size, u32_t invert)
+{
+        volatile u32_t *mem = address;
+        u32_t x = SDRAM_TEST_SEED;
+
+        for (size_t i = 0; i < (size / sizeof(u32_t)); i++) {
+                x = sdram_random(x);
+                mem[i] = x ^ invert;
+        }
+}
+
+//==============================================================================
+/**
+ * @brief  Verify pseudo-random pattern. Memory is read by 8-word bursts (LDM),
+ *         interrupts are enabled.
+ *
+ * @param  address      address
+ * @param  size         size (bytes), multiple of SDRAM_BENCH_BURST
+ * @param  invert       inversion mask of the pattern
+ *
+ * @return One of errno value (errno.h).
+ */
+//==============================================================================
+static int sdram_verify_random(void *address, size_t size, u32_t invert)
+{
+        const u32_t *mem = address;
+        u32_t x = SDRAM_TEST_SEED;
+        u32_t buf[SDRAM_BENCH_BURST / sizeof(u32_t)];
+
+        for (size_t n = 0; n < (size / SDRAM_BENCH_BURST); n++) {
+
+                u32_t *dst = buf;
+
+                __asm volatile("ldmia %[src]!, {r3, r4, r5, r6, r8, r9, r10, r12} \n"
+                               "stmia %[dst], {r3, r4, r5, r6, r8, r9, r10, r12}  \n"
+                               : [src] "+r"(mem)
+                               : [dst] "r"(dst)
+                               : "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r12", "memory");
+
+                for (size_t i = 0; i < ARRAY_SIZE(buf); i++) {
+                        x = sdram_random(x);
+                        if (buf[i] != (x ^ invert)) {
+                                dev_dbg2(0, 0, "error @ %p: %08lXh != %08lXh", mem - ARRAY_SIZE(buf) + i, buf[i],
+                                        x ^ invert);
+                                return EFAULT;
+                        }
+                }
+        }
+
+        return ESUCC;
+}
+
+//==============================================================================
+/**
+ * @brief  Function test RAM memory. Memory content is lost.
  *
  * @param  address      address
  * @param  size         size (bytes)
@@ -410,78 +671,36 @@ API_MOD_STAT(EMI, void *device_handle, struct vfs_dev_stat *device_stat)
 //==============================================================================
 static int sdram_test(void *address, size_t size)
 {
-        static const u32_t PATTERN[] = {
-                0x00000000,
-                0xFFFFFFFF,
-                0xAAAAAAAA,
-                0x55555555,
-        };
-
-        int err = 0;
-
         dev_dbg2(0, 0, "memory test @ %p of %u bytes", address, size);
 
-        for (size_t i = 0; not err and (i < ARRAY_SIZE(PATTERN)); i++) {
-
-                u32_t *ptr = address;
-                size_t len = size / sizeof(u32_t);
-
-                while (len) {
-                        *ptr++ = PATTERN[i];
-                        len--;
-                }
-
-                ptr = address;
-                len = size / sizeof(u32_t);
-                while (len) {
-                        if (*ptr != PATTERN[i]) {
-                                dev_dbg2(0, 0, "error @ %p", ptr);
-                                err = EFAULT;
-                                break;
-                        }
-                        ptr++;
-                        len--;
-                }
-        }
-
-        float MB_per_s = 0;
+        int err = sdram_test_lines(address, size);
 
         if (not err) {
-                u32_t *ptr = address;
-                size_t len = size / sizeof(u32_t);
+                err = sdram_test_byte_lanes(address);
+        }
 
-                clock_t tstart = sys_get_uptime_ms();
+        if (not err) {
+                /* data retention: memory is not accessed, only refreshed */
+                sdram_fill_random(address, size, 0);
+                sys_sleep_ms(SDRAM_TEST_RETENTION_MS);
+                err = sdram_verify_random(address, size, 0);
+        }
 
-                while (len) {
-                        *ptr++ = len;
-                        len--;
-                }
-
-                clock_t tstop = sys_get_uptime_ms();
-                MB_per_s = cast(float, (size / (tstop - tstart))) / 1000.0f;
-
-                ptr = address;
-                len = size / sizeof(u32_t);
-                while (len) {
-                        if (*ptr != len) {
-                                dev_dbg2(0, 0, "error @ %p", ptr);
-                                err = EFAULT;
-                                break;
-                        }
-                        ptr++;
-                        len--;
-                }
+        if (not err) {
+                sdram_fill_random(address, size, 0xFFFFFFFF);
+                err = sdram_verify_random(address, size, 0xFFFFFFFF);
         }
 
         if (not err) {
                 dev_dbg2(0, 0, "memory test success.");
-                dev_dbg2(0, 0, "memory transfer: %0.3f MB/s.", MB_per_s);
+                sdram_benchmark(address, size);
         } else {
                 dev_dbg2(0, 0, "memory test failed.");
         }
 
         return err;
 }
+#endif
 
 //==============================================================================
 /**
@@ -695,7 +914,9 @@ static int sdram_init(void)
                 * (8 << (__EMI_SDRAM_1_MWID__))             // Bus width
                 / (8);                                      // Bits per byte
 
+#if __EMI_SDRAM_TEST_ENABLE__ == _YES_
         err1 = sdram_test((void *)mem_addr1, mem_size1);
+#endif
         if (!err1) {
                 err1 = register_heap_regions(mem_addr1, mem_size1, __EMI_SDRAM_1_REGIONS__);
         }
@@ -710,7 +931,9 @@ static int sdram_init(void)
                 * (8 << (__EMI_SDRAM_2_MWID__))             // Bus width
                 / (8);                                      // Bits per byte
 
+#if __EMI_SDRAM_TEST_ENABLE__ == _YES_
         err2 = sdram_test((void *)mem_addr2, mem_size2);
+#endif
         if (!err2) {
                 err1 = register_heap_regions(mem_addr2, mem_size2, __EMI_SDRAM_2_REGIONS__);
         }
